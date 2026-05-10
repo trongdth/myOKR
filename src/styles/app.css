@@ -136,80 +136,181 @@
   padding: 1em 1.5em 2em;
 }
 
-/* ===== RESPONSIVE ===== */
+/* ===== MOBILE TOPBAR (hidden on desktop) ===== */
+.mobile-topbar {
+  display: none;
+}
+
+/* ===== OVERLAY BACKDROP ===== */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ===== HAMBURGER BUTTON ===== */
+.hamburger-btn {
+  display: none;
+}
+
+/* ===== RESPONSIVE — SLIDE-IN DRAWER ===== */
 @media (max-width: 768px) {
+  /* Layout: column so topbar is above content */
   .app-layout {
     flex-direction: column;
   }
 
+  /* Sidebar: fixed, slides in from left */
   .app-sidebar {
-    width: 100%;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    padding: 0.5em;
-    position: sticky;
+    position: fixed;
     top: 0;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    gap: 0;
-    overflow-x: auto;
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    transform: translateX(-220px);
+    transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    border-right: 1px solid var(--border-color);
+    border-bottom: none;
+    flex-direction: column;
+    padding: 1em 0.5em;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Subtle glass effect on mobile */
+    background: rgba(18, 18, 26, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
   }
 
+  /* Sidebar open state */
+  .app-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Restore logo to vertical layout */
   .app-sidebar-logo {
-    margin-bottom: 0;
-    margin-right: 0.75em;
-    padding: 0.4em 0.6em;
-    flex-shrink: 0;
+    margin-bottom: 1.25em;
+    margin-right: 0;
+    padding: 0.5em 0.75em;
   }
 
   .app-sidebar-logo-text {
-    display: none;
+    display: inline;
   }
 
+  /* Nav stays vertical */
   .app-sidebar-nav {
-    flex-direction: row;
+    flex-direction: column;
+    flex: 1;
     gap: 0.2em;
-    flex: 0;
+  }
+
+  /* Nav items keep labels */
+  .sidebar-nav-label {
+    display: inline;
   }
 
   .sidebar-nav-item {
-    padding: 0.55em 0.85em;
-    font-size: 0.85rem;
+    padding: 0.7em 0.85em;
+    font-size: 0.92rem;
     white-space: nowrap;
+    justify-content: flex-start;
   }
 
   .sidebar-nav-item.active::before {
-    left: 50%;
-    top: auto;
-    bottom: 0;
-    transform: translateX(-50%);
-    width: 60%;
-    height: 3px;
-    border-radius: 3px 3px 0 0;
+    left: 0;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    border-radius: 0 3px 3px 0;
   }
 
   .sidebar-divider {
-    display: none;
+    display: block;
   }
 
+  /* Overlay backdrop */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 199;
+    animation: overlay-fade-in 200ms ease forwards;
+  }
+
+  @keyframes overlay-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Main content takes full width */
   .app-main {
-    padding: 1em 1em 2em;
-  }
-}
-
-@media (max-width: 640px) {
-  .sidebar-nav-label {
-    display: none;
+    padding: 0 0 2em;
+    width: 100%;
   }
 
-  .sidebar-nav-item {
-    padding: 0.55em;
+  /* Mobile topbar */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    padding: 0.6em 1em;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .mobile-topbar-logo {
+    font-size: 1rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  .mobile-topbar-logo strong {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Hamburger button */
+  .hamburger-btn {
+    display: flex;
+    flex-direction: column;
     justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 150ms ease, border-color 150ms ease;
   }
 
-  .sidebar-nav-icon {
-    width: 24px;
-    height: 24px;
+  .hamburger-btn:hover {
+    background: var(--bg-card);
+    border-color: var(--accent-cyan);
+  }
+
+  .hamburger-line {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--text-secondary);
+    border-radius: 2px;
+    transition: background 150ms ease;
+  }
+
+  .hamburger-btn:hover .hamburger-line {
+    background: var(--accent-cyan);
   }
 }

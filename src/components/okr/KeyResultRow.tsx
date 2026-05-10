@@ -4,6 +4,7 @@ import type { Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import LinkedTasksBadge from './LinkedTasksBadge';
+import NumberInput from '../NumberInput';
 
 interface Props {
   kr: KeyResult;
@@ -116,23 +117,21 @@ export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
             style={{ width: `${progress}%` }}
           />
         </div>
-        <input
-          type="number"
+        <NumberInput
           className="kr-value-input"
           value={kr.currentValue}
           min={0}
-          onChange={e => updateCurrentValue(parseInt(e.target.value) || 0)}
-          onClick={e => e.stopPropagation()}
+          stopPropagation={true}
+          onChange={val => updateCurrentValue(val)}
           title="Current value"
         />
         <span className="kr-unit">/</span>
-        <input
-          type="number"
+        <NumberInput
           className="kr-value-input"
           value={kr.targetValue}
           min={1}
-          onChange={e => updateTargetValue(parseInt(e.target.value) || 1)}
-          onClick={e => e.stopPropagation()}
+          stopPropagation={true}
+          onChange={val => updateTargetValue(val)}
           title="Target value"
         />
         <span className="kr-unit">{kr.unit}</span>

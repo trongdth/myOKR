@@ -13,6 +13,7 @@ import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
 import { loadKeyResults, getActiveCycle, type KeyResult } from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
+import NumberInput from './NumberInput';
 
 export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analytics' }) {
   // ----- State -----
@@ -357,23 +358,23 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
               <div className="settings-grid">
                 <div className="setting-item">
                   <label className="setting-label">Focus (min)</label>
-                  <input className="setting-input" type="number" min={1} max={120} value={settings.focusDuration}
-                    onChange={e => updateSetting('focusDuration', Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))} />
+                  <NumberInput className="setting-input" min={1} max={120} value={settings.focusDuration}
+                    onChange={val => updateSetting('focusDuration', Math.max(1, Math.min(120, val)))} />
                 </div>
                 <div className="setting-item">
                   <label className="setting-label">Short Break (min)</label>
-                  <input className="setting-input" type="number" min={1} max={30} value={settings.shortBreakDuration}
-                    onChange={e => updateSetting('shortBreakDuration', Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} />
+                  <NumberInput className="setting-input" min={1} max={30} value={settings.shortBreakDuration}
+                    onChange={val => updateSetting('shortBreakDuration', Math.max(1, Math.min(30, val)))} />
                 </div>
                 <div className="setting-item">
                   <label className="setting-label">Long Break (min)</label>
-                  <input className="setting-input" type="number" min={1} max={60} value={settings.longBreakDuration}
-                    onChange={e => updateSetting('longBreakDuration', Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))} />
+                  <NumberInput className="setting-input" min={1} max={60} value={settings.longBreakDuration}
+                    onChange={val => updateSetting('longBreakDuration', Math.max(1, Math.min(60, val)))} />
                 </div>
                 <div className="setting-item">
                   <label className="setting-label">Pomos before long break</label>
-                  <input className="setting-input" type="number" min={1} max={10} value={settings.pomosBeforeLongBreak}
-                    onChange={e => updateSetting('pomosBeforeLongBreak', Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))} />
+                  <NumberInput className="setting-input" min={1} max={10} value={settings.pomosBeforeLongBreak}
+                    onChange={val => updateSetting('pomosBeforeLongBreak', Math.max(1, Math.min(10, val)))} />
                 </div>
                 <div className="setting-item full-width">
                   <div className="toggle-row">

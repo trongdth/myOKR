@@ -1,6 +1,7 @@
 import type { Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
 import type { ReviewEntry, KeyResult, Objective } from '../../lib/okr-storage';
+import NumberInput from '../NumberInput';
 
 interface Props {
   entry: ReviewEntry;
@@ -31,12 +32,11 @@ export default function ReviewStepKR({ entry, keyResult, objective, pomodoroCoun
         <span className="review-kr-arrow">→</span>
         <div className="review-kr-current">
           <span className="review-kr-current-label">Current</span>
-          <input
-            type="number"
+          <NumberInput
             className="review-kr-current-input"
             value={entry.currentValue}
             min={0}
-            onChange={e => onChange({ ...entry, currentValue: parseInt(e.target.value) || 0 })}
+            onChange={val => onChange({ ...entry, currentValue: val })}
           />
         </div>
         <span className="review-kr-target">/ {keyResult.targetValue} {keyResult.unit}</span>

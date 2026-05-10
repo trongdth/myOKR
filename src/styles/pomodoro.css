@@ -530,17 +530,31 @@
 }
 
 .task-est-input {
-  width: 40px;
+  width: 54px;
   height: 30px;
-  padding: 0;
+  padding: 0 2px 0 6px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--text-primary);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   text-align: center;
   box-sizing: border-box;
+  transition: border-color 200ms ease;
+  cursor: pointer;
+}
+
+.task-est-input:hover, .task-est-input:focus {
+  border-color: var(--accent-cyan);
+  outline: none;
+}
+
+.task-est-input::-webkit-inner-spin-button,
+.task-est-input::-webkit-outer-spin-button {
+  opacity: 1;
+  cursor: pointer;
+  height: 26px;
 }
 
 .task-empty {

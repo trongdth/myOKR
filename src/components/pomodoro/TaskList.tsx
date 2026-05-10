@@ -4,6 +4,7 @@ import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import ConfirmModal from '../ConfirmModal';
 import TaskDetailModal from './TaskDetailModal';
+import NumberInput from '../NumberInput';
 
 function truncateDescription(desc: string, maxWords: number = 10): { text: string; truncated: boolean } {
   const words = desc.trim().split(/\s+/);
@@ -362,13 +363,12 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
                   {task.completedPomodoros}/{task.estimatedPomodoros}
                 </span>
               </div>
-              <input
-                type="number"
+              <NumberInput
                 className="task-est-input"
                 value={task.estimatedPomodoros}
                 min={1} max={20}
-                onClick={e => e.stopPropagation()}
-                onChange={e => updateEstimate(task.id, parseInt(e.target.value))}
+                stopPropagation={true}
+                onChange={val => updateEstimate(task.id, val)}
                 title="Estimated pomodoros"
               />
               <div className="task-actions">

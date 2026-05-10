@@ -73,11 +73,26 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
 
 export default function App() {
   const [activeSection, setActiveSection] = useState<Section>('pomodoro-timer');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleNavClick = (id: Section) => {
+    setActiveSection(id);
+    setSidebarOpen(false);
+  };
 
   return (
     <div className="app-layout">
+      {/* Mobile overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="app-sidebar">
+      <aside className={`app-sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
         <div className="app-sidebar-logo">
           <span className="app-sidebar-logo-icon">🎯</span>
           <span className="app-sidebar-logo-text">myOKR</span>
@@ -96,7 +111,7 @@ export default function App() {
               <button
                 key={item.id}
                 className={`sidebar-nav-item${activeSection === item.id ? ' active' : ''}${item.isSubItem ? ' sub-item' : ''}`}
-                onClick={() => setActiveSection(item.id as Section)}
+                onClick={() => handleNavClick(item.id as Section)}
               >
                 <span className="sidebar-nav-icon">{item.icon}</span>
                 <span className="sidebar-nav-label">{item.label}</span>
@@ -108,6 +123,21 @@ export default function App() {
 
       {/* Main content */}
       <main className="app-main">
+        {/* Mobile top bar with hamburger */}
+        <div className="mobile-topbar">
+          <button
+            className="hamburger-btn"
+            onClick={() => setSidebarOpen(v => !v)}
+            aria-label="Toggle navigation"
+            aria-expanded={sidebarOpen}
+          >
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+          </button>
+          <span className="mobile-topbar-logo">🎯 <strong>myOKR</strong></span>
+        </div>
+
         {activeSection.startsWith('pomodoro-') && <PomodoroApp tab={activeSection.replace('pomodoro-', '') as 'timer' | 'tasks' | 'analytics'} />}
         {activeSection === 'okrs' && <OKRApp />}
         {activeSection === 'review' && <ReviewApp />}
