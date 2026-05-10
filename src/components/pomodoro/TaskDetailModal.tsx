@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { PomodoroTask, TodoItem, TaskComment } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
+import ConfirmModal from '../ConfirmModal';
 
 type DetailTab = 'todos' | 'comments';
 
@@ -30,6 +31,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
   const [newTodoText, setNewTodoText] = useState('');
   const [newComment, setNewComment] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'todo' | 'comment', id: string, text?: string } | null>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const commentInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +87,12 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
     });
   };
 
-  const deleteTodo = (id: string) => {
+  const deleteTodoRequest = (id: string) => {
+    const todo = todos.find(t => t.id === id);
+    setDeleteTarget({ type: 'todo', id, text: todo?.text });
+  };
+
+  const executeDeleteTodo = (id: string) => {
     onUpdate({ ...task, todos: todos.filter(t => t.id !== id) });
   };
 
@@ -102,7 +109,14 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
     setNewComment('');
   };
 
-  const deleteComment = (id: string) => {
+  const deleteCommentRequest = (id: string) => {
+    const comment = comments.find(c => c.id === id);
+    // Truncate comment text for modal
+    const text = comment?.text.length && comment.text.length > 50 ? comment.text.slice(0, 50) + '...' : comment?.text;
+    setDeleteTarget({ type: 'comment', id, text });
+  };
+
+  const executeDeleteComment = (id: string) => {
     onUpdate({ ...task, comments: comments.filter(c => c.id !== id) });
   };
 
@@ -238,7 +252,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
                       onClick={() => toggleTodo(todo.id)}
                     >✓</button>
                     <span className="task-detail-todo-text">{todo.text}</span>
-                    <button className="task-action-btn" onClick={() => deleteTodo(todo.id)} title="Delete">✕</button>
+                    <button className="task-action-btn" onClick={() => deleteTodoRequest(todo.id)} title="Delete">✕</button>
                   </div>
                 ))}
               </div>
@@ -275,7 +289,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
                     <div className="task-detail-comment-header">
                       <span className="task-detail-comment-avatar">👤</span>
                       <span className="task-detail-comment-time">{formatRelativeTime(comment.createdAt)}</span>
-                      <button className="task-action-btn task-detail-comment-delete" onClick={() => deleteComment(comment.id)} title="Delete">✕</button>
+                      <button className="task-action-btn task-detail-comment-delete" onClick={() => deleteCommentRequest(comment.id)} title="Delete">✕</button>
                     </div>
                     <div className="task-detail-comment-body">{comment.text}</div>
                   </div>
@@ -285,6 +299,21 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget?.type === 'todo') executeDeleteTodo(deleteTarget.id);
+          else if (deleteTarget?.type === 'comment') executeDeleteComment(deleteTarget.id);
+        }}
+        title={deleteTarget?.type === 'todo' ? 'Delete Sub-task?' : 'Delete Comment?'}
+        message={
+          deleteTarget?.type === 'todo'
+            ? `Are you sure you want to delete "${deleteTarget?.text}"?`
+            : `Are you sure you want to delete this comment: "${deleteTarget?.text}"?`
+        }
+        confirmText="Delete"
+      />
     </div>
   );
 }

@@ -14,8 +14,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { loadKeyResults, getActiveCycle, type KeyResult } from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
 
-type Tab = 'timer' | 'tasks' | 'analytics';
-
 export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analytics' }) {
   // ----- State -----
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);

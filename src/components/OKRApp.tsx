@@ -11,6 +11,7 @@ import { generateId } from '../lib/pomodoro-storage';
 import { loadTasks, type PomodoroTask } from '../lib/pomodoro-storage';
 import CycleSelector from './okr/CycleSelector';
 import ObjectiveCard from './okr/ObjectiveCard';
+import ConfirmModal from './ConfirmModal';
 
 export default function OKRApp() {
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +21,7 @@ export default function OKRApp() {
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
   const [newObjTitle, setNewObjTitle] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'objective' | 'kr', id: string, title?: string } | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -105,8 +107,12 @@ export default function OKRApp() {
     saveObjectives(next);
   };
 
-  const deleteObjective = (id: string) => {
-    if (!confirm('Delete this objective and all its key results?')) return;
+  const deleteObjectiveRequest = (id: string) => {
+    const obj = objectives.find(o => o.id === id);
+    setDeleteTarget({ type: 'objective', id, title: obj?.title });
+  };
+
+  const executeDeleteObjective = (id: string) => {
     const next = objectives.filter(o => o.id !== id);
     const nextKRs = keyResults.filter(kr => kr.objectiveId !== id);
     setObjectives(next);
@@ -128,7 +134,12 @@ export default function OKRApp() {
     saveKeyResults(next);
   };
 
-  const deleteKeyResult = (id: string) => {
+  const deleteKeyResultRequest = (id: string) => {
+    const kr = keyResults.find(k => k.id === id);
+    setDeleteTarget({ type: 'kr', id, title: kr?.title });
+  };
+
+  const executeDeleteKeyResult = (id: string) => {
     const next = keyResults.filter(kr => kr.id !== id);
     setKeyResults(next);
     saveKeyResults(next);
@@ -180,9 +191,9 @@ export default function OKRApp() {
           keyResults={keyResults}
           tasks={tasks}
           onUpdateObjective={updateObjective}
-          onDeleteObjective={deleteObjective}
+          onDeleteObjective={deleteObjectiveRequest}
           onUpdateKeyResult={updateKeyResult}
-          onDeleteKeyResult={deleteKeyResult}
+          onDeleteKeyResult={deleteKeyResultRequest}
           onAddKeyResult={addKeyResult}
         />
       ))}
@@ -198,6 +209,22 @@ export default function OKRApp() {
         />
         <button className="okr-add-btn" onClick={addObjective}>+ Add Objective</button>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget?.type === 'objective') executeDeleteObjective(deleteTarget.id);
+          else if (deleteTarget?.type === 'kr') executeDeleteKeyResult(deleteTarget.id);
+        }}
+        title={deleteTarget?.type === 'objective' ? 'Delete Objective?' : 'Delete Key Result?'}
+        message={
+          deleteTarget?.type === 'objective'
+            ? `Are you sure you want to delete "${deleteTarget?.title}" and all its key results? This cannot be undone.`
+            : `Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`
+        }
+        confirmText="Delete"
+      />
     </div>
   );
 }

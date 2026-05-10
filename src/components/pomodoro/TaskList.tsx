@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
-import DeleteConfirmModal from './DeleteConfirmModal';
+import ConfirmModal from '../ConfirmModal';
 import TaskDetailModal from './TaskDetailModal';
 
 function truncateDescription(desc: string, maxWords: number = 10): { text: string; truncated: boolean } {
@@ -424,11 +424,15 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
 
       <EisenhowerLegend />
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={!!taskToDelete}
         onClose={() => setTaskToDelete(null)}
         onConfirm={confirmDelete}
-        taskTitle={taskToDelete?.title || ''}
+        title="Delete Task?"
+        message={
+          <>Are you sure you want to delete "<strong>{taskToDelete?.title}</strong>"? This action cannot be undone.</>
+        }
+        confirmText="Delete"
       />
 
       {detailTask && (
