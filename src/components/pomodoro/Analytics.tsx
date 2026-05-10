@@ -5,10 +5,11 @@ interface Props {
   history: DailyRecord[];
   tasks: PomodoroTask[];
   onExport: () => void;
+  onImport: () => void;
   onClear: () => void;
 }
 
-export default function Analytics({ history, tasks, onExport, onClear }: Props) {
+export default function Analytics({ history, tasks, onExport, onImport, onClear }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const todayRecord = history.find(r => r.date === today);
 
@@ -77,6 +78,7 @@ export default function Analytics({ history, tasks, onExport, onClear }: Props) 
         <h3>📊 Analytics</h3>
         <div className="analytics-actions">
           <button className="btn-sm" onClick={onExport}>Export JSON</button>
+          <button className="btn-sm" onClick={onImport}>Import JSON</button>
           <button className="btn-sm danger" onClick={onClear}>Clear Data</button>
         </div>
       </div>

@@ -11,6 +11,8 @@ import TaskList from './pomodoro/TaskList';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
+import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { loadKeyResults, getActiveCycle, type KeyResult } from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
@@ -31,6 +33,8 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const [showPrioritizeModal, setShowPrioritizeModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+  const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
+  const [importData, setImportData] = useState<{ settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[] } | null>(null);
   const intervalRef = useRef<number | null>(null);
   const sessionStartRef = useRef<string | null>(null);
 
@@ -249,13 +253,48 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const handleTasksChange = (t: PomodoroTask[]) => { setTasks(t); saveTasks(t); };
 
   // ----- Analytics handlers -----
-  const handleExport = () => {
+  const handleExport = async () => {
+    const filePath = await saveDialog({
+      defaultPath: `pomodoro-data-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (!filePath) return;
     const data = { settings, tasks, history, exportedAt: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `pomodoro-data-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
+    await writeTextFile(filePath, JSON.stringify(data, null, 2));
+  };
+
+  const handleImport = async () => {
+    const filePath = await openDialog({
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      multiple: false,
+    });
+    if (!filePath) return;
+    try {
+      const content = await readTextFile(filePath as string);
+      const data = JSON.parse(content);
+      if (!data.settings || !data.tasks || !data.history) return;
+      setImportData(data);
+      setIsConfirmImportOpen(true);
+    } catch { /* invalid file */ }
+  };
+
+  const executeImport = async () => {
+    if (!importData) return;
+    const s = importData.settings;
+    setSettings(s);
+    saveSettings(s);
+    setTasks(importData.tasks);
+    saveTasks(importData.tasks);
+    setHistory(importData.history);
+    saveHistory(importData.history);
+    setImportData(null);
+    setCompletedPomos(0);
+    setSessionType('focus');
+    setTimeLeft(s.focusDuration * 60);
+    setIsRunning(false);
+    sessionStartRef.current = null;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    await clearTimerState();
   };
 
   const handleClearRequest = () => {
@@ -434,7 +473,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
 
       {/* Analytics Tab */}
       {tab === 'analytics' && (
-        <Analytics history={history} tasks={tasks} onExport={handleExport} onClear={handleClearRequest} />
+        <Analytics history={history} tasks={tasks} onExport={handleExport} onImport={handleImport} onClear={handleClearRequest} />
       )}
 
       <ConfirmModal
@@ -442,8 +481,17 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
         onClose={() => setIsConfirmClearOpen(false)}
         onConfirm={executeClear}
         title="Clear Data"
-        message="Clear all Pomodoro data? This cannot be undone."
+        message="Clear all Pomodoro history data? Your tasks and settings will be kept. This cannot be undone."
         confirmText="Clear"
+      />
+      <ConfirmModal
+        isOpen={isConfirmImportOpen}
+        onClose={() => { setIsConfirmImportOpen(false); setImportData(null); }}
+        onConfirm={executeImport}
+        title="Import Data"
+        message="This will replace all your current settings, tasks, and history with the imported data. This cannot be undone."
+        confirmText="Import"
+        danger={false}
       />
     </div>
   );

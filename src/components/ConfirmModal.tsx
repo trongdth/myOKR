@@ -41,7 +41,7 @@ export default function ConfirmModal({
           {message}
         </div>
         <div className="prioritize-actions" style={{ gap: '0.75em' }}>
-          <button className="btn" onClick={onClose} style={{ background: 'var(--bg-tertiary)', flex: 1 }}>
+          <button className="btn confirm-cancel-btn" onClick={onClose} style={{ background: 'var(--bg-tertiary)', flex: 1 }}>
             {cancelText}
           </button>
           <button 

@@ -803,6 +803,15 @@
 
 .report-table td {
   color: var(--text-secondary);
+  padding: 0.85em 0.75em;
+}
+
+/* Confirm modal cancel button — neutralize .btn hover glow */
+.confirm-cancel-btn:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 /* ===== RESPONSIVE ===== */
