@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { PomodoroTask, TodoItem, TaskComment } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
+import type { KeyResult } from '../../lib/okr-storage';
 import ConfirmModal from '../ConfirmModal';
 
 type DetailTab = 'todos' | 'comments';
@@ -9,6 +10,7 @@ interface Props {
   task: PomodoroTask;
   onUpdate: (updated: PomodoroTask) => void;
   onClose: () => void;
+  keyResults?: KeyResult[];
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -25,7 +27,7 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
+export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [] }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [newTodoText, setNewTodoText] = useState('');
@@ -141,6 +143,18 @@ export default function TaskDetailModal({ task, onUpdate, onClose }: Props) {
             </span>
             {task.isCompleted && (
               <span className="task-detail-badge task-detail-badge-done">✅ Done</span>
+            )}
+            {keyResults.length > 0 && (
+              <select
+                className="task-detail-kr-select"
+                value={task.keyResultId || ''}
+                onChange={e => onUpdate({ ...task, keyResultId: e.target.value || undefined })}
+              >
+                <option value="">🎯 No KR</option>
+                {keyResults.map(kr => (
+                  <option key={kr.id} value={kr.id}>{kr.title}</option>
+                ))}
+              </select>
             )}
           </div>
           <button className="prioritize-close" onClick={onClose}>✕</button>

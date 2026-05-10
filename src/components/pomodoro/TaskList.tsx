@@ -440,6 +440,7 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
           task={detailTask}
           onUpdate={handleDetailUpdate}
           onClose={() => setDetailTask(null)}
+          keyResults={keyResults}
         />
       )}
     </div>

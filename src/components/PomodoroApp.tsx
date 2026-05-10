@@ -13,7 +13,12 @@ import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
-import { loadKeyResults, getActiveCycle, type KeyResult } from '../lib/okr-storage';
+import {
+  loadKeyResults, saveKeyResults, getActiveCycle,
+  loadCycles, saveCycles, loadObjectives, saveObjectives,
+  loadReviews, saveReviews,
+  type KeyResult, type OKRCycle, type Objective, type WeeklyReview,
+} from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
 
@@ -34,7 +39,10 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
-  const [importData, setImportData] = useState<{ settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[] } | null>(null);
+  const [importData, setImportData] = useState<{
+    settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
+    cycles?: OKRCycle[]; objectives?: Objective[]; keyResults?: KeyResult[]; reviews?: WeeklyReview[];
+  } | null>(null);
   const intervalRef = useRef<number | null>(null);
   const sessionStartRef = useRef<string | null>(null);
 
@@ -255,11 +263,14 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   // ----- Analytics handlers -----
   const handleExport = async () => {
     const filePath = await saveDialog({
-      defaultPath: `pomodoro-data-${new Date().toISOString().slice(0, 10)}.json`,
+      defaultPath: `myokr-data-${new Date().toISOString().slice(0, 10)}.json`,
       filters: [{ name: 'JSON', extensions: ['json'] }],
     });
     if (!filePath) return;
-    const data = { settings, tasks, history, exportedAt: new Date().toISOString() };
+    const [cycles, objectives, krs, reviews] = await Promise.all([
+      loadCycles(), loadObjectives(), loadKeyResults(), loadReviews(),
+    ]);
+    const data = { settings, tasks, history, cycles, objectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
     await writeTextFile(filePath, JSON.stringify(data, null, 2));
   };
 
@@ -287,6 +298,10 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
     saveTasks(importData.tasks);
     setHistory(importData.history);
     saveHistory(importData.history);
+    if (importData.cycles) { saveCycles(importData.cycles); }
+    if (importData.objectives) { saveObjectives(importData.objectives); }
+    if (importData.keyResults) { saveKeyResults(importData.keyResults); setKeyResults(importData.keyResults); }
+    if (importData.reviews) { saveReviews(importData.reviews); }
     setImportData(null);
     setCompletedPomos(0);
     setSessionType('focus');
