@@ -1,0 +1,193 @@
+import { useState, useMemo } from 'react';
+import type { ReviewEntry, WeeklyReview, KeyResult, Objective } from '../../lib/okr-storage';
+import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
+import ReviewStepKR from './ReviewStepKR';
+
+interface Props {
+  weekStart: string;
+  weekEnd: string;
+  cycleId: string;
+  objectives: Objective[];
+  keyResults: KeyResult[];
+  tasks: PomodoroTask[];
+  history: DailyRecord[];
+  onComplete: (review: Omit<WeeklyReview, 'id'>) => void;
+  onCancel: () => void;
+}
+
+export default function ReviewWizard({
+  weekStart, weekEnd, cycleId,
+  objectives, keyResults, tasks, history,
+  onComplete, onCancel,
+}: Props) {
+  // Build list of KRs to review (only those belonging to objectives in the active cycle)
+  const cycleObjectives = objectives.filter(o => o.cycleId === cycleId);
+  const cycleKRs = keyResults.filter(kr =>
+    cycleObjectives.some(o => o.id === kr.objectiveId)
+  );
+
+  // Steps: 0 = summary, 1..N = KR steps, N+1 = reflection
+  const totalSteps = cycleKRs.length + 2; // summary + KR steps + reflection
+  const [currentStep, setCurrentStep] = useState(0);
+  const [entries, setEntries] = useState<ReviewEntry[]>(() =>
+    cycleKRs.map(kr => ({
+      keyResultId: kr.id,
+      previousValue: kr.currentValue,
+      currentValue: kr.currentValue,
+      confidence: kr.confidence === 'not_set' ? 'on_track' : kr.confidence,
+    }))
+  );
+  const [reflection, setReflection] = useState('');
+
+  // Compute Pomodoro stats for this week
+  const pomodoroStats = useMemo(() => {
+    const weekDays = history.filter(r => r.date >= weekStart && r.date <= weekEnd);
+    const totalPomodoros = weekDays.reduce((s, d) => s + d.completedPomodoros, 0);
+    const totalFocusMinutes = weekDays.reduce((s, d) => s + d.totalFocusMinutes, 0);
+    const tasksCompleted = tasks.filter(t =>
+      t.isCompleted && t.completedAt && t.completedAt >= weekStart && t.completedAt <= weekEnd
+    ).length;
+
+    // Pomodoros by KR
+    const pomodorosByKeyResult: Record<string, number> = {};
+    for (const kr of cycleKRs) {
+      const linkedTasks = tasks.filter(t => t.keyResultId === kr.id);
+      pomodorosByKeyResult[kr.id] = linkedTasks.reduce((s, t) => s + t.completedPomodoros, 0);
+    }
+
+    return { totalPomodoros, totalFocusMinutes, tasksCompleted, pomodorosByKeyResult };
+  }, [weekStart, weekEnd, history, tasks, cycleKRs]);
+
+  const updateEntry = (idx: number, updated: ReviewEntry) => {
+    const next = [...entries];
+    next[idx] = updated;
+    setEntries(next);
+  };
+
+  const handleComplete = () => {
+    onComplete({
+      weekStartDate: weekStart,
+      weekEndDate: weekEnd,
+      cycleId,
+      completedAt: new Date().toISOString(),
+      entries,
+      reflection: reflection.trim() || undefined,
+      pomodoroStats,
+    });
+  };
+
+  const isSummaryStep = currentStep === 0;
+  const isReflectionStep = currentStep === totalSteps - 1;
+  const krStepIndex = currentStep - 1; // 0-based index into cycleKRs
+
+  return (
+    <div className="review-wizard">
+      {/* Header */}
+      <div className="review-wizard-header">
+        <span className="review-wizard-title">
+          📋 Weekly Review — Week of {weekStart}
+        </span>
+        <span className="review-wizard-step-info">
+          Step {currentStep + 1} of {totalSteps}
+        </span>
+      </div>
+
+      {/* Step indicator */}
+      <div className="review-step-indicator">
+        {Array.from({ length: totalSteps }, (_, i) => (
+          <div
+            key={i}
+            className={`review-step-dot${i < currentStep ? ' completed' : ''}${i === currentStep ? ' current' : ''}`}
+          />
+        ))}
+      </div>
+
+      {/* Step content */}
+      <div className="review-step-content" key={currentStep}>
+        {/* Summary step */}
+        {isSummaryStep && (
+          <div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1em' }}>
+              📊 This Week's Summary
+            </div>
+            <div className="review-stats-grid">
+              <div className="review-stat-card">
+                <div className="review-stat-icon">🍅</div>
+                <div className="review-stat-value">{pomodoroStats.totalPomodoros}</div>
+                <div className="review-stat-label">Pomodoros</div>
+              </div>
+              <div className="review-stat-card">
+                <div className="review-stat-icon">⏱️</div>
+                <div className="review-stat-value">{pomodoroStats.totalFocusMinutes}m</div>
+                <div className="review-stat-label">Focus Time</div>
+              </div>
+              <div className="review-stat-card">
+                <div className="review-stat-icon">✅</div>
+                <div className="review-stat-value">{pomodoroStats.tasksCompleted}</div>
+                <div className="review-stat-label">Tasks Done</div>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              You'll now review each of your <strong style={{ color: 'var(--text-primary)' }}>{cycleKRs.length} key result{cycleKRs.length !== 1 ? 's' : ''}</strong> to
+              update progress and assess confidence. Let's go!
+            </div>
+          </div>
+        )}
+
+        {/* KR steps */}
+        {!isSummaryStep && !isReflectionStep && krStepIndex >= 0 && krStepIndex < cycleKRs.length && (
+          <ReviewStepKR
+            entry={entries[krStepIndex]}
+            keyResult={cycleKRs[krStepIndex]}
+            objective={cycleObjectives.find(o => o.id === cycleKRs[krStepIndex].objectiveId)!}
+            pomodoroCount={pomodoroStats.pomodorosByKeyResult[cycleKRs[krStepIndex].id] || 0}
+            linkedTaskCount={tasks.filter(t => t.keyResultId === cycleKRs[krStepIndex].id).length}
+            onChange={updated => updateEntry(krStepIndex, updated)}
+          />
+        )}
+
+        {/* Reflection step */}
+        {isReflectionStep && (
+          <div className="review-reflection">
+            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5em' }}>
+              💭 Overall Reflection
+            </div>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '1em', lineHeight: 1.5 }}>
+              What went well this week? What could be improved? Any goals for next week?
+            </div>
+            <textarea
+              className="review-notes-textarea"
+              value={reflection}
+              onChange={e => setReflection(e.target.value)}
+              placeholder="Write your overall reflection for this week..."
+              rows={5}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <div className="review-wizard-nav">
+        <button
+          className="review-nav-btn"
+          onClick={currentStep === 0 ? onCancel : () => setCurrentStep(currentStep - 1)}
+        >
+          {currentStep === 0 ? 'Cancel' : '← Previous'}
+        </button>
+        {isReflectionStep ? (
+          <button className="review-nav-btn primary" onClick={handleComplete}>
+            ✅ Complete Review
+          </button>
+        ) : (
+          <button
+            className="review-nav-btn primary"
+            onClick={() => setCurrentStep(currentStep + 1)}
+            disabled={cycleKRs.length === 0 && currentStep === 0}
+          >
+            Next →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
