@@ -637,6 +637,10 @@
 }
 
 @media (max-width: 640px) {
+  .review-container {
+    padding: 0.5em 1em 3em;
+  }
+
   .review-stats-grid {
     grid-template-columns: 1fr;
   }

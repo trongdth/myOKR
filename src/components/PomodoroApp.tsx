@@ -276,13 +276,20 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
 
     if (isRunning) {
       document.title = `${timerText} — ${sessionLabel}`;
-      // Update system tray
-      invoke('update_tray_title', { text: `${timerText} ${sessionLabel}` }).catch(() => {});
     } else {
       document.title = 'myOKR — Pomodoro Timer';
-      invoke('update_tray_title', { text: '🍅 myOKR' }).catch(() => {});
     }
-    return () => { document.title = 'myOKR — Pomodoro Timer'; };
+
+    // Consistently update tray title with current time
+    invoke('update_tray_title', { 
+      title: timerText, 
+      tooltip: isRunning ? `${timerText} — ${sessionLabel}` : `Ready to ${sessionLabel} (${timerText})`
+    }).catch(() => {});
+
+    return () => { 
+      document.title = 'myOKR — Pomodoro Timer';
+      invoke('reset_tray').catch(() => {});
+    };
   }, [isRunning, minutes, seconds, sessionType]);
 
   const isBreak = sessionType !== 'focus';

@@ -823,6 +823,10 @@
 }
 
 @media (max-width: 640px) {
+  .pomodoro-container {
+    padding: 1em 1em 3em;
+  }
+
   .timer-ring-container {
     width: 320px;
     height: 320px;

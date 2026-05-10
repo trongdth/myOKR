@@ -2,13 +2,31 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager,
 };
+use tauri::image::Image;
 
-// Tauri command: update the system tray tooltip with timer info
+/// Update the tray title (native text) and ensure it uses the default app icon.
 #[tauri::command]
-fn update_tray_title(app: tauri::AppHandle, text: String) {
+fn update_tray_title(app: tauri::AppHandle, title: String, tooltip: String) {
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&text));
-        let _ = tray.set_title(Some(&text));
+        if let Some(icon) = app.default_window_icon() {
+            let _ = tray.set_icon(Some(icon.clone()));
+            let _ = tray.set_icon_as_template(true);
+        }
+        let _ = tray.set_title(Some(&title));
+        let _ = tray.set_tooltip(Some(&tooltip));
+    }
+}
+
+/// Reset tray to default state (usually called on unmount).
+#[tauri::command]
+fn reset_tray(app: tauri::AppHandle) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        if let Some(icon) = app.default_window_icon() {
+            let _ = tray.set_icon(Some(icon.clone()));
+            let _ = tray.set_icon_as_template(true);
+        }
+        let _ = tray.set_title(None::<&str>);
+        let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
     }
 }
 
@@ -23,7 +41,6 @@ pub fn run() {
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().cloned().unwrap())
                 .tooltip("myOKR — Pomodoro Timer")
-                .title("🍅")
                 .on_tray_icon_event(|tray, event| {
                     if let tauri::tray::TrayIconEvent::Click {
                         button: tauri::tray::MouseButton::Left,
@@ -49,7 +66,7 @@ pub fn run() {
                 window.hide().unwrap();
             }
         })
-        .invoke_handler(tauri::generate_handler![update_tray_title])
+        .invoke_handler(tauri::generate_handler![update_tray_title, reset_tray])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

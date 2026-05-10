@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 export interface NumberInputProps {
   value: number;
   min?: number;
@@ -17,11 +19,17 @@ export default function NumberInput({
   title,
   stopPropagation,
 }: NumberInputProps) {
+  const [internalValue, setInternalValue] = useState<string>(value.toString());
+
+  useEffect(() => {
+    setInternalValue(value.toString());
+  }, [value]);
+
   return (
     <input
       type="number"
       className={className}
-      value={value}
+      value={internalValue}
       min={min}
       max={max}
       onClick={(e) => {
@@ -30,9 +38,15 @@ export default function NumberInput({
         }
       }}
       onChange={(e) => {
+        setInternalValue(e.target.value);
         const parsed = parseInt(e.target.value);
         if (!isNaN(parsed)) {
           onChange(parsed);
+        }
+      }}
+      onBlur={() => {
+        if (internalValue === '') {
+          setInternalValue(value.toString());
         }
       }}
       title={title}
