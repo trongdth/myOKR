@@ -49,7 +49,9 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const progress = kr.targetValue > 0 ? Math.min(100, (effectiveCurrent / kr.targetValue) * 100) : 0;
   const meta = CONFIDENCE_META[kr.confidence];
   const modeMeta = COMPLETION_MODE_META[mode];
-  const isAutoMode = mode !== 'manual';
+  const canShowPopover = mode === 'manual' || mode === 'focus_pomodoros' || mode === 'completed_tasks';
+  const showCurrentAdjuster = mode === 'manual';
+  const showTargetAdjuster = mode === 'focus_pomodoros' || mode === 'completed_tasks';
 
   const saveTitle = () => {
     const t = titleDraft.trim();
@@ -81,12 +83,19 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   };
 
   const saveValuePopover = () => {
-    onUpdate({
-      ...kr,
-      currentValue: Math.max(0, tempCurrent),
-      targetValue: Math.max(1, tempTarget),
-      updatedAt: new Date().toISOString(),
-    });
+    if (showCurrentAdjuster) {
+      onUpdate({
+        ...kr,
+        currentValue: Math.max(0, Math.min(kr.targetValue, tempCurrent)),
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      onUpdate({
+        ...kr,
+        targetValue: Math.max(1, tempTarget),
+        updatedAt: new Date().toISOString(),
+      });
+    }
     setShowValuePopover(false);
   };
 
@@ -176,8 +185,8 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
         <div style={{ position: 'relative' }} ref={valueRef}>
           <div
             className="kr-progress-line"
-            onClick={e => { e.stopPropagation(); if (!isAutoMode) openValuePopover(); }}
-            style={{ cursor: isAutoMode ? 'default' : 'pointer' }}
+            onClick={e => { e.stopPropagation(); if (canShowPopover) openValuePopover(); }}
+            style={{ cursor: canShowPopover ? 'pointer' : 'default' }}
           >
             <span className="kr-progress-text">
               {effectiveCurrent} / {kr.targetValue} {displayUnit}
@@ -192,25 +201,31 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
               {progress.toFixed(1)}%
             </span>
           </div>
-          {showValuePopover && !isAutoMode && (
+          {showValuePopover && canShowPopover && (
             <div className="kr-value-popover" onClick={e => e.stopPropagation()}>
-              <div className="kr-popover-title">Adjust Values</div>
-              <div className="kr-popover-field">
-                <label>Current</label>
-                <div className="kr-popover-counter">
-                  <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.max(0, tempCurrent - 1))}>−</button>
-                  <span className="kr-counter-value">{tempCurrent}</span>
-                  <button className="kr-counter-btn" onClick={() => setTempCurrent(tempCurrent + 1)}>+</button>
-                </div>
+              <div className="kr-popover-title">
+                {showCurrentAdjuster ? 'Adjust Current' : 'Adjust Target'}
               </div>
-              <div className="kr-popover-field">
-                <label>Target</label>
-                <div className="kr-popover-counter">
-                  <button className="kr-counter-btn" onClick={() => setTempTarget(Math.max(1, tempTarget - 1))}>−</button>
-                  <span className="kr-counter-value">{tempTarget}</span>
-                  <button className="kr-counter-btn" onClick={() => setTempTarget(tempTarget + 1)}>+</button>
+              {showCurrentAdjuster && (
+                <div className="kr-popover-field">
+                  <label>Current</label>
+                  <div className="kr-popover-counter">
+                    <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.max(0, tempCurrent - 1))}>−</button>
+                    <span className="kr-counter-value">{tempCurrent}</span>
+                    <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.min(kr.targetValue, tempCurrent + 1))}>+</button>
+                  </div>
                 </div>
-              </div>
+              )}
+              {showTargetAdjuster && (
+                <div className="kr-popover-field">
+                  <label>Target</label>
+                  <div className="kr-popover-counter">
+                    <button className="kr-counter-btn" onClick={() => setTempTarget(Math.max(1, tempTarget - 1))}>−</button>
+                    <span className="kr-counter-value">{tempTarget}</span>
+                    <button className="kr-counter-btn" onClick={() => setTempTarget(tempTarget + 1)}>+</button>
+                  </div>
+                </div>
+              )}
               <div className="kr-popover-actions">
                 <button className="kr-popover-cancel" onClick={() => setShowValuePopover(false)}>Cancel</button>
                 <button className="kr-popover-confirm" onClick={saveValuePopover}>Confirm</button>

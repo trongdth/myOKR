@@ -28,7 +28,7 @@ export default function ObjectiveCard({
   onDeleteKeyResult,
   onAddKeyResult,
 }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(objective.title);
   const [newKRTitle, setNewKRTitle] = useState('');
@@ -116,7 +116,7 @@ export default function ObjectiveCard({
           {/* Key Results */}
           <div className="kr-list">
             {objKRs.length === 0 && (
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '0.5em 0', fontStyle: 'italic' }}>
+              <div className="kr-empty-state">
                 No key results yet. Add one below to make this objective measurable.
               </div>
             )}

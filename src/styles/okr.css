@@ -418,6 +418,13 @@
   transition: background 200ms ease;
 }
 
+.kr-empty-state {
+  padding: 0.75em 1em;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .kr-row:last-child {
   border-bottom: none;
 }
