@@ -24,6 +24,14 @@
 
 myOKR transforms your workflow by combining the immediate action of a Pomodoro timer with the long-term vision of an OKR (Objectives and Key Results) system. Track your daily tasks and watch them automatically feed into your broader monthly goals.
 
+<div align="center">
+  <img src="screenshots/tasks.png" alt="Tasks View" width="45%" />
+  <img src="screenshots/okrs.png" alt="OKRs View" width="45%" />
+</div>
+<div align="center">
+  <img src="screenshots/analytics.png" alt="Analytics View" width="45%" />
+</div>
+
 ### Built With
 
 [![Tauri][Tauri-badge]][Tauri-url] [![React][React-badge]][React-url] [![TypeScript][TypeScript-badge]][TypeScript-url] [![Vite][Vite-badge]][Vite-url]

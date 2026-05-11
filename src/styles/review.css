@@ -548,6 +548,192 @@
   font-size: 0.9rem;
 }
 
+/* History inline action buttons (inside stats row) */
+.review-history-inline-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4em;
+}
+
+.review-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 200ms ease;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.review-history-card:hover .review-delete-btn {
+  opacity: 1;
+}
+
+.review-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.review-history-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.35em 0.75em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.review-history-action-btn:hover {
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+}
+
+.review-history-action-btn.delete:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* Edit mode */
+.review-history-card.editing {
+  cursor: default;
+  border-color: var(--accent-cyan);
+}
+
+.review-history-edit-entry {
+  padding: 0.75em 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.review-history-edit-entry:last-child {
+  border-bottom: none;
+}
+
+.review-history-edit-entry-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5em;
+}
+
+.review-history-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  margin-bottom: 0.5em;
+}
+
+.review-history-edit-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.review-history-edit-input {
+  flex: 1;
+  padding: 0.4em 0.65em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.review-history-edit-input:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
+.review-history-edit-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex: 1;
+}
+
+.review-history-edit-unit {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.review-history-edit-readonly {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.review-history-edit-auto {
+  font-size: 0.7rem;
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.1);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.review-history-edit-row-note {
+  align-items: flex-start;
+}
+
+.review-history-edit-textarea {
+  flex: 1;
+  padding: 0.5em 0.75em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 50px;
+}
+
+.review-history-edit-textarea:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
+/* Hide stepper arrows on number inputs */
+.review-kr-current-input::-webkit-inner-spin-button,
+.review-kr-current-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.review-kr-current-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.review-history-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+  margin-top: 1em;
+  padding-top: 0.75em;
+  border-top: 1px solid var(--border-color);
+}
+
 /* ===== PROGRESS CHART ===== */
 .progress-chart-container {
   background: var(--bg-card);

@@ -74,6 +74,33 @@ export default function ReviewApp() {
     setShowWizard(false);
   };
 
+  const handleDeleteReview = async (reviewId: string) => {
+    const updatedReviews = reviews.filter(r => r.id !== reviewId);
+    setReviews(updatedReviews);
+    await saveReviews(updatedReviews);
+  };
+
+  const handleEditReview = async (updatedReview: WeeklyReview) => {
+    const updatedReviews = reviews.map(r => r.id === updatedReview.id ? updatedReview : r);
+    setReviews(updatedReviews);
+    await saveReviews(updatedReviews);
+
+    const updatedKRs = keyResults.map(kr => {
+      const entry = updatedReview.entries.find(e => e.keyResultId === kr.id);
+      if (entry) {
+        return {
+          ...kr,
+          currentValue: entry.currentValue,
+          confidence: entry.confidence,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return kr;
+    });
+    setKeyResults(updatedKRs);
+    await saveKeyResults(updatedKRs);
+  };
+
   if (isLoading) {
     return (
       <div className="review-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -159,6 +186,8 @@ export default function ReviewApp() {
         reviews={reviews}
         keyResults={keyResults}
         objectives={objectives}
+        onDelete={handleDeleteReview}
+        onEdit={handleEditReview}
       />
     </div>
   );
