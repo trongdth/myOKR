@@ -3,8 +3,6 @@ import type { KeyResult, CompletionMode } from '../../lib/okr-storage';
 import type { Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
-import LinkedTasksBadge from './LinkedTasksBadge';
-import NumberInput from '../NumberInput';
 
 interface Props {
   kr: KeyResult;
@@ -22,8 +20,12 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const [titleDraft, setTitleDraft] = useState(kr.title);
   const [showConfidencePopup, setShowConfidencePopup] = useState(false);
   const [showModePopup, setShowModePopup] = useState(false);
+  const [showValuePopover, setShowValuePopover] = useState(false);
+  const [tempCurrent, setTempCurrent] = useState(kr.currentValue);
+  const [tempTarget, setTempTarget] = useState(kr.targetValue);
   const confidenceRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<HTMLDivElement>(null);
+  const valueRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -32,6 +34,9 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
       }
       if (modeRef.current && !modeRef.current.contains(e.target as Node)) {
         setShowModePopup(false);
+      }
+      if (valueRef.current && !valueRef.current.contains(e.target as Node)) {
+        setShowValuePopover(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -43,6 +48,8 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const displayUnit = COMPLETION_MODE_META[mode].unit;
   const progress = kr.targetValue > 0 ? Math.min(100, (effectiveCurrent / kr.targetValue) * 100) : 0;
   const meta = CONFIDENCE_META[kr.confidence];
+  const modeMeta = COMPLETION_MODE_META[mode];
+  const isAutoMode = mode !== 'manual';
 
   const saveTitle = () => {
     const t = titleDraft.trim();
@@ -50,16 +57,6 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
       onUpdate({ ...kr, title: t, updatedAt: new Date().toISOString() });
     }
     setEditingTitle(false);
-  };
-
-  const updateCurrentValue = (val: number) => {
-    const clamped = Math.max(0, val);
-    onUpdate({ ...kr, currentValue: clamped, updatedAt: new Date().toISOString() });
-  };
-
-  const updateTargetValue = (val: number) => {
-    const clamped = Math.max(1, val);
-    onUpdate({ ...kr, targetValue: clamped, updatedAt: new Date().toISOString() });
   };
 
   const setConfidence = (c: Confidence) => {
@@ -77,124 +74,151 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
     setShowModePopup(false);
   };
 
+  const openValuePopover = () => {
+    setTempCurrent(kr.currentValue);
+    setTempTarget(kr.targetValue);
+    setShowValuePopover(true);
+  };
+
+  const saveValuePopover = () => {
+    onUpdate({
+      ...kr,
+      currentValue: Math.max(0, tempCurrent),
+      targetValue: Math.max(1, tempTarget),
+      updatedAt: new Date().toISOString(),
+    });
+    setShowValuePopover(false);
+  };
+
   const confidenceClass = kr.confidence === 'not_set' ? 'not-set' : kr.confidence.replace('_', '-');
-  const isAutoMode = mode !== 'manual';
 
   return (
     <div className="kr-row">
-      {/* Confidence indicator */}
-      <div style={{ position: 'relative' }} ref={confidenceRef}>
-        <span
-          className="kr-confidence"
-          onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); }}
-          title={`${meta.label} — Click to change`}
-        >
-          {meta.icon}
-        </span>
-        {showConfidencePopup && (
-          <div className="confidence-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>
-            {CONFIDENCE_CYCLE.filter(c => c !== 'not_set').map(c => (
-              <button
-                key={c}
-                className={`confidence-option${kr.confidence === c ? ' selected' : ''}`}
-                onClick={() => setConfidence(c)}
-              >
-                {CONFIDENCE_META[c].icon} {CONFIDENCE_META[c].label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Title */}
-      {editingTitle ? (
-        <input
-          className="kr-title-input"
-          value={titleDraft}
-          autoFocus
-          onChange={e => setTitleDraft(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
-          onBlur={saveTitle}
-          onClick={e => e.stopPropagation()}
-        />
-      ) : (
-        <span
-          className="kr-title"
-          onDoubleClick={() => { setTitleDraft(kr.title); setEditingTitle(true); }}
-          title="Double-click to edit"
-        >
-          {kr.title}
-        </span>
-      )}
-
-      {/* Linked tasks */}
-      <LinkedTasksBadge tasks={tasks} keyResultId={kr.id} />
-
-      {/* Completion mode */}
-      <div style={{ position: 'relative' }} ref={modeRef}>
-        <span
-          className="kr-mode-badge"
-          onClick={(e) => { e.stopPropagation(); setShowModePopup(!showModePopup); setShowConfidencePopup(false); }}
-          title={`Mode: ${COMPLETION_MODE_META[mode].label} — Click to change`}
-        >
-          {COMPLETION_MODE_META[mode].icon}
-        </span>
-        {showModePopup && (
-          <div className="mode-popup" style={{ top: '100%', right: 0, marginTop: 4 }}>
-            {COMPLETION_MODES.map(m => (
-              <button
-                key={m}
-                className={`mode-option${mode === m ? ' selected' : ''}`}
-                onClick={() => setMode(m)}
-              >
-                {COMPLETION_MODE_META[m].icon} {COMPLETION_MODE_META[m].label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Progress */}
-      <div className="kr-progress-section">
-        <div className="kr-progress-bar">
-          <div
-            className={`kr-progress-fill ${confidenceClass}`}
-            style={{ width: `${progress}%` }}
-          />
+      {/* Line 1: confidence + title + mode badge + delete */}
+      <div className="kr-row-top">
+        <div style={{ position: 'relative' }} ref={confidenceRef}>
+          <span
+            className="kr-confidence"
+            onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); setShowValuePopover(false); }}
+            title={`${meta.label} — Click to change`}
+          >
+            {meta.icon}
+          </span>
+          {showConfidencePopup && (
+            <div className="confidence-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>
+              {CONFIDENCE_CYCLE.filter(c => c !== 'not_set').map(c => (
+                <button
+                  key={c}
+                  className={`confidence-option${kr.confidence === c ? ' selected' : ''}`}
+                  onClick={() => setConfidence(c)}
+                >
+                  {CONFIDENCE_META[c].icon} {CONFIDENCE_META[c].label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <span className={`kr-current-value${isAutoMode ? ' auto' : ''}`}>
-          {isAutoMode ? effectiveCurrent : ''}
-        </span>
-        {!isAutoMode && (
-          <NumberInput
-            className="kr-value-input"
-            value={kr.currentValue}
-            min={0}
-            stopPropagation={true}
-            onChange={val => updateCurrentValue(val)}
-            title="Current value"
+
+        {editingTitle ? (
+          <input
+            className="kr-title-input"
+            value={titleDraft}
+            autoFocus
+            onChange={e => setTitleDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+            onBlur={saveTitle}
+            onClick={e => e.stopPropagation()}
           />
+        ) : (
+          <span
+            className="kr-title"
+            onDoubleClick={() => { setTitleDraft(kr.title); setEditingTitle(true); }}
+            title="Double-click to edit"
+          >
+            {kr.title}
+          </span>
         )}
-        <span className="kr-unit">/</span>
-        <NumberInput
-          className="kr-value-input"
-          value={kr.targetValue}
-          min={1}
-          stopPropagation={true}
-          onChange={val => updateTargetValue(val)}
-          title="Target value"
-        />
-        <span className="kr-unit">{displayUnit}</span>
+
+        <div style={{ position: 'relative' }} ref={modeRef}>
+          <span
+            className="kr-mode-badge-label"
+            onClick={(e) => { e.stopPropagation(); setShowModePopup(!showModePopup); setShowConfidencePopup(false); setShowValuePopover(false); }}
+            title={`Mode: ${modeMeta.label} — Click to change`}
+          >
+            {modeMeta.icon} {modeMeta.label}
+          </span>
+          {showModePopup && (
+            <div className="mode-popup" style={{ top: '100%', right: 0, marginTop: 4 }}>
+              {COMPLETION_MODES.map(m => (
+                <button
+                  key={m}
+                  className={`mode-option${mode === m ? ' selected' : ''}`}
+                  onClick={() => setMode(m)}
+                >
+                  {COMPLETION_MODE_META[m].icon} {COMPLETION_MODE_META[m].label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          className="kr-delete-btn"
+          onClick={e => { e.stopPropagation(); onDelete(kr.id); }}
+          title="Delete key result"
+        >
+          ✕
+        </button>
       </div>
 
-      {/* Delete */}
-      <button
-        className="kr-delete-btn"
-        onClick={e => { e.stopPropagation(); onDelete(kr.id); }}
-        title="Delete key result"
-      >
-        ✕
-      </button>
+      {/* Line 2: progress */}
+      <div className="kr-row-bottom">
+        <div style={{ position: 'relative' }} ref={valueRef}>
+          <div
+            className="kr-progress-line"
+            onClick={e => { e.stopPropagation(); if (!isAutoMode) openValuePopover(); }}
+            style={{ cursor: isAutoMode ? 'default' : 'pointer' }}
+          >
+            <span className="kr-progress-text">
+              {effectiveCurrent} / {kr.targetValue} {displayUnit}
+            </span>
+            <div className="kr-progress-bar">
+              <div
+                className={`kr-progress-fill ${confidenceClass}`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="kr-progress-percent">
+              {progress.toFixed(1)}%
+            </span>
+          </div>
+          {showValuePopover && !isAutoMode && (
+            <div className="kr-value-popover" onClick={e => e.stopPropagation()}>
+              <div className="kr-popover-title">Adjust Values</div>
+              <div className="kr-popover-field">
+                <label>Current</label>
+                <div className="kr-popover-counter">
+                  <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.max(0, tempCurrent - 1))}>−</button>
+                  <span className="kr-counter-value">{tempCurrent}</span>
+                  <button className="kr-counter-btn" onClick={() => setTempCurrent(tempCurrent + 1)}>+</button>
+                </div>
+              </div>
+              <div className="kr-popover-field">
+                <label>Target</label>
+                <div className="kr-popover-counter">
+                  <button className="kr-counter-btn" onClick={() => setTempTarget(Math.max(1, tempTarget - 1))}>−</button>
+                  <span className="kr-counter-value">{tempTarget}</span>
+                  <button className="kr-counter-btn" onClick={() => setTempTarget(tempTarget + 1)}>+</button>
+                </div>
+              </div>
+              <div className="kr-popover-actions">
+                <button className="kr-popover-cancel" onClick={() => setShowValuePopover(false)}>Cancel</button>
+                <button className="kr-popover-confirm" onClick={saveValuePopover}>Confirm</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

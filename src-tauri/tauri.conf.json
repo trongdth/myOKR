@@ -22,11 +22,6 @@
         "decorations": true
       }
     ],
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true,
-      "tooltip": "myOKR — Pomodoro Timer"
-    },
     "security": {
       "csp": null
     }
