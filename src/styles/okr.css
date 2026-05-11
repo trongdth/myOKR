@@ -649,6 +649,97 @@
   font-weight: 600;
 }
 
+/* ===== COMPLETION MODE ===== */
+.kr-mode-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+  flex-shrink: 0;
+}
+
+.kr-mode-badge:hover {
+  transform: scale(1.2);
+}
+
+.mode-popup {
+  position: absolute;
+  z-index: 200;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.4em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: slideDown 150ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 160px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.45em 0.75em;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+}
+
+.mode-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.mode-option.selected {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.kr-current-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: center;
+}
+
+.kr-current-value.auto {
+  opacity: 0.85;
+}
+
+/* Mode select in Add KR form */
+.kr-mode-select {
+  padding: 0.55em 0.65em;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.kr-mode-select:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .okr-header {

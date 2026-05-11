@@ -45,6 +45,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   } | null>(null);
   const intervalRef = useRef<number | null>(null);
   const sessionStartRef = useRef<string | null>(null);
+  const autoStartTimeoutRef = useRef<number | null>(null);
 
   // ----- Load from Tauri Store on mount -----
   useEffect(() => {
@@ -175,7 +176,19 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
         saveTasks(updatedTasks);
       }
 
-      // Update history
+      sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a break.');
+
+      // Auto-transition to break — must happen BEFORE await so state updates batch together
+      const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
+      const nextType: SessionType = isLongBreak ? 'longBreak' : 'shortBreak';
+      setSessionType(nextType);
+      setTimeLeft(isLongBreak ? settings.longBreakDuration * 60 : settings.shortBreakDuration * 60);
+      if (settings.autoStartBreaks) {
+        if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
+        autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
+      }
+
+      // Update history (async, after state transition is applied)
       const h = await loadHistory();
       const todayRec = getTodayRecord(h);
       todayRec.completedPomodoros += 1;
@@ -184,34 +197,25 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
       const newHistory = upsertTodayRecord(h, todayRec);
       setHistory(newHistory);
       saveHistory(newHistory);
-
-      sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a break.');
-
-      // Auto-transition to break
-      const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
-      const nextType: SessionType = isLongBreak ? 'longBreak' : 'shortBreak';
-      setSessionType(nextType);
-      setTimeLeft(isLongBreak ? settings.longBreakDuration * 60 : settings.shortBreakDuration * 60);
-      if (settings.autoStartBreaks) {
-        setTimeout(() => setIsRunning(true), 500);
-      }
     } else {
       // Break completed
       sendNotification('☕ Break Over!', 'Ready to focus again?');
 
-      // Record break session
+      // Auto-transition to focus — must happen BEFORE await so state updates batch together
+      setSessionType('focus');
+      setTimeLeft(settings.focusDuration * 60);
+      if (settings.autoStartFocus) {
+        if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
+        autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
+      }
+
+      // Record break session (async, after state transition is applied)
       const h = await loadHistory();
       const todayRec = getTodayRecord(h);
       todayRec.sessions.push(session);
       const newHistory = upsertTodayRecord(h, todayRec);
       setHistory(newHistory);
       saveHistory(newHistory);
-
-      setSessionType('focus');
-      setTimeLeft(settings.focusDuration * 60);
-      if (settings.autoStartFocus) {
-        setTimeout(() => setIsRunning(true), 500);
-      }
     }
   }, [sessionType, completedPomos, activeTaskId, tasks, settings]);
 
@@ -230,6 +234,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
     setIsRunning(false);
     sessionStartRef.current = null;
     if (intervalRef.current) clearInterval(intervalRef.current);
+    if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setTimeLeft(totalSeconds);
   };
 
@@ -237,6 +242,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
     setIsRunning(false);
     sessionStartRef.current = null;
     if (intervalRef.current) clearInterval(intervalRef.current);
+    if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setSessionType(type);
     const dur = type === 'focus' ? settings.focusDuration
       : type === 'shortBreak' ? settings.shortBreakDuration
@@ -249,12 +255,9 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
     const next = { ...settings, [key]: value };
     setSettings(next);
     saveSettings(next);
-    // If changing the duration of current session and timer hasn't started
-    if (!isRunning && !sessionStartRef.current) {
-      if (key === 'focusDuration' && sessionType === 'focus') setTimeLeft((value as number) * 60);
-      if (key === 'shortBreakDuration' && sessionType === 'shortBreak') setTimeLeft((value as number) * 60);
-      if (key === 'longBreakDuration' && sessionType === 'longBreak') setTimeLeft((value as number) * 60);
-    }
+    if (key === 'focusDuration' && sessionType === 'focus') setTimeLeft((value as number) * 60);
+    if (key === 'shortBreakDuration' && sessionType === 'shortBreak') setTimeLeft((value as number) * 60);
+    if (key === 'longBreakDuration' && sessionType === 'longBreak') setTimeLeft((value as number) * 60);
   };
 
   // ----- Task handlers -----

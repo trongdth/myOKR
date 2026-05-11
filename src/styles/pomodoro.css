@@ -874,6 +874,156 @@
   }
 }
 
+/* ===== TASK META ROW ===== */
+.task-meta-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.task-meta-row > .task-description-row {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.task-meta-row > .task-kr-badge {
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+/* ===== TASK DELETE BUTTON ===== */
+.task-delete-btn {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2em;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 200ms ease, color 200ms ease;
+  line-height: 1;
+  z-index: 2;
+}
+
+.task-item:hover .task-delete-btn {
+  opacity: 0.6;
+}
+
+.task-delete-btn:hover {
+  color: #ef4444 !important;
+  opacity: 1 !important;
+}
+
+/* ===== POMO ESTIMATE POPOVER ===== */
+.pomo-estimate-wrapper {
+  position: relative;
+}
+
+.pomo-estimate-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideDown 150ms ease;
+  overflow: hidden;
+}
+
+.pomo-popover-title {
+  padding: 0.75em 1em 0.5em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.pomo-popover-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75em;
+  padding: 0.5em 1em 0.75em;
+}
+
+.pomo-counter-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.pomo-counter-btn:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.pomo-counter-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 2em;
+  text-align: center;
+}
+
+.pomo-popover-actions {
+  display: flex;
+  border-top: 1px solid var(--border-color);
+}
+
+.pomo-popover-cancel,
+.pomo-popover-confirm {
+  flex: 1;
+  padding: 0.6em 1em;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.pomo-popover-cancel {
+  color: var(--text-muted);
+  border-right: 1px solid var(--border-color);
+}
+
+.pomo-popover-cancel:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.pomo-popover-confirm {
+  color: var(--accent-cyan);
+}
+
+.pomo-popover-confirm:hover {
+  background: rgba(6, 182, 212, 0.08);
+}
+
+.task-item:has(.pomo-estimate-popover) {
+  z-index: 50;
+}
+
 /* ===== CATEGORY BADGE & SELECTOR ===== */
 .task-kr-badge {
   display: inline-flex;
@@ -885,8 +1035,8 @@
   padding: 0.2em 0.6em;
   border-radius: 6px;
   font-family: inherit;
-  margin-right: auto;
-  margin-left: 0.75em;
+  margin-right: 0;
+  margin-left: 0;
   white-space: nowrap;
 }
 .category-badge-wrapper {

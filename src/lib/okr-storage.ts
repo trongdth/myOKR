@@ -3,10 +3,24 @@
 
 import { load } from '@tauri-apps/plugin-store';
 import { generateId } from './pomodoro-storage';
+import type { PomodoroTask } from './pomodoro-storage';
 
 // ===== TYPES =====
 
 export type Confidence = 'on_track' | 'at_risk' | 'off_track' | 'not_set';
+
+export type CompletionMode = 'manual' | 'focus_hours' | 'focus_pomodoros' | 'completed_tasks';
+
+export const COMPLETION_MODE_META: Record<CompletionMode, {
+  label: string;
+  icon: string;
+  unit: string;
+}> = {
+  manual:            { label: 'Manual',           icon: '✏️', unit: '%' },
+  focus_hours:       { label: 'Focus Hours',      icon: '⏱️', unit: 'hours' },
+  focus_pomodoros:   { label: 'Pomodoros',        icon: '🍅', unit: 'pomodoros' },
+  completed_tasks:   { label: 'Completed Tasks',  icon: '✅', unit: 'tasks' },
+};
 
 export const CONFIDENCE_META: Record<Confidence, {
   label: string;
@@ -46,6 +60,7 @@ export interface KeyResult {
   currentValue: number;
   unit: string;          // e.g. "projects", "%", "hours"
   confidence: Confidence;
+  completionMode: CompletionMode;
   order: number;
   createdAt: string;
   updatedAt: string;
@@ -114,14 +129,42 @@ export function generateDefaultCycles(): OKRCycle[] {
   ];
 }
 
+export function getEffectiveCurrentValue(
+  kr: KeyResult,
+  tasks: PomodoroTask[],
+  focusDurationMinutes: number = 25,
+): number {
+  if (kr.completionMode === 'manual' || !kr.completionMode) {
+    return kr.currentValue;
+  }
+  const linked = tasks.filter(t => t.keyResultId === kr.id);
+  switch (kr.completionMode) {
+    case 'focus_hours': {
+      const totalMinutes = linked.reduce((sum, t) => sum + t.completedPomodoros * focusDurationMinutes, 0);
+      return Math.round((totalMinutes / 60) * 100) / 100;
+    }
+    case 'focus_pomodoros':
+      return linked.reduce((sum, t) => sum + t.completedPomodoros, 0);
+    case 'completed_tasks':
+      return linked.filter(t => t.isCompleted).length;
+    default:
+      return kr.currentValue;
+  }
+}
+
 export function computeObjectiveProgress(
   objectiveId: string,
   keyResults: KeyResult[],
+  tasks?: PomodoroTask[],
+  focusDurationMinutes?: number,
 ): number {
   const krs = keyResults.filter(kr => kr.objectiveId === objectiveId);
   if (krs.length === 0) return 0;
   const total = krs.reduce((sum, kr) => {
-    const pct = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
+    const current = tasks
+      ? getEffectiveCurrentValue(kr, tasks, focusDurationMinutes)
+      : kr.currentValue;
+    const pct = kr.targetValue > 0 ? (current / kr.targetValue) * 100 : 0;
     return sum + Math.min(100, pct);
   }, 0);
   return Math.round(total / krs.length);
@@ -131,11 +174,13 @@ export function computeOverallProgress(
   objectives: Objective[],
   keyResults: KeyResult[],
   cycleId: string,
+  tasks?: PomodoroTask[],
+  focusDurationMinutes?: number,
 ): number {
   const cycleObjectives = objectives.filter(o => o.cycleId === cycleId);
   if (cycleObjectives.length === 0) return 0;
   const total = cycleObjectives.reduce(
-    (sum, o) => sum + computeObjectiveProgress(o.id, keyResults),
+    (sum, o) => sum + computeObjectiveProgress(o.id, keyResults, tasks, focusDurationMinutes),
     0,
   );
   return Math.round(total / cycleObjectives.length);

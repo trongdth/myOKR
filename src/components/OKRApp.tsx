@@ -7,7 +7,7 @@ import {
   computeOverallProgress, getMonthName,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
-import { generateId } from '../lib/pomodoro-storage';
+import { generateId, loadSettings } from '../lib/pomodoro-storage';
 import { loadTasks, type PomodoroTask } from '../lib/pomodoro-storage';
 import CycleSelector from './okr/CycleSelector';
 import ObjectiveCard from './okr/ObjectiveCard';
@@ -20,6 +20,7 @@ export default function OKRApp() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
+  const [focusDuration, setFocusDuration] = useState(25);
   const [newObjTitle, setNewObjTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'objective' | 'kr', id: string, title?: string } | null>(null);
 
@@ -34,6 +35,8 @@ export default function OKRApp() {
       setObjectives(await loadObjectives());
       setKeyResults(await loadKeyResults());
       setTasks(await loadTasks());
+      const settings = await loadSettings();
+      setFocusDuration(settings.focusDuration);
       setIsLoading(false);
     }
     init();
@@ -44,7 +47,7 @@ export default function OKRApp() {
     .filter(o => o.cycleId === activeCycleId)
     .sort((a, b) => a.order - b.order);
 
-  const overallProgress = computeOverallProgress(objectives, keyResults, activeCycleId);
+  const overallProgress = computeOverallProgress(objectives, keyResults, activeCycleId, tasks, focusDuration);
 
   // ----- Cycle handlers -----
   const handleSelectCycle = (id: string) => {
@@ -190,6 +193,7 @@ export default function OKRApp() {
           objective={obj}
           keyResults={keyResults}
           tasks={tasks}
+          focusDurationMinutes={focusDuration}
           onUpdateObjective={updateObjective}
           onDeleteObjective={deleteObjectiveRequest}
           onUpdateKeyResult={updateKeyResult}

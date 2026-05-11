@@ -4,7 +4,6 @@ import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import ConfirmModal from '../ConfirmModal';
 import TaskDetailModal from './TaskDetailModal';
-import NumberInput from '../NumberInput';
 
 function truncateDescription(desc: string, maxWords: number = 10): { text: string; truncated: boolean } {
   const words = desc.trim().split(/\s+/);
@@ -125,6 +124,58 @@ function CategorySelector({ value, onChange }: { value: EisenhowerCategory; onCh
               </button>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PomoEstimatePopover({ completed, estimated, onChange }: { completed: number; estimated: number; onChange: (n: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [tempValue, setTempValue] = useState(estimated);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleOpen = () => {
+    setTempValue(estimated);
+    setOpen(true);
+  };
+
+  const handleConfirm = () => {
+    onChange(tempValue);
+    setOpen(false);
+  };
+
+  return (
+    <div className="pomo-estimate-wrapper" ref={ref}>
+      <div
+        className="task-pomodoros"
+        onClick={e => { e.stopPropagation(); handleOpen(); }}
+        title="Click to set estimated pomodoros"
+        style={{ cursor: 'pointer' }}
+      >
+        <span className="task-pomo-icon main-icon">🍅</span>
+        <span className="task-pomo-count">{completed}/{estimated}</span>
+      </div>
+      {open && (
+        <div className="pomo-estimate-popover" onClick={e => e.stopPropagation()}>
+          <div className="pomo-popover-title">Adjust Total Pomodoros</div>
+          <div className="pomo-popover-counter">
+            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.max(1, tempValue - 1))}>−</button>
+            <span className="pomo-counter-value">{tempValue}</span>
+            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.min(20, tempValue + 1))}>+</button>
+          </div>
+          <div className="pomo-popover-actions">
+            <button className="pomo-popover-cancel" onClick={() => setOpen(false)}>Cancel</button>
+            <button className="pomo-popover-confirm" onClick={handleConfirm}>Confirm</button>
+          </div>
         </div>
       )}
     </div>
@@ -344,38 +395,29 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
                 {task.title}
               </span>
             )}
+            <button className="task-delete-btn" onClick={e => { e.stopPropagation(); deleteTask(task.id); }} title="Delete">✕</button>
             <CategoryBadge
               category={task.category || 'do'}
               onChange={c => updateCategory(task.id, c)}
             />
-            {task.keyResultId && keyResults.length > 0 && (() => {
-              const kr = keyResults.find(k => k.id === task.keyResultId);
-              return kr ? (
-                <span className="task-kr-badge" title={`Linked to: ${kr.title}`}>
-                  🎯 {kr.title.length > 20 ? kr.title.slice(0, 20) + '…' : kr.title}
-                </span>
-              ) : null;
-            })()}
             <div className="task-controls">
-              <div className="task-pomodoros">
-                <span className="task-pomo-icon main-icon">🍅</span>
-                <span className="task-pomo-count">
-                  {task.completedPomodoros}/{task.estimatedPomodoros}
-                </span>
-              </div>
-              <NumberInput
-                className="task-est-input"
-                value={task.estimatedPomodoros}
-                min={1} max={20}
-                stopPropagation={true}
+              <PomoEstimatePopover
+                completed={task.completedPomodoros}
+                estimated={task.estimatedPomodoros}
                 onChange={val => updateEstimate(task.id, val)}
-                title="Estimated pomodoros"
               />
-              <div className="task-actions">
-                <button className="task-action-btn" onClick={e => { e.stopPropagation(); deleteTask(task.id); }} title="Delete">✕</button>
-              </div>
             </div>
-            <DescriptionPreview task={task} onExpand={() => setDetailTask(task)} />
+            <div className="task-meta-row">
+              <DescriptionPreview task={task} onExpand={() => setDetailTask(task)} />
+              {task.keyResultId && keyResults.length > 0 && (() => {
+                const kr = keyResults.find(k => k.id === task.keyResultId);
+                return kr ? (
+                  <span className="task-kr-badge" title={`Linked to: ${kr.title}`}>
+                    🎯 {kr.title.length > 20 ? kr.title.slice(0, 20) + '…' : kr.title}
+                  </span>
+                ) : null;
+              })()}
+            </div>
           </div>
         ))}
         {completedTasks.length > 0 && !hideCompleted && (
@@ -395,6 +437,7 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
             </div>
             {showCompleted && completedTasks.map(task => (
               <div key={task.id} className="task-item completed-task">
+                <button className="task-delete-btn" onClick={() => deleteTask(task.id)} title="Delete">✕</button>
                 <button
                   className="task-checkbox checked"
                   onClick={() => toggleComplete(task.id)}
@@ -410,9 +453,6 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
                     <span className="task-pomo-count">
                       {task.completedPomodoros}/{task.estimatedPomodoros}
                     </span>
-                  </div>
-                  <div className="task-actions">
-                    <button className="task-action-btn" onClick={() => deleteTask(task.id)} title="Delete">✕</button>
                   </div>
                 </div>
                 <DescriptionPreview task={task} onExpand={() => setDetailTask(task)} />

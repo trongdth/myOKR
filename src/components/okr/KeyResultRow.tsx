@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import type { KeyResult } from '../../lib/okr-storage';
+import type { KeyResult, CompletionMode } from '../../lib/okr-storage';
 import type { Confidence } from '../../lib/okr-storage';
-import { CONFIDENCE_META } from '../../lib/okr-storage';
+import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import LinkedTasksBadge from './LinkedTasksBadge';
 import NumberInput from '../NumberInput';
@@ -9,29 +9,39 @@ import NumberInput from '../NumberInput';
 interface Props {
   kr: KeyResult;
   tasks: PomodoroTask[];
+  focusDurationMinutes: number;
   onUpdate: (updated: KeyResult) => void;
   onDelete: (id: string) => void;
 }
 
 const CONFIDENCE_CYCLE: Confidence[] = ['not_set', 'on_track', 'at_risk', 'off_track'];
+const COMPLETION_MODES: CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks'];
 
-export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
+export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate, onDelete }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(kr.title);
   const [showConfidencePopup, setShowConfidencePopup] = useState(false);
+  const [showModePopup, setShowModePopup] = useState(false);
   const confidenceRef = useRef<HTMLDivElement>(null);
+  const modeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (confidenceRef.current && !confidenceRef.current.contains(e.target as Node)) {
         setShowConfidencePopup(false);
       }
+      if (modeRef.current && !modeRef.current.contains(e.target as Node)) {
+        setShowModePopup(false);
+      }
     };
-    if (showConfidencePopup) document.addEventListener('mousedown', handler);
+    document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showConfidencePopup]);
+  }, []);
 
-  const progress = kr.targetValue > 0 ? Math.min(100, (kr.currentValue / kr.targetValue) * 100) : 0;
+  const mode = kr.completionMode || 'manual';
+  const effectiveCurrent = getEffectiveCurrentValue(kr, tasks, focusDurationMinutes);
+  const displayUnit = COMPLETION_MODE_META[mode].unit;
+  const progress = kr.targetValue > 0 ? Math.min(100, (effectiveCurrent / kr.targetValue) * 100) : 0;
   const meta = CONFIDENCE_META[kr.confidence];
 
   const saveTitle = () => {
@@ -57,7 +67,18 @@ export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
     setShowConfidencePopup(false);
   };
 
+  const setMode = (m: CompletionMode) => {
+    onUpdate({
+      ...kr,
+      completionMode: m,
+      unit: COMPLETION_MODE_META[m].unit,
+      updatedAt: new Date().toISOString(),
+    });
+    setShowModePopup(false);
+  };
+
   const confidenceClass = kr.confidence === 'not_set' ? 'not-set' : kr.confidence.replace('_', '-');
+  const isAutoMode = mode !== 'manual';
 
   return (
     <div className="kr-row">
@@ -65,7 +86,7 @@ export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
       <div style={{ position: 'relative' }} ref={confidenceRef}>
         <span
           className="kr-confidence"
-          onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); }}
+          onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); }}
           title={`${meta.label} — Click to change`}
         >
           {meta.icon}
@@ -109,6 +130,30 @@ export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
       {/* Linked tasks */}
       <LinkedTasksBadge tasks={tasks} keyResultId={kr.id} />
 
+      {/* Completion mode */}
+      <div style={{ position: 'relative' }} ref={modeRef}>
+        <span
+          className="kr-mode-badge"
+          onClick={(e) => { e.stopPropagation(); setShowModePopup(!showModePopup); setShowConfidencePopup(false); }}
+          title={`Mode: ${COMPLETION_MODE_META[mode].label} — Click to change`}
+        >
+          {COMPLETION_MODE_META[mode].icon}
+        </span>
+        {showModePopup && (
+          <div className="mode-popup" style={{ top: '100%', right: 0, marginTop: 4 }}>
+            {COMPLETION_MODES.map(m => (
+              <button
+                key={m}
+                className={`mode-option${mode === m ? ' selected' : ''}`}
+                onClick={() => setMode(m)}
+              >
+                {COMPLETION_MODE_META[m].icon} {COMPLETION_MODE_META[m].label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Progress */}
       <div className="kr-progress-section">
         <div className="kr-progress-bar">
@@ -117,14 +162,19 @@ export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
             style={{ width: `${progress}%` }}
           />
         </div>
-        <NumberInput
-          className="kr-value-input"
-          value={kr.currentValue}
-          min={0}
-          stopPropagation={true}
-          onChange={val => updateCurrentValue(val)}
-          title="Current value"
-        />
+        <span className={`kr-current-value${isAutoMode ? ' auto' : ''}`}>
+          {isAutoMode ? effectiveCurrent : ''}
+        </span>
+        {!isAutoMode && (
+          <NumberInput
+            className="kr-value-input"
+            value={kr.currentValue}
+            min={0}
+            stopPropagation={true}
+            onChange={val => updateCurrentValue(val)}
+            title="Current value"
+          />
+        )}
         <span className="kr-unit">/</span>
         <NumberInput
           className="kr-value-input"
@@ -134,7 +184,7 @@ export default function KeyResultRow({ kr, tasks, onUpdate, onDelete }: Props) {
           onChange={val => updateTargetValue(val)}
           title="Target value"
         />
-        <span className="kr-unit">{kr.unit}</span>
+        <span className="kr-unit">{displayUnit}</span>
       </div>
 
       {/* Delete */}
