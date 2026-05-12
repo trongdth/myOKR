@@ -138,7 +138,9 @@ export default function App() {
           <span className="mobile-topbar-logo">🎯 <strong>myOKR</strong></span>
         </div>
 
-        {activeSection.startsWith('pomodoro-') && <PomodoroApp tab={activeSection.replace('pomodoro-', '') as 'timer' | 'tasks' | 'analytics'} />}
+        <div style={{ display: activeSection.startsWith('pomodoro-') ? 'contents' : 'none' }}>
+          <PomodoroApp tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} />
+        </div>
         {activeSection === 'okrs' && <OKRApp />}
         {activeSection === 'review' && <ReviewApp />}
       </main>

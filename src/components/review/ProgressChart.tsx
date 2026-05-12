@@ -17,17 +17,6 @@ export default function ProgressChart({ reviews, keyResults }: Props) {
     [reviews],
   );
 
-  if (sortedReviews.length < 2) {
-    return (
-      <div className="progress-chart-container">
-        <div className="progress-chart-title">📈 Progress Over Time</div>
-        <div style={{ textAlign: 'center', padding: '2em', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-          Complete at least 2 weekly reviews to see your progress chart
-        </div>
-      </div>
-    );
-  }
-
   // Get unique KR IDs that appear in reviews
   const krIds = useMemo(() => {
     const ids = new Set<string>();
@@ -52,6 +41,17 @@ export default function ProgressChart({ reviews, keyResults }: Props) {
       };
     });
   }, [krIds, sortedReviews, keyResults]);
+
+  if (sortedReviews.length < 2) {
+    return (
+      <div className="progress-chart-container">
+        <div className="progress-chart-title">📈 Progress Over Time</div>
+        <div style={{ textAlign: 'center', padding: '2em', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+          Complete at least 2 weekly reviews to see your progress chart
+        </div>
+      </div>
+    );
+  }
 
   // Chart dimensions
   const width = 600;

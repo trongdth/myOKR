@@ -53,7 +53,7 @@ export default function ReviewApp() {
     // Save review
     const updatedReviews = [...reviews, review];
     setReviews(updatedReviews);
-    await saveReviews(updatedReviews);
+    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
 
     // Update Key Result values from review entries
     const updatedKRs = keyResults.map(kr => {
@@ -69,7 +69,7 @@ export default function ReviewApp() {
       return kr;
     });
     setKeyResults(updatedKRs);
-    await saveKeyResults(updatedKRs);
+    try { await saveKeyResults(updatedKRs); } catch { /* storage failure is non-fatal */ }
 
     setShowWizard(false);
   };
