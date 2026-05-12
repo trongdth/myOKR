@@ -95,6 +95,6 @@ class MockStore {
   }
 }
 
-export async function load(filename: string, options?: { autoSave?: boolean; defaults?: Record<string, any> }) {
+export async function load(_filename: string, options?: { autoSave?: boolean; defaults?: Record<string, any> }) {
   return new MockStore({ ...(options?.defaults || {}), ...SEED_DATA });
 }

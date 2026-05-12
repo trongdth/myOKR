@@ -2,7 +2,6 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager,
 };
-use tauri::image::Image;
 
 /// Update the tray title (native text) and ensure it uses the default app icon.
 #[tauri::command]
