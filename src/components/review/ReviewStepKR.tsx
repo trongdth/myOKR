@@ -32,12 +32,19 @@ export default function ReviewStepKR({ entry, keyResult, objective, pomodoroCoun
         <span className="review-kr-arrow">→</span>
         <div className="review-kr-current">
           <span className="review-kr-current-label">Current</span>
-          <NumberInput
-            className="review-kr-current-input"
-            value={entry.currentValue}
-            min={0}
-            onChange={val => onChange({ ...entry, currentValue: val })}
-          />
+          {keyResult.completionMode === 'manual' || !keyResult.completionMode ? (
+            <NumberInput
+              className="review-kr-current-input"
+              value={entry.currentValue}
+              min={0}
+              onChange={val => onChange({ ...entry, currentValue: val })}
+            />
+          ) : (
+            <span className="review-kr-current-value">
+              {entry.currentValue}
+              <span className="review-kr-auto-badge">auto</span>
+            </span>
+          )}
         </div>
         <span className="review-kr-target">/ {keyResult.targetValue} {keyResult.unit}</span>
       </div>

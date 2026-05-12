@@ -114,7 +114,7 @@ export default function ReviewHistory({ reviews, keyResults, onDelete, onEdit }:
                           </div>
                           <div className="review-history-edit-row">
                             <label className="review-history-edit-label">Value</label>
-                            {kr?.completionMode === 'focus_hours' ? (
+                            {kr?.completionMode && kr.completionMode !== 'manual' ? (
                               <span className="review-history-edit-readonly">
                                 {editEntry.currentValue} {kr?.unit}
                                 <span className="review-history-edit-auto">auto</span>

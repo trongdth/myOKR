@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { ReviewEntry, WeeklyReview, KeyResult, Objective } from '../../lib/okr-storage';
+import { getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
 import ReviewStepKR from './ReviewStepKR';
 
@@ -11,13 +12,15 @@ interface Props {
   keyResults: KeyResult[];
   tasks: PomodoroTask[];
   history: DailyRecord[];
+  reviews: WeeklyReview[];
+  focusDurationMinutes: number;
   onComplete: (review: Omit<WeeklyReview, 'id'>) => void;
   onCancel: () => void;
 }
 
 export default function ReviewWizard({
   weekStart, weekEnd, cycleId,
-  objectives, keyResults, tasks, history,
+  objectives, keyResults, tasks, history, reviews, focusDurationMinutes,
   onComplete, onCancel,
 }: Props) {
   // Build list of KRs to review (only those belonging to objectives in the active cycle)
@@ -29,14 +32,31 @@ export default function ReviewWizard({
   // Steps: 0 = summary, 1..N = KR steps, N+1 = reflection
   const totalSteps = cycleKRs.length + 2; // summary + KR steps + reflection
   const [currentStep, setCurrentStep] = useState(0);
-  const [entries, setEntries] = useState<ReviewEntry[]>(() =>
-    cycleKRs.map(kr => ({
-      keyResultId: kr.id,
-      previousValue: kr.currentValue,
-      currentValue: kr.currentValue,
-      confidence: kr.confidence === 'not_set' ? 'on_track' : kr.confidence,
-    }))
-  );
+  const [entries, setEntries] = useState<ReviewEntry[]>(() => {
+    const completedReviews = reviews
+      .filter(r => r.completedAt)
+      .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
+
+    return cycleKRs.map(kr => {
+      const lastEntry = completedReviews
+        .flatMap(r => r.entries)
+        .find(e => e.keyResultId === kr.id);
+
+      const previousValue = lastEntry ? lastEntry.currentValue : 0;
+
+      const isManual = kr.completionMode === 'manual' || !kr.completionMode;
+      const currentValue = isManual
+        ? kr.currentValue
+        : getEffectiveCurrentValue(kr, tasks, focusDurationMinutes);
+
+      return {
+        keyResultId: kr.id,
+        previousValue,
+        currentValue,
+        confidence: kr.confidence === 'not_set' ? 'on_track' : kr.confidence,
+      };
+    });
+  });
   const [reflection, setReflection] = useState('');
 
   // Compute Pomodoro stats for this week

@@ -101,6 +101,21 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
     init();
   }, []);
 
+  // Reload keyResults when switching tabs (KR titles may have changed on OKR page)
+  useEffect(() => {
+    if (tab === 'tasks' || tab === 'timer') {
+      (async () => {
+        const activeCycle = await getActiveCycle();
+        if (activeCycle) {
+          const krs = await loadKeyResults();
+          const objs = await loadObjectives();
+          const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
+          setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
+        }
+      })();
+    }
+  }, [tab]);
+
   // ----- Persist timer state to Tauri Store -----
   useEffect(() => {
     if (isLoading) return;

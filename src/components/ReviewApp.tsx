@@ -7,7 +7,7 @@ import {
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
 import { generateId } from '../lib/pomodoro-storage';
-import { loadTasks, loadHistory, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
+import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
 import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
 import ProgressChart from './review/ProgressChart';
@@ -20,6 +20,7 @@ export default function ReviewApp() {
   const [reviews, setReviews] = useState<WeeklyReview[]>([]);
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
   const [history, setHistory] = useState<DailyRecord[]>([]);
+  const [focusDuration, setFocusDuration] = useState(25);
   const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
@@ -30,6 +31,8 @@ export default function ReviewApp() {
       setReviews(await loadReviews());
       setTasks(await loadTasks());
       setHistory(await loadHistory());
+      const settings = await loadSettings();
+      setFocusDuration(settings.focusDuration);
       setIsLoading(false);
     }
     init();
@@ -145,6 +148,8 @@ export default function ReviewApp() {
           keyResults={keyResults}
           tasks={tasks}
           history={history}
+          reviews={reviews}
+          focusDurationMinutes={focusDuration}
           onComplete={handleCompleteReview}
           onCancel={() => setShowWizard(false)}
         />
