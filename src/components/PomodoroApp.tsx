@@ -39,6 +39,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
+  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [importData, setImportData] = useState<{
     settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
     cycles?: OKRCycle[]; objectives?: Objective[]; keyResults?: KeyResult[]; reviews?: WeeklyReview[];
@@ -404,7 +405,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
 
           {/* Controls */}
           <div className="timer-controls">
-            <button className="btn-icon" onClick={resetTimer} title="Reset">↺</button>
+            <button className="btn-icon" onClick={() => setIsConfirmResetOpen(true)} title="Reset">↺</button>
             <button className="btn" onClick={toggleTimer}>{isRunning ? '⏸ Pause' : '▶ Start'}</button>
             <button className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings">⚙</button>
           </div>
@@ -494,6 +495,14 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
         <Analytics history={history} tasks={tasks} onExport={handleExport} onImport={handleImport} onClear={handleClearRequest} />
       )}
 
+      <ConfirmModal
+        isOpen={isConfirmResetOpen}
+        onClose={() => setIsConfirmResetOpen(false)}
+        onConfirm={resetTimer}
+        title="Reset Timer"
+        message="Reset the current timer session? Progress will be lost."
+        confirmText="Reset"
+      />
       <ConfirmModal
         isOpen={isConfirmClearOpen}
         onClose={() => setIsConfirmClearOpen(false)}
