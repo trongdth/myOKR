@@ -7,7 +7,7 @@
 .okr-container {
   max-width: 900px;
   margin: 0 auto;
-  padding: 0.5em 0 3em;
+  padding: 1em 0 3em;
 }
 
 /* ===== OKR HEADER ===== */
@@ -853,6 +853,22 @@
     flex: 1;
   }
 
+  .cycle-dropdown {
+    right: 0;
+    left: auto;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+
+  .kr-value-popover,
+  .confidence-popup,
+  .mode-popup {
+    right: 0;
+    left: auto;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
   .kr-row-top {
     flex-wrap: wrap;
   }
@@ -868,7 +884,7 @@
 
 @media (max-width: 640px) {
   .okr-container {
-    padding: 0.5em 1em 3em;
+    padding: 1em 1em 3em;
   }
 
   .okr-add-objective {

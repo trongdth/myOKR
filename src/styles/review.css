@@ -7,7 +7,7 @@
 .review-container {
   max-width: 900px;
   margin: 0 auto;
-  padding: 0.5em 0 3em;
+  padding: 1em 0 3em;
 }
 
 .review-header {
@@ -829,7 +829,7 @@
 
 @media (max-width: 640px) {
   .review-container {
-    padding: 0.5em 1em 3em;
+    padding: 1em 1em 3em;
   }
 
   .review-stats-grid {
