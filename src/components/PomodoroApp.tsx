@@ -42,6 +42,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [isConfirmNoTaskOpen, setIsConfirmNoTaskOpen] = useState(false);
+  const [isConfirmSwitchTaskOpen, setIsConfirmSwitchTaskOpen] = useState(false);
   const [isConfirmTaskChangedOpen, setIsConfirmTaskChangedOpen] = useState(false);
   const [importData, setImportData] = useState<{
     settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
@@ -52,6 +53,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const autoStartTimeoutRef = useRef<number | null>(null);
   const lastFocusTaskId = useRef<string | null>(null);
   const pendingAutoStart = useRef<(() => void) | null>(null);
+  const pendingSwitchTaskId = useRef<string | null>(null);
 
   // ----- Load from Tauri Store on mount -----
   useEffect(() => {
@@ -298,6 +300,16 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   // ----- Task handlers -----
   const handleTasksChange = (t: PomodoroTask[]) => { setTasks(t); saveTasks(t); };
 
+  const handleSetActiveTask = (id: string | null) => {
+    if (isRunning && sessionType === 'focus' && id !== activeTaskId && activeTaskId !== null) {
+      pendingSwitchTaskId.current = id;
+      setIsRunning(false);
+      setIsConfirmSwitchTaskOpen(true);
+      return;
+    }
+    setActiveTaskId(id);
+  };
+
   // ----- Analytics handlers -----
   const handleExport = async () => {
     const filePath = await saveDialog({
@@ -498,7 +510,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
               Prioritize
             </button>
           </div>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={setActiveTaskId} keyResults={keyResults} hideCompleted={true} />
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted={true} />
 
           {/* Prioritize Modal */}
           {showPrioritizeModal && (
@@ -515,7 +527,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
       {/* Tasks Tab */}
       {tab === 'tasks' && (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={setActiveTaskId} keyResults={keyResults} />
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} />
         </div>
       )}
 
@@ -539,6 +551,15 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
         title="No Task Selected"
         message="You haven't selected a task for this focus session. Start anyway?"
         confirmText="Start Anyway"
+        danger={false}
+      />
+      <ConfirmModal
+        isOpen={isConfirmSwitchTaskOpen}
+        onClose={() => { setIsConfirmSwitchTaskOpen(false); pendingSwitchTaskId.current = null; startTimer(); }}
+        onConfirm={() => { setActiveTaskId(pendingSwitchTaskId.current); pendingSwitchTaskId.current = null; startTimer(); }}
+        title="Switch Task?"
+        message="The timer is running. Do you want to switch to a different task?"
+        confirmText="Switch"
         danger={false}
       />
       <ConfirmModal

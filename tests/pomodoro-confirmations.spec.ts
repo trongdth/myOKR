@@ -230,3 +230,88 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
     await expect(page.locator('button:has-text("Start")')).toBeVisible();
   });
 });
+
+// ==========================================
+// FEATURE 3: Switch task while timer running
+// ==========================================
+
+test.describe('Pomodoro: Switch task while running', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+  });
+
+  test('pauses timer and shows confirmation when switching task during focus', async ({ page }) => {
+    // Create two tasks
+    await addTask(page, 'Task One');
+    await addTask(page, 'Task Two');
+
+    // Select Task One and start timer
+    await selectTask(page, 'Task One');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Click Task Two while timer is running
+    await selectTask(page, 'Task Two');
+
+    // Timer should pause, confirmation modal should appear
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await expect(page.locator('.confirm-modal .prioritize-title')).toHaveText(/Switch Task/);
+
+    // Confirm switch — task changes and timer resumes
+    await page.locator('.confirm-modal button:has-text("Switch")').click();
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(page.locator('text=Working on:')).toContainText('Task Two');
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+  });
+
+  test('cancels switch and keeps original task running', async ({ page }) => {
+    await addTask(page, 'Task A');
+    await addTask(page, 'Task B');
+
+    await selectTask(page, 'Task A');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Click Task B while running
+    await selectTask(page, 'Task B');
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+
+    // Cancel — keep original task, timer resumes
+    await page.locator('.confirm-modal button:has-text("Cancel")').click();
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(page.locator('text=Working on:')).toContainText('Task A');
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+  });
+
+  test('does NOT show confirmation when timer is paused', async ({ page }) => {
+    await addTask(page, 'Task X');
+    await addTask(page, 'Task Y');
+
+    await selectTask(page, 'Task X');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Pause the timer
+    await page.locator('button:has-text("Pause")').click();
+    await expect(page.locator('button:has-text("Start")')).toBeVisible();
+
+    // Switch task while paused — no confirmation
+    await selectTask(page, 'Task Y');
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(page.locator('text=Working on:')).toContainText('Task Y');
+  });
+
+  test('does NOT show confirmation when no task was previously selected', async ({ page }) => {
+    await addTask(page, 'First Task');
+
+    // Start without task (confirm "Start Anyway")
+    await page.locator('button:has-text("Start")').click();
+    await page.locator('.confirm-modal button:has-text("Start Anyway")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Select a task while running — no previous task, so no confirmation
+    await selectTask(page, 'First Task');
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(page.locator('text=Working on:')).toContainText('First Task');
+  });
+});
