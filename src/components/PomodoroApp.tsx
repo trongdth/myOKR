@@ -41,6 +41,8 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+  const [isConfirmNoTaskOpen, setIsConfirmNoTaskOpen] = useState(false);
+  const [isConfirmTaskChangedOpen, setIsConfirmTaskChangedOpen] = useState(false);
   const [importData, setImportData] = useState<{
     settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
     cycles?: OKRCycle[]; objectives?: Objective[]; keyResults?: KeyResult[]; reviews?: WeeklyReview[];
@@ -48,6 +50,8 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const intervalRef = useRef<number | null>(null);
   const sessionStartRef = useRef<string | null>(null);
   const autoStartTimeoutRef = useRef<number | null>(null);
+  const lastFocusTaskId = useRef<string | null>(null);
+  const pendingAutoStart = useRef<(() => void) | null>(null);
 
   // ----- Load from Tauri Store on mount -----
   useEffect(() => {
@@ -177,6 +181,8 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
       const newCompleted = completedPomos + 1;
       setCompletedPomos(newCompleted);
 
+      lastFocusTaskId.current = activeTaskId;
+
       // Update active task
       if (activeTaskId) {
         const updatedTasks = tasks.map(t =>
@@ -215,8 +221,18 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
       setSessionType('focus');
       setTimeLeft(settings.focusDuration * 60);
       if (settings.autoStartFocus) {
-        if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
-        autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
+        const prevId = lastFocusTaskId.current;
+        const prevTask = prevId ? tasks.find(t => t.id === prevId) : null;
+        if (activeTaskId && prevId && activeTaskId !== prevId && prevTask && !prevTask.isCompleted) {
+          pendingAutoStart.current = () => {
+            if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+            setIsRunning(true);
+          };
+          setIsConfirmTaskChangedOpen(true);
+        } else {
+          if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
+          autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
+        }
       }
 
       // Record break session (async, after state transition is applied)
@@ -236,8 +252,17 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
 
   // ----- Controls -----
   const toggleTimer = () => {
+    if (!isRunning && sessionType === 'focus' && !activeTaskId) {
+      setIsConfirmNoTaskOpen(true);
+      return;
+    }
     if (!isRunning && !sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
     setIsRunning(!isRunning);
+  };
+
+  const startTimer = () => {
+    if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+    setIsRunning(true);
   };
 
   const resetTimer = () => {
@@ -506,6 +531,28 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
         title="Reset Timer"
         message="Reset the current timer session? Progress will be lost."
         confirmText="Reset"
+      />
+      <ConfirmModal
+        isOpen={isConfirmNoTaskOpen}
+        onClose={() => setIsConfirmNoTaskOpen(false)}
+        onConfirm={startTimer}
+        title="No Task Selected"
+        message="You haven't selected a task for this focus session. Start anyway?"
+        confirmText="Start Anyway"
+        danger={false}
+      />
+      <ConfirmModal
+        isOpen={isConfirmTaskChangedOpen}
+        onClose={() => { setIsConfirmTaskChangedOpen(false); pendingAutoStart.current = null; }}
+        onConfirm={() => {
+          const fn = pendingAutoStart.current;
+          pendingAutoStart.current = null;
+          fn?.();
+        }}
+        title="Task Changed"
+        message="The active task changed during your break. Continue with the new task?"
+        confirmText="Continue"
+        danger={false}
       />
       <ConfirmModal
         isOpen={isConfirmClearOpen}
