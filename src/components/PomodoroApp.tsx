@@ -21,6 +21,7 @@ import {
 } from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
+import LoadingState from './shared/LoadingState';
 
 export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analytics' }) {
   // ----- State -----
@@ -83,13 +84,6 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
       const activeCycle = await getActiveCycle();
       if (activeCycle) {
         const krs = await loadKeyResults();
-        // Only load KRs for the active cycle's objectives
-        // Actually, for simplicity and performance, we can load all KRs and let TaskList filter, 
-        // or just pass all active KRs. Let's pass all KRs for now, or just active ones.
-        // Wait, PomodoroApp doesn't know about objectives here. Let's just pass all KRs for simplicity, 
-        // or load objectives and filter. Loading all is fine, but it might clutter the dropdown.
-        // Let's filter by active cycle.
-        const { loadObjectives } = await import('../lib/okr-storage');
         const objs = await loadObjectives();
         const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
         setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
@@ -368,11 +362,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const isBreak = sessionType !== 'focus';
 
   if (isLoading) {
-    return (
-      <div className="pomodoro-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Loading...</div>
-      </div>
-    );
+    return <LoadingState className="pomodoro-container" />;
   }
 
   return (
@@ -491,7 +481,6 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
               tasks={tasks}
               activeTaskId={activeTaskId}
               onTasksChange={handleTasksChange}
-              onSetActive={setActiveTaskId}
               onClose={() => setShowPrioritizeModal(false)}
             />
           )}

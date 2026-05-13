@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { OKRCycle } from '../../lib/okr-storage';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface Props {
   cycles: OKRCycle[];
@@ -11,14 +12,7 @@ interface Props {
 export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreateCycle }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const activeCycle = cycles.find(c => c.id === activeCycleId);
 

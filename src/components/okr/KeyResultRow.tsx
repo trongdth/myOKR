@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { KeyResult, CompletionMode } from '../../lib/okr-storage';
 import type { Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface Props {
   kr: KeyResult;
@@ -27,21 +28,9 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const modeRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (confidenceRef.current && !confidenceRef.current.contains(e.target as Node)) {
-        setShowConfidencePopup(false);
-      }
-      if (modeRef.current && !modeRef.current.contains(e.target as Node)) {
-        setShowModePopup(false);
-      }
-      if (valueRef.current && !valueRef.current.contains(e.target as Node)) {
-        setShowValuePopover(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  useClickOutside(confidenceRef, showConfidencePopup, () => setShowConfidencePopup(false));
+  useClickOutside(modeRef, showModePopup, () => setShowModePopup(false));
+  useClickOutside(valueRef, showValuePopover, () => setShowValuePopover(false));
 
   const mode = kr.completionMode || 'manual';
   const effectiveCurrent = getEffectiveCurrentValue(kr, tasks, focusDurationMinutes);

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { PomodoroTask, TodoItem, TaskComment } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
+import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
 
 type DetailTab = 'todos' | 'comments';
@@ -40,18 +41,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const todos: TodoItem[] = task.todos || [];
   const comments: TaskComment[] = task.comments || [];
 
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  // Prevent body scroll
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  useModalEffects(onClose);
 
   // Auto-focus description textarea when entering edit mode
   useEffect(() => {

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import ConfirmModal from '../ConfirmModal';
 import TaskDetailModal from './TaskDetailModal';
 
@@ -39,14 +40,7 @@ interface Props {
 function CategoryBadge({ category, onChange }: { category: EisenhowerCategory; onChange: (c: EisenhowerCategory) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const meta = EISENHOWER_META[category];
 
@@ -83,14 +77,7 @@ function CategoryBadge({ category, onChange }: { category: EisenhowerCategory; o
 function CategorySelector({ value, onChange }: { value: EisenhowerCategory; onChange: (c: EisenhowerCategory) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const meta = EISENHOWER_META[value];
 
@@ -134,14 +121,7 @@ function PomoEstimatePopover({ completed, estimated, onChange }: { completed: nu
   const [open, setOpen] = useState(false);
   const [tempValue, setTempValue] = useState(estimated);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const handleOpen = () => {
     setTempValue(estimated);

@@ -11,6 +11,7 @@ import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyReco
 import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
 import ProgressChart from './review/ProgressChart';
+import LoadingState from './shared/LoadingState';
 
 export default function ReviewApp() {
   const [isLoading, setIsLoading] = useState(true);
@@ -105,11 +106,7 @@ export default function ReviewApp() {
   };
 
   if (isLoading) {
-    return (
-      <div className="review-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Loading...</div>
-      </div>
-    );
+    return <LoadingState className="review-container" />;
   }
 
   if (!activeCycle) {

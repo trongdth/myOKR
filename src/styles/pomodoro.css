@@ -1443,6 +1443,15 @@
   border-style: dashed;
 }
 
+.matrix-quadrant.tap-target {
+  cursor: pointer;
+}
+
+.matrix-quadrant.tap-target:hover {
+  border-style: dashed;
+  background: rgba(168, 85, 247, 0.04);
+}
+
 .matrix-quadrant:hover {
   background: var(--bg-tertiary);
 }
@@ -1523,6 +1532,12 @@
 .matrix-task-chip.active-chip {
   box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
   border-color: var(--accent-cyan);
+}
+
+.matrix-task-chip.selected-chip {
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.4);
+  border-color: var(--accent-purple, #a855f7);
+  background: rgba(168, 85, 247, 0.08);
 }
 
 .chip-title {

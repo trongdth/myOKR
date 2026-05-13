@@ -12,6 +12,7 @@ import { loadTasks, type PomodoroTask } from '../lib/pomodoro-storage';
 import CycleSelector from './okr/CycleSelector';
 import ObjectiveCard from './okr/ObjectiveCard';
 import ConfirmModal from './ConfirmModal';
+import LoadingState from './shared/LoadingState';
 
 export default function OKRApp() {
   const [isLoading, setIsLoading] = useState(true);
@@ -149,11 +150,7 @@ export default function OKRApp() {
   };
 
   if (isLoading) {
-    return (
-      <div className="okr-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Loading...</div>
-      </div>
-    );
+    return <LoadingState className="okr-container" />;
   }
 
   return (

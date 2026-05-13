@@ -1,43 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { EISENHOWER_META, EISENHOWER_PRIORITY_ORDER } from '../../lib/pomodoro-storage';
+import { useModalEffects } from '../../hooks/useModalEffects';
 
 interface Props {
   tasks: PomodoroTask[];
   activeTaskId: string | null;
   onTasksChange: (tasks: PomodoroTask[]) => void;
-  onSetActive: (id: string | null) => void;
   onClose: () => void;
 }
 
-type QuadrantKey = EisenhowerCategory;
-
-export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, onSetActive, onClose }: Props) {
+export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, onClose}: Props) {
   // Work with a local copy so changes aren't applied until user clicks Apply
   const [localTasks, setLocalTasks] = useState<PomodoroTask[]>(() =>
     tasks.map(t => ({ ...t, category: t.category || 'do' }))
   );
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  // Prevent body scroll
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  useModalEffects(onClose);
 
   const activeTasks = localTasks.filter(t => !t.isCompleted);
 
-  const getQuadrantTasks = (quadrant: QuadrantKey) =>
+  const getQuadrantTasks = (quadrant: EisenhowerCategory) =>
     activeTasks.filter(t => (t.category || 'do') === quadrant);
 
-  const moveTask = useCallback((taskId: string, to: QuadrantKey) => {
+  const moveTask = useCallback((taskId: string, to: EisenhowerCategory) => {
     setLocalTasks(prev => prev.map(t => t.id === taskId ? { ...t, category: to } : t));
   }, []);
 
@@ -50,11 +38,18 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, quadrant: QuadrantKey) => {
+  const handleDrop = (e: React.DragEvent, quadrant: EisenhowerCategory) => {
     e.preventDefault();
     if (draggedTaskId) {
       moveTask(draggedTaskId, quadrant);
       setDraggedTaskId(null);
+    }
+  };
+
+  const handleQuadrantClick = (quadrant: EisenhowerCategory) => {
+    if (selectedTaskId) {
+      moveTask(selectedTaskId, quadrant);
+      setSelectedTaskId(null);
     }
   };
 
@@ -69,7 +64,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
     onClose();
   };
 
-  const quadrants: [QuadrantKey, QuadrantKey, QuadrantKey, QuadrantKey] = ['do', 'decide', 'delegate', 'delete'];
+  const quadrants: [EisenhowerCategory, EisenhowerCategory, EisenhowerCategory, EisenhowerCategory] = ['do', 'decide', 'delegate', 'delete'];
 
   return (
     <div className="prioritize-overlay" onClick={onClose}>
@@ -106,10 +101,11 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
               return (
                 <div
                   key={key}
-                  className={`matrix-quadrant${draggedTaskId ? ' drop-target' : ''}`}
+                  className={`matrix-quadrant${draggedTaskId ? ' drop-target' : ''}${selectedTaskId ? ' tap-target' : ''}`}
                   style={{ borderColor: meta.color }}
                   onDragOver={handleDragOver}
                   onDrop={e => handleDrop(e, key)}
+                  onClick={() => handleQuadrantClick(key)}
                 >
                   <div className="quadrant-header">
                     <span className="quadrant-icon">{meta.icon}</span>
@@ -124,10 +120,10 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
                     {quadTasks.map(task => (
                       <div
                         key={task.id}
-                        className={`matrix-task-chip${activeTaskId === task.id ? ' active-chip' : ''}`}
+                        className={`matrix-task-chip${selectedTaskId === task.id ? ' selected-chip' : ''}${activeTaskId === task.id ? ' active-chip' : ''}`}
                         draggable
                         onDragStart={() => handleDragStart(task.id)}
-                        onClick={() => onSetActive(activeTaskId === task.id ? null : task.id)}
+                        onClick={e => { e.stopPropagation(); setSelectedTaskId(selectedTaskId === task.id ? null : task.id); }}
                         style={{ borderLeftColor: meta.color }}
                       >
                         <span className="chip-title">{task.title}</span>
@@ -144,7 +140,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
         {/* Footer */}
         <div className="prioritize-footer">
           <div className="prioritize-hint">
-            💡 Drag tasks between quadrants to re-categorize. Click "Apply" to reorder your task list by priority.
+            💡 Tap a task to select it, then tap a quadrant to move it. Or drag on desktop. Click "Apply" to reorder your task list by priority.
           </div>
           <div className="prioritize-actions">
             <button className="btn-sm" onClick={onClose}>Cancel</button>
