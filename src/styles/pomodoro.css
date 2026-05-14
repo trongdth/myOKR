@@ -1185,7 +1185,11 @@
   cursor: pointer;
   transition: all 200ms ease;
   outline: none;
-  max-width: 150px;
+  max-width: 120px;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-kr-select:hover,

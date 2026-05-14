@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
 import OKRApp from './components/OKRApp';
 import ReviewApp from './components/ReviewApp';
+import Walkthrough from './components/Walkthrough';
+import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 
 type Section = 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review';
 
@@ -74,6 +76,25 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
 export default function App() {
   const [activeSection, setActiveSection] = useState<Section>('pomodoro-timer');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    loadWalkthroughState().then((state: WalkthroughState) => {
+      setShowWalkthrough(shouldShowWalkthrough(state));
+    });
+  }, []);
+
+  const handleWalkthroughComplete = async (dismissed: boolean) => {
+    const newState: WalkthroughState = dismissed ? 'dismissed' : 'seen';
+    await saveWalkthroughState(newState);
+    setShowWalkthrough(false);
+  };
+
+  if (showWalkthrough === null) return null;
+
+  if (showWalkthrough) {
+    return <Walkthrough onComplete={handleWalkthroughComplete} />;
+  }
 
   const handleNavClick = (id: Section) => {
     setActiveSection(id);
