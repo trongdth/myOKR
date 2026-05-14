@@ -4,6 +4,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 async function waitForApp(page: Page) {
   await page.goto('/');
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
 }
 
@@ -129,7 +130,7 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
   });
 
   test('shows confirmation when task changed during break and previous not done', async ({ page }) => {
-    test.slow();
+    test.setTimeout(180000);
 
     // Setup: 1-min focus, 1-min break, enable auto-start
     await setDurations(page, 1, 1);
@@ -163,7 +164,7 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
   });
 
   test('does NOT show confirmation when previous task is completed', async ({ page }) => {
-    test.slow();
+    test.setTimeout(180000);
 
     await setDurations(page, 1, 1);
     await enableAutoStart(page);
@@ -199,7 +200,7 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
   });
 
   test('cancel on task changed confirmation stops auto-start', async ({ page }) => {
-    test.slow();
+    test.setTimeout(180000);
 
     await setDurations(page, 1, 1);
     await enableAutoStart(page);

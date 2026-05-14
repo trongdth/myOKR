@@ -5,7 +5,7 @@ const SCREENSHOTS_DIR = 'screenshots';
 test.describe('App Screenshots', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Wait for app to finish loading (Loading... text disappears)
+    await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
   });
 

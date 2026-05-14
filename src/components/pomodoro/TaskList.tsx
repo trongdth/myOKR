@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -221,6 +221,17 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
   const [editTitle, setEditTitle] = useState('');
   const [detailTask, setDetailTask] = useState<PomodoroTask | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery.trim()) return tasks;
+    const q = searchQuery.toLowerCase();
+    return tasks.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      (t.description && t.description.toLowerCase().includes(q)) ||
+      (t.todos && t.todos.some(todo => todo.text.toLowerCase().includes(q)))
+    );
+  }, [tasks, searchQuery]);
 
   const startEdit = (task: PomodoroTask) => {
     setEditingTaskId(task.id);
@@ -291,8 +302,8 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
     setDetailTask(updated);
   };
 
-  const activeTasks = tasks.filter(t => !t.isCompleted);
-  const completedTasks = tasks.filter(t => t.isCompleted);
+  const activeTasks = filteredTasks.filter(t => !t.isCompleted);
+  const completedTasks = filteredTasks.filter(t => t.isCompleted);
 
   return (
     <div className="task-section">
@@ -330,9 +341,26 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
         <button className="btn add-task-btn" onClick={addTask}>+ Add</button>
       </div>
 
+      {tasks.length > 0 && (
+        <div className="task-search-row">
+          <input
+            type="text"
+            placeholder="Search tasks…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="task-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+          )}
+        </div>
+      )}
+
       <div className="task-list">
         {tasks.length === 0 && (
           <div className="task-empty">No tasks yet. Add one above to get started!</div>
+        )}
+        {tasks.length > 0 && filteredTasks.length === 0 && (
+          <div className="task-empty">No tasks match "{searchQuery}"</div>
         )}
         {activeTasks.map(task => (
           <div
