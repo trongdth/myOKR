@@ -100,8 +100,10 @@ test.describe('Desktop: Pomodoro Workflow', () => {
     // Verify initial state
     await expect(page.locator('.timer-digits')).toHaveText('25:00');
 
-    // Start timer
+    // Start timer (no task selected — confirmation will appear, dismiss it)
     await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await page.locator('.confirm-modal button:has-text("Start Anyway")').click();
 
     // Verify timer is counting down (digits change from 25:00)
     await expect(page.locator('.timer-digits')).not.toHaveText('25:00', { timeout: 3000 });
@@ -182,8 +184,10 @@ test.describe('Mobile: Core Workflows', () => {
     // Timer is the default view
     await expect(page.locator('.timer-digits')).toBeVisible();
 
-    // Start
+    // Start (no task selected — confirmation will appear, dismiss it)
     await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await page.locator('.confirm-modal button:has-text("Start Anyway")').click();
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
     // Pause
