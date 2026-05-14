@@ -300,3 +300,29 @@ export async function saveReviews(reviews: WeeklyReview[]): Promise<void> {
     await store.set('reviews', reviews);
   } catch { /* silently fail */ }
 }
+
+// ===== WALKTHROUGH =====
+
+export type WalkthroughState = 'not_seen' | 'seen' | 'dismissed';
+
+export async function loadWalkthroughState(): Promise<WalkthroughState> {
+  try {
+    const store = await getStore();
+    return (await store.get<WalkthroughState>('walkthroughState')) || 'not_seen';
+  } catch {
+    return 'not_seen';
+  }
+}
+
+export async function saveWalkthroughState(state: WalkthroughState): Promise<void> {
+  try {
+    const store = await getStore();
+    await store.set('walkthroughState', state);
+  } catch { /* silently fail */ }
+}
+
+export function shouldShowWalkthrough(state: WalkthroughState): boolean {
+  if (state === 'not_seen') return true;
+  if (state === 'dismissed') return false;
+  return Math.random() < 0.15;
+}

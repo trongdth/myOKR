@@ -301,12 +301,13 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
   const handleTasksChange = (t: PomodoroTask[]) => { setTasks(t); saveTasks(t); };
 
   const handleSetActiveTask = (id: string | null) => {
-    if (isRunning && sessionType === 'focus' && id !== activeTaskId && activeTaskId !== null) {
+    if (isRunning && sessionType === 'focus' && id !== activeTaskId && id !== null && activeTaskId !== null) {
       pendingSwitchTaskId.current = id;
       setIsRunning(false);
       setIsConfirmSwitchTaskOpen(true);
       return;
     }
+    if (isRunning && sessionType === 'focus' && id === null) return;
     setActiveTaskId(id);
   };
 
