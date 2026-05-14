@@ -191,7 +191,7 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
           t.id === activeTaskId ? { ...t, completedPomodoros: t.completedPomodoros + 1 } : t
         );
         setTasks(updatedTasks);
-        saveTasks(updatedTasks);
+        await saveTasks(updatedTasks);
       }
 
       sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a break.');
