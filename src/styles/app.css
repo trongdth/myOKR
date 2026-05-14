@@ -128,6 +128,35 @@
   margin: 0.75em 0;
 }
 
+/* ===== SIDEBAR FOOTER ===== */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 0.75em 0.85em;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.sidebar-footer-version {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sidebar-footer-author {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sidebar-footer-author a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+}
+
+.sidebar-footer-author a:hover {
+  text-decoration: underline;
+}
+
 /* ===== MAIN CONTENT ===== */
 .app-main {
   flex: 1;

@@ -1,3 +1,4 @@
+use std::process::Command as OsCommand;
 use tauri::{
     tray::TrayIconBuilder,
     Manager,
@@ -14,6 +15,16 @@ fn update_tray_title(app: tauri::AppHandle, title: String, tooltip: String) {
         let _ = tray.set_title(Some(&title));
         let _ = tray.set_tooltip(Some(&tooltip));
     }
+}
+
+/// Open a URL using the OS default handler.
+#[tauri::command]
+fn open_external(url: String) -> Result<(), String> {
+    OsCommand::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Reset tray to default state (usually called on unmount).
@@ -67,7 +78,7 @@ pub fn run() {
                 window.hide().unwrap();
             }
         })
-        .invoke_handler(tauri::generate_handler![update_tray_title, reset_tray])
+        .invoke_handler(tauri::generate_handler![update_tray_title, reset_tray, open_external])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

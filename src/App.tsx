@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
@@ -140,6 +141,15 @@ export default function App() {
             );
           })}
         </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-footer-version">v0.1.1</div>
+          <div className="sidebar-footer-author">
+            Author: <a href="#" onClick={(e) => {
+              e.preventDefault();
+              invoke('open_external', { url: 'https://mail.google.com/mail/?view=cm&to=trongdth@gmail.com' });
+            }}>Trong Dinh</a>
+          </div>
+        </div>
       </aside>
 
       {/* Main content */}
