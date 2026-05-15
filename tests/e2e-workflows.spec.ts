@@ -6,6 +6,7 @@ const MOBILE_VIEWPORT = { width: 375, height: 667 };
 
 async function waitForApp(page: Page) {
   await page.goto('/');
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
 }
 

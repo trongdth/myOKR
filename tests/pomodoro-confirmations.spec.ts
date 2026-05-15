@@ -4,6 +4,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 async function waitForApp(page: Page) {
   await page.goto('/');
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
 }
 
@@ -48,6 +49,19 @@ async function setDurations(page: Page, focus: number, shortBreak: number) {
 // without relying on the transient "00:00" state
 async function waitForSessionTab(page: Page, label: string) {
   await expect(page.locator(`button.session-tab.active:has-text("${label}")`)).toBeVisible({ timeout: 90000 });
+}
+
+// Speed up setInterval/setTimeout so 1-min sessions complete in ~3s real time
+async function speedUpTimers(page: Page) {
+  await page.evaluate(() => {
+    const origInterval = window.setInterval.bind(window);
+    const origTimeout = window.setTimeout.bind(window);
+    const speed = (ms: number) => ms >= 500 ? Math.max(ms / 20, 10) : ms;
+    (window as any).setInterval = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+      origInterval(fn, ms !== undefined ? speed(ms) : ms, ...args);
+    (window as any).setTimeout = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+      origTimeout(fn, ms !== undefined ? speed(ms) : ms, ...args);
+  });
 }
 
 // ==========================================
@@ -126,11 +140,10 @@ test.describe('Pomodoro: No task selected warning', () => {
 test.describe('Pomodoro: Task changed auto-start confirmation', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
+    await speedUpTimers(page);
   });
 
   test('shows confirmation when task changed during break and previous not done', async ({ page }) => {
-    test.slow();
-
     // Setup: 1-min focus, 1-min break, enable auto-start
     await setDurations(page, 1, 1);
     await enableAutoStart(page);
@@ -139,22 +152,20 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
     await addTask(page, 'Task Alpha');
     await addTask(page, 'Task Beta');
 
-    // Select Task Alpha
+    // Select Task Alpha and start focus
     await selectTask(page, 'Task Alpha');
     await expect(page.locator('text=Working on:')).toContainText('Task Alpha');
-
-    // Start focus session
     await page.locator('button:has-text("Start")').click();
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
-    // Wait for focus to complete — detected by session switching to Short Break
+    // Wait for focus to complete (~3s real time with speed-up timers)
     await waitForSessionTab(page, 'Short Break');
 
     // During break, switch to Task Beta
     await selectTask(page, 'Task Beta');
     await expect(page.locator('text=Working on:')).toContainText('Task Beta');
 
-    // Wait for break to complete — detected by session switching back to Focus
+    // Wait for break to complete
     await waitForSessionTab(page, 'Focus');
 
     // Task Changed confirmation should appear
@@ -163,20 +174,15 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
   });
 
   test('does NOT show confirmation when previous task is completed', async ({ page }) => {
-    test.slow();
-
     await setDurations(page, 1, 1);
     await enableAutoStart(page);
 
-    // Create two tasks
     await addTask(page, 'Task Done');
     await addTask(page, 'Task Next');
 
-    // Select Task Done
     await selectTask(page, 'Task Done');
-
-    // Start focus
     await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
     // Wait for focus to complete
     await waitForSessionTab(page, 'Short Break');
@@ -199,8 +205,6 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
   });
 
   test('cancel on task changed confirmation stops auto-start', async ({ page }) => {
-    test.slow();
-
     await setDurations(page, 1, 1);
     await enableAutoStart(page);
 
@@ -209,6 +213,7 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
 
     await selectTask(page, 'Task A');
     await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
     // Wait for focus to complete
     await waitForSessionTab(page, 'Short Break');
