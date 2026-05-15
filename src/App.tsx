@@ -142,7 +142,7 @@ export default function App() {
           })}
         </nav>
         <div className="sidebar-footer">
-          <div className="sidebar-footer-version">v0.1.1</div>
+          <div className="sidebar-footer-version">v{__APP_VERSION__}</div>
           <div className="sidebar-footer-author">
             Author: <a href="#" onClick={(e) => {
               e.preventDefault();
