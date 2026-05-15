@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -222,6 +222,7 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
   const [detailTask, setDetailTask] = useState<PomodoroTask | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTasks = useMemo(() => {
     if (!searchQuery.trim()) return tasks;
@@ -232,6 +233,17 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
       (t.todos && t.todos.some(todo => todo.text.toLowerCase().includes(q)))
     );
   }, [tasks, searchQuery]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const startEdit = (task: PomodoroTask) => {
     setEditingTaskId(task.id);
@@ -343,14 +355,24 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
 
       {tasks.length > 0 && (
         <div className="task-search-row">
+          <svg className="task-search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
+          </svg>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search tasks…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
           {searchQuery && (
-            <button className="task-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+            <span className="task-search-count">{filteredTasks.length} found</span>
+          )}
+          {searchQuery && (
+            <button className="task-search-clear" onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}>✕</button>
+          )}
+          {!searchQuery && (
+            <kbd className="task-search-shortcut">⌘K</kbd>
           )}
         </div>
       )}
