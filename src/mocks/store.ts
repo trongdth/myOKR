@@ -71,7 +71,7 @@ const SEED_DATA: Record<string, any> = {
   ],
   history: generateHistory(),
   reviews: [],
-  walkthroughState: 'seen',
+  walkthroughState: 'dismissed',
 };
 
 class MockStore {
