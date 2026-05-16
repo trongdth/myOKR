@@ -157,6 +157,21 @@
   text-decoration: underline;
 }
 
+.sidebar-footer-help {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25em;
+}
+
+.sidebar-footer-help a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+}
+
+.sidebar-footer-help a:hover {
+  text-decoration: underline;
+}
+
 /* ===== MAIN CONTENT ===== */
 .app-main {
   flex: 1;
