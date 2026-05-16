@@ -10,6 +10,8 @@ import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type
 
 type Section = 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review';
 
+const HELP_BLOG_URL = 'https://code4food.work/blog/effective-okrs-with-myokr';
+
 const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.ReactNode; isHeader?: boolean; isSubItem?: boolean }[] = [
   {
     id: 'pomodoro-header',
@@ -148,6 +150,12 @@ export default function App() {
               e.preventDefault();
               invoke('open_external', { url: 'https://mail.google.com/mail/?view=cm&to=trongdth@gmail.com' });
             }}>Trong Dinh</a>
+          </div>
+          <div className="sidebar-footer-help">
+            <a href="#" onClick={(e) => {
+              e.preventDefault();
+              invoke('open_external', { url: HELP_BLOG_URL });
+            }}>📖 Effective OKR guide</a>
           </div>
         </div>
       </aside>

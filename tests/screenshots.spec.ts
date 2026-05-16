@@ -44,4 +44,14 @@ test.describe('App Screenshots', () => {
       fullPage: false,
     });
   });
+
+  test('capture review view', async ({ page }) => {
+    await page.locator('button:has-text("Review")').click();
+    await expect(page.locator('text=Time for your weekly review!')).toBeVisible({ timeout: 5000 });
+
+    await page.screenshot({
+      path: `${SCREENSHOTS_DIR}/review.png`,
+      fullPage: false,
+    });
+  });
 });
