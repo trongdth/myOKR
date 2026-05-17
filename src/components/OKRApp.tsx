@@ -5,6 +5,7 @@ import {
   loadObjectives, saveObjectives,
   loadKeyResults, saveKeyResults,
   computeOverallProgress, getMonthName,
+  cloneCycleStructure,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
 import { generateId, loadSettings } from '../lib/pomodoro-storage';
@@ -50,6 +51,11 @@ export default function OKRApp() {
 
   const overallProgress = computeOverallProgress(objectives, keyResults, activeCycleId, tasks, focusDuration);
 
+  const latestCycle = cycles.length > 0
+    ? cycles.reduce((latest, c) => (c.year * 12 + c.month) > (latest.year * 12 + latest.month) ? c : latest)
+    : null;
+  const canCloneLatest = !!latestCycle && objectives.some(o => o.cycleId === latestCycle.id);
+
   // ----- Cycle handlers -----
   const handleSelectCycle = (id: string) => {
     setActiveCycleId(id);
@@ -86,6 +92,31 @@ export default function OKRApp() {
     setCycles(updated);
     saveCycles(updated);
     setActiveCycleId(newCycle.id);
+  };
+
+  const handleCloneCycle = () => {
+    const lastCycle = cycles.length > 0
+      ? cycles.reduce((latest, c) => (c.year * 12 + c.month) > (latest.year * 12 + latest.month) ? c : latest)
+      : null;
+    if (!lastCycle) return;
+
+    const nextMonth = lastCycle.month === 11 ? 0 : lastCycle.month + 1;
+    const nextYear = lastCycle.month === 11 ? lastCycle.year + 1 : lastCycle.year;
+
+    const { cycle, objectives: newObjs, keyResults: newKRs } =
+      cloneCycleStructure(lastCycle, objectives, keyResults, nextMonth, nextYear);
+
+    const updatedCycles = [...cycles, cycle];
+    const updatedObjectives = [...objectives, ...newObjs];
+    const updatedKeyResults = [...keyResults, ...newKRs];
+
+    setCycles(updatedCycles);
+    setObjectives(updatedObjectives);
+    setKeyResults(updatedKeyResults);
+    saveCycles(updatedCycles);
+    saveObjectives(updatedObjectives);
+    saveKeyResults(updatedKeyResults);
+    setActiveCycleId(cycle.id);
   };
 
   // ----- Objective handlers -----
@@ -164,6 +195,7 @@ export default function OKRApp() {
             activeCycleId={activeCycleId}
             onSelect={handleSelectCycle}
             onCreateCycle={handleCreateCycle}
+            onCloneCycle={canCloneLatest ? handleCloneCycle : undefined}
           />
         </div>
         <div className="okr-overall-progress">

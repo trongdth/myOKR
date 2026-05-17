@@ -7,9 +7,11 @@ interface Props {
   activeCycleId: string;
   onSelect: (cycleId: string) => void;
   onCreateCycle: () => void;
+  // Omit to hide the clone button (e.g. when there is no source cycle with objectives).
+  onCloneCycle?: () => void;
 }
 
-export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreateCycle }: Props) {
+export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreateCycle, onCloneCycle }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, open, () => setOpen(false));
@@ -41,8 +43,13 @@ export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreat
             </button>
           ))}
           <button className="cycle-create-btn" onClick={() => { onCreateCycle(); setOpen(false); }}>
-            <span>+</span> New Cycle
+            <span>+</span> New blank cycle
           </button>
+          {onCloneCycle && (
+            <button className="cycle-create-btn" onClick={() => { onCloneCycle(); setOpen(false); }}>
+              <span>+</span> Clone last cycle
+            </button>
+          )}
         </div>
       )}
     </div>
