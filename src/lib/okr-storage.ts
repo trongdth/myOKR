@@ -129,6 +129,63 @@ export function generateDefaultCycles(): OKRCycle[] {
   ];
 }
 
+/**
+ * Clone the structure of a source cycle (objectives + KRs) into a new cycle
+ * for the given target month/year. Fresh ids; current values reset; confidence
+ * reset to 'not_set'. Pure — no storage I/O.
+ */
+export function cloneCycleStructure(
+  source: OKRCycle,
+  sourceObjectives: Objective[],
+  sourceKeyResults: KeyResult[],
+  targetMonth: number,
+  targetYear: number,
+): { cycle: OKRCycle; objectives: Objective[]; keyResults: KeyResult[] } {
+  const now = new Date().toISOString();
+
+  const cycle: OKRCycle = {
+    id: generateId(),
+    name: getMonthName(targetMonth, targetYear),
+    month: targetMonth,
+    year: targetYear,
+    isActive: false,
+    createdAt: now,
+  };
+
+  const relevantObjectives = sourceObjectives.filter(o => o.cycleId === source.id);
+  const objectiveIdMap = new Map<string, string>();
+  const objectives: Objective[] = relevantObjectives.map(o => {
+    const newId = generateId();
+    objectiveIdMap.set(o.id, newId);
+    return {
+      id: newId,
+      cycleId: cycle.id,
+      title: o.title,
+      description: o.description,
+      order: o.order,
+      createdAt: now,
+    };
+  });
+
+  const keyResults: KeyResult[] = sourceKeyResults
+    .filter(kr => objectiveIdMap.has(kr.objectiveId))
+    .map(kr => ({
+      id: generateId(),
+      objectiveId: objectiveIdMap.get(kr.objectiveId)!,
+      title: kr.title,
+      targetValue: kr.targetValue,
+      currentValue: 0,
+      unit: kr.unit,
+      confidence: 'not_set',
+      completionMode: kr.completionMode,
+      order: kr.order,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+  return { cycle, objectives, keyResults };
+}
+
 export function getEffectiveCurrentValue(
   kr: KeyResult,
   tasks: PomodoroTask[],

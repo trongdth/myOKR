@@ -5,6 +5,7 @@ import {
   loadObjectives, saveObjectives,
   loadKeyResults, saveKeyResults,
   computeOverallProgress, getMonthName,
+  cloneCycleStructure,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
 import { generateId, loadSettings } from '../lib/pomodoro-storage';
@@ -23,7 +24,7 @@ export default function OKRApp() {
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
   const [newObjTitle, setNewObjTitle] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'objective' | 'kr', id: string, title?: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'objective' | 'kr' | 'cycle', id: string, title?: string } | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -49,6 +50,19 @@ export default function OKRApp() {
     .sort((a, b) => a.order - b.order);
 
   const overallProgress = computeOverallProgress(objectives, keyResults, activeCycleId, tasks, focusDuration);
+
+  const activeCycle = cycles.find(c => c.id === activeCycleId);
+  const canCloneActive = !!activeCycle && objectives.some(o => o.cycleId === activeCycleId);
+
+  // A cycle is deletable when it is strictly in the future AND has no objectives.
+  const now = new Date();
+  const currentMonthIdx = now.getFullYear() * 12 + now.getMonth();
+  const deletableCycleIds = new Set(
+    cycles
+      .filter(c => (c.year * 12 + c.month) > currentMonthIdx)
+      .filter(c => !objectives.some(o => o.cycleId === c.id))
+      .map(c => c.id),
+  );
 
   // ----- Cycle handlers -----
   const handleSelectCycle = (id: string) => {
@@ -86,6 +100,51 @@ export default function OKRApp() {
     setCycles(updated);
     saveCycles(updated);
     setActiveCycleId(newCycle.id);
+  };
+
+  const handleCloneCycle = () => {
+    const source = cycles.find(c => c.id === activeCycleId);
+    if (!source) return;
+
+    // Target month is one after the latest cycle by month — avoids colliding
+    // with any existing future placeholder cycle.
+    const latest = cycles.reduce(
+      (acc, c) => (c.year * 12 + c.month) > (acc.year * 12 + acc.month) ? c : acc,
+      source,
+    );
+    const nextMonth = latest.month === 11 ? 0 : latest.month + 1;
+    const nextYear = latest.month === 11 ? latest.year + 1 : latest.year;
+
+    const { cycle, objectives: newObjs, keyResults: newKRs } =
+      cloneCycleStructure(source, objectives, keyResults, nextMonth, nextYear);
+
+    const updatedCycles = [...cycles, cycle];
+    const updatedObjectives = [...objectives, ...newObjs];
+    const updatedKeyResults = [...keyResults, ...newKRs];
+
+    setCycles(updatedCycles);
+    setObjectives(updatedObjectives);
+    setKeyResults(updatedKeyResults);
+    saveCycles(updatedCycles);
+    saveObjectives(updatedObjectives);
+    saveKeyResults(updatedKeyResults);
+    setActiveCycleId(cycle.id);
+  };
+
+  const deleteCycleRequest = (id: string) => {
+    const cycle = cycles.find(c => c.id === id);
+    setDeleteTarget({ type: 'cycle', id, title: cycle?.name });
+  };
+
+  const executeDeleteCycle = (id: string) => {
+    const nextCycles = cycles.filter(c => c.id !== id);
+    setCycles(nextCycles);
+    saveCycles(nextCycles);
+    // Deletable cycles are guaranteed empty (no objectives → no KRs), so nothing else to prune.
+    if (activeCycleId === id) {
+      const fallback = nextCycles.find(c => c.isActive) || nextCycles[0];
+      setActiveCycleId(fallback ? fallback.id : '');
+    }
   };
 
   // ----- Objective handlers -----
@@ -164,6 +223,9 @@ export default function OKRApp() {
             activeCycleId={activeCycleId}
             onSelect={handleSelectCycle}
             onCreateCycle={handleCreateCycle}
+            onCloneCycle={canCloneActive ? handleCloneCycle : undefined}
+            deletableCycleIds={deletableCycleIds}
+            onDeleteCycle={deleteCycleRequest}
           />
         </div>
         <div className="okr-overall-progress">
@@ -217,11 +279,18 @@ export default function OKRApp() {
         onConfirm={() => {
           if (deleteTarget?.type === 'objective') executeDeleteObjective(deleteTarget.id);
           else if (deleteTarget?.type === 'kr') executeDeleteKeyResult(deleteTarget.id);
+          else if (deleteTarget?.type === 'cycle') executeDeleteCycle(deleteTarget.id);
         }}
-        title={deleteTarget?.type === 'objective' ? 'Delete Objective?' : 'Delete Key Result?'}
+        title={
+          deleteTarget?.type === 'objective' ? 'Delete Objective?'
+          : deleteTarget?.type === 'kr' ? 'Delete Key Result?'
+          : 'Delete Cycle?'
+        }
         message={
           deleteTarget?.type === 'objective'
             ? `Are you sure you want to delete "${deleteTarget?.title}" and all its key results? This cannot be undone.`
+          : deleteTarget?.type === 'cycle'
+            ? `Are you sure you want to delete cycle "${deleteTarget?.title}"? This cannot be undone.`
             : `Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`
         }
         confirmText="Delete"
