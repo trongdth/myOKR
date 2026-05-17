@@ -151,6 +151,32 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+.cycle-dropdown-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.1em;
+}
+
+.cycle-dropdown-row .cycle-dropdown-item {
+  flex: 1;
+}
+
+.cycle-dropdown-delete {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.7em;
+  font-size: 0.9rem;
+  transition: all 150ms ease;
+}
+
+.cycle-dropdown-delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
 .cycle-create-btn {
   display: flex;
   align-items: center;
