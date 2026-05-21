@@ -17,6 +17,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
   );
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
 
   useModalEffects(onClose);
 
@@ -25,41 +26,49 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
   const getQuadrantTasks = (quadrant: EisenhowerCategory) =>
     activeTasks.filter(t => (t.category || 'do') === quadrant);
 
-  const moveTask = useCallback((taskId: string, to: EisenhowerCategory) => {
-    setLocalTasks(prev => prev.map(t => t.id === taskId ? { ...t, category: to } : t));
+  const reorder = useCallback((taskId: string, to: EisenhowerCategory, beforeTaskId: string | null) => {
+    setLocalTasks(prev => {
+      const idx = prev.findIndex(t => t.id === taskId);
+      if (idx === -1) return prev;
+      const [removed] = prev.splice(idx, 1);
+      removed.category = to;
+      if (beforeTaskId) {
+        const beforeIdx = prev.findIndex(t => t.id === beforeTaskId);
+        if (beforeIdx !== -1) {
+          prev.splice(beforeIdx, 0, removed);
+        } else {
+          prev.push(removed);
+        }
+      } else {
+        prev.push(removed);
+      }
+      return [...prev];
+    });
   }, []);
 
   const handleDragStart = (taskId: string) => {
     setDraggedTaskId(taskId);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
   const handleDrop = (e: React.DragEvent, quadrant: EisenhowerCategory) => {
     e.preventDefault();
     if (draggedTaskId) {
-      moveTask(draggedTaskId, quadrant);
+      reorder(draggedTaskId, quadrant, null);
       setDraggedTaskId(null);
     }
   };
 
   const handleQuadrantClick = (quadrant: EisenhowerCategory) => {
     if (selectedTaskId) {
-      moveTask(selectedTaskId, quadrant);
+      reorder(selectedTaskId, quadrant, null);
       setSelectedTaskId(null);
     }
   };
 
   const handleApply = () => {
-    // Sort tasks by priority: do -> decide -> delegate -> delete, preserving order within each group
-    const sorted = [...localTasks].sort((a, b) => {
-      const aIdx = EISENHOWER_PRIORITY_ORDER.indexOf(a.category || 'do');
-      const bIdx = EISENHOWER_PRIORITY_ORDER.indexOf(b.category || 'do');
-      return aIdx - bIdx;
-    });
+    const sorted = EISENHOWER_PRIORITY_ORDER.flatMap(cat =>
+      localTasks.filter(t => (t.category || 'do') === cat)
+    );
     onTasksChange(sorted);
     onClose();
   };
@@ -103,7 +112,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
                   key={key}
                   className={`matrix-quadrant${draggedTaskId ? ' drop-target' : ''}${selectedTaskId ? ' tap-target' : ''}`}
                   style={{ borderColor: meta.color }}
-                  onDragOver={handleDragOver}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                   onDrop={e => handleDrop(e, key)}
                   onClick={() => handleQuadrantClick(key)}
                 >
@@ -120,10 +129,21 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
                     {quadTasks.map(task => (
                       <div
                         key={task.id}
-                        className={`matrix-task-chip${selectedTaskId === task.id ? ' selected-chip' : ''}${activeTaskId === task.id ? ' active-chip' : ''}`}
+                        className={`matrix-task-chip${selectedTaskId === task.id ? ' selected-chip' : ''}${activeTaskId === task.id ? ' active-chip' : ''}${dragOverTaskId === task.id ? ' drag-over-chip' : ''}`}
                         draggable
                         onDragStart={() => handleDragStart(task.id)}
-                        onClick={e => { e.stopPropagation(); setSelectedTaskId(selectedTaskId === task.id ? null : task.id); }}
+                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOverTaskId(task.id); }}
+                        onDrop={e => { e.preventDefault(); e.stopPropagation(); if (draggedTaskId) { reorder(draggedTaskId, key, task.id); setDraggedTaskId(null); setDragOverTaskId(null); } }}
+                        onDragLeave={() => { if (dragOverTaskId === task.id) setDragOverTaskId(null); }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (selectedTaskId && selectedTaskId !== task.id) {
+                            reorder(selectedTaskId, key, task.id);
+                            setSelectedTaskId(null);
+                          } else {
+                            setSelectedTaskId(selectedTaskId === task.id ? null : task.id);
+                          }
+                        }}
                         style={{ borderLeftColor: meta.color }}
                       >
                         <span className="chip-title">{task.title}</span>
@@ -140,7 +160,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
         {/* Footer */}
         <div className="prioritize-footer">
           <div className="prioritize-hint">
-            💡 Tap a task to select it, then tap a quadrant to move it. Or drag on desktop. Click "Apply" to reorder your task list by priority.
+            💡 Drag onto a task to reorder before it, drag onto empty space to add to quadrant. Tap a task then tap another to reorder.
           </div>
           <div className="prioritize-actions">
             <button className="btn-sm" onClick={onClose}>Cancel</button>
