@@ -2191,6 +2191,50 @@
   color: var(--text-muted);
 }
 
+.task-detail-todo-text {
+  cursor: text;
+}
+
+.task-detail-todo-drag {
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 0 0.15em;
+  opacity: 0.4;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+}
+
+.task-detail-todo-drag:active {
+  cursor: grabbing;
+}
+
+.task-detail-todo-item:hover .task-detail-todo-drag {
+  opacity: 0.7;
+}
+
+.task-detail-todo-item.drag-over {
+  border-top: 2px solid var(--accent-cyan);
+}
+
+.task-detail-todo-item.dragging {
+  opacity: 0.5;
+}
+
+.task-detail-todo-edit-input {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 4px;
+  padding: 0.2em 0.5em;
+  min-width: 0;
+  font-family: inherit;
+  outline: none;
+}
+
 /* Comments */
 .task-detail-comment-input-row {
   display: flex;

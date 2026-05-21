@@ -35,7 +35,12 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const [newComment, setNewComment] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'todo' | 'comment', id: string, text?: string } | null>(null);
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+  const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
+  const [dragOverTodoId, setDragOverTodoId] = useState<string | null>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLInputElement>(null);
 
   const todos: TodoItem[] = task.todos || [];
@@ -86,6 +91,72 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
 
   const executeDeleteTodo = (id: string) => {
     onUpdate({ ...task, todos: todos.filter(t => t.id !== id) });
+  };
+
+  const startEditTodo = (todo: TodoItem) => {
+    setEditingTodoId(todo.id);
+    setEditingText(todo.text);
+  };
+
+  const commitEditTodo = () => {
+    if (!editingTodoId) return;
+    const trimmed = editingText.trim();
+    if (trimmed) {
+      onUpdate({
+        ...task,
+        todos: todos.map(t => t.id === editingTodoId ? { ...t, text: trimmed } : t),
+      });
+    }
+    setEditingTodoId(null);
+  };
+
+  const cancelEditTodo = () => setEditingTodoId(null);
+
+  const reorderTodos = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const next = [...todos];
+    const from = next.findIndex(t => t.id === sourceId);
+    const to = next.findIndex(t => t.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onUpdate({ ...task, todos: next });
+  };
+
+  const handleDragPointerDown = (e: React.PointerEvent, todoId: string) => {
+    if (editingTodoId) return;
+    e.preventDefault();
+    setDraggedTodoId(todoId);
+
+    let targetId: string | null = null;
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      if (!listRef.current) return;
+      const items = listRef.current.querySelectorAll('[data-todo-id]');
+      let found: string | null = null;
+      for (const item of items) {
+        const rect = (item as HTMLElement).getBoundingClientRect();
+        if (moveEvent.clientY >= rect.top && moveEvent.clientY <= rect.bottom) {
+          found = (item as HTMLElement).dataset.todoId!;
+          break;
+        }
+      }
+      targetId = found;
+      setDragOverTodoId(found);
+    };
+
+    const handleUp = () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      if (targetId && todoId !== targetId) {
+        reorderTodos(todoId, targetId);
+      }
+      setDraggedTodoId(null);
+      setDragOverTodoId(null);
+    };
+
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
   };
 
   // --- Comments ---
@@ -245,17 +316,40 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
               )}
 
               {/* Todo items */}
-              <div className="task-detail-todo-list">
+              <div className="task-detail-todo-list" ref={listRef}>
                 {todos.length === 0 && (
                   <div className="task-detail-empty">No sub-tasks yet. Add one above!</div>
                 )}
                 {todos.map(todo => (
-                  <div key={todo.id} className={`task-detail-todo-item${todo.completed ? ' completed' : ''}`}>
+                  <div
+                    key={todo.id}
+                    data-todo-id={todo.id}
+                    className={`task-detail-todo-item${todo.completed ? ' completed' : ''}${dragOverTodoId === todo.id ? ' drag-over' : ''}${draggedTodoId === todo.id ? ' dragging' : ''}`}
+                  >
+                    <span
+                      className="task-detail-todo-drag"
+                      aria-label="Drag to reorder"
+                      onPointerDown={e => handleDragPointerDown(e, todo.id)}
+                    >≡</span>
                     <button
                       className={`task-checkbox${todo.completed ? ' checked' : ''}`}
                       onClick={() => toggleTodo(todo.id)}
                     >✓</button>
-                    <span className="task-detail-todo-text">{todo.text}</span>
+                    {editingTodoId === todo.id ? (
+                      <input
+                        className="task-detail-todo-edit-input"
+                        autoFocus
+                        value={editingText}
+                        onChange={e => setEditingText(e.target.value)}
+                        onBlur={commitEditTodo}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitEditTodo();
+                          if (e.key === 'Escape') cancelEditTodo();
+                        }}
+                      />
+                    ) : (
+                      <span className="task-detail-todo-text" onClick={() => startEditTodo(todo)}>{todo.text}</span>
+                    )}
                     <button className="task-action-btn" onClick={() => deleteTodoRequest(todo.id)} title="Delete">✕</button>
                   </div>
                 ))}
