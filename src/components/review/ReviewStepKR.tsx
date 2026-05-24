@@ -1,20 +1,21 @@
 import type { Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
 import type { ReviewEntry, KeyResult, Objective } from '../../lib/okr-storage';
+import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import NumberInput from '../NumberInput';
+import LinkedTasksThisWeek from './LinkedTasksThisWeek';
 
 interface Props {
   entry: ReviewEntry;
   keyResult: KeyResult;
   objective: Objective;
-  pomodoroCount: number;
-  linkedTaskCount: number;
+  linkedTasksThisWeek: Array<{ task: PomodoroTask | null; pomos: number }>;
   onChange: (updated: ReviewEntry) => void;
 }
 
 const CONFIDENCE_OPTIONS: Confidence[] = ['on_track', 'at_risk', 'off_track'];
 
-export default function ReviewStepKR({ entry, keyResult, objective, pomodoroCount, linkedTaskCount, onChange }: Props) {
+export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksThisWeek, onChange }: Props) {
   return (
     <div className="review-kr-step">
       {/* Header */}
@@ -71,18 +72,9 @@ export default function ReviewStepKR({ entry, keyResult, objective, pomodoroCoun
         </div>
       </div>
 
-      {/* Pomodoro insight */}
-      {(pomodoroCount > 0 || linkedTaskCount > 0) && (
-        <div className="review-pomo-insight">
-          <span className="review-pomo-insight-icon">📊</span>
-          <span>
-            {pomodoroCount > 0 && `${pomodoroCount} pomodoro${pomodoroCount !== 1 ? 's' : ''} completed`}
-            {pomodoroCount > 0 && linkedTaskCount > 0 && ' across '}
-            {linkedTaskCount > 0 && `${linkedTaskCount} linked task${linkedTaskCount !== 1 ? 's' : ''}`}
-            {pomodoroCount === 0 && linkedTaskCount === 0 && 'No activity this week'}
-            {' this week'}
-          </span>
-        </div>
+      {/* Pomodoro insight — only show when there's activity */}
+      {linkedTasksThisWeek.length > 0 && (
+        <LinkedTasksThisWeek linkedTasksThisWeek={linkedTasksThisWeek} />
       )}
 
       {/* Notes */}

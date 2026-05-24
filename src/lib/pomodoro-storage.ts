@@ -277,6 +277,22 @@ export async function requestNotificationPermission(): Promise<void> {
   }
 }
 
+export function computeWeekTaskPomos(
+  history: DailyRecord[],
+  weekStart: string,
+  weekEnd: string,
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const day of history) {
+    if (day.date < weekStart || day.date > weekEnd) continue;
+    for (const s of day.sessions) {
+      if (s.type !== 'focus' || !s.completed || !s.taskId) continue;
+      m.set(s.taskId, (m.get(s.taskId) || 0) + 1);
+    }
+  }
+  return m;
+}
+
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "myokr"
-version = "0.1.4"
+version = "0.1.6"
 description = "myOKR - Pomodoro Timer Desktop App"
 authors = ["Trong Dinh"]
 edition = "2021"

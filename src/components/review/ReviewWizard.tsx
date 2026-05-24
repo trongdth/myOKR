@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { ReviewEntry, WeeklyReview, KeyResult, Objective } from '../../lib/okr-storage';
 import { getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
+import { computeWeekTaskPomos } from '../../lib/pomodoro-storage';
 import ReviewStepKR from './ReviewStepKR';
 
 interface Props {
@@ -68,14 +69,30 @@ export default function ReviewWizard({
       t.isCompleted && t.completedAt && t.completedAt >= weekStart && t.completedAt <= weekEnd
     ).length;
 
-    // Pomodoros by KR
+    const weekTaskPomos = computeWeekTaskPomos(history, weekStart, weekEnd);
+    const taskMap = new Map(tasks.map(t => [t.id, t]));
+
     const pomodorosByKeyResult: Record<string, number> = {};
+    const linked: Record<string, Array<{ task: PomodoroTask | null; pomos: number }>> = {};
+
     for (const kr of cycleKRs) {
-      const linkedTasks = tasks.filter(t => t.keyResultId === kr.id);
-      pomodorosByKeyResult[kr.id] = linkedTasks.reduce((s, t) => s + t.completedPomodoros, 0);
+      const krTasks: Array<{ task: PomodoroTask | null; pomos: number }> = [];
+      for (const [taskId, pomos] of weekTaskPomos) {
+        const task = taskMap.get(taskId) || null;
+        if (task?.keyResultId === kr.id || (!task && false)) {
+          // Include deleted tasks — check if any remaining linked task matches
+          // For deleted tasks we can't know the KR, so skip them for per-KR breakdown
+        }
+        if (task?.keyResultId === kr.id) {
+          krTasks.push({ task, pomos });
+        }
+      }
+      krTasks.sort((a, b) => b.pomos - a.pomos);
+      linked[kr.id] = krTasks;
+      pomodorosByKeyResult[kr.id] = krTasks.reduce((s, t) => s + t.pomos, 0);
     }
 
-    return { totalPomodoros, totalFocusMinutes, tasksCompleted, pomodorosByKeyResult };
+    return { totalPomodoros, totalFocusMinutes, tasksCompleted, pomodorosByKeyResult, linked };
   }, [weekStart, weekEnd, history, tasks, cycleKRs]);
 
   const updateEntry = (idx: number, updated: ReviewEntry) => {
@@ -85,6 +102,7 @@ export default function ReviewWizard({
   };
 
   const handleComplete = () => {
+    const { linked, ...statsToSave } = pomodoroStats;
     onComplete({
       weekStartDate: weekStart,
       weekEndDate: weekEnd,
@@ -92,7 +110,7 @@ export default function ReviewWizard({
       completedAt: new Date().toISOString(),
       entries,
       reflection: reflection.trim() || undefined,
-      pomodoroStats,
+      pomodoroStats: statsToSave,
     });
   };
 
@@ -160,8 +178,7 @@ export default function ReviewWizard({
             entry={entries[krStepIndex]}
             keyResult={cycleKRs[krStepIndex]}
             objective={cycleObjectives.find(o => o.id === cycleKRs[krStepIndex].objectiveId)!}
-            pomodoroCount={pomodoroStats.pomodorosByKeyResult[cycleKRs[krStepIndex].id] || 0}
-            linkedTaskCount={tasks.filter(t => t.keyResultId === cycleKRs[krStepIndex].id).length}
+            linkedTasksThisWeek={pomodoroStats.linked[cycleKRs[krStepIndex].id] || []}
             onChange={updated => updateEntry(krStepIndex, updated)}
           />
         )}
