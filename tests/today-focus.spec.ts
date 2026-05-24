@@ -9,34 +9,40 @@ async function waitForApp(page: import('@playwright/test').Page) {
 test.describe('Today Focus', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
-    // App now defaults to Today view
     await expect(page.locator('text=Today\'s Focus')).toBeVisible({ timeout: 10000 });
   });
 
-  test('displays top 3 ranked tasks with correct order', async ({ page }) => {
-    // Seed data ranking: task-6 (at_risk KR, do, score 7) > task-1 (on_track KR, do, score 6) > task-3 (no KR, decide, momentum, score 4)
+  test('displays ranked tasks — completable first, correct order', async ({ page }) => {
+    // budget=10, maxShare=5, daysLeft=7 (urgency=1.0)
+    // Two-phase pick: task-6(0.898), task-1(0.799), task-3(0.547), task-5(0.447) → 4 cards, 9/10
     const cards = page.locator('.focus-card');
-    await expect(cards).toHaveCount(3);
+    await expect(cards).toHaveCount(4);
 
-    // #1 should be "Refactor auth module" (at_risk KR overrides on_track)
+    // #1: "Refactor auth module" (do + at_risk KR + momentum)
     await expect(cards.nth(0)).toContainText('Refactor auth module');
-    // #2 should be "Design new dashboard layout"
+    // #2: "Design new dashboard layout" (do + on_track KR + momentum)
     await expect(cards.nth(1)).toContainText('Design new dashboard layout');
-    // #3 should be "Write API documentation" (has momentum over task-5)
+    // #3: "Write API documentation" (decide + momentum)
     await expect(cards.nth(2)).toContainText('Write API documentation');
+    // #4: "Plan sprint retrospective" (decide, no momentum)
+    await expect(cards.nth(3)).toContainText('Plan sprint retrospective');
+  });
+
+  test('budget header shows correct slice totals', async ({ page }) => {
+    // 4 tasks: slices 2+2+3+2 = 9, budget = 10
+    await expect(page.locator('text=Today\'s Plan: 9 / 10')).toBeVisible();
   });
 
   test('delete-category task never appears', async ({ page }) => {
-    // task-8 "Clean up unused dependencies" is category=delete — must not show
     const cards = page.locator('.focus-card');
-    await expect(cards).toHaveCount(3);
-    for (let i = 0; i < 3; i++) {
+    const count = await cards.count();
+    for (let i = 0; i < count; i++) {
       await expect(cards.nth(i)).not.toContainText('Clean up unused dependencies');
     }
   });
 
   test('top card shows KR confidence dot and link', async ({ page }) => {
-    // task-6 is linked to kr-2 (at_risk) under obj-1 "Ship myOKR v2.0"
+    // task-6 linked to kr-2 (at_risk) under obj-1 "Ship myOKR v2.0"
     const topCard = page.locator('.focus-card').first();
     await expect(topCard).toContainText('Refactor auth module');
     await expect(topCard).toContainText('Achieve 90% test coverage');
@@ -46,59 +52,48 @@ test.describe('Today Focus', () => {
   test('Start button on top card jumps to Timer with task selected', async ({ page }) => {
     await page.locator('.focus-card .btn:has-text("Start")').click();
 
-    // Should navigate to Timer tab
     await expect(page.locator('.timer-section')).toBeVisible();
-    // Task should be selected
     await expect(page.locator('text=Working on:')).toBeVisible();
     await expect(page.locator('strong').filter({ hasText: 'Refactor auth module' })).toBeVisible();
   });
 
-  test('Skip removes card and slides next up', async ({ page }) => {
+  test('Skip removes card and refills from remaining candidates', async ({ page }) => {
     const cards = page.locator('.focus-card');
-    await expect(cards).toHaveCount(3);
+    await expect(cards).toHaveCount(4);
 
-    // Skip top card
+    // Skip top card (task-6)
     await cards.nth(0).locator('button:has-text("Skip")').click();
 
-    // Should still have cards, but "Plan sprint retrospective" should now appear
-    await expect(cards).toHaveCount(3);
-    // After skipping task-6, the order is: task-1, task-3, task-5
+    // After skip: task-1, task-3, task-5, task-7 fill the budget (2+3+2+2=9/10)
+    await expect(cards).toHaveCount(4);
     await expect(cards.nth(0)).toContainText('Design new dashboard layout');
-    await expect(cards.nth(2)).toContainText('Plan sprint retrospective');
+    // task-7 "Update README screenshots" should now appear (was previously out)
+    await expect(cards.nth(3)).toContainText('Update README screenshots');
   });
 
-  test('Reshuffle swaps at least one card', async ({ page }) => {
-    // 5 candidate tasks in seed data → Reshuffle button visible
+  test('Reshuffle swaps at least the top card', async ({ page }) => {
+    // 5 candidates, 4 displayed → Reshuffle button visible
     const reshuffleBtn = page.locator('button:has-text("Reshuffle")');
     await expect(reshuffleBtn).toBeVisible();
 
     const firstTitle = await page.locator('.focus-card').nth(0).textContent();
 
-    // Click reshuffle — may need a few tries due to randomness
-    let changed = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await reshuffleBtn.click();
-      const newTitle = await page.locator('.focus-card').nth(0).textContent();
-      if (newTitle !== firstTitle) {
-        changed = true;
-        break;
-      }
-    }
-    // With 5 candidates and forced lower-pool inclusion, this should swap quickly
-    expect(changed).toBeTruthy();
+    // Reshuffle excludes top card → guaranteed different top card
+    await reshuffleBtn.click();
+    const newTitle = await page.locator('.focus-card').nth(0).textContent();
+    expect(newTitle).not.toBe(firstTitle);
   });
 
-  test('Why this? tooltip shows score breakdown', async ({ page }) => {
+  test('Why this? tooltip shows humanized reasons', async ({ page }) => {
+    // task-6 triggers all 4 factors: do + at_risk + urgency + momentum
     const topCard = page.locator('.focus-card').first();
     const whyBtn = topCard.locator('button:has-text("Why this?")');
     await whyBtn.hover();
 
-    // Tooltip should appear with breakdown
-    const tooltip = topCard.locator('text=Total:');
-    await expect(tooltip).toBeVisible();
-    await expect(topCard.locator('text=Confidence:')).toBeVisible();
-    await expect(topCard.locator('text=Category:')).toBeVisible();
-    await expect(topCard.locator('text=Urgency:')).toBeVisible();
-    await expect(topCard.locator('text=Momentum:')).toBeVisible();
+    // Should show humanized reasons, not raw numbers
+    await expect(topCard.locator('text=Top-priority Do task')).toBeVisible();
+    await expect(topCard.locator('text=KR is at risk')).toBeVisible();
+    await expect(topCard.locator('text=Cycle ends in')).toBeVisible();
+    await expect(topCard.locator('text=Already in progress')).toBeVisible();
   });
 });
