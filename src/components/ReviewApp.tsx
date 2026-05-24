@@ -188,6 +188,8 @@ export default function ReviewApp() {
         reviews={reviews}
         keyResults={keyResults}
         objectives={objectives}
+        tasks={tasks}
+        history={history}
         onDelete={handleDeleteReview}
         onEdit={handleEditReview}
       />

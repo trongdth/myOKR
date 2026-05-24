@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { WeeklyReview, ReviewEntry, KeyResult, Objective, Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
+import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
+import { computeWeekTaskPomos } from '../../lib/pomodoro-storage';
 import NumberInput from '../NumberInput';
 import ConfirmModal from '../ConfirmModal';
+import LinkedTasksThisWeek from './LinkedTasksThisWeek';
 
 interface Props {
   reviews: WeeklyReview[];
   keyResults: KeyResult[];
   objectives: Objective[];
+  tasks: PomodoroTask[];
+  history: DailyRecord[];
   onDelete: (id: string) => void;
   onEdit: (review: WeeklyReview) => void;
 }
 
-export default function ReviewHistory({ reviews, keyResults, onDelete, onEdit }: Props) {
+export default function ReviewHistory({ reviews, keyResults, tasks, history, onDelete, onEdit }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntry, setEditEntry] = useState<ReviewEntry | null>(null);
@@ -21,6 +26,37 @@ export default function ReviewHistory({ reviews, keyResults, onDelete, onEdit }:
   const sorted = [...reviews]
     .filter(r => r.completedAt)
     .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
+
+  // Memoize per-review linked task data
+  const reviewLinkedMap = useMemo(() => {
+    const map = new Map<string, Record<string, Array<{ task: PomodoroTask | null; pomos: number }>>>();
+    const taskMap = new Map(tasks.map(t => [t.id, t]));
+
+    for (const review of sorted) {
+      const weekPomos = computeWeekTaskPomos(history, review.weekStartDate, review.weekEndDate);
+      const byKr: Record<string, Array<{ task: PomodoroTask | null; pomos: number }>> = {};
+
+      for (const entry of review.entries) {
+        const krId = entry.keyResultId;
+        const krTasks: Array<{ task: PomodoroTask | null; pomos: number }> = [];
+        for (const [taskId, pomos] of weekPomos) {
+          const task = taskMap.get(taskId) || null;
+          if (task?.keyResultId === krId) {
+            krTasks.push({ task, pomos });
+          }
+        }
+        krTasks.sort((a, b) => b.pomos - a.pomos);
+        byKr[krId] = krTasks;
+      }
+      map.set(review.id, byKr);
+    }
+    return map;
+  }, [sorted, tasks, history]);
+
+  const getLinkedForKr = (reviewId: string, krId: string) => {
+    const byKr = reviewLinkedMap.get(reviewId);
+    return byKr?.[krId] || [];
+  };
 
   const startEntryEdit = (entry: ReviewEntry) => {
     setEditingEntryId(entry.keyResultId);
@@ -105,6 +141,7 @@ export default function ReviewHistory({ reviews, keyResults, onDelete, onEdit }:
                   {review.entries.map(entry => {
                     const kr = keyResults.find(k => k.id === entry.keyResultId);
                     const isEditingThis = editingEntryId === entry.keyResultId;
+                    const linkedForKr = getLinkedForKr(review.id, entry.keyResultId);
 
                     if (isEditingThis && editEntry) {
                       return (
@@ -165,20 +202,27 @@ export default function ReviewHistory({ reviews, keyResults, onDelete, onEdit }:
 
                     const meta = CONFIDENCE_META[entry.confidence];
                     return (
-                      <div key={entry.keyResultId} className="review-history-entry">
-                        <span className="review-history-entry-icon">{meta.icon}</span>
-                        <span className="review-history-entry-title">
-                          {kr?.title || 'Unknown KR'}
-                        </span>
-                        <span className="review-history-entry-change">
-                          {entry.previousValue} → {entry.currentValue}
-                        </span>
-                        <button
-                          className="review-history-action-btn edit"
-                          onClick={e => { e.stopPropagation(); startEntryEdit(entry); }}
-                        >
-                          ✏️
-                        </button>
+                      <div key={entry.keyResultId}>
+                        <div className="review-history-entry">
+                          <span className="review-history-entry-icon">{meta.icon}</span>
+                          <span className="review-history-entry-title">
+                            {kr?.title || 'Unknown KR'}
+                          </span>
+                          <span className="review-history-entry-change">
+                            {entry.previousValue} → {entry.currentValue}
+                          </span>
+                          <button
+                            className="review-history-action-btn edit"
+                            onClick={e => { e.stopPropagation(); startEntryEdit(entry); }}
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                        {linkedForKr.length > 0 && (
+                          <div style={{ marginLeft: '2em', marginTop: '0.25em' }}>
+                            <LinkedTasksThisWeek linkedTasksThisWeek={linkedForKr} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
