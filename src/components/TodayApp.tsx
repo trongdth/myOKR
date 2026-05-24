@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { loadTasks, loadSettings, type PomodoroTask, type PomodoroSettings } from '../lib/pomodoro-storage';
 import { loadKeyResults, loadObjectives, getActiveCycle, type KeyResult, type Objective } from '../lib/okr-storage';
-import { pickForBudget, getReshufflePool, getDailyPomodoroBudget, getMaxTaskBudgetShare, todaysSlice } from '../lib/today-focus';
+import { pickForBudget, getReshufflePool, pickFromScoredPool, getDailyPomodoroBudget, getMaxTaskBudgetShare, todaysSlice } from '../lib/today-focus';
 import FocusCard from './today/FocusCard';
 import LoadingState from './shared/LoadingState';
 
@@ -63,23 +63,17 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
 
   const handleReshuffle = () => {
     if (!settings || pool.length <= displayed.length) return;
-    // Shuffle entire pool to surface different candidates
-    const shuffled = [...pool];
+    // Exclude top card to guarantee a visible swap
+    const excludeId = displayed[0]?.id;
+    const filtered = pool.filter(t => t.id !== excludeId);
+    const shuffled = [...filtered];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     const budget = getDailyPomodoroBudget(settings);
     const maxShare = getMaxTaskBudgetShare(budget);
-    let cumulative = 0;
-    const picked: typeof shuffled = [];
-    for (const t of shuffled) {
-      if (picked.length >= 5) break;
-      picked.push(t);
-      cumulative += todaysSlice(t, maxShare);
-      if (cumulative >= budget && picked.length >= 1) break;
-    }
-    setDisplayed(picked);
+    setDisplayed(pickFromScoredPool(shuffled, budget, maxShare));
   };
 
   if (isLoading || !settings) return <LoadingState className="today-container" />;

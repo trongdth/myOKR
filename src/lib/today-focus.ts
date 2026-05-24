@@ -116,13 +116,54 @@ export function getWhyReasons(breakdown: ScoreBreakdown, daysLeft: number): stri
 
 const MAX_CARDS = 5;
 
+type ScoredTask = PomodoroTask & { _score: ScoreBreakdown };
+
+// Two-phase pick: completable tasks first, then spanning tasks. Strict budget (≤).
+function twoPhasePick(candidates: ScoredTask[], budget: number, maxShare: number): ScoredTask[] {
+  const picked: ScoredTask[] = [];
+  const pickedIds = new Set<string>();
+  let cumActual = 0;  // actual remaining for completable check
+  let cumSlices = 0;  // sliced contribution for budget meter
+
+  // Phase 1: completable tasks (remaining ≤ remaining budget)
+  for (const c of candidates) {
+    if (picked.length >= MAX_CARDS) break;
+    const remaining = Math.max(0, (c.estimatedPomodoros || 1) - c.completedPomodoros);
+    if (remaining > 0 && remaining <= budget - cumActual) {
+      picked.push(c);
+      pickedIds.add(c.id);
+      cumActual += remaining;
+      cumSlices += todaysSlice(c, maxShare);
+    }
+  }
+
+  // Phase 2: spanning tasks (slice fits in remaining budget)
+  for (const c of candidates) {
+    if (picked.length >= MAX_CARDS) break;
+    if (pickedIds.has(c.id)) continue;
+    const slice = todaysSlice(c, maxShare);
+    if (slice > 0 && slice <= budget - cumSlices) {
+      picked.push(c);
+      pickedIds.add(c.id);
+      cumSlices += slice;
+    }
+  }
+
+  // At least 1 card
+  if (picked.length === 0 && candidates.length > 0) {
+    picked.push(candidates[0]);
+  }
+
+  return picked;
+}
+
 export function pickForBudget(
   tasks: PomodoroTask[],
   keyResults: KeyResult[],
   cycle: OKRCycle | null,
   settings: PomodoroSettings,
   excludeIds: string[] = [],
-): Array<PomodoroTask & { _score: ScoreBreakdown }> {
+): ScoredTask[] {
   const krMap = new Map(keyResults.map(kr => [kr.id, kr]));
   const daysLeft = getDaysLeftInCycle(cycle);
   const excludeSet = new Set(excludeIds);
@@ -142,22 +183,19 @@ export function pickForBudget(
     return a.createdAt.localeCompare(b.createdAt);
   });
 
-  // Greedy budget fill using slices
-  const picked: typeof candidates = [];
-  let cumulative = 0;
-  for (const c of candidates) {
-    if (picked.length >= MAX_CARDS) break;
-    picked.push(c);
-    cumulative += todaysSlice(c, maxShare);
-    if (cumulative >= budget && picked.length >= 1) break;
-  }
+  return twoPhasePick(candidates, budget, maxShare);
+}
 
-  return picked;
+// Re-budget-fill from a pre-scored pool (used by reshuffle)
+export function pickFromScoredPool(
+  pool: ScoredTask[],
+  budget: number,
+  maxShare: number,
+): ScoredTask[] {
+  return twoPhasePick(pool, budget, maxShare);
 }
 
 // ===== RESHUFFLE POOL =====
-
-const RESHUFFLE_BAND = 0.10;
 
 export function getReshufflePool(
   tasks: PomodoroTask[],
@@ -188,25 +226,3 @@ export function getReshufflePool(
   return candidates.slice(0, poolSize);
 }
 
-// Reshuffle within 0.10 score band of the top
-export function reshufflePool(
-  pool: Array<PomodoroTask & { _score: ScoreBreakdown }>,
-  _settings: PomodoroSettings,
-): Array<PomodoroTask & { _score: ScoreBreakdown }> {
-  if (pool.length <= 1) return pool;
-
-  const topScore = pool[0]._score.total;
-  const band = pool.filter(t => t._score.total >= topScore - RESHUFFLE_BAND);
-
-  // Shuffle the band
-  const shuffled = [...band];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  // Reassemble: shuffled band first, then rest
-  const bandIds = new Set(band.map(t => t.id));
-  const rest = pool.filter(t => !bandIds.has(t.id));
-  return [...shuffled, ...rest];
-}
