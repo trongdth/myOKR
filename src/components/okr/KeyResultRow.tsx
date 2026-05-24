@@ -4,6 +4,7 @@ import type { Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 
 interface Props {
   kr: KeyResult;
@@ -41,6 +42,25 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const canShowPopover = mode === 'manual' || mode === 'focus_pomodoros' || mode === 'completed_tasks';
   const showCurrentAdjuster = mode === 'manual';
   const showTargetAdjuster = mode === 'focus_pomodoros' || mode === 'completed_tasks';
+
+  // Hold-repeat handlers for current value stepper
+  const holdCurrentDec = useHoldRepeat(
+    () => setTempCurrent(p => Math.max(0, p - 1)),
+    () => tempCurrent > 0,
+  );
+  const holdCurrentInc = useHoldRepeat(
+    () => setTempCurrent(p => Math.min(kr.targetValue, p + 1)),
+    () => tempCurrent < kr.targetValue,
+  );
+  // Hold-repeat handlers for target value stepper
+  const holdTargetDec = useHoldRepeat(
+    () => setTempTarget(p => Math.max(1, p - 1)),
+    () => tempTarget > 1,
+  );
+  const holdTargetInc = useHoldRepeat(
+    () => setTempTarget(p => p + 1),
+    () => true,
+  );
 
   const saveTitle = () => {
     const t = titleDraft.trim();
@@ -199,9 +219,9 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
                 <div className="kr-popover-field">
                   <label>Current</label>
                   <div className="kr-popover-counter">
-                    <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.max(0, tempCurrent - 1))}>−</button>
+                    <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.max(0, tempCurrent - 1))} {...holdCurrentDec}>−</button>
                     <span className="kr-counter-value">{tempCurrent}</span>
-                    <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.min(kr.targetValue, tempCurrent + 1))}>+</button>
+                    <button className="kr-counter-btn" onClick={() => setTempCurrent(Math.min(kr.targetValue, tempCurrent + 1))} {...holdCurrentInc}>+</button>
                   </div>
                 </div>
               )}
@@ -209,9 +229,9 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
                 <div className="kr-popover-field">
                   <label>Target</label>
                   <div className="kr-popover-counter">
-                    <button className="kr-counter-btn" onClick={() => setTempTarget(Math.max(1, tempTarget - 1))}>−</button>
+                    <button className="kr-counter-btn" onClick={() => setTempTarget(Math.max(1, tempTarget - 1))} {...holdTargetDec}>−</button>
                     <span className="kr-counter-value">{tempTarget}</span>
-                    <button className="kr-counter-btn" onClick={() => setTempTarget(tempTarget + 1)}>+</button>
+                    <button className="kr-counter-btn" onClick={() => setTempTarget(tempTarget + 1)} {...holdTargetInc}>+</button>
                   </div>
                 </div>
               )}

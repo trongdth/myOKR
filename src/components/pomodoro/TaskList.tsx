@@ -3,6 +3,7 @@ import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storag
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 import ConfirmModal from '../ConfirmModal';
 import TaskDetailModal from './TaskDetailModal';
 
@@ -123,6 +124,15 @@ function PomoEstimatePopover({ completed, estimated, onChange }: { completed: nu
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, open, () => setOpen(false));
 
+  const holdDec = useHoldRepeat(
+    () => setTempValue(p => Math.max(1, p - 1)),
+    () => tempValue > 1,
+  );
+  const holdInc = useHoldRepeat(
+    () => setTempValue(p => Math.min(20, p + 1)),
+    () => tempValue < 20,
+  );
+
   const handleOpen = () => {
     setTempValue(estimated);
     setOpen(true);
@@ -148,9 +158,9 @@ function PomoEstimatePopover({ completed, estimated, onChange }: { completed: nu
         <div className="pomo-estimate-popover" onClick={e => e.stopPropagation()}>
           <div className="pomo-popover-title">Adjust Total Pomodoros</div>
           <div className="pomo-popover-counter">
-            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.max(1, tempValue - 1))}>−</button>
+            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.max(1, tempValue - 1))} {...holdDec}>−</button>
             <span className="pomo-counter-value">{tempValue}</span>
-            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.min(20, tempValue + 1))}>+</button>
+            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.min(20, tempValue + 1))} {...holdInc}>+</button>
           </div>
           <div className="pomo-popover-actions">
             <button className="pomo-popover-cancel" onClick={() => setOpen(false)}>Cancel</button>

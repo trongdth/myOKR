@@ -1046,6 +1046,8 @@
   font-size: 1.1rem;
   cursor: pointer;
   transition: all 150ms ease;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 .pomo-counter-btn:hover {
