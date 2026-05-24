@@ -6,6 +6,8 @@ async function waitForApp(page: Page) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
+  // Navigate to Timer since Today is now the default landing tab
+  await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
 }
 
 async function addTask(page: Page, name: string) {
