@@ -4,6 +4,7 @@ import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
+import Markdown from '../shared/Markdown';
 
 type DetailTab = 'todos' | 'comments';
 
@@ -253,11 +254,8 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
               </div>
             </div>
           ) : (
-            <div
-              className={`task-detail-desc-text${!description ? ' empty' : ''}`}
-              onClick={() => setIsEditingDesc(true)}
-            >
-              {description || 'Click to add a description...'}
+            <div className={`task-detail-desc-text${!description ? ' empty' : ''}`}>
+              {description ? <Markdown>{description}</Markdown> : 'No description yet — click ✎ to add one.'}
             </div>
           )}
         </div>
