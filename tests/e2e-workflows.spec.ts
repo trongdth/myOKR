@@ -82,6 +82,7 @@ test.describe('Desktop: Task Workflow', () => {
 test.describe('Desktop: Pomodoro Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
+    await navDesktop(page, 'Timer');
   });
 
   test('adjust pomodoro config', async ({ page }) => {
@@ -182,7 +183,7 @@ test.describe('Mobile: Core Workflows', () => {
   });
 
   test('start and pause pomodoro', async ({ page }) => {
-    // Timer is the default view
+    await navMobile(page, 'Timer');
     await expect(page.locator('.timer-digits')).toBeVisible();
 
     // Start (no task selected — confirmation will appear, dismiss it)

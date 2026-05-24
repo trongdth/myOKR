@@ -23,7 +23,7 @@ import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
 import LoadingState from './shared/LoadingState';
 
-export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analytics' }) {
+export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsumed }: { tab: 'timer' | 'tasks' | 'analytics'; requestedTaskId?: string | null; onRequestedTaskConsumed?: () => void }) {
   // ----- State -----
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
@@ -100,6 +100,14 @@ export default function PomodoroApp({ tab }: { tab: 'timer' | 'tasks' | 'analyti
     }
     init();
   }, []);
+
+  // Consume requestedTaskId from Today view
+  useEffect(() => {
+    if (requestedTaskId && !isLoading) {
+      setActiveTaskId(requestedTaskId);
+      onRequestedTaskConsumed?.();
+    }
+  }, [requestedTaskId, isLoading, onRequestedTaskConsumed]);
 
   // Reload keyResults when switching tabs (KR titles may have changed on OKR page)
   useEffect(() => {

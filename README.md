@@ -16,6 +16,8 @@
     <br />
     <a href="#-key-features">✨ Features</a>
     ·
+    <a href="https://code4food.work/blog/effective-okrs-with-myokr/">📖 Effective OKR Guide</a>
+    ·
     <a href="#-support-the-project">💖 Sponsor</a>
   </p>
 </div>

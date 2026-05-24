@@ -5,14 +5,25 @@ import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
 import OKRApp from './components/OKRApp';
 import ReviewApp from './components/ReviewApp';
+import TodayApp from './components/TodayApp';
 import Walkthrough from './components/Walkthrough';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 
-type Section = 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review';
+type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review';
 
 const HELP_BLOG_URL = 'https://code4food.work/blog/effective-okrs-with-myokr';
 
 const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.ReactNode; isHeader?: boolean; isSubItem?: boolean }[] = [
+  {
+    id: 'today',
+    label: 'Today',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+  },
   {
     id: 'pomodoro-header',
     label: 'Pomodoro',
@@ -77,9 +88,11 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
 ];
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState<Section>('pomodoro-timer');
+  const [activeSection, setActiveSection] = useState<Section>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
+  const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
+  const [todayKey, setTodayKey] = useState(0);
 
   useEffect(() => {
     loadWalkthroughState().then((state: WalkthroughState) => {
@@ -101,6 +114,14 @@ export default function App() {
 
   const handleNavClick = (id: Section) => {
     setActiveSection(id);
+    setSidebarOpen(false);
+    if (id !== 'pomodoro-timer') setRequestedTaskId(null);
+    if (id === 'today') setTodayKey(k => k + 1);
+  };
+
+  const handleStartFromToday = (taskId: string) => {
+    setRequestedTaskId(taskId);
+    setActiveSection('pomodoro-timer');
     setSidebarOpen(false);
   };
 
@@ -178,8 +199,9 @@ export default function App() {
         </div>
 
         <div style={{ display: activeSection.startsWith('pomodoro-') ? 'contents' : 'none' }}>
-          <PomodoroApp tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} />
+          <PomodoroApp tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
         </div>
+        {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
         {activeSection === 'okrs' && <OKRApp />}
         {activeSection === 'review' && <ReviewApp />}
       </main>

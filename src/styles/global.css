@@ -155,6 +155,27 @@ input:focus {
   color: white;
 }
 
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.4em 0.8em;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   margin: 0 0 0.5rem 0;
