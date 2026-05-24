@@ -31,6 +31,7 @@ myOKR transforms your workflow by combining the immediate action of a Pomodoro t
   <img src="screenshots/okrs.png" alt="OKRs View" width="45%" />
 </div>
 <div align="center">
+  <img src="screenshots/review.png" alt="Weekly Review" width="45%" />
   <img src="screenshots/analytics.png" alt="Analytics View" width="45%" />
 </div>
 
@@ -72,15 +73,21 @@ npm run tauri build
 
 ## ✨ Key Features
 
+### Daily Focus
+- **☀️ Today View**: Opens to a curated daily slate — tasks auto-scored against your active Key Results and fit to your Pomodoro budget. Skip and reshuffle picks without losing the ranking.
+- **👋 First-Run Walkthrough**: Onboarding slides that introduce the OKRs → Tasks → Review loop the first time you launch the app.
+
 ### Goal Management (OKRs)
 - **🎯 OKR Tree**: Create monthly cycles, define Objectives, and break them down into measurable Key Results.
+- **♻️ Cycle Cloning**: New cycles can be seeded from the previous cycle's structure, and empty cycles can be deleted cleanly.
 - **📊 Progress Tracking**: Update progress directly and set confidence levels (🟢 On Track, 🟡 At Risk, 🔴 Off Track).
-- **📋 Weekly Review**: Guided check-in flow with confidence scoring and auto-populated insights from your Pomodoro data.
+- **📋 Weekly Review Wizard**: Stepped, per-KR check-in with confidence scoring, reflection prompts, a progress chart, and review history — all auto-populated from your Pomodoro data.
 
 ### Productivity Tools
 - **🍅 Pomodoro Timer**: Classic focus/break cycles with system tray integration.
-- **✅ Task Management**: Built-in Eisenhower matrix prioritization and inline editing.
+- **✅ Task Management**: Built-in Eisenhower matrix prioritization, inline editing, and drag-to-reorder within each quadrant.
 - **🔗 Task-to-KR Linking**: Optionally link Pomodoro tasks to your OKR Key Results to ensure daily actions align with larger goals.
+- **📝 Markdown Notes**: Task and KR descriptions render full GitHub-flavored markdown (lists, tables, code, links) with sanitized HTML.
 
 ### Desktop Experience
 - **🌙 Dark Tech Aesthetic**: Beautiful, responsive, and distraction-free user interface.
