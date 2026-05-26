@@ -158,9 +158,9 @@ function PomoEstimatePopover({ completed, estimated, onChange }: { completed: nu
         <div className="pomo-estimate-popover" onClick={e => e.stopPropagation()}>
           <div className="pomo-popover-title">Adjust Total Pomodoros</div>
           <div className="pomo-popover-counter">
-            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.max(1, tempValue - 1))} {...holdDec}>−</button>
+            <button className="pomo-counter-btn" {...holdDec}>−</button>
             <span className="pomo-counter-value">{tempValue}</span>
-            <button className="pomo-counter-btn" onClick={() => setTempValue(Math.min(20, tempValue + 1))} {...holdInc}>+</button>
+            <button className="pomo-counter-btn" {...holdInc}>+</button>
           </div>
           <div className="pomo-popover-actions">
             <button className="pomo-popover-cancel" onClick={() => setOpen(false)}>Cancel</button>
