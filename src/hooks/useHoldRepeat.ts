@@ -38,7 +38,6 @@ export function useHoldRepeat(step: () => void, canStep: () => boolean) {
     e.preventDefault();
     clearAll();
 
-    // Fire immediately
     if (!canStepRef.current()) return;
     stepRef.current();
 
