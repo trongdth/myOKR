@@ -293,6 +293,11 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
   };
 
   const toggleComplete = (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    const isBeingCompleted = task && !task.isCompleted;
+    if (isBeingCompleted && activeTaskId === id) {
+      onSetActive(null);
+    }
     onTasksChange(tasks.map(t =>
       t.id === id ? { ...t, isCompleted: !t.isCompleted, completedAt: !t.isCompleted ? new Date().toISOString() : undefined } : t
     ));

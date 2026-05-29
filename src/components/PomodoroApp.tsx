@@ -315,7 +315,9 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       setIsConfirmSwitchTaskOpen(true);
       return;
     }
-    if (isRunning && sessionType === 'focus' && id === null) return;
+    if (isRunning && sessionType === 'focus' && id === null) {
+      setIsRunning(false);
+    }
     setActiveTaskId(id);
   };
 
