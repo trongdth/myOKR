@@ -136,7 +136,10 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       completedPomos,
       sessionStartedAt: sessionStartRef.current,
     });
-  }, [sessionType, timeLeft, isRunning, activeTaskId, completedPomos, isLoading]);
+    // Intentionally omitting timeLeft to avoid writing to disk every second.
+    // Timer recovery correctly uses lastUpdated to deduce elapsed time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading]);
 
   // ----- Derived values -----
   const totalSeconds = sessionType === 'focus'
@@ -171,7 +174,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   }, [isRunning]);
 
   // ----- Handle timer reaching zero -----
-  const handleSessionComplete = useCallback(async () => {
+  const handleSessionComplete = useCallback(() => {
     setIsRunning(false);
     playCompletionSound();
     setPulse(true);
@@ -193,18 +196,18 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       lastFocusTaskId.current = activeTaskId;
 
-      // Update active task
+      // Update active task (Synchronous state update)
       if (activeTaskId) {
         const updatedTasks = tasks.map(t =>
           t.id === activeTaskId ? { ...t, completedPomodoros: t.completedPomodoros + 1 } : t
         );
         setTasks(updatedTasks);
-        await saveTasks(updatedTasks);
+        saveTasks(updatedTasks).catch(console.error); // Fire and forget persistence
       }
 
       sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a break.');
 
-      // Auto-transition to break — must happen BEFORE await so state updates batch together
+      // Auto-transition to break
       const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
       const nextType: SessionType = isLongBreak ? 'longBreak' : 'shortBreak';
       setSessionType(nextType);
@@ -215,19 +218,20 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       }
 
       // Update history (async, after state transition is applied)
-      const h = await loadHistory();
-      const todayRec = getTodayRecord(h);
-      todayRec.completedPomodoros += 1;
-      todayRec.totalFocusMinutes += settings.focusDuration;
-      todayRec.sessions.push(session);
-      const newHistory = upsertTodayRecord(h, todayRec);
-      setHistory(newHistory);
-      saveHistory(newHistory);
+      loadHistory().then(h => {
+        const todayRec = getTodayRecord(h);
+        todayRec.completedPomodoros += 1;
+        todayRec.totalFocusMinutes += settings.focusDuration;
+        todayRec.sessions.push(session);
+        const newHistory = upsertTodayRecord(h, todayRec);
+        setHistory(newHistory);
+        saveHistory(newHistory).catch(console.error);
+      }).catch(console.error);
     } else {
       // Break completed
       sendNotification('☕ Break Over!', 'Ready to focus again?');
 
-      // Auto-transition to focus — must happen BEFORE await so state updates batch together
+      // Auto-transition to focus
       setSessionType('focus');
       setTimeLeft(settings.focusDuration * 60);
       if (settings.autoStartFocus) {
@@ -245,13 +249,14 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
         }
       }
 
-      // Record break session (async, after state transition is applied)
-      const h = await loadHistory();
-      const todayRec = getTodayRecord(h);
-      todayRec.sessions.push(session);
-      const newHistory = upsertTodayRecord(h, todayRec);
-      setHistory(newHistory);
-      saveHistory(newHistory);
+      // Record break session
+      loadHistory().then(h => {
+        const todayRec = getTodayRecord(h);
+        todayRec.sessions.push(session);
+        const newHistory = upsertTodayRecord(h, todayRec);
+        setHistory(newHistory);
+        saveHistory(newHistory).catch(console.error);
+      }).catch(console.error);
     }
   }, [sessionType, completedPomos, activeTaskId, tasks, settings]);
 

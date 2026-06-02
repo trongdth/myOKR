@@ -1,7 +1,7 @@
 // OKR storage helpers — Tauri Store plugin
 // Uses @tauri-apps/plugin-store for persistent JSON-based storage
 
-import { load } from '@tauri-apps/plugin-store';
+import { getAutomergeDoc, updateAutomergeDoc, sanitizeForAutomerge } from './automerge-storage';
 import { generateId } from './pomodoro-storage';
 import type { PomodoroTask } from './pomodoro-storage';
 
@@ -263,31 +263,23 @@ export function getCurrentWeekEnd(): string {
 
 // ===== TAURI STORE =====
 
-let _store: Awaited<ReturnType<typeof load>> | null = null;
-
-async function getStore() {
-  if (!_store) {
-    _store = await load('okr-data.json', { autoSave: true, defaults: {} });
-  }
-  return _store;
-}
+// ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
 
 // ===== CYCLES =====
 
 export async function loadCycles(): Promise<OKRCycle[]> {
   try {
-    const store = await getStore();
-    return (await store.get<OKRCycle[]>('cycles')) || [];
+    const doc = await getAutomergeDoc();
+    return doc.cycles || [];
   } catch {
     return [];
   }
 }
 
 export async function saveCycles(cycles: OKRCycle[]): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('cycles', cycles);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update cycles', (d) => {
+    d.cycles = sanitizeForAutomerge(cycles);
+  });
 }
 
 export async function getActiveCycle(): Promise<OKRCycle | null> {
@@ -308,54 +300,51 @@ export async function ensureCyclesExist(): Promise<OKRCycle[]> {
 
 export async function loadObjectives(): Promise<Objective[]> {
   try {
-    const store = await getStore();
-    return (await store.get<Objective[]>('objectives')) || [];
+    const doc = await getAutomergeDoc();
+    return doc.objectives || [];
   } catch {
     return [];
   }
 }
 
 export async function saveObjectives(objectives: Objective[]): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('objectives', objectives);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update objectives', (d) => {
+    d.objectives = sanitizeForAutomerge(objectives);
+  });
 }
 
 // ===== KEY RESULTS =====
 
 export async function loadKeyResults(): Promise<KeyResult[]> {
   try {
-    const store = await getStore();
-    return (await store.get<KeyResult[]>('keyResults')) || [];
+    const doc = await getAutomergeDoc();
+    return doc.keyResults || [];
   } catch {
     return [];
   }
 }
 
 export async function saveKeyResults(keyResults: KeyResult[]): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('keyResults', keyResults);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update keyResults', (d) => {
+    d.keyResults = sanitizeForAutomerge(keyResults);
+  });
 }
 
 // ===== REVIEWS =====
 
 export async function loadReviews(): Promise<WeeklyReview[]> {
   try {
-    const store = await getStore();
-    return (await store.get<WeeklyReview[]>('reviews')) || [];
+    const doc = await getAutomergeDoc();
+    return doc.reviews || [];
   } catch {
     return [];
   }
 }
 
 export async function saveReviews(reviews: WeeklyReview[]): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('reviews', reviews);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update reviews', (d) => {
+    d.reviews = sanitizeForAutomerge(reviews);
+  });
 }
 
 // ===== WALKTHROUGH =====
@@ -364,18 +353,17 @@ export type WalkthroughState = 'not_seen' | 'seen' | 'dismissed';
 
 export async function loadWalkthroughState(): Promise<WalkthroughState> {
   try {
-    const store = await getStore();
-    return (await store.get<WalkthroughState>('walkthroughState')) || 'not_seen';
+    const doc = await getAutomergeDoc();
+    return doc.walkthroughState || 'not_seen';
   } catch {
     return 'not_seen';
   }
 }
 
 export async function saveWalkthroughState(state: WalkthroughState): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('walkthroughState', state);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update walkthroughState', (d) => {
+    d.walkthroughState = state;
+  });
 }
 
 export function shouldShowWalkthrough(state: WalkthroughState): boolean {

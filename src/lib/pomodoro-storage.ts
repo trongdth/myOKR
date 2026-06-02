@@ -1,7 +1,7 @@
 // Pomodoro storage helpers — adapted for Tauri Store plugin
 // Uses @tauri-apps/plugin-store for persistent JSON-based storage
 
-import { load } from '@tauri-apps/plugin-store';
+import { getAutomergeDoc, updateAutomergeDoc, sanitizeForAutomerge } from './automerge-storage';
 
 // ===== TYPES =====
 export interface PomodoroSettings {
@@ -97,95 +97,88 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   autoStartFocus: false,
 };
 
-// ===== TAURI STORE =====
-let _store: Awaited<ReturnType<typeof load>> | null = null;
-
-async function getStore() {
-  if (!_store) {
-    _store = await load('pomodoro-data.json', { autoSave: true, defaults: {} });
-  }
-  return _store;
-}
+// ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
 
 // ===== SETTINGS =====
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
-    const store = await getStore();
-    const saved = await store.get<Partial<PomodoroSettings>>('settings');
-    return { ...DEFAULT_SETTINGS, ...(saved || {}) };
+    const doc = await getAutomergeDoc();
+    return { ...DEFAULT_SETTINGS, ...(doc.settings || {}) };
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
 
-export async function saveSettings(s: PomodoroSettings): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('settings', s);
-  } catch { /* silently fail */ }
+export async function saveSettings(settings: PomodoroSettings): Promise<void> {
+  await updateAutomergeDoc('Update settings', (d) => {
+    d.settings = sanitizeForAutomerge(settings);
+  });
 }
 
 // ===== TASKS =====
 export async function loadTasks(): Promise<PomodoroTask[]> {
   try {
-    const store = await getStore();
-    return (await store.get<PomodoroTask[]>('tasks')) || [];
+    const doc = await getAutomergeDoc();
+    return doc.tasks || [];
   } catch {
     return [];
   }
 }
 
 export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('tasks', tasks);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update tasks', (d) => {
+    d.tasks = sanitizeForAutomerge(tasks);
+  });
 }
 
 // ===== HISTORY =====
 export async function loadHistory(): Promise<DailyRecord[]> {
   try {
-    const store = await getStore();
-    return (await store.get<DailyRecord[]>('history')) || [];
+    const doc = await getAutomergeDoc();
+    return doc.history || [];
   } catch {
     return [];
   }
 }
 
 export async function saveHistory(h: DailyRecord[]): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('history', h);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update history', (d) => {
+    d.history = sanitizeForAutomerge(h);
+  });
 }
 
 // ===== TIMER STATE =====
 export async function loadTimerState(): Promise<TimerState | null> {
   try {
-    const store = await getStore();
-    return (await store.get<TimerState | null>('timerState')) || null;
+    const doc = await getAutomergeDoc();
+    return doc.timerState || null;
   } catch {
     return null;
   }
 }
 
 export async function saveTimerState(state: TimerState): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set('timerState', state);
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Update timer state', (d) => {
+    d.timerState = sanitizeForAutomerge(state);
+  });
 }
 
 export async function clearTimerState(): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.delete('timerState');
-  } catch { /* silently fail */ }
+  await updateAutomergeDoc('Clear timerState', (d) => {
+    d.timerState = null;
+  });
 }
 
 // ===== DATE HELPERS =====
+export function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateString();
 }
 
 export function getTodayRecord(history: DailyRecord[]): DailyRecord {
