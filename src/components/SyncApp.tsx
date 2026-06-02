@@ -69,19 +69,23 @@ export default function SyncApp() {
   return (
     <div className="okr-container">
       <div className="okr-header">
-        <h1 className="okr-title">Cloud Sync</h1>
+        <h1 className="okr-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-blue)' }}>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Cloud Sync
+        </h1>
       </div>
 
-      <div className="okr-card" style={{ marginBottom: '2rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-        <h2 style={{ marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem' }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-blue)' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+      <div className="okr-card" style={{ marginBottom: '2rem', background: 'var(--bg-secondary)', border: 'none', padding: '1.25rem 1.5rem' }}>
+        <h2 style={{ marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#eab308' }}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
           True Local-First Experience
         </h2>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '1rem' }}>
-          myOKR is built as an industry-standard <strong>"Local-First"</strong> application. This means all your data lives directly on your device first, ensuring lightning-fast performance, maximum privacy, and complete offline availability.
-        </p>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-          By securely connecting your Dropbox, your data effortlessly syncs across all your devices in the background. We leverage cutting-edge <strong>Automerge CRDTs</strong> (Conflict-free Replicated Data Types) to automatically resolve any edit conflicts mathematically, so you never lose your work—even if you edit offline on multiple devices simultaneously!
+        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+          Enjoy lightning-fast performance and full offline support. Connect Dropbox to seamlessly sync your data across all devices.
         </p>
       </div>
 

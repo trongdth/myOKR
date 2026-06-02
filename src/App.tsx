@@ -101,7 +101,9 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
 ];
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState<Section>('today');
+  const [activeSection, setActiveSection] = useState<Section>(() => {
+    return (localStorage.getItem('myokr_active_section') as Section) || 'today';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
@@ -148,6 +150,7 @@ export default function App() {
 
   const handleNavClick = (id: Section) => {
     setActiveSection(id);
+    localStorage.setItem('myokr_active_section', id);
     setSidebarOpen(false);
     if (id !== 'pomodoro-timer') setRequestedTaskId(null);
     if (id === 'today') setTodayKey(k => k + 1);
@@ -156,6 +159,7 @@ export default function App() {
   const handleStartFromToday = (taskId: string) => {
     setRequestedTaskId(taskId);
     setActiveSection('pomodoro-timer');
+    localStorage.setItem('myokr_active_section', 'pomodoro-timer');
     setSidebarOpen(false);
   };
 

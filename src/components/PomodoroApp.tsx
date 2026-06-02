@@ -11,8 +11,6 @@ import TaskList from './pomodoro/TaskList';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
-import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import {
   loadKeyResults, saveKeyResults, getActiveCycle,
   loadCycles, saveCycles, loadObjectives, saveObjectives,
@@ -328,31 +326,47 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // ----- Analytics handlers -----
   const handleExport = async () => {
-    const filePath = await saveDialog({
-      defaultPath: `myokr-data-${new Date().toISOString().slice(0, 10)}.json`,
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-    });
-    if (!filePath) return;
-    const [cycles, objectives, krs, reviews] = await Promise.all([
-      loadCycles(), loadObjectives(), loadKeyResults(), loadReviews(),
-    ]);
-    const data = { settings, tasks, history, cycles, objectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
-    await writeTextFile(filePath, JSON.stringify(data, null, 2));
+    try {
+      const [cycles, objectives, krs, reviews] = await Promise.all([
+        loadCycles(), loadObjectives(), loadKeyResults(), loadReviews(),
+      ]);
+      const data = { settings, tasks, history, cycles, objectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `myokr-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export failed:', e);
+    }
   };
 
-  const handleImport = async () => {
-    const filePath = await openDialog({
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-      multiple: false,
-    });
-    if (!filePath) return;
-    try {
-      const content = await readTextFile(filePath as string);
-      const data = JSON.parse(content);
-      if (!data.settings || !data.tasks || !data.history) return;
-      setImportData(data);
-      setIsConfirmImportOpen(true);
-    } catch { /* invalid file */ }
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          const data = JSON.parse(content);
+          if (!data.settings || !data.tasks || !data.history) return;
+          setImportData(data);
+          setIsConfirmImportOpen(true);
+        } catch (err) {
+          console.error('Invalid JSON file', err);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   };
 
   const executeImport = async () => {
