@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Clone cycle', () => {
   test.beforeEach(async ({ page }) => {
+    // Set fixed time to May 2026 to align with the test's hardcoded assertions
+    await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });

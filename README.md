@@ -93,7 +93,8 @@ npm run tauri build
 - **🌙 Dark Tech Aesthetic**: Beautiful, responsive, and distraction-free user interface.
 - **🔔 Native Notifications**: Desktop notifications for session completions.
 - **🔒 Persistent Storage**: Data is saved locally across sessions using `@tauri-apps/plugin-store`.
-- **⬇️ Minimize to Tray**: Keeps running in the background when the main window is closed.
+- **☁️ Cloud Sync (Dropbox)**: True local-first experience with lightning-fast offline support, plus seamless cross-device syncing via your own Dropbox account.
+- **⬇️ Minimize to Tray**: Keeps running in the background when the main window is closed, featuring native-styled system tray icons.
 
 ---
 

@@ -6,10 +6,12 @@ import PomodoroApp from './components/PomodoroApp';
 import OKRApp from './components/OKRApp';
 import ReviewApp from './components/ReviewApp';
 import TodayApp from './components/TodayApp';
+import SyncApp from './components/SyncApp';
 import Walkthrough from './components/Walkthrough';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
+import { syncWithDropbox } from './lib/dropbox-service';
 
-type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review';
+type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review' | 'sync';
 
 const HELP_BLOG_URL = 'https://code4food.work/blog/effective-okrs-with-myokr';
 
@@ -85,10 +87,23 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
       </svg>
     ),
   },
+  {
+    id: 'sync',
+    label: 'Cloud Sync',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+    ),
+  },
 ];
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState<Section>('today');
+  const [activeSection, setActiveSection] = useState<Section>(() => {
+    return (localStorage.getItem('myokr_active_section') as Section) || 'today';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
@@ -98,6 +113,27 @@ export default function App() {
     loadWalkthroughState().then((state: WalkthroughState) => {
       setShowWalkthrough(shouldShowWalkthrough(state));
     });
+
+    // Background sync every 5 minutes
+    const token = localStorage.getItem('dropbox_access_token');
+    if (token) {
+      // Run once on load after a short delay
+      setTimeout(() => {
+        syncWithDropbox(token).then(() => {
+          const now = new Date().toLocaleString();
+          localStorage.setItem('last_sync_time', now);
+        }).catch(console.error);
+      }, 5000);
+
+      const intervalId = window.setInterval(() => {
+        syncWithDropbox(token).then(() => {
+          const now = new Date().toLocaleString();
+          localStorage.setItem('last_sync_time', now);
+        }).catch(console.error);
+      }, 5 * 60 * 1000);
+
+      return () => clearInterval(intervalId);
+    }
   }, []);
 
   const handleWalkthroughComplete = async (dismissed: boolean) => {
@@ -114,6 +150,7 @@ export default function App() {
 
   const handleNavClick = (id: Section) => {
     setActiveSection(id);
+    localStorage.setItem('myokr_active_section', id);
     setSidebarOpen(false);
     if (id !== 'pomodoro-timer') setRequestedTaskId(null);
     if (id === 'today') setTodayKey(k => k + 1);
@@ -122,6 +159,7 @@ export default function App() {
   const handleStartFromToday = (taskId: string) => {
     setRequestedTaskId(taskId);
     setActiveSection('pomodoro-timer');
+    localStorage.setItem('myokr_active_section', 'pomodoro-timer');
     setSidebarOpen(false);
   };
 
@@ -204,6 +242,7 @@ export default function App() {
         {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
         {activeSection === 'okrs' && <OKRApp />}
         {activeSection === 'review' && <ReviewApp />}
+        {activeSection === 'sync' && <SyncApp />}
       </main>
     </div>
   );

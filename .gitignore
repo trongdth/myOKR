@@ -26,6 +26,7 @@ dist-ssr
 # AI
 .omc/
 .claude
+.antigravitycli/
 
 # MCP
 .playwright-mcp/

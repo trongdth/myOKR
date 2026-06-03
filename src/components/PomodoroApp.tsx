@@ -11,8 +11,6 @@ import TaskList from './pomodoro/TaskList';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
-import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import {
   loadKeyResults, saveKeyResults, getActiveCycle,
   loadCycles, saveCycles, loadObjectives, saveObjectives,
@@ -136,7 +134,10 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       completedPomos,
       sessionStartedAt: sessionStartRef.current,
     });
-  }, [sessionType, timeLeft, isRunning, activeTaskId, completedPomos, isLoading]);
+    // Intentionally omitting timeLeft to avoid writing to disk every second.
+    // Timer recovery correctly uses lastUpdated to deduce elapsed time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading, sessionStartRef.current]);
 
   // ----- Derived values -----
   const totalSeconds = sessionType === 'focus'
@@ -157,21 +158,23 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     if (!isRunning) return;
     if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
 
-    intervalRef.current = window.setInterval(() => {
+    const id = window.setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          clearInterval(intervalRef.current!);
+          clearInterval(id);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    
+    intervalRef.current = id;
 
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isRunning]);
+    return () => clearInterval(id);
+  }, [isRunning, sessionType]);
 
   // ----- Handle timer reaching zero -----
-  const handleSessionComplete = useCallback(async () => {
+  const handleSessionComplete = useCallback(() => {
     setIsRunning(false);
     playCompletionSound();
     setPulse(true);
@@ -193,18 +196,18 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       lastFocusTaskId.current = activeTaskId;
 
-      // Update active task
+      // Update active task (Synchronous state update)
       if (activeTaskId) {
         const updatedTasks = tasks.map(t =>
           t.id === activeTaskId ? { ...t, completedPomodoros: t.completedPomodoros + 1 } : t
         );
         setTasks(updatedTasks);
-        await saveTasks(updatedTasks);
+        saveTasks(updatedTasks).catch(console.error); // Fire and forget persistence
       }
 
       sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a break.');
 
-      // Auto-transition to break — must happen BEFORE await so state updates batch together
+      // Auto-transition to break
       const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
       const nextType: SessionType = isLongBreak ? 'longBreak' : 'shortBreak';
       setSessionType(nextType);
@@ -215,19 +218,20 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       }
 
       // Update history (async, after state transition is applied)
-      const h = await loadHistory();
-      const todayRec = getTodayRecord(h);
-      todayRec.completedPomodoros += 1;
-      todayRec.totalFocusMinutes += settings.focusDuration;
-      todayRec.sessions.push(session);
-      const newHistory = upsertTodayRecord(h, todayRec);
-      setHistory(newHistory);
-      saveHistory(newHistory);
+      loadHistory().then(h => {
+        const todayRec = getTodayRecord(h);
+        todayRec.completedPomodoros += 1;
+        todayRec.totalFocusMinutes += settings.focusDuration;
+        todayRec.sessions.push(session);
+        const newHistory = upsertTodayRecord(h, todayRec);
+        setHistory(newHistory);
+        saveHistory(newHistory).catch(console.error);
+      }).catch(console.error);
     } else {
       // Break completed
       sendNotification('☕ Break Over!', 'Ready to focus again?');
 
-      // Auto-transition to focus — must happen BEFORE await so state updates batch together
+      // Auto-transition to focus
       setSessionType('focus');
       setTimeLeft(settings.focusDuration * 60);
       if (settings.autoStartFocus) {
@@ -239,19 +243,22 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
             setIsRunning(true);
           };
           setIsConfirmTaskChangedOpen(true);
+        } else if (!activeTaskId) {
+          setIsConfirmNoTaskOpen(true);
         } else {
           if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
           autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
         }
       }
 
-      // Record break session (async, after state transition is applied)
-      const h = await loadHistory();
-      const todayRec = getTodayRecord(h);
-      todayRec.sessions.push(session);
-      const newHistory = upsertTodayRecord(h, todayRec);
-      setHistory(newHistory);
-      saveHistory(newHistory);
+      // Record break session
+      loadHistory().then(h => {
+        const todayRec = getTodayRecord(h);
+        todayRec.sessions.push(session);
+        const newHistory = upsertTodayRecord(h, todayRec);
+        setHistory(newHistory);
+        saveHistory(newHistory).catch(console.error);
+      }).catch(console.error);
     }
   }, [sessionType, completedPomos, activeTaskId, tasks, settings]);
 
@@ -323,31 +330,47 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // ----- Analytics handlers -----
   const handleExport = async () => {
-    const filePath = await saveDialog({
-      defaultPath: `myokr-data-${new Date().toISOString().slice(0, 10)}.json`,
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-    });
-    if (!filePath) return;
-    const [cycles, objectives, krs, reviews] = await Promise.all([
-      loadCycles(), loadObjectives(), loadKeyResults(), loadReviews(),
-    ]);
-    const data = { settings, tasks, history, cycles, objectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
-    await writeTextFile(filePath, JSON.stringify(data, null, 2));
+    try {
+      const [cycles, objectives, krs, reviews] = await Promise.all([
+        loadCycles(), loadObjectives(), loadKeyResults(), loadReviews(),
+      ]);
+      const data = { settings, tasks, history, cycles, objectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `myokr-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export failed:', e);
+    }
   };
 
-  const handleImport = async () => {
-    const filePath = await openDialog({
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-      multiple: false,
-    });
-    if (!filePath) return;
-    try {
-      const content = await readTextFile(filePath as string);
-      const data = JSON.parse(content);
-      if (!data.settings || !data.tasks || !data.history) return;
-      setImportData(data);
-      setIsConfirmImportOpen(true);
-    } catch { /* invalid file */ }
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          const data = JSON.parse(content);
+          if (!data.settings || !data.tasks || !data.history) return;
+          setImportData(data);
+          setIsConfirmImportOpen(true);
+        } catch (err) {
+          console.error('Invalid JSON file', err);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   };
 
   const executeImport = async () => {
