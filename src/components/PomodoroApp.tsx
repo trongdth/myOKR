@@ -137,7 +137,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     // Intentionally omitting timeLeft to avoid writing to disk every second.
     // Timer recovery correctly uses lastUpdated to deduce elapsed time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading]);
+  }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading, sessionStartRef.current]);
 
   // ----- Derived values -----
   const totalSeconds = sessionType === 'focus'
@@ -158,18 +158,20 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     if (!isRunning) return;
     if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
 
-    intervalRef.current = window.setInterval(() => {
+    const id = window.setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          clearInterval(intervalRef.current!);
+          clearInterval(id);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    
+    intervalRef.current = id;
 
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isRunning]);
+    return () => clearInterval(id);
+  }, [isRunning, sessionType]);
 
   // ----- Handle timer reaching zero -----
   const handleSessionComplete = useCallback(() => {

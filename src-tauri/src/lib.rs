@@ -8,8 +8,8 @@ use tauri::{
 #[tauri::command]
 fn update_tray_title(app: tauri::AppHandle, title: String, tooltip: String) {
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Some(icon) = app.default_window_icon() {
-            let _ = tray.set_icon(Some(icon.clone()));
+        if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")) {
+            let _ = tray.set_icon(Some(icon));
             let _ = tray.set_icon_as_template(true);
         }
         let _ = tray.set_title(Some(&title));
@@ -31,8 +31,8 @@ fn open_external(url: String) -> Result<(), String> {
 #[tauri::command]
 fn reset_tray(app: tauri::AppHandle) {
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Some(icon) = app.default_window_icon() {
-            let _ = tray.set_icon(Some(icon.clone()));
+        if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")) {
+            let _ = tray.set_icon(Some(icon));
             let _ = tray.set_icon_as_template(true);
         }
         let _ = tray.set_title(None::<&str>);
@@ -51,7 +51,8 @@ pub fn run() {
         .setup(|app| {
             // Build system tray
             let _tray = TrayIconBuilder::with_id("main-tray")
-                .icon(app.default_window_icon().cloned().unwrap())
+                .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap())
+                .icon_as_template(true)
                 .tooltip("myOKR — Pomodoro Timer")
                 .on_tray_icon_event(|tray, event| {
                     if let tauri::tray::TrayIconEvent::Click {
