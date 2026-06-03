@@ -241,6 +241,8 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
             setIsRunning(true);
           };
           setIsConfirmTaskChangedOpen(true);
+        } else if (!activeTaskId) {
+          setIsConfirmNoTaskOpen(true);
         } else {
           if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
           autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
