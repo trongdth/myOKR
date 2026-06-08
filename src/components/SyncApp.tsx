@@ -57,11 +57,16 @@ export default function SyncApp() {
       setLastSync(now);
       localStorage.setItem('last_sync_time', now);
       
-      // Reload page to reflect new data
-      window.location.reload();
+      // Notify other components to refresh data without a full page reload
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     } catch (e: any) {
       console.error(e);
-      setError(e.message || 'Error syncing data with Dropbox.');
+      if (e?.status === 401) {
+        handleDisconnect();
+        setError('Dropbox access token is invalid or expired. Please reconnect.');
+      } else {
+        setError(e.message || 'Error syncing data with Dropbox.');
+      }
     }
     setIsSyncing(false);
   };
@@ -152,7 +157,7 @@ export default function SyncApp() {
             
             <p style={{ marginTop: '2rem', fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-              Auto-sync runs in the background every 5 minutes. The app automatically reloads if new changes arrive.
+              Auto-sync runs in the background every 5 minutes. The app automatically updates if new changes arrive.
             </p>
           </div>
         )}
