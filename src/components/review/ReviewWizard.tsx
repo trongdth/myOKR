@@ -165,7 +165,12 @@ export default function ReviewWizard({
                 <div className="review-stat-label">Tasks Done</div>
               </div>
             </div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            
+            <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--bg-surface-hover)', borderRadius: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <strong>Pomodoro Breakdown:</strong> {Object.values(pomodoroStats.pomodorosByKeyResult).reduce((a, b) => a + b, 0)} linked to this cycle's KRs, {pomodoroStats.totalPomodoros - Object.values(pomodoroStats.pomodorosByKeyResult).reduce((a, b) => a + b, 0)} unlinked or other cycles
+            </div>
+
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6, marginTop: '1.5rem' }}>
               You'll now review each of your <strong style={{ color: 'var(--text-primary)' }}>{cycleKRs.length} key result{cycleKRs.length !== 1 ? 's' : ''}</strong> to
               update progress and assess confidence. Let's go!
             </div>

@@ -46,14 +46,22 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
 
   const maxWeekValue = Math.max(...weekData.map(d => d.value), 1);
 
-  // Monthly heatmap (last 35 days, 5 weeks)
+  // Monthly heatmap (last 35 days, 5 weeks aligned to Monday)
   const heatmapData = useMemo(() => {
-    const cells: { date: string; level: number; future: boolean }[] = [];
+    const cells: { date: string; level: number; future: boolean; count: number }[] = [];
     const todayDate = new Date();
-    // Start from 34 days ago
-    for (let i = 34; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    const todayKey = getLocalDateString(todayDate);
+    
+    const currentDay = todayDate.getDay();
+    const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - daysToMonday - 28);
+
+    for (let i = 0; i < 35; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
       const key = getLocalDateString(d);
       const rec = history.find(r => r.date === key);
       const count = rec?.completedPomodoros || 0;
@@ -62,7 +70,8 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
       else if (count >= 5) level = 3;
       else if (count >= 2) level = 2;
       else if (count >= 1) level = 1;
-      cells.push({ date: key, level, future: d > todayDate });
+      
+      cells.push({ date: key, level, future: key > todayKey, count });
     }
     return cells;
   }, [history]);
@@ -138,7 +147,7 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
             <div
               key={i}
               className={`heatmap-cell${cell.level ? ` level-${cell.level}` : ''}${cell.future ? ' future' : ''}`}
-              title={`${cell.date}: ${cell.level > 0 ? `Level ${cell.level}` : 'No sessions'}`}
+              title={`${cell.date}: ${cell.count} ${cell.count === 1 ? 'pomodoro' : 'pomodoros'}`}
             />
           ))}
         </div>

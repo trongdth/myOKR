@@ -108,6 +108,13 @@ export default function App() {
   const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
   const [todayKey, setTodayKey] = useState(0);
+  const [syncKey, setSyncKey] = useState(0);
+
+  useEffect(() => {
+    const handleSyncEvent = () => setSyncKey(k => k + 1);
+    window.addEventListener('myokr-data-synced', handleSyncEvent);
+    return () => window.removeEventListener('myokr-data-synced', handleSyncEvent);
+  }, []);
 
   useEffect(() => {
     loadWalkthroughState().then((state: WalkthroughState) => {
@@ -117,19 +124,35 @@ export default function App() {
     // Background sync every 5 minutes
     const token = localStorage.getItem('dropbox_access_token');
     if (token) {
+      const handleSyncError = (e: any) => {
+        console.error(e);
+        if (e?.status === 401) {
+          localStorage.removeItem('dropbox_access_token');
+        }
+      };
+
       // Run once on load after a short delay
       setTimeout(() => {
-        syncWithDropbox(token).then(() => {
+        const currentToken = localStorage.getItem('dropbox_access_token');
+        if (!currentToken) return;
+        syncWithDropbox(currentToken).then(() => {
           const now = new Date().toLocaleString();
           localStorage.setItem('last_sync_time', now);
-        }).catch(console.error);
+          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+        }).catch(handleSyncError);
       }, 5000);
 
       const intervalId = window.setInterval(() => {
-        syncWithDropbox(token).then(() => {
+        const currentToken = localStorage.getItem('dropbox_access_token');
+        if (!currentToken) {
+          clearInterval(intervalId);
+          return;
+        }
+        syncWithDropbox(currentToken).then(() => {
           const now = new Date().toLocaleString();
           localStorage.setItem('last_sync_time', now);
-        }).catch(console.error);
+          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+        }).catch(handleSyncError);
       }, 5 * 60 * 1000);
 
       return () => clearInterval(intervalId);
@@ -237,11 +260,11 @@ export default function App() {
         </div>
 
         <div style={{ display: activeSection.startsWith('pomodoro-') ? 'contents' : 'none' }}>
-          <PomodoroApp tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
+          <PomodoroApp key={`pomodoro-${syncKey}`} tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
         </div>
-        {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
-        {activeSection === 'okrs' && <OKRApp />}
-        {activeSection === 'review' && <ReviewApp />}
+        {activeSection === 'today' && <TodayApp key={`${todayKey}-${syncKey}`} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
+        {activeSection === 'okrs' && <OKRApp key={`okrs-${syncKey}`} />}
+        {activeSection === 'review' && <ReviewApp key={`review-${syncKey}`} />}
         {activeSection === 'sync' && <SyncApp />}
       </main>
     </div>

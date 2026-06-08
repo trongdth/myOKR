@@ -20,6 +20,9 @@ export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreat
   useClickOutside(ref, open, () => setOpen(false));
 
   const activeCycle = cycles.find(c => c.id === activeCycleId);
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
   return (
     <div className="cycle-selector" ref={ref}>
@@ -44,7 +47,7 @@ export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreat
                   onClick={() => { onSelect(cycle.id); setOpen(false); }}
                 >
                   <span>{cycle.name}</span>
-                  {cycle.isActive && <span className="cycle-badge">current</span>}
+                  {cycle.month === currentMonth && cycle.year === currentYear && <span className="cycle-badge">current</span>}
                 </button>
                 {deletable && (
                   <button

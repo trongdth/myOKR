@@ -101,6 +101,19 @@ export function getMonthName(month: number, year: number): string {
   return `${MONTH_NAMES[month]} ${year}`;
 }
 
+export function resolveCurrentCycle(cycles: OKRCycle[]): OKRCycle | null {
+  if (cycles.length === 0) return null;
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const current = cycles.find(c => c.month === month && c.year === year);
+  if (current) return current;
+  // Fallback to active, then latest by date
+  const active = cycles.find(c => c.isActive);
+  if (active) return active;
+  return cycles.reduce((latest, c) => (c.year * 12 + c.month) > (latest.year * 12 + latest.month) ? c : latest);
+}
+
 export function generateDefaultCycles(): OKRCycle[] {
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -252,13 +265,31 @@ export function getCurrentWeekStart(): string {
   return monday.toISOString().slice(0, 10);
 }
 
-/** Returns the Sunday of the current ISO week */
 export function getCurrentWeekEnd(): string {
   const d = new Date();
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? 0 : 7); // Sunday
   const sunday = new Date(d.setDate(diff));
   return sunday.toISOString().slice(0, 10);
+}
+
+/** Returns a list of recent Monday dates (YYYY-MM-DD) */
+export function getRecentMondays(count: number = 6): string[] {
+  const currentMonday = new Date(getCurrentWeekStart());
+  const mondays: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(currentMonday);
+    d.setUTCDate(d.getUTCDate() - i * 7);
+    mondays.push(d.toISOString().slice(0, 10));
+  }
+  return mondays;
+}
+
+/** Returns the Sunday (YYYY-MM-DD) for a given Monday start date */
+export function getWeekEndFromStart(startDate: string): string {
+  const d = new Date(startDate);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().slice(0, 10);
 }
 
 // ===== TAURI STORE =====
@@ -284,7 +315,7 @@ export async function saveCycles(cycles: OKRCycle[]): Promise<void> {
 
 export async function getActiveCycle(): Promise<OKRCycle | null> {
   const cycles = await loadCycles();
-  return cycles.find(c => c.isActive) || cycles[0] || null;
+  return resolveCurrentCycle(cycles);
 }
 
 export async function ensureCyclesExist(): Promise<OKRCycle[]> {
