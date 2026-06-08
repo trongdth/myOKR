@@ -101,6 +101,19 @@ export function getMonthName(month: number, year: number): string {
   return `${MONTH_NAMES[month]} ${year}`;
 }
 
+export function resolveCurrentCycle(cycles: OKRCycle[]): OKRCycle | null {
+  if (cycles.length === 0) return null;
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const current = cycles.find(c => c.month === month && c.year === year);
+  if (current) return current;
+  // Fallback to active, then latest by date
+  const active = cycles.find(c => c.isActive);
+  if (active) return active;
+  return cycles.reduce((latest, c) => (c.year * 12 + c.month) > (latest.year * 12 + latest.month) ? c : latest);
+}
+
 export function generateDefaultCycles(): OKRCycle[] {
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -284,7 +297,7 @@ export async function saveCycles(cycles: OKRCycle[]): Promise<void> {
 
 export async function getActiveCycle(): Promise<OKRCycle | null> {
   const cycles = await loadCycles();
-  return cycles.find(c => c.isActive) || cycles[0] || null;
+  return resolveCurrentCycle(cycles);
 }
 
 export async function ensureCyclesExist(): Promise<OKRCycle[]> {

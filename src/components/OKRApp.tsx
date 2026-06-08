@@ -5,7 +5,7 @@ import {
   loadObjectives, saveObjectives,
   loadKeyResults, saveKeyResults,
   computeOverallProgress, getMonthName,
-  cloneCycleStructure,
+  cloneCycleStructure, resolveCurrentCycle,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
 import { generateId, loadSettings } from '../lib/pomodoro-storage';
@@ -31,7 +31,7 @@ export default function OKRApp() {
     async function init() {
       const c = await ensureCyclesExist();
       setCycles(c);
-      const active = c.find(x => x.isActive) || c[0];
+      const active = resolveCurrentCycle(c);
       if (active) setActiveCycleId(active.id);
 
       setObjectives(await loadObjectives());
@@ -39,6 +39,7 @@ export default function OKRApp() {
       setTasks(await loadTasks());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
+
       setIsLoading(false);
     }
     init();
