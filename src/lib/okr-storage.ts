@@ -265,13 +265,31 @@ export function getCurrentWeekStart(): string {
   return monday.toISOString().slice(0, 10);
 }
 
-/** Returns the Sunday of the current ISO week */
 export function getCurrentWeekEnd(): string {
   const d = new Date();
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? 0 : 7); // Sunday
   const sunday = new Date(d.setDate(diff));
   return sunday.toISOString().slice(0, 10);
+}
+
+/** Returns a list of recent Monday dates (YYYY-MM-DD) */
+export function getRecentMondays(count: number = 6): string[] {
+  const currentMonday = new Date(getCurrentWeekStart());
+  const mondays: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(currentMonday);
+    d.setUTCDate(d.getUTCDate() - i * 7);
+    mondays.push(d.toISOString().slice(0, 10));
+  }
+  return mondays;
+}
+
+/** Returns the Sunday (YYYY-MM-DD) for a given Monday start date */
+export function getWeekEndFromStart(startDate: string): string {
+  const d = new Date(startDate);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().slice(0, 10);
 }
 
 // ===== TAURI STORE =====

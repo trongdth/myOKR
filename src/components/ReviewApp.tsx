@@ -3,7 +3,8 @@ import '../styles/review.css';
 import {
   loadCycles, loadObjectives, loadKeyResults,
   loadReviews, saveReviews, saveKeyResults,
-  getCurrentWeekStart, getCurrentWeekEnd,
+  getCurrentWeekStart,
+  getRecentMondays, getWeekEndFromStart,
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
 import { generateId } from '../lib/pomodoro-storage';
@@ -23,6 +24,8 @@ export default function ReviewApp() {
   const [history, setHistory] = useState<DailyRecord[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
   const [showWizard, setShowWizard] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekStart());
+  const [explicitCycleId, setExplicitCycleId] = useState<string | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -39,9 +42,20 @@ export default function ReviewApp() {
     init();
   }, []);
 
-  const activeCycle = cycles.find(c => c.isActive) || cycles[0];
-  const weekStart = getCurrentWeekStart();
-  const weekEnd = getCurrentWeekEnd();
+  const weekStart = selectedWeek;
+  const weekEnd = selectedWeek ? getWeekEndFromStart(selectedWeek) : '';
+
+  const selectedDate = new Date(selectedWeek);
+  const targetMonth = selectedDate.getUTCMonth();
+  const targetYear = selectedDate.getUTCFullYear();
+
+  const inferredCycle = cycles.find(c => c.month === targetMonth && c.year === targetYear) 
+    || cycles.find(c => c.isActive) 
+    || cycles[0];
+
+  const activeCycle = explicitCycleId 
+    ? cycles.find(c => c.id === explicitCycleId) || inferredCycle 
+    : inferredCycle;
 
   // Check if current week already has a completed review
   const currentWeekReview = reviews.find(
@@ -152,6 +166,37 @@ export default function ReviewApp() {
         />
       ) : (
         <div className="review-start-card">
+          <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label htmlFor="week-select" style={{ color: 'var(--text-muted)' }}>Review for week of:</label>
+              <select 
+                id="week-select" 
+                value={selectedWeek} 
+                onChange={e => {
+                  setSelectedWeek(e.target.value);
+                  setExplicitCycleId(null);
+                }}
+                style={{ padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              >
+                {getRecentMondays().map(monday => (
+                  <option key={monday} value={monday}>{monday}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label htmlFor="cycle-select" style={{ color: 'var(--text-muted)' }}>Cycle:</label>
+              <select 
+                id="cycle-select" 
+                value={activeCycle.id} 
+                onChange={e => setExplicitCycleId(e.target.value)}
+                style={{ padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              >
+                {cycles.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           {currentWeekReview ? (
             <>
               <div className="review-start-card-icon">✅</div>
@@ -181,11 +226,11 @@ export default function ReviewApp() {
       )}
 
       {/* Progress Chart */}
-      <ProgressChart reviews={reviews} keyResults={keyResults} />
+      <ProgressChart reviews={reviews.filter(r => r.cycleId === activeCycle.id)} keyResults={keyResults} />
 
       {/* Review History */}
       <ReviewHistory
-        reviews={reviews}
+        reviews={reviews.filter(r => r.cycleId === activeCycle.id)}
         keyResults={keyResults}
         objectives={objectives}
         tasks={tasks}
