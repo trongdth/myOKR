@@ -1,57 +1,93 @@
 import { useState, useEffect } from 'react';
-import { validateDropboxToken, syncWithDropbox } from '../lib/dropbox-service';
+import { validateDropboxToken, syncWithDropbox, getDropboxAuthUrl, exchangeDropboxCode } from '../lib/dropbox-service';
 import '../styles/app.css';
 
-const TOKEN_KEY = 'dropbox_access_token';
+const CLIENT_ID_KEY = 'dropbox_client_id';
+const REFRESH_TOKEN_KEY = 'dropbox_refresh_token';
 
 export default function SyncApp() {
-  const [token, setToken] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [authCode, setAuthCode] = useState('');
+  const [authUrl, setAuthUrl] = useState('');
+  const [codeVerifier, setCodeVerifier] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem(TOKEN_KEY);
-    if (savedToken) {
-      setToken(savedToken);
+    const savedClientId = localStorage.getItem(CLIENT_ID_KEY);
+    const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (savedClientId && savedRefreshToken) {
       setIsConnected(true);
     }
     const last = localStorage.getItem('last_sync_time');
     if (last) setLastSync(last);
   }, []);
 
+  const handleGetLink = async () => {
+    if (!clientId.trim()) {
+      setError('Please enter your App Key first.');
+      return;
+    }
+    setError(null);
+    try {
+      const { url, codeVerifier: verifier } = await getDropboxAuthUrl(clientId.trim());
+      setAuthUrl(url);
+      setCodeVerifier(verifier);
+    } catch (e) {
+      setError('Failed to generate authorization URL. Check your App Key.');
+    }
+  };
+
   const handleConnect = async () => {
-    if (!token.trim()) return;
+    if (!clientId.trim() || !authCode.trim() || !codeVerifier) {
+      setError('Please complete the authorization step.');
+      return;
+    }
     setError(null);
     setIsSyncing(true);
     try {
-      const valid = await validateDropboxToken(token);
-      if (valid) {
-        localStorage.setItem(TOKEN_KEY, token);
-        setIsConnected(true);
+      const refreshToken = await exchangeDropboxCode(clientId.trim(), authCode.trim(), codeVerifier);
+      if (refreshToken) {
+        const valid = await validateDropboxToken(clientId.trim(), refreshToken);
+        if (valid) {
+          localStorage.setItem(CLIENT_ID_KEY, clientId.trim());
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+          setIsConnected(true);
+        } else {
+          setError('Failed to validate the connection. Please try again.');
+        }
       } else {
-        setError('Invalid Dropbox access token.');
+        setError('Failed to obtain refresh token.');
       }
     } catch (e) {
-      setError('Error validating token.');
+      console.error(e);
+      setError('Error validating authorization code. Make sure you copied the entire code.');
     }
     setIsSyncing(false);
   };
 
   const handleDisconnect = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken('');
+    localStorage.removeItem(CLIENT_ID_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setIsConnected(false);
+    setClientId('');
+    setAuthCode('');
+    setAuthUrl('');
+    setCodeVerifier('');
     setError(null);
   };
 
   const syncData = async () => {
-    if (!isConnected || !token) return;
+    const savedClientId = localStorage.getItem(CLIENT_ID_KEY);
+    const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!isConnected || !savedClientId || !savedRefreshToken) return;
+    
     setError(null);
     setIsSyncing(true);
     try {
-      await syncWithDropbox(token);
+      await syncWithDropbox(savedClientId, savedRefreshToken);
       
       const now = new Date().toLocaleString();
       setLastSync(now);
@@ -63,7 +99,7 @@ export default function SyncApp() {
       console.error(e);
       if (e?.status === 401) {
         handleDisconnect();
-        setError('Dropbox access token is invalid or expired. Please reconnect.');
+        setError('Dropbox connection is invalid or expired. Please reconnect.');
       } else {
         setError(e.message || 'Error syncing data with Dropbox.');
       }
@@ -102,29 +138,59 @@ export default function SyncApp() {
             <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Connect to Dropbox</h3>
             
             <div className="setup-steps" style={{ marginBottom: '2rem' }}>
-              <h4 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>How to get a Dropbox access token:</h4>
+              <h4 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>How to connect:</h4>
               <ol style={{ color: 'var(--text-secondary)', paddingLeft: '1.5rem', lineHeight: '1.8', margin: 0 }}>
                 <li>Go to the <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontWeight: 500 }}>Dropbox App Console</a> and sign in.</li>
                 <li>Click <strong>Create app</strong>. Choose "Scoped access" and "App folder". Name your app (e.g., "myOKR Sync").</li>
                 <li>Go to the <strong>Permissions</strong> tab, check the boxes for <code>files.content.read</code> and <code>files.content.write</code>, then click <strong>Submit</strong>.</li>
-                <li>Go back to the <strong>Settings</strong> tab and scroll down to the "OAuth 2" section.</li>
-                <li>Change "Access token expiration" to <strong>No expiration</strong>.</li>
-                <li>Click the <strong>Generate</strong> button under "Generated access token", and paste the resulting token below.</li>
+                <li>Go back to the <strong>Settings</strong> tab and copy your <strong>App key</strong> (Client ID).</li>
+                <li>Paste your App Key below and click <strong>Get Authorization Link</strong>.</li>
               </ol>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <input
-                type="password"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Paste your Dropbox access token here (sl.xyz...)"
-                className="okr-input"
-                style={{ flex: '1 1 300px', padding: '0.8rem 1rem', fontSize: '1rem' }}
-              />
-              <button className="okr-btn primary" onClick={handleConnect} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
-                {isSyncing ? 'Connecting...' : 'Connect Dropbox'}
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder="Paste your Dropbox App Key here"
+                  className="okr-input"
+                  disabled={!!authUrl}
+                  style={{ flex: '1 1 300px', padding: '0.8rem 1rem', fontSize: '1rem' }}
+                />
+                {!authUrl && (
+                  <button className="okr-btn primary" onClick={handleGetLink} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                    Get Authorization Link
+                  </button>
+                )}
+              </div>
+
+              {authUrl && (
+                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <h4 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Step 2: Authorize App</h4>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                    Click the link below, authorize the app in the new tab, and copy the provided access code.
+                  </p>
+                  <a href={authUrl} target="_blank" rel="noreferrer" className="okr-btn" style={{ display: 'inline-block', marginBottom: '1.5rem', textDecoration: 'none', background: 'var(--bg-primary)' }}>
+                    Open Authorization Page ↗
+                  </a>
+                  
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <input
+                      type="password"
+                      value={authCode}
+                      onChange={(e) => setAuthCode(e.target.value)}
+                      placeholder="Paste the Authorization Code here"
+                      className="okr-input"
+                      style={{ flex: '1 1 300px', padding: '0.8rem 1rem', fontSize: '1rem' }}
+                    />
+                    <button className="okr-btn primary" onClick={handleConnect} disabled={isSyncing || !authCode} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                      {isSyncing ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
