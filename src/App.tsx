@@ -122,20 +122,23 @@ export default function App() {
     });
 
     // Background sync every 5 minutes
-    const token = localStorage.getItem('dropbox_access_token');
-    if (token) {
+    const clientId = localStorage.getItem('dropbox_client_id');
+    const refreshToken = localStorage.getItem('dropbox_refresh_token');
+    if (clientId && refreshToken) {
       const handleSyncError = (e: any) => {
         console.error(e);
         if (e?.status === 401) {
-          localStorage.removeItem('dropbox_access_token');
+          localStorage.removeItem('dropbox_client_id');
+          localStorage.removeItem('dropbox_refresh_token');
         }
       };
 
       // Run once on load after a short delay
       setTimeout(() => {
-        const currentToken = localStorage.getItem('dropbox_access_token');
-        if (!currentToken) return;
-        syncWithDropbox(currentToken).then(() => {
+        const currentClientId = localStorage.getItem('dropbox_client_id');
+        const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
+        if (!currentClientId || !currentRefreshToken) return;
+        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
           const now = new Date().toLocaleString();
           localStorage.setItem('last_sync_time', now);
           window.dispatchEvent(new CustomEvent('myokr-data-synced'));
@@ -143,12 +146,13 @@ export default function App() {
       }, 5000);
 
       const intervalId = window.setInterval(() => {
-        const currentToken = localStorage.getItem('dropbox_access_token');
-        if (!currentToken) {
+        const currentClientId = localStorage.getItem('dropbox_client_id');
+        const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
+        if (!currentClientId || !currentRefreshToken) {
           clearInterval(intervalId);
           return;
         }
-        syncWithDropbox(currentToken).then(() => {
+        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
           const now = new Date().toLocaleString();
           localStorage.setItem('last_sync_time', now);
           window.dispatchEvent(new CustomEvent('myokr-data-synced'));
