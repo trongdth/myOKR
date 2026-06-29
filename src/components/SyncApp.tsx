@@ -55,6 +55,7 @@ export default function SyncApp() {
           localStorage.setItem(CLIENT_ID_KEY, clientId.trim());
           localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
           setIsConnected(true);
+          window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
         } else {
           setError('Failed to validate the connection. Please try again.');
         }
@@ -77,6 +78,7 @@ export default function SyncApp() {
     setAuthUrl('');
     setCodeVerifier('');
     setError(null);
+    window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
   };
 
   const syncData = async () => {

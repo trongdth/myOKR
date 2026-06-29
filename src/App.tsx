@@ -108,60 +108,67 @@ export default function App() {
   const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
   const [todayKey, setTodayKey] = useState(0);
-  const [syncKey, setSyncKey] = useState(0);
+  const [isSyncConnected, setIsSyncConnected] = useState(() =>
+    !!(localStorage.getItem('dropbox_client_id') && localStorage.getItem('dropbox_refresh_token'))
+  );
 
   useEffect(() => {
-    const handleSyncEvent = () => setSyncKey(k => k + 1);
-    window.addEventListener('myokr-data-synced', handleSyncEvent);
-    return () => window.removeEventListener('myokr-data-synced', handleSyncEvent);
+    const handleStatusChange = () => {
+      setIsSyncConnected(!!(localStorage.getItem('dropbox_client_id') && localStorage.getItem('dropbox_refresh_token')));
+    };
+    window.addEventListener('myokr-sync-status-changed', handleStatusChange);
+    return () => window.removeEventListener('myokr-sync-status-changed', handleStatusChange);
   }, []);
 
   useEffect(() => {
     loadWalkthroughState().then((state: WalkthroughState) => {
       setShowWalkthrough(shouldShowWalkthrough(state));
     });
-
-    // Background sync every 5 minutes
-    const clientId = localStorage.getItem('dropbox_client_id');
-    const refreshToken = localStorage.getItem('dropbox_refresh_token');
-    if (clientId && refreshToken) {
-      const handleSyncError = (e: any) => {
-        console.error(e);
-        if (e?.status === 401) {
-          localStorage.removeItem('dropbox_client_id');
-          localStorage.removeItem('dropbox_refresh_token');
-        }
-      };
-
-      // Run once on load after a short delay
-      setTimeout(() => {
-        const currentClientId = localStorage.getItem('dropbox_client_id');
-        const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
-        if (!currentClientId || !currentRefreshToken) return;
-        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
-          const now = new Date().toLocaleString();
-          localStorage.setItem('last_sync_time', now);
-          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-        }).catch(handleSyncError);
-      }, 5000);
-
-      const intervalId = window.setInterval(() => {
-        const currentClientId = localStorage.getItem('dropbox_client_id');
-        const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
-        if (!currentClientId || !currentRefreshToken) {
-          clearInterval(intervalId);
-          return;
-        }
-        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
-          const now = new Date().toLocaleString();
-          localStorage.setItem('last_sync_time', now);
-          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-        }).catch(handleSyncError);
-      }, 5 * 60 * 1000);
-
-      return () => clearInterval(intervalId);
-    }
   }, []);
+
+  useEffect(() => {
+    if (!isSyncConnected) return;
+
+    const handleSyncError = (e: any) => {
+      console.error(e);
+      if (e?.status === 401) {
+        localStorage.removeItem('dropbox_client_id');
+        localStorage.removeItem('dropbox_refresh_token');
+        window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
+      }
+    };
+
+    // Run once on load/connect after a short delay
+    const timeoutId = setTimeout(() => {
+      const currentClientId = localStorage.getItem('dropbox_client_id');
+      const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
+      if (!currentClientId || !currentRefreshToken) return;
+      syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
+        const now = new Date().toLocaleString();
+        localStorage.setItem('last_sync_time', now);
+        window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+      }).catch(handleSyncError);
+    }, 5000);
+
+    const intervalId = window.setInterval(() => {
+      const currentClientId = localStorage.getItem('dropbox_client_id');
+      const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
+      if (!currentClientId || !currentRefreshToken) {
+        window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
+        return;
+      }
+      syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
+        const now = new Date().toLocaleString();
+        localStorage.setItem('last_sync_time', now);
+        window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+      }).catch(handleSyncError);
+    }, 5 * 60 * 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [isSyncConnected]);
 
   const handleWalkthroughComplete = async (dismissed: boolean) => {
     const newState: WalkthroughState = dismissed ? 'dismissed' : 'seen';
@@ -264,11 +271,11 @@ export default function App() {
         </div>
 
         <div style={{ display: activeSection.startsWith('pomodoro-') ? 'contents' : 'none' }}>
-          <PomodoroApp key={`pomodoro-${syncKey}`} tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
+          <PomodoroApp key="pomodoro" tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
         </div>
-        {activeSection === 'today' && <TodayApp key={`${todayKey}-${syncKey}`} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
-        {activeSection === 'okrs' && <OKRApp key={`okrs-${syncKey}`} />}
-        {activeSection === 'review' && <ReviewApp key={`review-${syncKey}`} />}
+        {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
+        {activeSection === 'okrs' && <OKRApp key="okrs" />}
+        {activeSection === 'review' && <ReviewApp key="review" />}
         {activeSection === 'sync' && <SyncApp />}
       </main>
     </div>

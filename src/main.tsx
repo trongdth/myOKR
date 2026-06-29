@@ -1,10 +1,12 @@
 import React, { Component } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { initAndMigrateData } from "./lib/automerge-storage";
+import { initAndMigrateData, getAutomergeDoc, updateAutomergeDoc } from "./lib/automerge-storage";
 
 // Expose for E2E tests
 (window as any).__runMigration = initAndMigrateData;
+(window as any).__getAutomergeDoc = getAutomergeDoc;
+(window as any).__updateAutomergeDoc = updateAutomergeDoc;
 interface EBState { error: Error | null }
 class ErrorBoundary extends Component<{ children: React.ReactNode }, EBState> {
   state: EBState = { error: null };

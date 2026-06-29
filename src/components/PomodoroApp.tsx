@@ -122,6 +122,39 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     }
   }, [tab]);
 
+  // Listen to background sync and reload data dynamically
+  useEffect(() => {
+    async function refreshData() {
+      const s = await loadSettings();
+      setSettings(s);
+      
+      if (!isRunning) {
+        const saved = await loadTimerState();
+        if (!saved || !saved.isRunning) {
+          setTimeLeft(s.focusDuration * 60);
+        }
+      }
+
+      setTasks(await loadTasks());
+      setHistory(await loadHistory());
+      
+      const activeCycle = await getActiveCycle();
+      if (activeCycle) {
+        const krs = await loadKeyResults();
+        const objs = await loadObjectives();
+        const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
+        setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
+      }
+    }
+
+    const handleSync = () => {
+      refreshData();
+    };
+
+    window.addEventListener('myokr-data-synced', handleSync);
+    return () => window.removeEventListener('myokr-data-synced', handleSync);
+  }, [isRunning]);
+
   // ----- Persist timer state to Tauri Store -----
   useEffect(() => {
     if (isLoading) return;

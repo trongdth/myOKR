@@ -3,7 +3,7 @@
 
 import { getAutomergeDoc, updateAutomergeDoc, sanitizeForAutomerge } from './automerge-storage';
 import { generateId } from './pomodoro-storage';
-import type { PomodoroTask } from './pomodoro-storage';
+import type { PomodoroTask, DailyRecord } from './pomodoro-storage';
 
 // ===== TYPES =====
 
@@ -48,6 +48,7 @@ export interface Objective {
   cycleId: string;
   title: string;
   description?: string;
+  reward?: string;
   order: number;
   createdAt: string;
 }
@@ -175,6 +176,7 @@ export function cloneCycleStructure(
       cycleId: cycle.id,
       title: o.title,
       description: o.description,
+      reward: o.reward,
       order: o.order,
       createdAt: now,
     };
@@ -217,6 +219,60 @@ export function getEffectiveCurrentValue(
       return linked.reduce((sum, t) => sum + t.completedPomodoros, 0);
     case 'completed_tasks':
       return linked.filter(t => t.isCompleted).length;
+    default:
+      return kr.currentValue;
+  }
+}
+
+export function getEffectiveCurrentValueAsOf(
+  kr: KeyResult,
+  tasks: PomodoroTask[],
+  history: DailyRecord[],
+  endDate: string,
+  focusDurationMinutes: number = 25,
+): number {
+  if (kr.completionMode === 'manual' || !kr.completionMode) {
+    return kr.currentValue;
+  }
+  const linked = tasks.filter(t => t.keyResultId === kr.id);
+  const linkedIds = new Set(linked.map(t => t.id));
+
+  switch (kr.completionMode) {
+    case 'focus_hours': {
+      let count = 0;
+      for (const day of history) {
+        if (day.date <= endDate) {
+          for (const s of day.sessions) {
+            if (s.type === 'focus' && s.completed && s.taskId && linkedIds.has(s.taskId)) {
+              count++;
+            }
+          }
+        }
+      }
+      const totalMinutes = count * focusDurationMinutes;
+      return Math.round((totalMinutes / 60) * 100) / 100;
+    }
+    case 'focus_pomodoros': {
+      let count = 0;
+      for (const day of history) {
+        if (day.date <= endDate) {
+          for (const s of day.sessions) {
+            if (s.type === 'focus' && s.completed && s.taskId && linkedIds.has(s.taskId)) {
+              count++;
+            }
+          }
+        }
+      }
+      return count;
+    }
+    case 'completed_tasks': {
+      const completedLinked = linked.filter(t => 
+        t.isCompleted && 
+        t.completedAt && 
+        t.completedAt.slice(0, 10) <= endDate
+      );
+      return completedLinked.length;
+    }
     default:
       return kr.currentValue;
   }
