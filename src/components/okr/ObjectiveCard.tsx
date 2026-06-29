@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Objective, KeyResult, CompletionMode } from '../../lib/okr-storage';
 import { computeObjectiveProgress, COMPLETION_MODE_META } from '../../lib/okr-storage';
 import { generateId } from '../../lib/pomodoro-storage';
@@ -33,6 +33,23 @@ export default function ObjectiveCard({
   const [titleDraft, setTitleDraft] = useState(objective.title);
   const [newKRTitle, setNewKRTitle] = useState('');
   const [newKRMode, setNewKRMode] = useState<CompletionMode>('manual');
+  const [editingReward, setEditingReward] = useState(false);
+  const [rewardDraft, setRewardDraft] = useState(objective.reward || '');
+
+  useEffect(() => {
+    setRewardDraft(objective.reward || '');
+  }, [objective.reward]);
+
+  const saveReward = () => {
+    const r = rewardDraft.trim();
+    onUpdateObjective({ ...objective, reward: r || undefined });
+    setEditingReward(false);
+  };
+
+  const cancelEditReward = () => {
+    setRewardDraft(objective.reward || '');
+    setEditingReward(false);
+  };
 
   const objKRs = keyResults
     .filter(kr => kr.objectiveId === objective.id)
@@ -113,6 +130,56 @@ export default function ObjectiveCard({
       {/* Body */}
       {expanded && (
         <div className="objective-body">
+          {/* Reward Section */}
+          <div className="objective-reward-container">
+            {editingReward || !objective.reward ? (
+              <div className="objective-reward-input-wrap">
+                <span className="objective-reward-icon-prefix">🎁</span>
+                <input
+                  type="text"
+                  className="objective-reward-input"
+                  placeholder="Set a reward for achieving this objective (e.g. Treat myself to dinner, buy a gadget)..."
+                  value={rewardDraft}
+                  onChange={e => setRewardDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveReward();
+                    if (e.key === 'Escape') cancelEditReward();
+                  }}
+                />
+                <button className="objective-reward-save-btn" onClick={saveReward}>
+                  Save
+                </button>
+                {objective.reward && (
+                  <button className="objective-reward-cancel-btn" onClick={cancelEditReward}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className={`objective-reward-card${progress === 100 ? ' unlocked' : ' locked'}`}>
+                <div className="objective-reward-content">
+                  <span className="objective-reward-icon">{progress === 100 ? '🏆' : '🔒'}</span>
+                  <div className="objective-reward-text-group">
+                    <span className="objective-reward-label">
+                      {progress === 100 ? 'UNLOCKED REWARD' : 'TARGET REWARD'}
+                    </span>
+                    <span className="objective-reward-text">{objective.reward}</span>
+                  </div>
+                </div>
+                <button
+                  className="objective-reward-edit-btn"
+                  onClick={() => {
+                    setRewardDraft(objective.reward || '');
+                    setEditingReward(true);
+                  }}
+                  title="Edit reward"
+                >
+                  ✏️
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Key Results */}
           <div className="kr-list">
             {objKRs.length === 0 && (

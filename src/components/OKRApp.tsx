@@ -45,6 +45,31 @@ export default function OKRApp() {
     init();
   }, []);
 
+  // Listen to background sync and reload data dynamically
+  useEffect(() => {
+    async function reloadData() {
+      const c = await ensureCyclesExist();
+      setCycles(c);
+      if (!activeCycleId || !c.some(cycle => cycle.id === activeCycleId)) {
+        const active = resolveCurrentCycle(c);
+        if (active) setActiveCycleId(active.id);
+      }
+
+      setObjectives(await loadObjectives());
+      setKeyResults(await loadKeyResults());
+      setTasks(await loadTasks());
+      const settings = await loadSettings();
+      setFocusDuration(settings.focusDuration);
+    }
+
+    const handleSync = () => {
+      reloadData();
+    };
+
+    window.addEventListener('myokr-data-synced', handleSync);
+    return () => window.removeEventListener('myokr-data-synced', handleSync);
+  }, [activeCycleId]);
+
   // Derived
   const cycleObjectives = objectives
     .filter(o => o.cycleId === activeCycleId)

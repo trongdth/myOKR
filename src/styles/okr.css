@@ -932,3 +932,238 @@
     display: none;
   }
 }
+
+/* ===== OBJECTIVE REWARD ===== */
+.objective-reward-container {
+  margin: 0 0 1.25em 1.1em;
+}
+
+.objective-reward-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.5em 0.8em;
+}
+
+.objective-reward-icon-prefix {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.objective-reward-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.objective-reward-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.objective-reward-save-btn,
+.objective-reward-cancel-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 0.35em 0.75em;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.objective-reward-save-btn {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.3);
+  color: var(--accent-cyan);
+}
+
+.objective-reward-save-btn:hover {
+  background: rgba(6, 182, 212, 0.25);
+  border-color: var(--accent-cyan);
+  color: #fff;
+}
+
+.objective-reward-cancel-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Reward Card - General */
+.objective-reward-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.8em 1.2em;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Locked Reward Card */
+.objective-reward-card.locked {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed var(--border-color);
+}
+
+.objective-reward-card.locked:hover {
+  border-color: var(--border-glow);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Unlocked Reward Card - Golden Shine */
+.objective-reward-card.unlocked {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  box-shadow: 0 0 16px rgba(217, 119, 6, 0.4);
+  animation: rewardPulse 3s infinite ease-in-out;
+}
+
+.objective-reward-card.unlocked::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 30%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(25deg);
+  animation: rewardShine 6s infinite ease-in-out;
+}
+
+@keyframes rewardShine {
+  0% { left: -60%; }
+  15% { left: 130%; }
+  100% { left: 130%; }
+}
+
+@keyframes rewardPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 16px rgba(217, 119, 6, 0.4); }
+  50% { transform: scale(1.015); box-shadow: 0 0 24px rgba(217, 119, 6, 0.6); }
+}
+
+.objective-reward-content {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  min-width: 0;
+}
+
+.objective-reward-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.objective-reward-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+}
+
+.objective-reward-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.locked .objective-reward-label {
+  color: var(--text-muted);
+}
+
+.unlocked .objective-reward-label {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.objective-reward-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.locked .objective-reward-text {
+  color: var(--text-secondary);
+}
+
+.unlocked .objective-reward-text {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.objective-reward-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+}
+
+.locked .objective-reward-edit-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.unlocked .objective-reward-edit-btn {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.unlocked .objective-reward-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* Media query adaptations */
+@media (max-width: 640px) {
+  .objective-reward-container {
+    margin-left: 0.5em;
+  }
+  
+  .objective-reward-input-wrap {
+    flex-wrap: wrap;
+    gap: 0.5em;
+  }
+  
+  .objective-reward-input {
+    width: 100%;
+    flex: none;
+  }
+  
+  .objective-reward-save-btn,
+  .objective-reward-cancel-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .objective-reward-card {
+    padding: 0.7em 0.9em;
+  }
+}

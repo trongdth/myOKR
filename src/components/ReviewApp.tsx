@@ -5,6 +5,7 @@ import {
   loadReviews, saveReviews, saveKeyResults,
   getCurrentWeekStart,
   getRecentMondays, getWeekEndFromStart,
+  getEffectiveCurrentValueAsOf,
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
 import { generateId } from '../lib/pomodoro-storage';
@@ -13,6 +14,54 @@ import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
 import ProgressChart from './review/ProgressChart';
 import LoadingState from './shared/LoadingState';
+
+async function repairReviews(
+  loadedReviews: WeeklyReview[],
+  loadedKRs: KeyResult[],
+  loadedTasks: PomodoroTask[],
+  loadedHistory: DailyRecord[],
+  focusDur: number,
+): Promise<{ repaired: WeeklyReview[]; changed: boolean }> {
+  let changed = false;
+  const repaired = loadedReviews.map(r => {
+    if (!r.completedAt) return r;
+
+    const [y, m, dayVal] = r.weekStartDate.split('-').map(Number);
+    const prevDate = new Date(Date.UTC(y, m - 1, dayVal));
+    prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+    const previousSunday = prevDate.toISOString().slice(0, 10);
+
+    let entriesChanged = false;
+    const updatedEntries = r.entries.map(entry => {
+      const kr = loadedKRs.find(k => k.id === entry.keyResultId);
+      if (!kr || kr.completionMode === 'manual' || !kr.completionMode) return entry;
+
+      const correctPrev = getEffectiveCurrentValueAsOf(kr, loadedTasks, loadedHistory, previousSunday, focusDur);
+      const correctCurr = getEffectiveCurrentValueAsOf(kr, loadedTasks, loadedHistory, r.weekEndDate, focusDur);
+
+      if (entry.previousValue !== correctPrev || entry.currentValue !== correctCurr) {
+        entriesChanged = true;
+        return {
+          ...entry,
+          previousValue: correctPrev,
+          currentValue: correctCurr,
+        };
+      }
+      return entry;
+    });
+
+    if (entriesChanged) {
+      changed = true;
+      return {
+        ...r,
+        entries: updatedEntries,
+      };
+    }
+    return r;
+  });
+
+  return { repaired, changed };
+}
 
 export default function ReviewApp() {
   const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +78,66 @@ export default function ReviewApp() {
 
   useEffect(() => {
     async function init() {
+      const loadedCycles = await loadCycles();
+      const loadedKRs = await loadKeyResults();
+      const loadedReviews = await loadReviews();
+      const loadedTasks = await loadTasks();
+      const loadedHistory = await loadHistory();
+      const settings = await loadSettings();
+      const focusDur = settings.focusDuration;
+
+      setCycles(loadedCycles);
+      setObjectives(await loadObjectives());
+      setKeyResults(loadedKRs);
+      setReviews(loadedReviews);
+      setTasks(loadedTasks);
+      setHistory(loadedHistory);
+      setFocusDuration(focusDur);
+      setIsLoading(false);
+
+      // Run review database repair to correct legacy entries timezone-safely
+      const { repaired, changed } = await repairReviews(loadedReviews, loadedKRs, loadedTasks, loadedHistory, focusDur);
+      if (changed) {
+        setReviews(repaired);
+        try {
+          await saveReviews(repaired);
+        } catch {
+          /* storage failure is non-fatal */
+        }
+        // Sync Key Results with the repaired reviews
+        const updatedKRs = loadedKRs.map(kr => {
+          const krReviews = repaired
+            .filter(r => r.completedAt && r.entries.some(e => e.keyResultId === kr.id))
+            .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate)); // latest first
+
+          if (krReviews.length > 0) {
+            const latestReview = krReviews[0];
+            const entry = latestReview.entries.find(e => e.keyResultId === kr.id);
+            if (entry) {
+              return {
+                ...kr,
+                currentValue: entry.currentValue,
+                confidence: entry.confidence,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+          }
+          return kr;
+        });
+        setKeyResults(updatedKRs);
+        try {
+          await saveKeyResults(updatedKRs);
+        } catch {
+          /* storage failure is non-fatal */
+        }
+      }
+    }
+    init();
+  }, []);
+
+  // Listen to background sync and reload data dynamically
+  useEffect(() => {
+    async function reloadData() {
       setCycles(await loadCycles());
       setObjectives(await loadObjectives());
       setKeyResults(await loadKeyResults());
@@ -37,9 +146,14 @@ export default function ReviewApp() {
       setHistory(await loadHistory());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
-      setIsLoading(false);
     }
-    init();
+
+    const handleSync = () => {
+      reloadData();
+    };
+
+    window.addEventListener('myokr-data-synced', handleSync);
+    return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, []);
 
   const weekStart = selectedWeek;
@@ -62,32 +176,60 @@ export default function ReviewApp() {
     r => r.weekStartDate === weekStart && r.completedAt
   );
 
-  const handleCompleteReview = async (reviewData: Omit<WeeklyReview, 'id'>) => {
-    const review: WeeklyReview = {
-      id: generateId(),
-      ...reviewData,
-    };
+  const syncKeyResultsFromReviews = async (currentReviews: WeeklyReview[], currentKRs: KeyResult[]) => {
+    const updatedKRs = currentKRs.map(kr => {
+      const krReviews = currentReviews
+        .filter(r => r.completedAt && r.entries.some(e => e.keyResultId === kr.id))
+        .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate)); // latest first
 
-    // Save review
-    const updatedReviews = [...reviews, review];
-    setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
-
-    // Update Key Result values from review entries
-    const updatedKRs = keyResults.map(kr => {
-      const entry = review.entries.find(e => e.keyResultId === kr.id);
-      if (entry) {
-        return {
-          ...kr,
-          currentValue: entry.currentValue,
-          confidence: entry.confidence,
-          updatedAt: new Date().toISOString(),
-        };
+      if (krReviews.length > 0) {
+        const latestReview = krReviews[0];
+        const entry = latestReview.entries.find(e => e.keyResultId === kr.id);
+        if (entry) {
+          return {
+            ...kr,
+            currentValue: entry.currentValue,
+            confidence: entry.confidence,
+            updatedAt: new Date().toISOString(),
+          };
+        }
       }
       return kr;
     });
     setKeyResults(updatedKRs);
-    try { await saveKeyResults(updatedKRs); } catch { /* storage failure is non-fatal */ }
+    try {
+      await saveKeyResults(updatedKRs);
+    } catch {
+      /* storage failure is non-fatal */
+    }
+  };
+
+  const handleCompleteReview = async (reviewData: Omit<WeeklyReview, 'id'>) => {
+    // Prevent duplicate reviews for the same week by replacing if it already exists
+    const existsIdx = reviews.findIndex(r => r.weekStartDate === reviewData.weekStartDate);
+    let updatedReviews: WeeklyReview[];
+
+    if (existsIdx >= 0) {
+      const updated = {
+        ...reviews[existsIdx],
+        ...reviewData,
+        completedAt: new Date().toISOString(),
+      };
+      updatedReviews = reviews.map((r, idx) => idx === existsIdx ? updated : r);
+    } else {
+      const review: WeeklyReview = {
+        id: generateId(),
+        ...reviewData,
+      };
+      updatedReviews = [...reviews, review];
+    }
+
+    // Save review
+    setReviews(updatedReviews);
+    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
+
+    // Update Key Result values based on the latest completed review
+    await syncKeyResultsFromReviews(updatedReviews, keyResults);
 
     setShowWizard(false);
   };
@@ -95,28 +237,19 @@ export default function ReviewApp() {
   const handleDeleteReview = async (reviewId: string) => {
     const updatedReviews = reviews.filter(r => r.id !== reviewId);
     setReviews(updatedReviews);
-    await saveReviews(updatedReviews);
+    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
+
+    // Sync Key Result values from the remaining reviews
+    await syncKeyResultsFromReviews(updatedReviews, keyResults);
   };
 
   const handleEditReview = async (updatedReview: WeeklyReview) => {
     const updatedReviews = reviews.map(r => r.id === updatedReview.id ? updatedReview : r);
     setReviews(updatedReviews);
-    await saveReviews(updatedReviews);
+    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
 
-    const updatedKRs = keyResults.map(kr => {
-      const entry = updatedReview.entries.find(e => e.keyResultId === kr.id);
-      if (entry) {
-        return {
-          ...kr,
-          currentValue: entry.currentValue,
-          confidence: entry.confidence,
-          updatedAt: new Date().toISOString(),
-        };
-      }
-      return kr;
-    });
-    setKeyResults(updatedKRs);
-    await saveKeyResults(updatedKRs);
+    // Update Key Result values based on the latest completed review
+    await syncKeyResultsFromReviews(updatedReviews, keyResults);
   };
 
   if (isLoading) {
@@ -179,7 +312,9 @@ export default function ReviewApp() {
                 style={{ padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
               >
                 {getRecentMondays().map(monday => (
-                  <option key={monday} value={monday}>{monday}</option>
+                  <option key={monday} value={monday}>
+                    {monday} to {getWeekEndFromStart(monday)}
+                  </option>
                 ))}
               </select>
             </div>
@@ -203,11 +338,8 @@ export default function ReviewApp() {
               <div className="review-start-card-title">This week's review is complete!</div>
               <div className="review-start-card-desc">
                 Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
-                You can start another review or check your history below.
+                If you need to edit this review, you can do so in the Past Reviews section below.
               </div>
-              <button className="review-start-btn" onClick={() => setShowWizard(true)}>
-                📋 Start Another Review
-              </button>
             </>
           ) : (
             <>

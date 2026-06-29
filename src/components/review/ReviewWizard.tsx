@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { ReviewEntry, WeeklyReview, KeyResult, Objective } from '../../lib/okr-storage';
-import { getEffectiveCurrentValue } from '../../lib/okr-storage';
+import { getEffectiveCurrentValueAsOf } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
 import { computeWeekTaskPomos } from '../../lib/pomodoro-storage';
 import ReviewStepKR from './ReviewStepKR';
@@ -38,17 +38,25 @@ export default function ReviewWizard({
       .filter(r => r.completedAt)
       .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
 
+    // Calculate previous Sunday timezone-safely (day before weekStart)
+    const [y, m, dayVal] = weekStart.split('-').map(Number);
+    const prevDate = new Date(Date.UTC(y, m - 1, dayVal));
+    prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+    const previousSunday = prevDate.toISOString().slice(0, 10);
+
     return cycleKRs.map(kr => {
       const lastEntry = completedReviews
         .flatMap(r => r.entries)
         .find(e => e.keyResultId === kr.id);
 
-      const previousValue = lastEntry ? lastEntry.currentValue : 0;
-
       const isManual = kr.completionMode === 'manual' || !kr.completionMode;
+      const previousValue = isManual
+        ? (lastEntry ? lastEntry.currentValue : 0)
+        : getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes);
+
       const currentValue = isManual
         ? kr.currentValue
-        : getEffectiveCurrentValue(kr, tasks, focusDurationMinutes);
+        : getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes);
 
       return {
         keyResultId: kr.id,

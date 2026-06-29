@@ -51,6 +51,14 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     compute().then(() => setIsLoading(false));
   }, [compute]);
 
+  useEffect(() => {
+    const handleSync = () => {
+      compute(skippedIds);
+    };
+    window.addEventListener('myokr-data-synced', handleSync);
+    return () => window.removeEventListener('myokr-data-synced', handleSync);
+  }, [compute, skippedIds]);
+
   const handleStart = (taskId: string) => {
     onStartTask(taskId);
   };
