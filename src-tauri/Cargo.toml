@@ -3,6 +3,7 @@ name = "myokr"
 version = "0.1.13"
 description = "myOKR - Pomodoro Timer Desktop App"
 authors = ["Trong Dinh"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
