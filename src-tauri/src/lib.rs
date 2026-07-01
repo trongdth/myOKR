@@ -4,14 +4,10 @@ use tauri::{
     Manager,
 };
 
-/// Update the tray title (native text) and ensure it uses the default app icon.
+/// Update the tray title (native text).
 #[tauri::command]
 fn update_tray_title(app: tauri::AppHandle, title: String, tooltip: String) {
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")) {
-            let _ = tray.set_icon(Some(icon));
-            let _ = tray.set_icon_as_template(true);
-        }
         let _ = tray.set_title(Some(&title));
         let _ = tray.set_tooltip(Some(&tooltip));
     }
@@ -31,10 +27,6 @@ fn open_external(url: String) -> Result<(), String> {
 #[tauri::command]
 fn reset_tray(app: tauri::AppHandle) {
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")) {
-            let _ = tray.set_icon(Some(icon));
-            let _ = tray.set_icon_as_template(true);
-        }
         let _ = tray.set_title(None::<&str>);
         let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
     }

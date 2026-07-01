@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { PomodoroTask, TodoItem, TaskComment } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
-import Markdown from '../shared/Markdown';
+
+const Markdown = lazy(() => import('../shared/Markdown'));
 
 type DetailTab = 'todos' | 'comments';
 
@@ -255,7 +256,13 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             </div>
           ) : (
             <div className={`task-detail-desc-text${!description ? ' empty' : ''}`}>
-              {description ? <Markdown>{description}</Markdown> : 'No description yet — click ✎ to add one.'}
+              {description ? (
+<Suspense fallback={<span className="loading-text">Loading...</span>}>
+                  <Markdown>{description}</Markdown>
+                </Suspense>
+              ) : (
+                'No description yet — click ✎ to add one.'
+              )}
             </div>
           )}
         </div>
