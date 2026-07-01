@@ -149,7 +149,7 @@ export default function App() {
           localStorage.setItem('last_sync_time', now);
           window.dispatchEvent(new CustomEvent('myokr-data-synced'));
         }).catch(handleSyncError);
-      });
+      }).catch(handleSyncError);
     }, 5000);
 
     const intervalId = window.setInterval(() => {
