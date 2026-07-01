@@ -257,7 +257,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
           ) : (
             <div className={`task-detail-desc-text${!description ? ' empty' : ''}`}>
               {description ? (
-                <Suspense fallback={<div style={{ color: 'var(--text-secondary)' }}>Loading...</div>}>
+<Suspense fallback={<span className="loading-text">Loading...</span>}>
                   <Markdown>{description}</Markdown>
                 </Suspense>
               ) : (
