@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
-import OKRApp from './components/OKRApp';
-import ReviewApp from './components/ReviewApp';
 import TodayApp from './components/TodayApp';
-import SyncApp from './components/SyncApp';
-import Walkthrough from './components/Walkthrough';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
-import { syncWithDropbox } from './lib/dropbox-service';
+
+const OKRApp = lazy(() => import('./components/OKRApp'));
+const ReviewApp = lazy(() => import('./components/ReviewApp'));
+const SyncApp = lazy(() => import('./components/SyncApp'));
+const Walkthrough = lazy(() => import('./components/Walkthrough'));
 
 type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review' | 'sync';
 
@@ -143,11 +143,13 @@ export default function App() {
       const currentClientId = localStorage.getItem('dropbox_client_id');
       const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
       if (!currentClientId || !currentRefreshToken) return;
-      syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
-        const now = new Date().toLocaleString();
-        localStorage.setItem('last_sync_time', now);
-        window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-      }).catch(handleSyncError);
+      import('./lib/dropbox-service').then(({ syncWithDropbox }) => {
+        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
+          const now = new Date().toLocaleString();
+          localStorage.setItem('last_sync_time', now);
+          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+        }).catch(handleSyncError);
+      });
     }, 5000);
 
     const intervalId = window.setInterval(() => {
@@ -157,11 +159,13 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
         return;
       }
-      syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
-        const now = new Date().toLocaleString();
-        localStorage.setItem('last_sync_time', now);
-        window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-      }).catch(handleSyncError);
+      import('./lib/dropbox-service').then(({ syncWithDropbox }) => {
+        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
+          const now = new Date().toLocaleString();
+          localStorage.setItem('last_sync_time', now);
+          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+        }).catch(handleSyncError);
+      });
     }, 5 * 60 * 1000);
 
     return () => {
@@ -179,7 +183,11 @@ export default function App() {
   if (showWalkthrough === null) return null;
 
   if (showWalkthrough) {
-    return <Walkthrough onComplete={handleWalkthroughComplete} />;
+    return (
+      <Suspense fallback={null}>
+        <Walkthrough onComplete={handleWalkthroughComplete} />
+      </Suspense>
+    );
   }
 
   const handleNavClick = (id: Section) => {
@@ -274,9 +282,11 @@ export default function App() {
           <PomodoroApp key="pomodoro" tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
         </div>
         {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
-        {activeSection === 'okrs' && <OKRApp key="okrs" />}
-        {activeSection === 'review' && <ReviewApp key="review" />}
-        {activeSection === 'sync' && <SyncApp />}
+        <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
+          {activeSection === 'okrs' && <OKRApp key="okrs" />}
+          {activeSection === 'review' && <ReviewApp key="review" />}
+          {activeSection === 'sync' && <SyncApp />}
+        </Suspense>
       </main>
     </div>
   );

@@ -15,6 +15,18 @@ export default defineConfig(async () => ({
   },
   build: {
     target: "esnext",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@automerge/automerge')) {
+            return 'automerge-lib';
+          }
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'react-vendor';
+          }
+        }
+      }
+    }
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
