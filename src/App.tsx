@@ -159,14 +159,21 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
         return;
       }
+    const performSync = () => {
+      const currentClientId = localStorage.getItem('dropbox_client_id');
+      const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
+      if (!currentClientId || !currentRefreshToken) return;
       import('./lib/dropbox-service').then(({ syncWithDropbox }) => {
         syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
           const now = new Date().toLocaleString();
           localStorage.setItem('last_sync_time', now);
           window.dispatchEvent(new CustomEvent('myokr-data-synced'));
         }).catch(handleSyncError);
-      });
-    }, 5 * 60 * 1000);
+      }).catch(handleSyncError);
+    };
+
+    const timeoutId = setTimeout(performSync, 5000);
+    const intervalId = window.setInterval(performSync, 5 * 60 * 1000);
 
     return () => {
       clearTimeout(timeoutId);
