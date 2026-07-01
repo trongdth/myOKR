@@ -138,27 +138,6 @@ export default function App() {
       }
     };
 
-    // Run once on load/connect after a short delay
-    const timeoutId = setTimeout(() => {
-      const currentClientId = localStorage.getItem('dropbox_client_id');
-      const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
-      if (!currentClientId || !currentRefreshToken) return;
-      import('./lib/dropbox-service').then(({ syncWithDropbox }) => {
-        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
-          const now = new Date().toLocaleString();
-          localStorage.setItem('last_sync_time', now);
-          window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-        }).catch(handleSyncError);
-      }).catch(handleSyncError);
-    }, 5000);
-
-    const intervalId = window.setInterval(() => {
-      const currentClientId = localStorage.getItem('dropbox_client_id');
-      const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
-      if (!currentClientId || !currentRefreshToken) {
-        window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
-        return;
-      }
     const performSync = () => {
       const currentClientId = localStorage.getItem('dropbox_client_id');
       const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
@@ -172,7 +151,9 @@ export default function App() {
       }).catch(handleSyncError);
     };
 
+    // Run once on load/connect after a short delay
     const timeoutId = setTimeout(performSync, 5000);
+
     const intervalId = window.setInterval(performSync, 5 * 60 * 1000);
 
     return () => {
@@ -289,7 +270,7 @@ export default function App() {
           <PomodoroApp key="pomodoro" tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
         </div>
         {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
-<div className="loading-fallback">Loading...</div>
+        <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
           {activeSection === 'okrs' && <OKRApp key="okrs" />}
           {activeSection === 'review' && <ReviewApp key="review" />}
           {activeSection === 'sync' && <SyncApp />}
