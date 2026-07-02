@@ -11,6 +11,7 @@ import TaskList from './pomodoro/TaskList';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import {
   loadKeyResults, saveKeyResults, getActiveCycle,
   loadCycles, saveCycles, loadObjectives, saveObjectives,
@@ -46,7 +47,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
     cycles?: OKRCycle[]; objectives?: Objective[]; keyResults?: KeyResult[]; reviews?: WeeklyReview[];
   } | null>(null);
-  const intervalRef = useRef<number | null>(null);
+
   const sessionStartRef = useRef<string | null>(null);
   const autoStartTimeoutRef = useRef<number | null>(null);
   const lastFocusTaskId = useRef<string | null>(null);
@@ -186,26 +187,6 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
-  // ----- Timer tick -----
-  useEffect(() => {
-    if (!isRunning) return;
-    if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-
-    const id = window.setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(id);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    intervalRef.current = id;
-
-    return () => clearInterval(id);
-  }, [isRunning, sessionType]);
-
   // ----- Handle timer reaching zero -----
   const handleSessionComplete = useCallback(() => {
     setIsRunning(false);
@@ -295,6 +276,93 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     }
   }, [sessionType, completedPomos, activeTaskId, tasks, settings]);
 
+  // ----- Timer tick (Tauri Rust / Browser Fallback) -----
+  useEffect(() => {
+    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+
+    if (!isTauri) {
+      // Browser fallback (e.g. Playwright tests)
+      if (!isRunning) return;
+      if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+
+      const id = window.setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(id);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(id);
+    }
+
+    // Tauri Rust Backend implementation
+    let unlistenTick: (() => void) | null = null;
+    let unlistenComplete: (() => void) | null = null;
+
+    listen<number>('timer-tick', (event) => {
+      setTimeLeft(event.payload);
+    }).then(fn => { unlistenTick = fn; });
+
+    listen('timer-complete', () => {
+      handleSessionComplete();
+    }).then(fn => { unlistenComplete = fn; });
+
+    // Sync initial state from Rust on mount
+    invoke<[number, boolean, string]>('get_timer_state').then((res) => {
+      if (!res) return;
+      const [secs, running, type] = res;
+      if (running) {
+        setTimeLeft(secs);
+        setIsRunning(true);
+        setSessionType(type as SessionType);
+      }
+    }).catch(console.error);
+
+    return () => {
+      if (unlistenTick) unlistenTick();
+      if (unlistenComplete) unlistenComplete();
+    };
+  }, [isRunning, sessionType, handleSessionComplete]);
+
+  // Sync state on window focus
+  useEffect(() => {
+    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+    if (!isTauri) return;
+
+    const handleFocus = () => {
+      invoke<[number, boolean, string]>('get_timer_state').then((res) => {
+        if (!res) return;
+        const [secs, running, type] = res;
+        if (running) {
+          setTimeLeft(secs);
+          setIsRunning(true);
+          setSessionType(type as SessionType);
+        } else {
+          setIsRunning(false);
+        }
+      }).catch(console.error);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  // Control Rust timer state
+  useEffect(() => {
+    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+    if (!isTauri || isLoading) return;
+
+    if (isRunning) {
+      if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+      invoke('start_timer', { secs: timeLeft, sessionType }).catch(console.error);
+    } else {
+      invoke('pause_timer').catch(console.error);
+    }
+  }, [isRunning, sessionType, isLoading]);
+
   useEffect(() => {
     if (timeLeft === 0 && !isRunning) return;
     if (timeLeft === 0) handleSessionComplete();
@@ -318,21 +386,21 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   const resetTimer = () => {
     setIsRunning(false);
     sessionStartRef.current = null;
-    if (intervalRef.current) clearInterval(intervalRef.current);
     if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setTimeLeft(totalSeconds);
+    invoke('reset_timer_state').catch(console.error);
   };
 
   const switchSession = (type: SessionType) => {
     setIsRunning(false);
     sessionStartRef.current = null;
-    if (intervalRef.current) clearInterval(intervalRef.current);
     if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setSessionType(type);
     const dur = type === 'focus' ? settings.focusDuration
       : type === 'shortBreak' ? settings.shortBreakDuration
       : settings.longBreakDuration;
     setTimeLeft(dur * 60);
+    invoke('reset_timer_state').catch(console.error);
   };
 
   // ----- Settings handlers -----
@@ -425,7 +493,6 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     setTimeLeft(s.focusDuration * 60);
     setIsRunning(false);
     sessionStartRef.current = null;
-    if (intervalRef.current) clearInterval(intervalRef.current);
     await clearTimerState();
   };
 
@@ -449,13 +516,12 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       document.title = `${timerText} — ${sessionLabel}`;
     } else {
       document.title = 'myOKR — Pomodoro Timer';
+      // Only update tray title when not running (Rust timer updates it natively when running)
+      invoke('update_tray_title', { 
+        title: timerText, 
+        tooltip: `Ready to ${sessionLabel} (${timerText})`
+      }).catch(() => {});
     }
-
-    // Consistently update tray title with current time
-    invoke('update_tray_title', { 
-      title: timerText, 
-      tooltip: isRunning ? `${timerText} — ${sessionLabel}` : `Ready to ${sessionLabel} (${timerText})`
-    }).catch(() => {});
 
     return () => { 
       document.title = 'myOKR — Pomodoro Timer';

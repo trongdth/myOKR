@@ -150,23 +150,27 @@ export async function saveHistory(h: DailyRecord[]): Promise<void> {
 // ===== TIMER STATE =====
 export async function loadTimerState(): Promise<TimerState | null> {
   try {
-    const doc = await getAutomergeDoc();
-    return doc.timerState || null;
+    const val = localStorage.getItem('myokr_timer_state');
+    return val ? JSON.parse(val) : null;
   } catch {
     return null;
   }
 }
 
 export async function saveTimerState(state: TimerState): Promise<void> {
-  await updateAutomergeDoc('Update timer state', (d) => {
-    d.timerState = sanitizeForAutomerge(state);
-  });
+  try {
+    localStorage.setItem('myokr_timer_state', JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save timer state to localStorage', e);
+  }
 }
 
 export async function clearTimerState(): Promise<void> {
-  await updateAutomergeDoc('Clear timerState', (d) => {
-    d.timerState = null;
-  });
+  try {
+    localStorage.removeItem('myokr_timer_state');
+  } catch (e) {
+    console.error('Failed to clear timer state in localStorage', e);
+  }
 }
 
 // ===== DATE HELPERS =====

@@ -483,8 +483,10 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  transition: all 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
 }
 
 .task-item:has(.category-dropdown) {
