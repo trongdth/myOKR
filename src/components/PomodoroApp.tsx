@@ -22,6 +22,9 @@ import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
 import LoadingState from './shared/LoadingState';
 
+// Tauri injects __TAURI_INTERNALS__ at runtime; no type definitions exist for it.
+const IS_TAURI = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+
 export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsumed }: { tab: 'timer' | 'tasks' | 'analytics'; requestedTaskId?: string | null; onRequestedTaskConsumed?: () => void }) {
   // ----- State -----
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
@@ -53,6 +56,11 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   const lastFocusTaskId = useRef<string | null>(null);
   const pendingAutoStart = useRef<(() => void) | null>(null);
   const pendingSwitchTaskId = useRef<string | null>(null);
+  // Guards against a session completion being handled more than once. Completion
+  // can be signalled from up to three places (timer-complete event, window-focus
+  // sync, and the timeLeft===0 effect); without this, a double signal would
+  // double-count pomodoros, history records, and notifications.
+  const completionHandledRef = useRef(false);
 
   // ----- Load from Tauri Store on mount -----
   useEffect(() => {
@@ -224,6 +232,11 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // ----- Handle timer reaching zero -----
   const handleSessionComplete = useCallback(() => {
+    // Idempotency guard: only the first completion signal per session is honored.
+    // The guard is reset when a new session starts (isRunning goes true again).
+    if (completionHandledRef.current) return;
+    completionHandledRef.current = true;
+
     setIsRunning(false);
     playCompletionSound();
     setPulse(true);
@@ -334,18 +347,29 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     }
 
     // Tauri Rust Backend implementation
+    // `cancelled` guards the async `listen()` registration: if the effect re-runs
+    // (or unmounts) before the listen() promises resolve, the unlisten functions
+    // would still be null and the handlers would leak — firing duplicate ticks.
+    let cancelled = false;
     let unlistenTick: (() => void) | null = null;
     let unlistenComplete: (() => void) | null = null;
 
     listen<number>('timer-tick', (event) => {
       setTimeLeft(event.payload);
-    }).then(fn => { unlistenTick = fn; });
+    }).then(fn => {
+      if (cancelled) fn();
+      else unlistenTick = fn;
+    }).catch(console.error);
 
     listen('timer-complete', () => {
       handleSessionComplete();
-    }).then(fn => { unlistenComplete = fn; });
+    }).then(fn => {
+      if (cancelled) fn();
+      else unlistenComplete = fn;
+    }).catch(console.error);
 
     return () => {
+      cancelled = true;
       if (unlistenTick) unlistenTick();
       if (unlistenComplete) unlistenComplete();
     };
@@ -402,6 +426,13 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     if (timeLeft === 0) handleSessionComplete();
   }, [timeLeft, isRunning, handleSessionComplete]);
 
+  // A new session begins whenever isRunning goes true (manual start, auto-start
+  // after a break, or the switch-task confirm flow) — clear the completion guard
+  // so the next completion is honored.
+  useEffect(() => {
+    if (isRunning) completionHandledRef.current = false;
+  }, [isRunning]);
+
   // ----- Controls -----
   const toggleTimer = () => {
     if (!isRunning && sessionType === 'focus' && !activeTaskId) {
@@ -422,7 +453,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     sessionStartRef.current = null;
     if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setTimeLeft(totalSeconds);
-    invoke('reset_timer_state').catch(console.error);
+    if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
   };
 
   const switchSession = (type: SessionType) => {
@@ -434,7 +465,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       : type === 'shortBreak' ? settings.shortBreakDuration
       : settings.longBreakDuration;
     setTimeLeft(dur * 60);
-    invoke('reset_timer_state').catch(console.error);
+    if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
   };
 
   // ----- Settings handlers -----

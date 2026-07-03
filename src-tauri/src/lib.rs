@@ -8,11 +8,23 @@ use tauri::{
 use tauri_plugin_notification::NotificationExt;
 
 #[derive(Default)]
+struct TimerData {
+    end_timestamp_secs: u64,
+    paused_secs: u32,
+    is_running: bool,
+    session_type: String,
+}
+
+/// All mutable timer state lives behind a single lock so that reads are atomic
+/// (no torn state visible to a concurrent `get_timer_state`) and no handler ever
+/// holds nested locks. `generation` is bumped on every start/reset; the background
+/// loop captures its generation and exits when it no longer matches, so a stale
+/// loop can never keep ticking — or fire a duplicate completion — after a pause
+/// or restart.
+#[derive(Default)]
 pub struct TimerState {
-    pub end_timestamp_secs: Mutex<u64>,
-    pub paused_secs: Mutex<u32>,
-    pub is_running: Mutex<bool>,
-    pub session_type: Mutex<String>,
+    data: Mutex<TimerData>,
+    generation: Mutex<u64>,
 }
 
 fn get_current_time_secs() -> u64 {
@@ -53,15 +65,21 @@ fn reset_tray(app: tauri::AppHandle) {
 #[tauri::command]
 fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, session_type: String) {
     let now = get_current_time_secs();
-    *state.end_timestamp_secs.lock().unwrap() = now + secs as u64;
-    *state.paused_secs.lock().unwrap() = secs;
-    *state.session_type.lock().unwrap() = session_type.clone();
 
-    let mut is_running = state.is_running.lock().unwrap();
-    if *is_running {
-        return;
+    // Bump the generation so any currently-running background loop notices the
+    // change and exits instead of resuming (or completing) alongside this one.
+    let my_generation = {
+        let mut gen = state.generation.lock().unwrap();
+        *gen += 1;
+        *gen
+    };
+    {
+        let mut data = state.data.lock().unwrap();
+        data.end_timestamp_secs = now + secs as u64;
+        data.paused_secs = secs;
+        data.session_type = session_type;
+        data.is_running = true;
     }
-    *is_running = true;
 
     let state_clone = Arc::clone(&state);
     let app_clone = app.clone();
@@ -70,22 +88,29 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
         loop {
             tokio::time::sleep(Duration::from_secs(1)).await;
 
-            // Check if still running
-            {
-                let is_running = state_clone.is_running.lock().unwrap();
-                if !*is_running {
+            // Re-check that we are still the active loop: is_running may have been
+            // cleared by pause/reset, or a newer start may have bumped the generation.
+            let (end_time, session_label) = {
+                let current_gen = *state_clone.generation.lock().unwrap();
+                let data = state_clone.data.lock().unwrap();
+                if !data.is_running || current_gen != my_generation {
                     break;
                 }
-            }
+                (data.end_timestamp_secs, data.session_type.clone())
+            };
 
-            let end_time = *state_clone.end_timestamp_secs.lock().unwrap();
             let now = get_current_time_secs();
 
             if now >= end_time {
-                // Completed!
+                // Completed! Mark done only if a newer start hasn't superseded us
+                // between the read above and now.
                 {
-                    let mut is_running = state_clone.is_running.lock().unwrap();
-                    *is_running = false;
+                    let current_gen = *state_clone.generation.lock().unwrap();
+                    let mut data = state_clone.data.lock().unwrap();
+                    if current_gen != my_generation {
+                        break;
+                    }
+                    data.is_running = false;
                 }
 
                 // Reset tray title
@@ -94,11 +119,6 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
                     let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
                 }
 
-                // Send notification
-                let session_label = {
-                    let s = state_clone.session_type.lock().unwrap();
-                    s.clone()
-                };
                 let title = if session_label == "focus" { "🍅 Pomodoro Complete!" } else { "☕ Break Complete!" };
                 let body = if session_label == "focus" { "Great work! Time for a break." } else { "Time to focus!" };
 
@@ -115,10 +135,6 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
                 let remaining = (end_time - now) as u32;
 
                 let timer_text = format!("{:02}:{:02}", remaining / 60, remaining % 60);
-                let session_label = {
-                    let s = state_clone.session_type.lock().unwrap();
-                    s.clone()
-                };
                 let display_label = if session_label == "focus" { "Focus" } else { "Break" };
 
                 // Update tray directly
@@ -136,25 +152,32 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
 
 #[tauri::command]
 fn pause_timer(state: State<'_, Arc<TimerState>>) {
-    let mut is_running = state.is_running.lock().unwrap();
-    if *is_running {
-        *is_running = false;
-        let end_time = *state.end_timestamp_secs.lock().unwrap();
+    let mut data = state.data.lock().unwrap();
+    if data.is_running {
+        data.is_running = false;
         let now = get_current_time_secs();
-        let remaining = if end_time > now {
-            (end_time - now) as u32
+        data.paused_secs = if data.end_timestamp_secs > now {
+            (data.end_timestamp_secs - now) as u32
         } else {
             0
         };
-        *state.paused_secs.lock().unwrap() = remaining;
     }
 }
 
 #[tauri::command]
 fn reset_timer_state(state: State<'_, Arc<TimerState>>, app: AppHandle) {
-    *state.is_running.lock().unwrap() = false;
-    *state.end_timestamp_secs.lock().unwrap() = 0;
-    *state.paused_secs.lock().unwrap() = 0;
+    // Bump generation first so any in-flight loop exits before it can observe the
+    // zeroed end_timestamp and spuriously fire a completion.
+    {
+        let mut gen = state.generation.lock().unwrap();
+        *gen += 1;
+    }
+    {
+        let mut data = state.data.lock().unwrap();
+        data.is_running = false;
+        data.end_timestamp_secs = 0;
+        data.paused_secs = 0;
+    }
     if let Some(tray) = app.tray_by_id("main-tray") {
         let _ = tray.set_title(None::<&str>);
         let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
@@ -163,19 +186,20 @@ fn reset_timer_state(state: State<'_, Arc<TimerState>>, app: AppHandle) {
 
 #[tauri::command]
 fn get_timer_state(state: State<'_, Arc<TimerState>>) -> (u32, bool, String) {
-    let is_running = *state.is_running.lock().unwrap();
-    let session_type = state.session_type.lock().unwrap().clone();
+    // Single lock acquisition → callers never observe a mix of old/new field values.
+    let data = state.data.lock().unwrap();
+    let is_running = data.is_running;
+    let session_type = data.session_type.clone();
 
     let remaining_secs = if is_running {
-        let end_time = *state.end_timestamp_secs.lock().unwrap();
         let now = get_current_time_secs();
-        if end_time > now {
-            (end_time - now) as u32
+        if data.end_timestamp_secs > now {
+            (data.end_timestamp_secs - now) as u32
         } else {
             0
         }
     } else {
-        *state.paused_secs.lock().unwrap()
+        data.paused_secs
     };
 
     (remaining_secs, is_running, session_type)
