@@ -321,4 +321,126 @@ test.describe('Pomodoro: Switch task while running', () => {
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
     await expect(page.locator('text=Working on:')).toContainText('First Task');
   });
+
+  test('restores running state on startup and remains paused at correct remaining time when clicking Pause', async ({ page }) => {
+    // Open settings and set Focus duration to 40 mins
+    await page.locator('button[title="Settings"]').click();
+    const focusInput = page.locator('.settings-grid input[type="number"]').first();
+    await focusInput.fill('40');
+    // Close settings
+    await page.locator('button[title="Settings"]').click();
+    await expect(page.locator('.timer-digits')).toHaveText('40:00');
+
+    // Save running state at 20 mins to localStorage
+    const savedState = {
+      sessionType: 'focus',
+      timeLeft: 1200, // 20 minutes remaining
+      isRunning: true,
+      lastUpdated: new Date().toISOString(),
+      activeTaskId: null,
+      completedPomos: 0,
+      sessionStartedAt: new Date().toISOString(),
+    };
+    await page.evaluate((state) => {
+      localStorage.setItem('myokr_timer_state', JSON.stringify(state));
+    }, savedState);
+
+    // Reload app to trigger mount init()
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Loading...')).toHaveCount(0);
+    // Navigate to Timer tab
+    await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+
+    // Verify timer is restored to 20:00 (or slightly less, e.g. 19:59 due to reload time)
+    const digitsBeforePause = await page.locator('.timer-digits').textContent();
+    const [minsBefore] = digitsBeforePause!.split(':').map(Number);
+    expect(minsBefore).toBe(20);
+
+    // Pause the timer
+    await page.locator('button:has-text("Pause")').click();
+    await expect(page.locator('button:has-text("Start")')).toBeVisible();
+
+    // Verify it stays at 20 mins (or ~19 mins) and does NOT jump to 40:00!
+    const digitsAfterPause = await page.locator('.timer-digits').textContent();
+    const [minsAfter] = digitsAfterPause!.split(':').map(Number);
+    expect(minsAfter).toBeLessThan(25); // Definitely should not jump back to 40!
+  });
+
+  test('does not reset paused timer progress to settings duration on data sync', async ({ page }) => {
+    // Open settings and set Focus duration to 40 mins
+    await page.locator('button[title="Settings"]').click();
+    const focusInput = page.locator('.settings-grid input[type="number"]').first();
+    await focusInput.fill('40');
+    await page.locator('button[title="Settings"]').click();
+    await expect(page.locator('.timer-digits')).toHaveText('40:00');
+
+    // Save running state at 20 mins to localStorage
+    const savedState = {
+      sessionType: 'focus',
+      timeLeft: 1200, // 20 minutes remaining
+      isRunning: true,
+      lastUpdated: new Date().toISOString(),
+      activeTaskId: null,
+      completedPomos: 0,
+      sessionStartedAt: new Date().toISOString(),
+    };
+    await page.evaluate((state) => {
+      localStorage.setItem('myokr_timer_state', JSON.stringify(state));
+    }, savedState);
+
+    // Reload app to trigger mount init()
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Loading...')).toHaveCount(0);
+    // Navigate to Timer tab
+    await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+
+    // Verify timer is restored to 20:00
+    const digitsBeforePause = await page.locator('.timer-digits').textContent();
+    const [minsBefore] = digitsBeforePause!.split(':').map(Number);
+    expect(minsBefore).toBe(20);
+
+    // Pause on frontend
+    await page.locator('button:has-text("Pause")').click();
+    await expect(page.locator('button:has-text("Start")')).toBeVisible();
+
+    // Dispatch the data synced event
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    // Wait short time to ensure sync handler runs
+    await page.waitForTimeout(500);
+
+    // Verify it stays at 20 mins and does not reset to 40:00
+    const digitsAfterSync = await page.locator('.timer-digits').textContent();
+    const [minsAfter] = digitsAfterSync!.split(':').map(Number);
+    expect(minsAfter).toBeLessThan(25);
+  });
+
+  test('opens the Adjust Total Pomodoros popover and successfully changes estimated pomodoros', async ({ page }) => {
+    await addTask(page, 'Test Pomo Adjust');
+    
+    // Locate the pomo count badge '0/1' and click it
+    const pomoBadge = page.locator('.task-item:has-text("Test Pomo Adjust") .task-pomodoros');
+    await expect(pomoBadge).toBeVisible();
+    await pomoBadge.click();
+
+    // Verify the popover appears
+    const popover = page.locator('.pomo-estimate-popover');
+    await expect(popover).toBeVisible();
+    await expect(popover.locator('.pomo-popover-title')).toHaveText('Adjust Total Pomodoros');
+
+    // Click the '+' button to increment estimate to 2
+    await popover.locator('button.pomo-counter-btn:has-text("+")').click();
+    await expect(popover.locator('.pomo-counter-value')).toHaveText('2');
+
+    // Click confirm
+    await popover.locator('button.pomo-popover-confirm').click();
+
+    // Verify the popover disappears and the count changes to '0/2'
+    await expect(popover).toHaveCount(0);
+    await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0/2');
+  });
 });

@@ -62,7 +62,32 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       // Restore timer state
       const saved = await loadTimerState();
-      if (saved) {
+      const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+
+      let timerStateSynced = false;
+      if (isTauri) {
+        try {
+          const res = await invoke<[number, boolean, string]>('get_timer_state');
+          if (res) {
+            const [secs, running, type] = res;
+            if (running) {
+              setTimeLeft(secs);
+              setIsRunning(true);
+              setSessionType(type as SessionType);
+              timerStateSynced = true;
+              if (saved) {
+                setActiveTaskId(saved.activeTaskId);
+                setCompletedPomos(saved.completedPomos);
+                sessionStartRef.current = saved.sessionStartedAt;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Failed to sync initial timer state from Rust', e);
+        }
+      }
+
+      if (!timerStateSynced && saved) {
         setSessionType(saved.sessionType);
         setActiveTaskId(saved.activeTaskId);
         setCompletedPomos(saved.completedPomos);
@@ -79,7 +104,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
           setTimeLeft(saved.timeLeft);
           setIsRunning(false);
         }
-      } else {
+      } else if (!timerStateSynced) {
         setTimeLeft(s.focusDuration * 60);
       }
 
@@ -131,8 +156,18 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       
       if (!isRunning) {
         const saved = await loadTimerState();
-        if (!saved || !saved.isRunning) {
+        if (!saved) {
           setTimeLeft(s.focusDuration * 60);
+        } else if (!saved.isRunning) {
+          const dur = saved.sessionType === 'focus' ? s.focusDuration
+            : saved.sessionType === 'shortBreak' ? s.shortBreakDuration
+            : s.longBreakDuration;
+          const oldDur = saved.sessionType === 'focus' ? settings.focusDuration
+            : saved.sessionType === 'shortBreak' ? settings.shortBreakDuration
+            : settings.longBreakDuration;
+          if (saved.timeLeft === oldDur * 60) {
+            setTimeLeft(dur * 60);
+          }
         }
       }
 
@@ -310,22 +345,11 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       handleSessionComplete();
     }).then(fn => { unlistenComplete = fn; });
 
-    // Sync initial state from Rust on mount
-    invoke<[number, boolean, string]>('get_timer_state').then((res) => {
-      if (!res) return;
-      const [secs, running, type] = res;
-      if (running) {
-        setTimeLeft(secs);
-        setIsRunning(true);
-        setSessionType(type as SessionType);
-      }
-    }).catch(console.error);
-
     return () => {
       if (unlistenTick) unlistenTick();
       if (unlistenComplete) unlistenComplete();
     };
-  }, [isRunning, sessionType, handleSessionComplete]);
+  }, [isRunning, handleSessionComplete]);
 
   // Sync state on window focus
   useEffect(() => {
@@ -336,7 +360,12 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       invoke<[number, boolean, string]>('get_timer_state').then((res) => {
         if (!res) return;
         const [secs, running, type] = res;
-        if (running) {
+        
+        // If frontend was running, but backend is not, it means the timer completed in the background
+        if (isRunning && !running && secs === 0) {
+          setTimeLeft(0);
+          handleSessionComplete();
+        } else if (running) {
           setTimeLeft(secs);
           setIsRunning(true);
           setSessionType(type as SessionType);
@@ -348,7 +377,12 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [isRunning, handleSessionComplete]);
+
+  const timeLeftRef = useRef(timeLeft);
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   // Control Rust timer state
   useEffect(() => {
@@ -357,7 +391,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
     if (isRunning) {
       if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-      invoke('start_timer', { secs: timeLeft, sessionType }).catch(console.error);
+      invoke('start_timer', { secs: timeLeftRef.current, sessionType }).catch(console.error);
     } else {
       invoke('pause_timer').catch(console.error);
     }

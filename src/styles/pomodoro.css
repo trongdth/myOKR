@@ -491,6 +491,7 @@
 
 .task-item:has(.category-dropdown) {
   z-index: 50;
+  content-visibility: visible;
 }
 
 .task-item:hover {
@@ -1104,6 +1105,7 @@
 
 .task-item:has(.pomo-estimate-popover) {
   z-index: 50;
+  content-visibility: visible;
 }
 
 /* ===== CATEGORY BADGE & SELECTOR ===== */
