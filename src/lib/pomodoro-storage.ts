@@ -99,11 +99,62 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
 
 // ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
 
+// ===== NORMALIZATION (untrusted synced/imported state → safe app data) =====
+// Automerge is schema-less; merged/imported bytes can carry wrong types, unknown
+// enum values, or runaway numerics. These normalizers run at the load choke-point
+// so downstream render code never sees a value that would throw (e.g. indexing a
+// metadata map with a non-enum, or calling .filter on a non-array).
+const EISENHOWER_CATEGORIES: readonly EisenhowerCategory[] = ['do', 'decide', 'delegate', 'delete'];
+
+function finiteNumber(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(Math.max(v, min), max) : fallback;
+}
+
+function normalizeSettings(raw: unknown): PomodoroSettings {
+  const src = raw && typeof raw === 'object' ? raw as Partial<PomodoroSettings> : {};
+  return {
+    focusDuration: finiteNumber(src.focusDuration, DEFAULT_SETTINGS.focusDuration, 1, 120),
+    shortBreakDuration: finiteNumber(src.shortBreakDuration, DEFAULT_SETTINGS.shortBreakDuration, 1, 60),
+    longBreakDuration: finiteNumber(src.longBreakDuration, DEFAULT_SETTINGS.longBreakDuration, 1, 120),
+    pomosBeforeLongBreak: finiteNumber(src.pomosBeforeLongBreak, DEFAULT_SETTINGS.pomosBeforeLongBreak, 1, 10),
+    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : false,
+    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : false,
+  };
+}
+
+function normalizeTask(t: unknown): PomodoroTask | null {
+  if (!t || typeof t !== 'object') return null;
+  const task = t as Record<string, unknown>;
+  const category = task.category as unknown;
+  return {
+    ...(task as unknown as PomodoroTask),
+    title: typeof task.title === 'string' ? task.title : '',
+    estimatedPomodoros: finiteNumber(task.estimatedPomodoros, 0),
+    completedPomodoros: finiteNumber(task.completedPomodoros, 0),
+    isCompleted: typeof task.isCompleted === 'boolean' ? task.isCompleted : false,
+    category: EISENHOWER_CATEGORIES.includes(category as EisenhowerCategory) ? (category as EisenhowerCategory) : undefined,
+    todos: Array.isArray(task.todos) ? task.todos : undefined,
+    comments: Array.isArray(task.comments) ? task.comments : undefined,
+  };
+}
+
+function normalizeDailyRecord(r: unknown): DailyRecord | null {
+  if (!r || typeof r !== 'object') return null;
+  const rec = r as Record<string, unknown>;
+  return {
+    date: typeof rec.date === 'string' ? rec.date : '',
+    completedPomodoros: finiteNumber(rec.completedPomodoros, 0),
+    totalFocusMinutes: finiteNumber(rec.totalFocusMinutes, 0),
+    tasksCompleted: finiteNumber(rec.tasksCompleted, 0),
+    sessions: Array.isArray(rec.sessions) ? rec.sessions as SessionRecord[] : [],
+  };
+}
+
 // ===== SETTINGS =====
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
     const doc = await getAutomergeDoc();
-    return { ...DEFAULT_SETTINGS, ...(doc.settings || {}) };
+    return normalizeSettings(doc.settings);
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -119,7 +170,7 @@ export async function saveSettings(settings: PomodoroSettings): Promise<void> {
 export async function loadTasks(): Promise<PomodoroTask[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.tasks || [];
+    return Array.isArray(doc.tasks) ? doc.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null) : [];
   } catch {
     return [];
   }
@@ -135,7 +186,7 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
 export async function loadHistory(): Promise<DailyRecord[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.history || [];
+    return Array.isArray(doc.history) ? doc.history.map(normalizeDailyRecord).filter((r): r is DailyRecord => r !== null) : [];
   } catch {
     return [];
   }

@@ -4,6 +4,7 @@ import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
 import TodayApp from './components/TodayApp';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
@@ -277,13 +278,25 @@ export default function App() {
         </div>
 
         <div style={{ display: activeSection.startsWith('pomodoro-') ? 'contents' : 'none' }}>
-          <PomodoroApp key="pomodoro" tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
+          <ErrorBoundary mode="section">
+            <PomodoroApp key="pomodoro" tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
+          </ErrorBoundary>
         </div>
-        {activeSection === 'today' && <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />}
+        {activeSection === 'today' && (
+          <ErrorBoundary mode="section" key={todayKey}>
+            <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />
+          </ErrorBoundary>
+        )}
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
-          {activeSection === 'okrs' && <OKRApp key="okrs" />}
-          {activeSection === 'review' && <ReviewApp key="review" />}
-          {activeSection === 'sync' && <SyncApp />}
+          {activeSection === 'okrs' && (
+            <ErrorBoundary mode="section"><OKRApp key="okrs" /></ErrorBoundary>
+          )}
+          {activeSection === 'review' && (
+            <ErrorBoundary mode="section"><ReviewApp key="review" /></ErrorBoundary>
+          )}
+          {activeSection === 'sync' && (
+            <ErrorBoundary mode="section"><SyncApp /></ErrorBoundary>
+          )}
         </Suspense>
       </main>
     </div>

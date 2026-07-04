@@ -352,12 +352,71 @@ export function getWeekEndFromStart(startDate: string): string {
 
 // ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
 
+// ===== NORMALIZATION (untrusted synced/imported state → safe app data) =====
+const CONFIDENCE_VALUES: readonly Confidence[] = ['on_track', 'at_risk', 'off_track', 'not_set'];
+const COMPLETION_MODE_VALUES: readonly CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks'];
+
+function finiteNumber(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
+
+function asObjectArray<T>(xs: unknown): T[] {
+  return Array.isArray(xs) ? xs.filter((x): x is T => !!x && typeof x === 'object') : [];
+}
+
+function normalizeKeyResult(k: unknown): KeyResult | null {
+  if (!k || typeof k !== 'object') return null;
+  const kr = k as Record<string, unknown>;
+  const confidence = kr.confidence as unknown;
+  const mode = kr.completionMode as unknown;
+  return {
+    ...(kr as unknown as KeyResult),
+    title: typeof kr.title === 'string' ? kr.title : '',
+    targetValue: finiteNumber(kr.targetValue, 0),
+    currentValue: finiteNumber(kr.currentValue, 0),
+    order: finiteNumber(kr.order, 0),
+    confidence: CONFIDENCE_VALUES.includes(confidence as Confidence) ? (confidence as Confidence) : 'not_set',
+    completionMode: COMPLETION_MODE_VALUES.includes(mode as CompletionMode) ? (mode as CompletionMode) : 'manual',
+  };
+}
+
+function normalizeReviewEntry(e: unknown): ReviewEntry | null {
+  if (!e || typeof e !== 'object') return null;
+  const en = e as Record<string, unknown>;
+  const confidence = en.confidence as unknown;
+  const entry: ReviewEntry = {
+    keyResultId: typeof en.keyResultId === 'string' ? en.keyResultId : '',
+    previousValue: finiteNumber(en.previousValue, 0),
+    currentValue: finiteNumber(en.currentValue, 0),
+    confidence: CONFIDENCE_VALUES.includes(confidence as Confidence) ? (confidence as Confidence) : 'not_set',
+  };
+  if (typeof en.note === 'string') entry.note = en.note;
+  return entry;
+}
+
+function normalizeReview(r: unknown): WeeklyReview | null {
+  if (!r || typeof r !== 'object') return null;
+  const rv = r as Record<string, unknown>;
+  const ps = rv.pomodoroStats && typeof rv.pomodoroStats === 'object' ? (rv.pomodoroStats as Record<string, unknown>) : {};
+  const pbyKr = ps.pomodorosByKeyResult && typeof ps.pomodorosByKeyResult === 'object' ? ps.pomodorosByKeyResult as Record<string, number> : {};
+  return {
+    ...(rv as unknown as WeeklyReview),
+    entries: Array.isArray(rv.entries) ? rv.entries.map(normalizeReviewEntry).filter((e): e is ReviewEntry => e !== null) : [],
+    pomodoroStats: {
+      totalPomodoros: finiteNumber(ps.totalPomodoros, 0),
+      totalFocusMinutes: finiteNumber(ps.totalFocusMinutes, 0),
+      tasksCompleted: finiteNumber(ps.tasksCompleted, 0),
+      pomodorosByKeyResult: pbyKr,
+    },
+  };
+}
+
 // ===== CYCLES =====
 
 export async function loadCycles(): Promise<OKRCycle[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.cycles || [];
+    return asObjectArray<OKRCycle>(doc.cycles);
   } catch {
     return [];
   }
@@ -388,7 +447,7 @@ export async function ensureCyclesExist(): Promise<OKRCycle[]> {
 export async function loadObjectives(): Promise<Objective[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.objectives || [];
+    return asObjectArray<Objective>(doc.objectives);
   } catch {
     return [];
   }
@@ -405,7 +464,7 @@ export async function saveObjectives(objectives: Objective[]): Promise<void> {
 export async function loadKeyResults(): Promise<KeyResult[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.keyResults || [];
+    return Array.isArray(doc.keyResults) ? doc.keyResults.map(normalizeKeyResult).filter((k): k is KeyResult => k !== null) : [];
   } catch {
     return [];
   }
@@ -422,7 +481,7 @@ export async function saveKeyResults(keyResults: KeyResult[]): Promise<void> {
 export async function loadReviews(): Promise<WeeklyReview[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.reviews || [];
+    return Array.isArray(doc.reviews) ? doc.reviews.map(normalizeReview).filter((r): r is WeeklyReview => r !== null) : [];
   } catch {
     return [];
   }
