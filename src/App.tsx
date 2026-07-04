@@ -171,12 +171,9 @@ export default function App() {
 
   if (showWalkthrough === null) {
     return (
-      <div className="loading-fallback" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a0f', color: '#e4e4e7', fontFamily: 'system-ui, sans-serif' }}>
-        <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid rgba(6, 182, 212, 0.1)', borderTopColor: '#06b6d4', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '1.25rem' }} />
-        <div style={{ fontSize: '1rem', fontWeight: 500, letterSpacing: '0.025em', color: '#a1a1aa' }}>Loading myOKR...</div>
-        <style>{`
-          @keyframes spin { to { transform: rotate(360deg); } }
-        `}</style>
+      <div className="app-loading">
+        <div className="spinner" />
+        <div className="loading-text">Loading myOKR...</div>
       </div>
     );
   }
@@ -283,7 +280,7 @@ export default function App() {
           </ErrorBoundary>
         </div>
         {activeSection === 'today' && (
-          <ErrorBoundary mode="section" key={todayKey}>
+          <ErrorBoundary mode="section">
             <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />
           </ErrorBoundary>
         )}

@@ -7,6 +7,9 @@ interface EBState { error: Error | null }
 export class ErrorBoundary extends Component<{ children: React.ReactNode; mode?: 'app' | 'section' }, EBState> {
   state: EBState = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, errorInfo.componentStack);
+  }
   render() {
     if (this.state.error) {
       const contained = this.props.mode === 'section';

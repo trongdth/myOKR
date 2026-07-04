@@ -138,6 +138,20 @@ function normalizeTask(t: unknown): PomodoroTask | null {
   };
 }
 
+function normalizeSession(s: unknown): SessionRecord | null {
+  if (!s || typeof s !== 'object') return null;
+  const sess = s as Record<string, unknown>;
+  const type = sess.type as unknown;
+  const session: SessionRecord = {
+    startedAt: typeof sess.startedAt === 'string' ? sess.startedAt : '',
+    endedAt: typeof sess.endedAt === 'string' ? sess.endedAt : '',
+    type: VALID_SESSION_TYPES.includes(type as SessionType) ? (type as SessionType) : 'focus',
+    completed: typeof sess.completed === 'boolean' ? sess.completed : false,
+  };
+  if (typeof sess.taskId === 'string') session.taskId = sess.taskId;
+  return session;
+}
+
 function normalizeDailyRecord(r: unknown): DailyRecord | null {
   if (!r || typeof r !== 'object') return null;
   const rec = r as Record<string, unknown>;
@@ -146,7 +160,7 @@ function normalizeDailyRecord(r: unknown): DailyRecord | null {
     completedPomodoros: finiteNumber(rec.completedPomodoros, 0),
     totalFocusMinutes: finiteNumber(rec.totalFocusMinutes, 0),
     tasksCompleted: finiteNumber(rec.tasksCompleted, 0),
-    sessions: Array.isArray(rec.sessions) ? rec.sessions as SessionRecord[] : [],
+    sessions: Array.isArray(rec.sessions) ? rec.sessions.map(normalizeSession).filter((s): s is SessionRecord => s !== null) : [],
   };
 }
 
@@ -199,10 +213,30 @@ export async function saveHistory(h: DailyRecord[]): Promise<void> {
 }
 
 // ===== TIMER STATE =====
+const TIMER_STATE_KEY = 'myokr_timer_state';
+const VALID_SESSION_TYPES: readonly SessionType[] = ['focus', 'shortBreak', 'longBreak'];
+
+// localStorage is app-written (not synced/imported), but it persists across versions,
+// so normalize defensively against stale/corrupt shapes rather than trusting JSON.parse.
+function normalizeTimerState(raw: unknown): TimerState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Record<string, unknown>;
+  const session = s.sessionType as unknown;
+  return {
+    sessionType: VALID_SESSION_TYPES.includes(session as SessionType) ? (session as SessionType) : 'focus',
+    timeLeft: finiteNumber(s.timeLeft, 0, 0),
+    isRunning: typeof s.isRunning === 'boolean' ? s.isRunning : false,
+    lastUpdated: typeof s.lastUpdated === 'string' ? s.lastUpdated : new Date().toISOString(),
+    activeTaskId: typeof s.activeTaskId === 'string' ? s.activeTaskId : null,
+    completedPomos: finiteNumber(s.completedPomos, 0, 0),
+    sessionStartedAt: typeof s.sessionStartedAt === 'string' ? s.sessionStartedAt : null,
+  };
+}
+
 export async function loadTimerState(): Promise<TimerState | null> {
   try {
-    const val = localStorage.getItem('myokr_timer_state');
-    return val ? JSON.parse(val) : null;
+    const val = localStorage.getItem(TIMER_STATE_KEY);
+    return val ? normalizeTimerState(JSON.parse(val)) : null;
   } catch {
     return null;
   }
@@ -210,7 +244,7 @@ export async function loadTimerState(): Promise<TimerState | null> {
 
 export async function saveTimerState(state: TimerState): Promise<void> {
   try {
-    localStorage.setItem('myokr_timer_state', JSON.stringify(state));
+    localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('Failed to save timer state to localStorage', e);
   }
@@ -218,7 +252,7 @@ export async function saveTimerState(state: TimerState): Promise<void> {
 
 export async function clearTimerState(): Promise<void> {
   try {
-    localStorage.removeItem('myokr_timer_state');
+    localStorage.removeItem(TIMER_STATE_KEY);
   } catch (e) {
     console.error('Failed to clear timer state in localStorage', e);
   }

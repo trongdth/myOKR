@@ -70,10 +70,9 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       // Restore timer state
       const saved = await loadTimerState();
-      const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
 
       let timerStateSynced = false;
-      if (isTauri) {
+      if (IS_TAURI) {
         try {
           const res = await invoke<[number, boolean, string]>('get_timer_state');
           if (res) {
@@ -326,9 +325,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // ----- Timer tick (Tauri Rust / Browser Fallback) -----
   useEffect(() => {
-    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
-
-    if (!isTauri) {
+    if (!IS_TAURI) {
       // Browser fallback (e.g. Playwright tests)
       if (!isRunning) return;
       if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
@@ -377,8 +374,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // Sync state on window focus
   useEffect(() => {
-    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
-    if (!isTauri) return;
+    if (!IS_TAURI) return;
 
     const handleFocus = () => {
       invoke<[number, boolean, string]>('get_timer_state').then((res) => {
@@ -410,8 +406,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // Control Rust timer state
   useEffect(() => {
-    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
-    if (!isTauri || isLoading) return;
+    if (!IS_TAURI || isLoading) return;
 
     if (isRunning) {
       if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
@@ -582,15 +577,17 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     } else {
       document.title = 'myOKR — Pomodoro Timer';
       // Only update tray title when not running (Rust timer updates it natively when running)
-      invoke('update_tray_title', { 
-        title: timerText, 
-        tooltip: `Ready to ${sessionLabel} (${timerText})`
-      }).catch(() => {});
+      if (IS_TAURI) {
+        invoke('update_tray_title', {
+          title: timerText,
+          tooltip: `Ready to ${sessionLabel} (${timerText})`
+        }).catch(() => {});
+      }
     }
 
-    return () => { 
+    return () => {
       document.title = 'myOKR — Pomodoro Timer';
-      invoke('reset_tray').catch(() => {});
+      if (IS_TAURI) invoke('reset_tray').catch(() => {});
     };
   }, [isRunning, minutes, seconds, sessionType]);
 

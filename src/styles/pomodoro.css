@@ -486,11 +486,16 @@
   transition: border-color 200ms ease, border-left-width 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
   cursor: pointer;
   content-visibility: auto;
-  contain-intrinsic-size: auto 80px;
+  contain-intrinsic-size: auto 100px;
 }
 
 .task-item:has(.category-dropdown) {
   z-index: 50;
+  content-visibility: visible;
+}
+
+/* An edited task (inline title input) must always render fully, even off-screen. */
+.task-item.editing {
   content-visibility: visible;
 }
 

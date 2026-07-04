@@ -2,6 +2,6 @@ export async function invoke(_cmd: string, _args?: Record<string, unknown>): Pro
   return undefined;
 }
 
-export async function listen(_event: string, _handler: (event: any) => void): Promise<() => void> {
+export async function listen(_event: string, _handler: (event: unknown) => void): Promise<() => void> {
   return () => {};
 }

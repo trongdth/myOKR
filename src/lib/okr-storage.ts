@@ -398,7 +398,11 @@ function normalizeReview(r: unknown): WeeklyReview | null {
   if (!r || typeof r !== 'object') return null;
   const rv = r as Record<string, unknown>;
   const ps = rv.pomodoroStats && typeof rv.pomodoroStats === 'object' ? (rv.pomodoroStats as Record<string, unknown>) : {};
-  const pbyKr = ps.pomodorosByKeyResult && typeof ps.pomodorosByKeyResult === 'object' ? ps.pomodorosByKeyResult as Record<string, number> : {};
+  const rawPbyKr = ps.pomodorosByKeyResult && typeof ps.pomodorosByKeyResult === 'object' ? ps.pomodorosByKeyResult as Record<string, unknown> : {};
+  const pbyKr: Record<string, number> = {};
+  for (const [k, v] of Object.entries(rawPbyKr)) {
+    pbyKr[k] = finiteNumber(v, 0);
+  }
   return {
     ...(rv as unknown as WeeklyReview),
     entries: Array.isArray(rv.entries) ? rv.entries.map(normalizeReviewEntry).filter((e): e is ReviewEntry => e !== null) : [],
