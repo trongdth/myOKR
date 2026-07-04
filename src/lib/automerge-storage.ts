@@ -1,10 +1,19 @@
-import * as Automerge from '@automerge/automerge';
+import type * as AutomergeType from '@automerge/automerge';
 import { BaseDirectory, exists, readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { load } from '@tauri-apps/plugin-store';
 
 import type { OKRCycle, Objective, KeyResult, WeeklyReview, WalkthroughState } from './okr-storage';
 import type { PomodoroSettings, PomodoroTask, DailyRecord, TimerState } from './pomodoro-storage';
 import { DEFAULT_SETTINGS } from './pomodoro-storage';
+
+let AutomergeLib: typeof import('@automerge/automerge') | null = null;
+
+async function getAutomerge() {
+  if (!AutomergeLib) {
+    AutomergeLib = await import('@automerge/automerge');
+  }
+  return AutomergeLib;
+}
 
 /**
  * Automerge throws an error if any property is `undefined`.
@@ -37,9 +46,9 @@ export interface AppState {
 
 export const AUTOMERGE_FILE = 'myokr-data.automerge';
 
-let currentDoc: Automerge.Doc<AppState> | null = null;
+let currentDoc: AutomergeType.Doc<AppState> | null = null;
 
-export async function initAndMigrateData(): Promise<Automerge.Doc<AppState>> {
+export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>> {
   if (currentDoc) return currentDoc;
 
   let hasAutomerge = false;
@@ -50,6 +59,8 @@ export async function initAndMigrateData(): Promise<Automerge.Doc<AppState>> {
     // If the check fails (e.g. permission denied), do NOT proceed to migration, which would wipe data.
     throw new Error(`Fatal: Could not check filesystem. ${e}`);
   }
+
+  const Automerge = await getAutomerge();
 
   if (hasAutomerge) {
     const buffer = await readFile(AUTOMERGE_FILE, { baseDir: BaseDirectory.AppData });
@@ -99,7 +110,7 @@ export async function initAndMigrateData(): Promise<Automerge.Doc<AppState>> {
   return doc;
 }
 
-export async function getAutomergeDoc(): Promise<Automerge.Doc<AppState>> {
+export async function getAutomergeDoc(): Promise<AutomergeType.Doc<AppState>> {
   if (!currentDoc) {
     return await initAndMigrateData();
   }
@@ -133,6 +144,7 @@ export function updateAutomergeDoc(
   return new Promise((resolve, reject) => {
     updateQueue.push(async () => {
       try {
+        const Automerge = await getAutomerge();
         const doc = await getAutomergeDoc();
         currentDoc = Automerge.change(doc, message, callback);
         const binary = Automerge.save(currentDoc);
@@ -151,6 +163,7 @@ export function updateAutomergeDoc(
 }
 
 export async function getAutomergeBinary(): Promise<Uint8Array> {
+  const Automerge = await getAutomerge();
   const doc = await getAutomergeDoc();
   return Automerge.save(doc);
 }
@@ -159,6 +172,7 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
   return new Promise((resolve, reject) => {
     updateQueue.push(async () => {
       try {
+        const Automerge = await getAutomerge();
         const localDoc = await getAutomergeDoc();
         const remoteDoc = Automerge.load<AppState>(remoteBinary);
         currentDoc = Automerge.merge(localDoc, remoteDoc);

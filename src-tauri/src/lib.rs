@@ -1,8 +1,38 @@
 use std::process::Command as OsCommand;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{
     tray::TrayIconBuilder,
-    Manager,
+    AppHandle, Emitter, Manager, State,
 };
+use tauri_plugin_notification::NotificationExt;
+
+#[derive(Default)]
+struct TimerData {
+    end_timestamp_secs: u64,
+    paused_secs: u32,
+    is_running: bool,
+    session_type: String,
+}
+
+/// All mutable timer state lives behind a single lock so that reads are atomic
+/// (no torn state visible to a concurrent `get_timer_state`) and no handler ever
+/// holds nested locks. `generation` is bumped on every start/reset; the background
+/// loop captures its generation and exits when it no longer matches, so a stale
+/// loop can never keep ticking — or fire a duplicate completion — after a pause
+/// or restart.
+#[derive(Default)]
+pub struct TimerState {
+    data: Mutex<TimerData>,
+    generation: Mutex<u64>,
+}
+
+fn get_current_time_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
 
 /// Update the tray title (native text).
 #[tauri::command]
@@ -32,6 +62,149 @@ fn reset_tray(app: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, session_type: String) {
+    let now = get_current_time_secs();
+
+    // Bump the generation so any currently-running background loop notices the
+    // change and exits instead of resuming (or completing) alongside this one.
+    let my_generation = {
+        let mut gen = state.generation.lock().unwrap();
+        *gen += 1;
+        *gen
+    };
+    {
+        let mut data = state.data.lock().unwrap();
+        data.end_timestamp_secs = now + secs as u64;
+        data.paused_secs = secs;
+        data.session_type = session_type;
+        data.is_running = true;
+    }
+
+    let state_clone = Arc::clone(&state);
+    let app_clone = app.clone();
+
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+
+            // Re-check that we are still the active loop: is_running may have been
+            // cleared by pause/reset, or a newer start may have bumped the generation.
+            let (end_time, session_label) = {
+                let current_gen = *state_clone.generation.lock().unwrap();
+                let data = state_clone.data.lock().unwrap();
+                if !data.is_running || current_gen != my_generation {
+                    break;
+                }
+                (data.end_timestamp_secs, data.session_type.clone())
+            };
+
+            let now = get_current_time_secs();
+
+            if now >= end_time {
+                // Completed! Mark done only if a newer start hasn't superseded us
+                // between the read above and now.
+                {
+                    let current_gen = *state_clone.generation.lock().unwrap();
+                    let mut data = state_clone.data.lock().unwrap();
+                    if current_gen != my_generation {
+                        break;
+                    }
+                    data.is_running = false;
+                }
+
+                // Reset tray title
+                if let Some(tray) = app_clone.tray_by_id("main-tray") {
+                    let _ = tray.set_title(None::<&str>);
+                    let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
+                }
+
+                let title = if session_label == "focus" { "🍅 Pomodoro Complete!" } else { "☕ Break Complete!" };
+                let body = if session_label == "focus" { "Great work! Time for a break." } else { "Time to focus!" };
+
+                // Trigger notification safely (WITHOUT holding locks, catching errors)
+                let _ = app_clone.notification()
+                    .builder()
+                    .title(title)
+                    .body(body)
+                    .show();
+
+                let _ = app_clone.emit("timer-complete", ());
+                break;
+            } else {
+                let remaining = (end_time - now) as u32;
+
+                let timer_text = format!("{:02}:{:02}", remaining / 60, remaining % 60);
+                let display_label = if session_label == "focus" { "Focus" } else { "Break" };
+
+                // Update tray directly
+                if let Some(tray) = app_clone.tray_by_id("main-tray") {
+                    let _ = tray.set_title(Some(&timer_text));
+                    let _ = tray.set_tooltip(Some(&format!("{} — {}", timer_text, display_label)));
+                }
+
+                // Emit tick to frontend
+                let _ = app_clone.emit("timer-tick", remaining);
+            }
+        }
+    });
+}
+
+#[tauri::command]
+fn pause_timer(state: State<'_, Arc<TimerState>>) {
+    let mut data = state.data.lock().unwrap();
+    if data.is_running {
+        data.is_running = false;
+        let now = get_current_time_secs();
+        data.paused_secs = if data.end_timestamp_secs > now {
+            (data.end_timestamp_secs - now) as u32
+        } else {
+            0
+        };
+    }
+}
+
+#[tauri::command]
+fn reset_timer_state(state: State<'_, Arc<TimerState>>, app: AppHandle) {
+    // Bump generation first so any in-flight loop exits before it can observe the
+    // zeroed end_timestamp and spuriously fire a completion.
+    {
+        let mut gen = state.generation.lock().unwrap();
+        *gen += 1;
+    }
+    {
+        let mut data = state.data.lock().unwrap();
+        data.is_running = false;
+        data.end_timestamp_secs = 0;
+        data.paused_secs = 0;
+    }
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let _ = tray.set_title(None::<&str>);
+        let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
+    }
+}
+
+#[tauri::command]
+fn get_timer_state(state: State<'_, Arc<TimerState>>) -> (u32, bool, String) {
+    // Single lock acquisition → callers never observe a mix of old/new field values.
+    let data = state.data.lock().unwrap();
+    let is_running = data.is_running;
+    let session_type = data.session_type.clone();
+
+    let remaining_secs = if is_running {
+        let now = get_current_time_secs();
+        if data.end_timestamp_secs > now {
+            (data.end_timestamp_secs - now) as u32
+        } else {
+            0
+        }
+    } else {
+        data.paused_secs
+    };
+
+    (remaining_secs, is_running, session_type)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -41,6 +214,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            app.manage(Arc::new(TimerState::default()));
+
             // Build system tray
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap())
@@ -71,7 +246,15 @@ pub fn run() {
                 window.hide().unwrap();
             }
         })
-        .invoke_handler(tauri::generate_handler![update_tray_title, reset_tray, open_external])
+        .invoke_handler(tauri::generate_handler![
+            update_tray_title,
+            reset_tray,
+            open_external,
+            start_timer,
+            pause_timer,
+            reset_timer_state,
+            get_timer_state
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

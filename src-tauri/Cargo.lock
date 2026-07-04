@@ -2062,7 +2062,7 @@ dependencies = [
 
 [[package]]
 name = "myokr"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -2074,6 +2074,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "tauri-plugin-store",
+ "tokio",
 ]
 
 [[package]]

@@ -99,11 +99,76 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
 
 // ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
 
+// ===== NORMALIZATION (untrusted synced/imported state → safe app data) =====
+// Automerge is schema-less; merged/imported bytes can carry wrong types, unknown
+// enum values, or runaway numerics. These normalizers run at the load choke-point
+// so downstream render code never sees a value that would throw (e.g. indexing a
+// metadata map with a non-enum, or calling .filter on a non-array).
+const EISENHOWER_CATEGORIES: readonly EisenhowerCategory[] = ['do', 'decide', 'delegate', 'delete'];
+
+function finiteNumber(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(Math.max(v, min), max) : fallback;
+}
+
+function normalizeSettings(raw: unknown): PomodoroSettings {
+  const src = raw && typeof raw === 'object' ? raw as Partial<PomodoroSettings> : {};
+  return {
+    focusDuration: finiteNumber(src.focusDuration, DEFAULT_SETTINGS.focusDuration, 1, 120),
+    shortBreakDuration: finiteNumber(src.shortBreakDuration, DEFAULT_SETTINGS.shortBreakDuration, 1, 60),
+    longBreakDuration: finiteNumber(src.longBreakDuration, DEFAULT_SETTINGS.longBreakDuration, 1, 120),
+    pomosBeforeLongBreak: finiteNumber(src.pomosBeforeLongBreak, DEFAULT_SETTINGS.pomosBeforeLongBreak, 1, 10),
+    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : false,
+    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : false,
+  };
+}
+
+function normalizeTask(t: unknown): PomodoroTask | null {
+  if (!t || typeof t !== 'object') return null;
+  const task = t as Record<string, unknown>;
+  const category = task.category as unknown;
+  return {
+    ...(task as unknown as PomodoroTask),
+    title: typeof task.title === 'string' ? task.title : '',
+    estimatedPomodoros: finiteNumber(task.estimatedPomodoros, 0),
+    completedPomodoros: finiteNumber(task.completedPomodoros, 0),
+    isCompleted: typeof task.isCompleted === 'boolean' ? task.isCompleted : false,
+    category: EISENHOWER_CATEGORIES.includes(category as EisenhowerCategory) ? (category as EisenhowerCategory) : undefined,
+    todos: Array.isArray(task.todos) ? task.todos : undefined,
+    comments: Array.isArray(task.comments) ? task.comments : undefined,
+  };
+}
+
+function normalizeSession(s: unknown): SessionRecord | null {
+  if (!s || typeof s !== 'object') return null;
+  const sess = s as Record<string, unknown>;
+  const type = sess.type as unknown;
+  const session: SessionRecord = {
+    startedAt: typeof sess.startedAt === 'string' ? sess.startedAt : '',
+    endedAt: typeof sess.endedAt === 'string' ? sess.endedAt : '',
+    type: VALID_SESSION_TYPES.includes(type as SessionType) ? (type as SessionType) : 'focus',
+    completed: typeof sess.completed === 'boolean' ? sess.completed : false,
+  };
+  if (typeof sess.taskId === 'string') session.taskId = sess.taskId;
+  return session;
+}
+
+function normalizeDailyRecord(r: unknown): DailyRecord | null {
+  if (!r || typeof r !== 'object') return null;
+  const rec = r as Record<string, unknown>;
+  return {
+    date: typeof rec.date === 'string' ? rec.date : '',
+    completedPomodoros: finiteNumber(rec.completedPomodoros, 0),
+    totalFocusMinutes: finiteNumber(rec.totalFocusMinutes, 0),
+    tasksCompleted: finiteNumber(rec.tasksCompleted, 0),
+    sessions: Array.isArray(rec.sessions) ? rec.sessions.map(normalizeSession).filter((s): s is SessionRecord => s !== null) : [],
+  };
+}
+
 // ===== SETTINGS =====
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
     const doc = await getAutomergeDoc();
-    return { ...DEFAULT_SETTINGS, ...(doc.settings || {}) };
+    return normalizeSettings(doc.settings);
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -119,7 +184,7 @@ export async function saveSettings(settings: PomodoroSettings): Promise<void> {
 export async function loadTasks(): Promise<PomodoroTask[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.tasks || [];
+    return Array.isArray(doc.tasks) ? doc.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null) : [];
   } catch {
     return [];
   }
@@ -135,7 +200,7 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
 export async function loadHistory(): Promise<DailyRecord[]> {
   try {
     const doc = await getAutomergeDoc();
-    return doc.history || [];
+    return Array.isArray(doc.history) ? doc.history.map(normalizeDailyRecord).filter((r): r is DailyRecord => r !== null) : [];
   } catch {
     return [];
   }
@@ -148,25 +213,49 @@ export async function saveHistory(h: DailyRecord[]): Promise<void> {
 }
 
 // ===== TIMER STATE =====
+const TIMER_STATE_KEY = 'myokr_timer_state';
+const VALID_SESSION_TYPES: readonly SessionType[] = ['focus', 'shortBreak', 'longBreak'];
+
+// localStorage is app-written (not synced/imported), but it persists across versions,
+// so normalize defensively against stale/corrupt shapes rather than trusting JSON.parse.
+function normalizeTimerState(raw: unknown): TimerState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Record<string, unknown>;
+  const session = s.sessionType as unknown;
+  return {
+    sessionType: VALID_SESSION_TYPES.includes(session as SessionType) ? (session as SessionType) : 'focus',
+    timeLeft: finiteNumber(s.timeLeft, 0, 0),
+    isRunning: typeof s.isRunning === 'boolean' ? s.isRunning : false,
+    lastUpdated: typeof s.lastUpdated === 'string' ? s.lastUpdated : new Date().toISOString(),
+    activeTaskId: typeof s.activeTaskId === 'string' ? s.activeTaskId : null,
+    completedPomos: finiteNumber(s.completedPomos, 0, 0),
+    sessionStartedAt: typeof s.sessionStartedAt === 'string' ? s.sessionStartedAt : null,
+  };
+}
+
 export async function loadTimerState(): Promise<TimerState | null> {
   try {
-    const doc = await getAutomergeDoc();
-    return doc.timerState || null;
+    const val = localStorage.getItem(TIMER_STATE_KEY);
+    return val ? normalizeTimerState(JSON.parse(val)) : null;
   } catch {
     return null;
   }
 }
 
 export async function saveTimerState(state: TimerState): Promise<void> {
-  await updateAutomergeDoc('Update timer state', (d) => {
-    d.timerState = sanitizeForAutomerge(state);
-  });
+  try {
+    localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save timer state to localStorage', e);
+  }
 }
 
 export async function clearTimerState(): Promise<void> {
-  await updateAutomergeDoc('Clear timerState', (d) => {
-    d.timerState = null;
-  });
+  try {
+    localStorage.removeItem(TIMER_STATE_KEY);
+  } catch (e) {
+    console.error('Failed to clear timer state in localStorage', e);
+  }
 }
 
 // ===== DATE HELPERS =====

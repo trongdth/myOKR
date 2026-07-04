@@ -51,6 +51,13 @@ export async function downloadFromDropbox(clientId: string, refreshToken: string
     // Dropbox API returns fileBlob in the response for browser environments
     const fileBlob = (response.result as any).fileBlob;
     if (fileBlob) {
+      // Cap the remote blob size before materializing it: a pathological/huge doc
+      // would otherwise be loaded+merged synchronously on the UI thread (Automerge
+      // WASM), freezing or OOM-crashing the webview on every 5-min auto-sync.
+      const MAX_SYNC_BYTES = 50 * 1024 * 1024; // 50 MB — well above any realistic OKR dataset
+      if (fileBlob.size > MAX_SYNC_BYTES) {
+        throw new Error(`Sync aborted: remote document (${fileBlob.size} bytes) exceeds the ${MAX_SYNC_BYTES} byte cap`);
+      }
       const arrayBuffer = await fileBlob.arrayBuffer();
       return new Uint8Array(arrayBuffer);
     }

@@ -1,6 +1,6 @@
 [package]
 name = "myokr"
-version = "0.1.13"
+version = "0.1.14"
 description = "myOKR - Pomodoro Timer Desktop App"
 authors = ["Trong Dinh"]
 license = "MIT"
@@ -28,6 +28,7 @@ tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
+tokio = { version = "1", features = ["time"] }
 
 [profile.release]
 opt-level = 'z'        # Optimize for size
