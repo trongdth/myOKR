@@ -318,7 +318,10 @@ export function getCurrentWeekStart(): string {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
   const monday = new Date(d.setDate(diff));
-  return monday.toISOString().slice(0, 10);
+  const yyyy = monday.getFullYear();
+  const mm = String(monday.getMonth() + 1).padStart(2, '0');
+  const dd = String(monday.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function getCurrentWeekEnd(): string {
@@ -326,7 +329,10 @@ export function getCurrentWeekEnd(): string {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? 0 : 7); // Sunday
   const sunday = new Date(d.setDate(diff));
-  return sunday.toISOString().slice(0, 10);
+  const yyyy = sunday.getFullYear();
+  const mm = String(sunday.getMonth() + 1).padStart(2, '0');
+  const dd = String(sunday.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 /** Returns a list of recent Monday dates (YYYY-MM-DD) */

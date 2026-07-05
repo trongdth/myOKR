@@ -232,7 +232,6 @@ export default function ReviewWizard({
           <button
             className="review-nav-btn primary"
             onClick={() => setCurrentStep(currentStep + 1)}
-            disabled={cycleKRs.length === 0 && currentStep === 0}
           >
             Next →
           </button>

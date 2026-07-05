@@ -95,16 +95,20 @@ export async function uploadToDropbox(clientId: string, refreshToken: string, bi
  * 3. Uploads the merged result
  * Returns true if successful and a merge happened, false if token invalid or no remote file.
  */
-export async function syncWithDropbox(clientId: string, refreshToken: string): Promise<boolean> {
+export async function syncWithDropbox(clientId: string, refreshToken: string, forceUpload: boolean = false): Promise<boolean> {
   if (!clientId || !refreshToken) return false;
   try {
-    const remoteBinary = await downloadFromDropbox(clientId, refreshToken);
     let finalBinary: Uint8Array;
     
-    if (remoteBinary) {
-      finalBinary = await mergeExternalBinary(remoteBinary);
-    } else {
+    if (forceUpload) {
       finalBinary = await getAutomergeBinary();
+    } else {
+      const remoteBinary = await downloadFromDropbox(clientId, refreshToken);
+      if (remoteBinary && remoteBinary.length > 0) {
+        finalBinary = await mergeExternalBinary(remoteBinary);
+      } else {
+        finalBinary = await getAutomergeBinary();
+      }
     }
     
     await uploadToDropbox(clientId, refreshToken, finalBinary);
