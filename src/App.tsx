@@ -106,7 +106,11 @@ export default function App() {
     return (localStorage.getItem('myokr_active_section') as Section) || 'today';
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showWalkthrough, setShowWalkthrough] = useState<boolean | null>(null);
+  // Start false so the app shell paints immediately; the walkthrough (if any)
+  // is shown as an overlay once loadWalkthroughState() resolves. This avoids
+  // blocking first paint on the Automerge doc load (the doc is lazy-loaded by
+  // the section components, which render their own loading states).
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
   const [todayKey, setTodayKey] = useState(0);
   const [isSyncConnected, setIsSyncConnected] = useState(() =>
@@ -169,23 +173,6 @@ export default function App() {
     setShowWalkthrough(false);
   };
 
-  if (showWalkthrough === null) {
-    return (
-      <div className="app-loading">
-        <div className="spinner" />
-        <div className="loading-text">Loading myOKR...</div>
-      </div>
-    );
-  }
-
-  if (showWalkthrough) {
-    return (
-      <Suspense fallback={null}>
-        <Walkthrough onComplete={handleWalkthroughComplete} />
-      </Suspense>
-    );
-  }
-
   const handleNavClick = (id: Section) => {
     setActiveSection(id);
     localStorage.setItem('myokr_active_section', id);
@@ -202,6 +189,7 @@ export default function App() {
   };
 
   return (
+    <>
     <div className="app-layout">
       {/* Mobile overlay backdrop */}
       {sidebarOpen && (
@@ -297,5 +285,11 @@ export default function App() {
         </Suspense>
       </main>
     </div>
+    {showWalkthrough && (
+      <Suspense fallback={null}>
+        <Walkthrough onComplete={handleWalkthroughComplete} />
+      </Suspense>
+    )}
+    </>
   );
 }

@@ -36,7 +36,7 @@
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .pomo-tab-btn:hover {
@@ -78,7 +78,7 @@
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .session-tab:hover {
@@ -165,7 +165,7 @@
   border-radius: 50%;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .pomo-dot.filled {
@@ -199,7 +199,7 @@
   border-radius: 8px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   font-size: 1.1rem;
 }
 
@@ -232,7 +232,7 @@
   font-family: inherit;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .settings-toggle:hover {
@@ -313,7 +313,7 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   flex-shrink: 0;
 }
 
@@ -526,7 +526,7 @@
   background: transparent;
   padding: 0;
   color: transparent;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   font-size: 0.75rem;
 }
 
@@ -679,7 +679,7 @@
   border-radius: 6px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   font-family: inherit;
 }
 
@@ -1053,7 +1053,7 @@
   color: var(--text-secondary);
   font-size: 1.1rem;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease, transform 150ms ease;
   user-select: none;
   touch-action: manipulation;
 }
@@ -1087,7 +1087,7 @@
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease, transform 150ms ease;
 }
 
 .pomo-popover-cancel {
@@ -1142,7 +1142,7 @@
   border-radius: 10px 0 10px 0;
   border: none;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   padding: 0;
   flex-shrink: 0;
 }
@@ -1181,7 +1181,7 @@
   font-family: inherit;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease, transform 150ms ease;
   text-align: left;
 }
 
@@ -1216,7 +1216,7 @@
   border: 1px solid var(--border-color);
   border-radius: 10px;
   overflow: visible;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .task-input-group:focus-within {
@@ -1252,7 +1252,7 @@
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   white-space: nowrap;
   margin: 4px;
 }
@@ -1272,7 +1272,7 @@
   font-size: 0.82rem;
   font-family: inherit;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   outline: none;
   max-width: 120px;
   flex-shrink: 1;
@@ -1369,7 +1369,7 @@
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .prioritize-btn:hover {
@@ -1529,7 +1529,7 @@
   border-radius: 12px;
   padding: 1em;
   min-height: 120px;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .matrix-quadrant.drop-target {
@@ -1608,7 +1608,7 @@
   border-left: 3px solid;
   border-radius: 8px;
   cursor: grab;
-  transition: all 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease, transform 150ms ease;
   user-select: none;
 }
 
@@ -1846,7 +1846,7 @@
   font-size: 0.72rem;
   padding: 0.2em 0.6em;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -1965,7 +1965,7 @@
   font-size: 0.85rem;
   padding: 0.1em 0.4em;
   border-radius: 4px;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .task-detail-edit-btn:hover {
@@ -2151,7 +2151,7 @@
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .task-detail-tab:hover {
@@ -2271,7 +2271,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .task-detail-todo-item:hover {

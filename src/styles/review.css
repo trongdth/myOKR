@@ -118,7 +118,7 @@
   border-radius: 50%;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .review-step-dot.completed {
@@ -334,7 +334,7 @@
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .review-confidence-btn:hover {
@@ -486,7 +486,7 @@
   font-family: inherit;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .review-nav-btn:hover {
@@ -551,7 +551,7 @@
   border-radius: 12px;
   padding: 1.25em;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .review-history-card:hover {
@@ -658,7 +658,7 @@
   border-radius: 4px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   font-size: 1.2rem;
   flex-shrink: 0;
   opacity: 0;
@@ -685,7 +685,7 @@
   font-family: inherit;
   font-size: 0.78rem;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
 }
 
 .review-history-action-btn:hover {

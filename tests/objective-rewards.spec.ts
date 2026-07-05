@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 async function waitForApp(page: import('@playwright/test').Page) {
+  // Bypass first-run walkthrough overlay so it doesn't intercept nav clicks
+  await page.addInitScript(() => {
+    window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+  });
   await page.goto('/');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
