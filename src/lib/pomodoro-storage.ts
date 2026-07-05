@@ -168,7 +168,7 @@ function normalizeDailyRecord(r: unknown): DailyRecord | null {
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
     const doc = await getAutomergeDoc();
-    return normalizeSettings(doc.settings);
+    return JSON.parse(JSON.stringify(normalizeSettings(doc.settings)));
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -184,7 +184,8 @@ export async function saveSettings(settings: PomodoroSettings): Promise<void> {
 export async function loadTasks(): Promise<PomodoroTask[]> {
   try {
     const doc = await getAutomergeDoc();
-    return Array.isArray(doc.tasks) ? doc.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null) : [];
+    const tasks = Array.isArray(doc.tasks) ? doc.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null) : [];
+    return JSON.parse(JSON.stringify(tasks));
   } catch {
     return [];
   }
@@ -200,7 +201,8 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
 export async function loadHistory(): Promise<DailyRecord[]> {
   try {
     const doc = await getAutomergeDoc();
-    return Array.isArray(doc.history) ? doc.history.map(normalizeDailyRecord).filter((r): r is DailyRecord => r !== null) : [];
+    const hist = Array.isArray(doc.history) ? doc.history.map(normalizeDailyRecord).filter((r): r is DailyRecord => r !== null) : [];
+    return JSON.parse(JSON.stringify(hist));
   } catch {
     return [];
   }

@@ -134,6 +134,9 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
     const buffer = await readFile(AUTOMERGE_FILE, { baseDir: BaseDirectory.AppData });
     let doc: AutomergeType.Doc<AppState>;
     try {
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Local Automerge file is empty');
+      }
       doc = timed('load', () => Automerge.load<AppState>(buffer));
     } catch (e) {
       // Last-resort recovery: a truncated/corrupt main file may still have a
@@ -145,8 +148,17 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
       } catch {
         backup = null;
       }
-      if (!backup) throw e;
-      doc = Automerge.load<AppState>(backup);
+      if (backup && backup.length > 0) {
+        try {
+          doc = Automerge.load<AppState>(backup);
+        } catch (backupErr) {
+          console.error('Automerge backup load failed, initializing new document', backupErr);
+          doc = Automerge.init<AppState>();
+        }
+      } else {
+        console.warn('No valid backup found, initializing new document');
+        doc = Automerge.init<AppState>();
+      }
     }
 
     // Compaction: history has bloated the file → rebuild from current state.
@@ -327,7 +339,16 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
         await yieldToIdle();
         const Automerge = await getAutomerge();
         const localDoc = await getAutomergeDoc();
-        const remoteDoc = timed('load(remote)', () => Automerge.load<AppState>(remoteBinary));
+        if (!remoteBinary || remoteBinary.length === 0) {
+          throw new Error('Remote binary is empty');
+        }
+        let remoteDoc;
+        try {
+          remoteDoc = timed('load(remote)', () => Automerge.load<AppState>(remoteBinary));
+        } catch (loadErr) {
+          console.error('Failed to load remote Automerge binary:', loadErr);
+          throw new Error('The remote sync file is corrupted or invalid. You can overwrite the cloud file with your local data to resolve this.');
+        }
         const merged = Automerge.merge(localDoc, remoteDoc);
         currentDoc = merged;
         await appendIncremental(Automerge, merged);

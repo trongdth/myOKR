@@ -81,7 +81,7 @@ export default function SyncApp() {
     window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
   };
 
-  const syncData = async () => {
+  const syncData = async (forceUpload: boolean = false) => {
     const savedClientId = localStorage.getItem(CLIENT_ID_KEY);
     const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
     if (!isConnected || !savedClientId || !savedRefreshToken) return;
@@ -89,7 +89,7 @@ export default function SyncApp() {
     setError(null);
     setIsSyncing(true);
     try {
-      await syncWithDropbox(savedClientId, savedRefreshToken);
+      await syncWithDropbox(savedClientId, savedRefreshToken, forceUpload);
       
       const now = new Date().toLocaleString();
       setLastSync(now);
@@ -210,7 +210,7 @@ export default function SyncApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button className="okr-btn primary" onClick={syncData} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button className="okr-btn primary" onClick={() => syncData(false)} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isSyncing ? 'spin 2s linear infinite' : 'none' }}>
                   <polyline points="23 4 23 10 17 10"></polyline>
                   <polyline points="1 20 1 14 7 14"></polyline>
@@ -218,7 +218,12 @@ export default function SyncApp() {
                 </svg>
                 {isSyncing ? 'Syncing...' : 'Sync Now'}
               </button>
-              <button className="okr-btn danger" onClick={handleDisconnect} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem' }}>
+              {error && error.includes('corrupted or invalid') && (
+                <button className="okr-btn danger" onClick={() => syncData(true)} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem' }}>
+                  {isSyncing ? 'Overwriting...' : 'Overwrite Cloud Data'}
+                </button>
+              )}
+              <button className="okr-btn danger" onClick={handleDisconnect} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', background: error && error.includes('corrupted or invalid') ? 'transparent' : undefined, border: error && error.includes('corrupted or invalid') ? '1px solid var(--accent-red)' : undefined, color: error && error.includes('corrupted or invalid') ? 'var(--accent-red)' : undefined }}>
                 Disconnect
               </button>
             </div>
