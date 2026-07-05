@@ -308,8 +308,7 @@ export function updateAutomergeDoc(
       try {
         const Automerge = await getAutomerge();
         const doc = await getAutomergeDoc();
-        const clonedDoc = Automerge.clone(doc);
-        const next = Automerge.change(clonedDoc, message, callback);
+        const next = Automerge.change(doc, message, callback);
         currentDoc = next;
         await appendIncremental(Automerge, next);
         resolve();
@@ -350,8 +349,7 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
           console.error('Failed to load remote Automerge binary:', loadErr);
           throw new Error('The remote sync file is corrupted or invalid. You can overwrite the cloud file with your local data to resolve this.');
         }
-        const clonedLocal = Automerge.clone(localDoc);
-        const merged = Automerge.merge(clonedLocal, remoteDoc);
+        const merged = Automerge.merge(localDoc, remoteDoc);
         currentDoc = merged;
         await appendIncremental(Automerge, merged);
         resolve(persistedBuffer ?? Automerge.save(merged));

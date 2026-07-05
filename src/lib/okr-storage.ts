@@ -367,7 +367,9 @@ function finiteNumber(v: unknown, fallback: number): number {
 }
 
 function asObjectArray<T>(xs: unknown): T[] {
-  return Array.isArray(xs) ? xs.filter((x): x is T => !!x && typeof x === 'object') : [];
+  if (!Array.isArray(xs)) return [];
+  const filtered = xs.filter((x): x is T => !!x && typeof x === 'object');
+  return JSON.parse(JSON.stringify(filtered));
 }
 
 function normalizeKeyResult(k: unknown): KeyResult | null {
@@ -474,7 +476,8 @@ export async function saveObjectives(objectives: Objective[]): Promise<void> {
 export async function loadKeyResults(): Promise<KeyResult[]> {
   try {
     const doc = await getAutomergeDoc();
-    return Array.isArray(doc.keyResults) ? doc.keyResults.map(normalizeKeyResult).filter((k): k is KeyResult => k !== null) : [];
+    const krs = Array.isArray(doc.keyResults) ? doc.keyResults.map(normalizeKeyResult).filter((k): k is KeyResult => k !== null) : [];
+    return JSON.parse(JSON.stringify(krs));
   } catch {
     return [];
   }
@@ -491,7 +494,8 @@ export async function saveKeyResults(keyResults: KeyResult[]): Promise<void> {
 export async function loadReviews(): Promise<WeeklyReview[]> {
   try {
     const doc = await getAutomergeDoc();
-    return Array.isArray(doc.reviews) ? doc.reviews.map(normalizeReview).filter((r): r is WeeklyReview => r !== null) : [];
+    const revs = Array.isArray(doc.reviews) ? doc.reviews.map(normalizeReview).filter((r): r is WeeklyReview => r !== null) : [];
+    return JSON.parse(JSON.stringify(revs));
   } catch {
     return [];
   }
