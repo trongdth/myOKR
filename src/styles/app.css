@@ -71,7 +71,7 @@
   font-size: 0.92rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
   text-align: left;
   width: 100%;
   position: relative;

@@ -10,6 +10,7 @@ import {
 } from '../lib/okr-storage';
 import { generateId } from '../lib/pomodoro-storage';
 import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
+import { reviewInCycle } from '../lib/review-utils';
 import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
 import ProgressChart from './review/ProgressChart';
@@ -159,6 +160,10 @@ export default function ReviewApp() {
   const weekStart = selectedWeek;
   const weekEnd = selectedWeek ? getWeekEndFromStart(selectedWeek) : '';
 
+  // Infer the cycle from the week's START month. The review is tagged with this
+  // cycle (so e.g. a 06-29 → 07-05 review wraps up the June KRs it started under).
+  // Visibility across cycles is handled below by `reviewInCycle` (week-overlap),
+  // so a cross-month review still shows under July even though it's tagged June.
   const selectedDate = new Date(selectedWeek);
   const targetMonth = selectedDate.getUTCMonth();
   const targetYear = selectedDate.getUTCFullYear();
@@ -358,11 +363,11 @@ export default function ReviewApp() {
       )}
 
       {/* Progress Chart */}
-      <ProgressChart reviews={reviews.filter(r => r.cycleId === activeCycle.id)} keyResults={keyResults} />
+      <ProgressChart reviews={reviews.filter(r => reviewInCycle(r, activeCycle))} keyResults={keyResults} />
 
       {/* Review History */}
       <ReviewHistory
-        reviews={reviews.filter(r => r.cycleId === activeCycle.id)}
+        reviews={reviews.filter(r => reviewInCycle(r, activeCycle))}
         keyResults={keyResults}
         objectives={objectives}
         tasks={tasks}

@@ -25,6 +25,11 @@ import LoadingState from './shared/LoadingState';
 // Tauri injects __TAURI_INTERNALS__ at runtime; no type definitions exist for it.
 const IS_TAURI = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
 
+// Structural equality for the background-sync refresh path. Sync runs every
+// ~5 min, so the cost is negligible — and it lets us skip setState (and the
+// resulting re-render) when a merge produced no actual data change.
+const jsonEqual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
 export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsumed }: { tab: 'timer' | 'tasks' | 'analytics'; requestedTaskId?: string | null; onRequestedTaskConsumed?: () => void }) {
   // ----- State -----
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
@@ -159,7 +164,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   useEffect(() => {
     async function refreshData() {
       const s = await loadSettings();
-      setSettings(s);
+      setSettings(prev => (jsonEqual(prev, s) ? prev : s));
       
       if (!isRunning) {
         const saved = await loadTimerState();
@@ -178,15 +183,18 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
         }
       }
 
-      setTasks(await loadTasks());
-      setHistory(await loadHistory());
-      
+      const loadedTasks = await loadTasks();
+      setTasks(prev => (jsonEqual(prev, loadedTasks) ? prev : loadedTasks));
+      const loadedHistory = await loadHistory();
+      setHistory(prev => (jsonEqual(prev, loadedHistory) ? prev : loadedHistory));
+
       const activeCycle = await getActiveCycle();
       if (activeCycle) {
         const krs = await loadKeyResults();
         const objs = await loadObjectives();
         const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
-        setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
+        const loadedKrs = krs.filter(kr => activeObjs.has(kr.objectiveId));
+        setKeyResults(prev => (jsonEqual(prev, loadedKrs) ? prev : loadedKrs));
       }
     }
 
@@ -474,9 +482,15 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   };
 
   // ----- Task handlers -----
-  const handleTasksChange = (t: PomodoroTask[]) => { setTasks(t); saveTasks(t); };
+  // useCallback so TaskList (React.memo) doesn't re-render on every 1-second
+  // timer tick — these only reference stable setters / refs / scalar state that
+  // doesn't change on a tick.
+  const handleTasksChange = useCallback((t: PomodoroTask[]) => {
+    setTasks(t);
+    saveTasks(t);
+  }, []);
 
-  const handleSetActiveTask = (id: string | null) => {
+  const handleSetActiveTask = useCallback((id: string | null) => {
     if (isRunning && sessionType === 'focus' && id !== activeTaskId && id !== null && activeTaskId !== null) {
       pendingSwitchTaskId.current = id;
       setIsRunning(false);
@@ -487,7 +501,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       setIsRunning(false);
     }
     setActiveTaskId(id);
-  };
+  }, [isRunning, sessionType, activeTaskId]);
 
   // ----- Analytics handlers -----
   const handleExport = async () => {

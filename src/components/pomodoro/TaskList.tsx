@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect, memo } from 'react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -222,7 +222,7 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
   );
 }
 
-export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults = [], hideCompleted = false }: Props) {
+function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults = [], hideCompleted = false }: Props) {
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<EisenhowerCategory>('do');
   const [newKeyResultId, setNewKeyResultId] = useState<string>('');
@@ -531,3 +531,8 @@ export default function TaskList({ tasks, activeTaskId, onTasksChange, onSetActi
     </div>
   );
 }
+
+// memo so the 1-second timer tick in PomodoroApp (which only changes timeLeft)
+// re-renders the timer display, not the task rows. Relies on PomodoroApp passing
+// stable callbacks (useCallback) so the shallow prop compare holds across ticks.
+export default memo(TaskList);
