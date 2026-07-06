@@ -374,7 +374,8 @@ function asObjectArray<T>(xs: unknown): T[] {
 
 function normalizeKeyResult(k: unknown): KeyResult | null {
   if (!k || typeof k !== 'object') return null;
-  const kr = k as Record<string, unknown>;
+  const plainK = JSON.parse(JSON.stringify(k));
+  const kr = plainK as Record<string, unknown>;
   const confidence = kr.confidence as unknown;
   const mode = kr.completionMode as unknown;
   return {
@@ -390,7 +391,8 @@ function normalizeKeyResult(k: unknown): KeyResult | null {
 
 function normalizeReviewEntry(e: unknown): ReviewEntry | null {
   if (!e || typeof e !== 'object') return null;
-  const en = e as Record<string, unknown>;
+  const plainE = JSON.parse(JSON.stringify(e));
+  const en = plainE as Record<string, unknown>;
   const confidence = en.confidence as unknown;
   const entry: ReviewEntry = {
     keyResultId: typeof en.keyResultId === 'string' ? en.keyResultId : '',
@@ -404,7 +406,8 @@ function normalizeReviewEntry(e: unknown): ReviewEntry | null {
 
 function normalizeReview(r: unknown): WeeklyReview | null {
   if (!r || typeof r !== 'object') return null;
-  const rv = r as Record<string, unknown>;
+  const plainR = JSON.parse(JSON.stringify(r));
+  const rv = plainR as Record<string, unknown>;
   const ps = rv.pomodoroStats && typeof rv.pomodoroStats === 'object' ? (rv.pomodoroStats as Record<string, unknown>) : {};
   const rawPbyKr = ps.pomodorosByKeyResult && typeof ps.pomodorosByKeyResult === 'object' ? ps.pomodorosByKeyResult as Record<string, unknown> : {};
   const pbyKr: Record<string, number> = {};

@@ -7,6 +7,7 @@ import {
   requestNotificationPermission, DEFAULT_SETTINGS,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../lib/pomodoro-storage';
+import { startFocusMusic, stopFocusMusic } from '../lib/focus-music';
 import TaskList from './pomodoro/TaskList';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
@@ -436,6 +437,21 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
     if (isRunning) completionHandledRef.current = false;
   }, [isRunning]);
 
+  // ----- Focus music -----
+  // Plays looping ambient audio while a focus session is actively running and
+  // the user has enabled it. Stops on pause, on session end/break, or when the
+  // setting is toggled off. One effect covers every start path (manual Start,
+  // post-confirm start, auto-start, restore-on-load) since all funnel through
+  // isRunning + sessionType.
+  useEffect(() => {
+    if (isRunning && sessionType === 'focus' && settings.focusMusicEnabled) {
+      startFocusMusic();
+    } else {
+      stopFocusMusic();
+    }
+    return () => stopFocusMusic();
+  }, [isRunning, sessionType, settings.focusMusicEnabled]);
+
   // ----- Controls -----
   const toggleTimer = () => {
     if (!isRunning && sessionType === 'focus' && !activeTaskId) {
@@ -704,6 +720,13 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
                     <span className="setting-label">Auto-start focus</span>
                     <button className={`toggle-switch${settings.autoStartFocus ? ' on' : ''}`}
                       onClick={() => updateSetting('autoStartFocus', !settings.autoStartFocus)} />
+                  </div>
+                </div>
+                <div className="setting-item full-width">
+                  <div className="toggle-row">
+                    <span className="setting-label">Focus music</span>
+                    <button className={`toggle-switch${settings.focusMusicEnabled ? ' on' : ''}`}
+                      onClick={() => updateSetting('focusMusicEnabled', !settings.focusMusicEnabled)} />
                   </div>
                 </div>
               </div>

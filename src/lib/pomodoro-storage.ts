@@ -11,6 +11,7 @@ export interface PomodoroSettings {
   pomosBeforeLongBreak: number;
   autoStartBreaks: boolean;
   autoStartFocus: boolean;
+  focusMusicEnabled: boolean;
 }
 
 export type SessionType = 'focus' | 'shortBreak' | 'longBreak';
@@ -95,6 +96,7 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   pomosBeforeLongBreak: 4,
   autoStartBreaks: false,
   autoStartFocus: false,
+  focusMusicEnabled: false,
 };
 
 // ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
@@ -111,7 +113,8 @@ function finiteNumber(v: unknown, fallback: number, min = -Infinity, max = Infin
 }
 
 function normalizeSettings(raw: unknown): PomodoroSettings {
-  const src = raw && typeof raw === 'object' ? raw as Partial<PomodoroSettings> : {};
+  const plainRaw = raw && typeof raw === 'object' ? JSON.parse(JSON.stringify(raw)) : {};
+  const src = plainRaw as Partial<PomodoroSettings>;
   return {
     focusDuration: finiteNumber(src.focusDuration, DEFAULT_SETTINGS.focusDuration, 1, 120),
     shortBreakDuration: finiteNumber(src.shortBreakDuration, DEFAULT_SETTINGS.shortBreakDuration, 1, 60),
@@ -119,12 +122,14 @@ function normalizeSettings(raw: unknown): PomodoroSettings {
     pomosBeforeLongBreak: finiteNumber(src.pomosBeforeLongBreak, DEFAULT_SETTINGS.pomosBeforeLongBreak, 1, 10),
     autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : false,
     autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : false,
+    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : false,
   };
 }
 
 function normalizeTask(t: unknown): PomodoroTask | null {
   if (!t || typeof t !== 'object') return null;
-  const task = t as Record<string, unknown>;
+  const plainT = JSON.parse(JSON.stringify(t));
+  const task = plainT as Record<string, unknown>;
   const category = task.category as unknown;
   return {
     ...(task as unknown as PomodoroTask),
@@ -140,7 +145,8 @@ function normalizeTask(t: unknown): PomodoroTask | null {
 
 function normalizeSession(s: unknown): SessionRecord | null {
   if (!s || typeof s !== 'object') return null;
-  const sess = s as Record<string, unknown>;
+  const plainS = JSON.parse(JSON.stringify(s));
+  const sess = plainS as Record<string, unknown>;
   const type = sess.type as unknown;
   const session: SessionRecord = {
     startedAt: typeof sess.startedAt === 'string' ? sess.startedAt : '',
@@ -154,7 +160,8 @@ function normalizeSession(s: unknown): SessionRecord | null {
 
 function normalizeDailyRecord(r: unknown): DailyRecord | null {
   if (!r || typeof r !== 'object') return null;
-  const rec = r as Record<string, unknown>;
+  const plainR = JSON.parse(JSON.stringify(r));
+  const rec = plainR as Record<string, unknown>;
   return {
     date: typeof rec.date === 'string' ? rec.date : '',
     completedPomodoros: finiteNumber(rec.completedPomodoros, 0),
