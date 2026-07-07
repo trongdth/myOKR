@@ -31,9 +31,7 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
   const remaining = Math.max(0, (task.estimatedPomodoros || 1) - task.completedPomodoros);
   const spansDays = remaining > maxShare;
 
-  // For why reasons we need daysLeft — compute from cycle if available via KR
-  // The why reasons use the score breakdown which already captured urgency
-  const whyReasons = getWhyReasons(task._score, task._score.urgencyRaw >= 1.0 ? 5 : task._score.urgencyRaw >= 0.5 ? 12 : 30);
+  const whyReasons = getWhyReasons(task._score);
 
   return (
     <div className="focus-card" style={{

@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { loadTasks, loadSettings, type PomodoroTask, type PomodoroSettings } from '../lib/pomodoro-storage';
+import { loadTasks, loadSettings, type PomodoroSettings } from '../lib/pomodoro-storage';
 import { loadKeyResults, loadObjectives, getActiveCycle, type KeyResult, type Objective } from '../lib/okr-storage';
-import { pickForBudget, getReshufflePool, pickFromScoredPool, getDailyPomodoroBudget, getMaxTaskBudgetShare, todaysSlice } from '../lib/today-focus';
+import {
+  buildTodayList,
+  loadTodayPlan,
+  saveTodayPlan,
+  clearTodayPlan,
+  getDailyPomodoroBudget,
+  getMaxTaskBudgetShare,
+  todaysSlice,
+  type ScoredTask,
+} from '../lib/today-focus';
 import FocusCard from './today/FocusCard';
 import LoadingState from './shared/LoadingState';
 
@@ -10,20 +19,14 @@ interface TodayAppProps {
   onGoToTasks: () => void;
 }
 
-interface ScoredTask extends PomodoroTask {
-  _score: import('../lib/today-focus').ScoreBreakdown;
-}
-
 export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   const [displayed, setDisplayed] = useState<ScoredTask[]>([]);
-  const [pool, setPool] = useState<ScoredTask[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [settings, setSettings] = useState<PomodoroSettings | null>(null);
-  const [skippedIds, setSkippedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const compute = useCallback(async (exclude: string[] = []) => {
+  const compute = useCallback(async (opts: { reset?: boolean } = {}) => {
     const [tasks, krs, objs, cyc, sett] = await Promise.all([
       loadTasks(),
       loadKeyResults(),
@@ -41,9 +44,10 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     setObjectives(objs);
     setSettings(sett);
 
-    const picked = pickForBudget(tasks, activeKrs, cyc, sett, exclude);
-    const fullPool = getReshufflePool(tasks, activeKrs, cyc, sett, picked.length, exclude);
-    setPool(fullPool);
+    if (opts.reset) clearTodayPlan();
+    const savedPlan = opts.reset ? null : loadTodayPlan();
+    const { picked, plan } = buildTodayList(tasks, activeKrs, cyc, sett, savedPlan);
+    saveTodayPlan(plan);
     setDisplayed(picked);
   }, []);
 
@@ -53,35 +57,30 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
 
   useEffect(() => {
     const handleSync = () => {
-      compute(skippedIds);
+      compute();
     };
     window.addEventListener('myokr-data-synced', handleSync);
     return () => window.removeEventListener('myokr-data-synced', handleSync);
-  }, [compute, skippedIds]);
+  }, [compute]);
 
   const handleStart = (taskId: string) => {
     onStartTask(taskId);
   };
 
   const handleSkip = (taskId: string) => {
-    const nextSkipped = [...skippedIds, taskId];
-    setSkippedIds(nextSkipped);
-    compute(nextSkipped);
+    const plan = loadTodayPlan();
+    if (plan) {
+      saveTodayPlan({
+        ...plan,
+        taskIds: plan.taskIds.filter(id => id !== taskId),
+        skippedIds: [...plan.skippedIds, taskId],
+      });
+    }
+    compute();
   };
 
-  const handleReshuffle = () => {
-    if (!settings || pool.length <= displayed.length) return;
-    // Exclude top card to guarantee a visible swap
-    const excludeId = displayed[0]?.id;
-    const filtered = pool.filter(t => t.id !== excludeId);
-    const shuffled = [...filtered];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    const budget = getDailyPomodoroBudget(settings);
-    const maxShare = getMaxTaskBudgetShare(budget);
-    setDisplayed(pickFromScoredPool(shuffled, budget, maxShare));
+  const handleReplan = () => {
+    compute({ reset: true });
   };
 
   if (isLoading || !settings) return <LoadingState className="today-container" />;
@@ -125,14 +124,13 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
           Today's Focus
         </h1>
-        {pool.length > displayed.length && (
-          <button
-            onClick={handleReshuffle}
-            className="btn-ghost"
-          >
-            🔀 Reshuffle
-          </button>
-        )}
+        <button
+          onClick={handleReplan}
+          className="btn-ghost"
+          title="Recompute today's plan from scratch (clears skips)"
+        >
+          ↻ Replan
+        </button>
       </div>
 
       {/* Budget header strip */}

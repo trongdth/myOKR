@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+// Pin the clock inside the mock May-2026 cycle: May 24 → 7 days left.
+const FIXED_TIME = new Date('2026-05-24T12:00:00.000Z');
+
 async function waitForApp(page: import('@playwright/test').Page) {
+  await page.clock.setFixedTime(FIXED_TIME);
   await page.goto('/');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
@@ -12,24 +16,22 @@ test.describe('Today Focus', () => {
     await expect(page.locator('text=Today\'s Focus')).toBeVisible({ timeout: 10000 });
   });
 
-  test('displays ranked tasks — completable first, correct order', async ({ page }) => {
-    // budget=10, maxShare=5, daysLeft=7 (urgency=1.0)
-    // Two-phase pick: task-6(0.898), task-1(0.799), task-3(0.547), task-5(0.447) → 4 cards, 9/10
+  test('ranks strictly by Eisenhower category, then urgency, then KR confidence', async ({ page }) => {
+    // budget=10, maxShare=5, daysLeft=7
+    // do: task-6 (rem 2, at_risk KR) > task-1 (rem 2, on_track KR) — confidence tie-break
+    // decide: task-3 (rem 3) > task-5 (rem 2) — urgency (more remaining effort)
+    // delegate: task-7 (rem 2) — slice doesn't fit after 9/10 used
     const cards = page.locator('.focus-card');
     await expect(cards).toHaveCount(4);
 
-    // #1: "Refactor auth module" (do + at_risk KR + momentum)
     await expect(cards.nth(0)).toContainText('Refactor auth module');
-    // #2: "Design new dashboard layout" (do + on_track KR + momentum)
     await expect(cards.nth(1)).toContainText('Design new dashboard layout');
-    // #3: "Write API documentation" (decide + momentum)
     await expect(cards.nth(2)).toContainText('Write API documentation');
-    // #4: "Plan sprint retrospective" (decide, no momentum)
     await expect(cards.nth(3)).toContainText('Plan sprint retrospective');
   });
 
   test('budget header shows correct slice totals', async ({ page }) => {
-    // 4 tasks: slices 2+2+3+2 = 9, budget = 10
+    // slices 2+2+3+2 = 9, budget = 10
     await expect(page.locator('text=Today\'s Plan: 9 / 10')).toBeVisible();
   });
 
@@ -39,6 +41,17 @@ test.describe('Today Focus', () => {
     for (let i = 0; i < count; i++) {
       await expect(cards.nth(i)).not.toContainText('Clean up unused dependencies');
     }
+  });
+
+  test('plan is stable across reloads', async ({ page }) => {
+    const cards = page.locator('.focus-card');
+    await expect(cards).toHaveCount(4);
+    const firstTitle = await cards.nth(0).textContent();
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(cards).toHaveCount(4);
+    expect(await cards.nth(0).textContent()).toBe(firstTitle);
   });
 
   test('top card shows KR confidence dot and link', async ({ page }) => {
@@ -57,7 +70,7 @@ test.describe('Today Focus', () => {
     await expect(page.locator('strong').filter({ hasText: 'Refactor auth module' })).toBeVisible();
   });
 
-  test('Skip removes card and refills from remaining candidates', async ({ page }) => {
+  test('Skip removes card, refills, and persists across reload', async ({ page }) => {
     const cards = page.locator('.focus-card');
     await expect(cards).toHaveCount(4);
 
@@ -67,33 +80,39 @@ test.describe('Today Focus', () => {
     // After skip: task-1, task-3, task-5, task-7 fill the budget (2+3+2+2=9/10)
     await expect(cards).toHaveCount(4);
     await expect(cards.nth(0)).toContainText('Design new dashboard layout');
-    // task-7 "Update README screenshots" should now appear (was previously out)
     await expect(cards.nth(3)).toContainText('Update README screenshots');
+
+    // Skip survives a reload — the daily plan is persisted
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(cards).toHaveCount(4);
+    await expect(cards.nth(0)).toContainText('Design new dashboard layout');
+    for (let i = 0; i < 4; i++) {
+      await expect(cards.nth(i)).not.toContainText('Refactor auth module');
+    }
   });
 
-  test('Reshuffle swaps at least the top card', async ({ page }) => {
-    // 5 candidates, 4 displayed → Reshuffle button visible
-    const reshuffleBtn = page.locator('button:has-text("Reshuffle")');
-    await expect(reshuffleBtn).toBeVisible();
+  test('Replan clears skips and recomputes from scratch', async ({ page }) => {
+    const cards = page.locator('.focus-card');
+    await cards.nth(0).locator('button:has-text("Skip")').click();
+    await expect(cards.nth(0)).toContainText('Design new dashboard layout');
 
-    const firstTitle = await page.locator('.focus-card').nth(0).textContent();
+    await page.locator('button:has-text("Replan")').click();
 
-    // Reshuffle excludes top card → guaranteed different top card
-    await reshuffleBtn.click();
-    const newTitle = await page.locator('.focus-card').nth(0).textContent();
-    expect(newTitle).not.toBe(firstTitle);
+    // Skipped task-6 returns to the top
+    await expect(cards.nth(0)).toContainText('Refactor auth module');
   });
 
   test('Why this? tooltip shows humanized reasons', async ({ page }) => {
-    // task-6 triggers all 4 factors: do + at_risk + urgency + momentum
+    // task-6: do + momentum + at_risk KR tie-break; low urgency (2 pomos, 7 days)
     const topCard = page.locator('.focus-card').first();
     const whyBtn = topCard.locator('button:has-text("Why this?")');
     await whyBtn.hover();
 
-    // Should show humanized reasons, not raw numbers
     await expect(topCard.locator('text=Top-priority Do task')).toBeVisible();
-    await expect(topCard.locator('text=KR is at risk')).toBeVisible();
-    await expect(topCard.locator('text=Cycle ends in')).toBeVisible();
     await expect(topCard.locator('text=Already in progress')).toBeVisible();
+    await expect(topCard.locator('text=KR is at risk')).toBeVisible();
+    // No urgency reason: 2 remaining pomos is far from the 7-day limit
+    await expect(topCard.locator('text=Needs')).toHaveCount(0);
   });
 });
