@@ -2062,7 +2062,7 @@ dependencies = [
 
 [[package]]
 name = "myokr"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "base64 0.22.1",
  "serde",

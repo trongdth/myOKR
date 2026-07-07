@@ -13,8 +13,8 @@ test.describe('Pomodoro Mobile View', () => {
     // Navigate to the app. 
     await page.goto('/');
     
-    // Wait for Pomodoro container to be visible
-    await page.waitForSelector('.pomodoro-container', { state: 'visible' });
+    // Wait for Pomodoro container to be fully loaded and visible
+    await page.waitForSelector('.pomodoro-container .timer-ring-container', { state: 'visible' });
   });
 
   test('Timer controls, settings modal, and task list do not overflow horizontally', async ({ page }) => {

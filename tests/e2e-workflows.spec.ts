@@ -76,6 +76,13 @@ test.describe('Desktop: Task Workflow', () => {
 
     // Verify KR badge is shown on the task
     await expect(page.locator('.task-kr-badge').first()).toBeVisible();
+
+    // Navigate away and back to verify persistence (reload from store)
+    await navDesktop(page, 'OKRs');
+    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
+    await navDesktop(page, 'Tasks');
+    await expect(page.locator('text=Test Task E2E')).toBeVisible();
+    await expect(page.locator('.task-kr-badge').first()).toBeVisible();
   });
 });
 
