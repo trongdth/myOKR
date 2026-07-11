@@ -131,14 +131,18 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     let unlisten: (() => void) | null = null;
+    let isClosing = false;
 
     listen('window-close-requested', async () => {
+      if (isClosing) return;
+      isClosing = true;
       try {
-        await flushAutomergeQueue();
+        await flushAutomergeQueue(5000);
       } catch (err) {
         console.error('Failed to flush Automerge queue on close:', err);
       } finally {
         invoke('hide_window').catch(console.error);
+        isClosing = false;
       }
     }).then((fn) => {
       if (cancelled) fn();

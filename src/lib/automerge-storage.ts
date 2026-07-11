@@ -299,10 +299,23 @@ async function appendIncremental(
   return inc;
 }
 
-export async function flushAutomergeQueue(): Promise<void> {
+export async function flushAutomergeQueue(timeoutMs = 5000): Promise<void> {
+  const start = Date.now();
   while (isUpdating || updateQueue.length > 0) {
+    if (Date.now() - start > timeoutMs) {
+      console.warn('flushAutomergeQueue timed out after', timeoutMs, 'ms');
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
+}
+
+export function getQueueInfoForTesting() {
+  return {
+    getIsUpdating: () => isUpdating,
+    setIsUpdating: (val: boolean) => { isUpdating = val; },
+    getQueueLength: () => updateQueue.length,
+  };
 }
 
 export function updateAutomergeDoc(

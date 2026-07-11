@@ -189,7 +189,8 @@ export default function ReviewApp() {
         }
       }
     }
-  }, [activeCycle?.id, selectedWeek]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCycle?.id]);
 
   // Check if current week already has a completed review
   const currentWeekReview = reviews.find(
@@ -199,9 +200,9 @@ export default function ReviewApp() {
   // Check if today is before the end date of the week
   const isWeekInProgress = (() => {
     const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     const todayStr = `${yyyy}-${mm}-${dd}`;
     return todayStr < weekEnd;
   })();
