@@ -1,11 +1,13 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
 import TodayApp from './components/TodayApp';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
+import { flushAutomergeQueue } from './lib/automerge-storage';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
 const ReviewApp = lazy(() => import('./components/ReviewApp'));
@@ -123,6 +125,30 @@ export default function App() {
     };
     window.addEventListener('myokr-sync-status-changed', handleStatusChange);
     return () => window.removeEventListener('myokr-sync-status-changed', handleStatusChange);
+  }, []);
+
+  // Handle Tauri window close request by flushing the Automerge queue before hiding the window
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | null = null;
+
+    listen('window-close-requested', async () => {
+      try {
+        await flushAutomergeQueue();
+      } catch (err) {
+        console.error('Failed to flush Automerge queue on close:', err);
+      } finally {
+        invoke('hide_window').catch(console.error);
+      }
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    }).catch(console.error);
+
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+    };
   }, []);
 
   useEffect(() => {

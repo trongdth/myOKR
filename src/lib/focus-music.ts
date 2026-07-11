@@ -93,6 +93,9 @@ export function startFocusMusic(): void {
   try {
     const Ctor = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctor) return;
+    if (ctx && ctx.state === 'closed') {
+      ctx = null;
+    }
     if (!ctx) ctx = new Ctor();
     ctx.resume();
 

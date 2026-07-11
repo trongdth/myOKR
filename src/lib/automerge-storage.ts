@@ -299,6 +299,12 @@ async function appendIncremental(
   return inc;
 }
 
+export async function flushAutomergeQueue(): Promise<void> {
+  while (isUpdating || updateQueue.length > 0) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 export function updateAutomergeDoc(
   message: string,
   callback: (state: AppState) => void

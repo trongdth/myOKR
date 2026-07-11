@@ -347,6 +347,39 @@ export function getRecentMondays(count: number = 6): string[] {
   return mondays;
 }
 
+/** Returns all Mondays (latest first) whose weeks overlap with the given cycle */
+export function getMondaysForCycle(cycle: { month: number; year: number }): string[] {
+  const firstDay = new Date(Date.UTC(cycle.year, cycle.month, 1));
+  const day = firstDay.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const firstMonday = new Date(firstDay);
+  firstMonday.setUTCDate(firstMonday.getUTCDate() + diff);
+
+  const mondays: string[] = [];
+  const current = new Date(firstMonday);
+
+  const mm = String(cycle.month + 1).padStart(2, '0');
+  const monthStart = `${cycle.year}-${mm}-01`;
+  const lastDayVal = new Date(Date.UTC(cycle.year, cycle.month + 1, 0)).getUTCDate();
+  const monthEnd = `${cycle.year}-${mm}-${String(lastDayVal).padStart(2, '0')}`;
+
+  while (true) {
+    const weekStartStr = current.toISOString().slice(0, 10);
+    const endCopy = new Date(current);
+    endCopy.setUTCDate(endCopy.getUTCDate() + 6);
+    const weekEndStr = endCopy.toISOString().slice(0, 10);
+
+    if (weekStartStr <= monthEnd && weekEndStr >= monthStart) {
+      mondays.push(weekStartStr);
+    } else if (weekStartStr > monthEnd) {
+      break;
+    }
+    current.setUTCDate(current.getUTCDate() + 7);
+  }
+
+  return mondays.reverse();
+}
+
 /** Returns the Sunday (YYYY-MM-DD) for a given Monday start date */
 export function getWeekEndFromStart(startDate: string): string {
   const d = new Date(startDate);

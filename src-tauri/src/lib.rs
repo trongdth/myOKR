@@ -62,6 +62,12 @@ fn reset_tray(app: tauri::AppHandle) {
     }
 }
 
+/// Hide the main window safely (called after pending writes are flushed)
+#[tauri::command]
+fn hide_window(window: tauri::Window) {
+    let _ = window.hide();
+}
+
 #[tauri::command]
 fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, session_type: String) {
     let now = get_current_time_secs();
@@ -243,7 +249,7 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                window.hide().unwrap();
+                let _ = window.emit("window-close-requested", ());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -253,7 +259,8 @@ pub fn run() {
             start_timer,
             pause_timer,
             reset_timer_state,
-            get_timer_state
+            get_timer_state,
+            hide_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
