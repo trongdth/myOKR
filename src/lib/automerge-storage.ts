@@ -264,6 +264,7 @@ export async function getAutomergeDoc(): Promise<AutomergeType.Doc<AppState>> {
 type UpdateTask = () => Promise<void>;
 const updateQueue: UpdateTask[] = [];
 let isUpdating = false;
+const flushResolvers: Array<() => void> = [];
 
 async function processQueue() {
   if (isUpdating) return;
@@ -279,6 +280,12 @@ async function processQueue() {
     }
   }
   isUpdating = false;
+  // Trigger all pending flush resolvers
+  const resolvers = [...flushResolvers];
+  flushResolvers.length = 0;
+  for (const resolve of resolvers) {
+    resolve();
+  }
 }
 
 // Append an incremental chunk (the new changes since the last save) to the
@@ -299,21 +306,59 @@ async function appendIncremental(
   return inc;
 }
 
-export async function flushAutomergeQueue(timeoutMs = 5000): Promise<void> {
-  const start = Date.now();
-  while (isUpdating || updateQueue.length > 0) {
-    if (Date.now() - start > timeoutMs) {
-      console.warn('flushAutomergeQueue timed out after', timeoutMs, 'ms');
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 20));
+export async function flushAutomergeQueue(timeoutMs = 5000): Promise<boolean> {
+  if (!isUpdating && updateQueue.length === 0) {
+    return true;
   }
+
+  return new Promise<boolean>((resolve) => {
+    let timerId: any = null;
+    let resolved = false;
+
+    const cleanup = () => {
+      resolved = true;
+      if (timerId) clearTimeout(timerId);
+      const idx = flushResolvers.indexOf(onFlush);
+      if (idx !== -1) {
+        flushResolvers.splice(idx, 1);
+      }
+    };
+
+    const onFlush = () => {
+      if (resolved) return;
+      cleanup();
+      resolve(true);
+    };
+
+    flushResolvers.push(onFlush);
+
+    timerId = setTimeout(() => {
+      if (resolved) return;
+      cleanup();
+      console.warn('flushAutomergeQueue timed out after', timeoutMs, 'ms');
+      resolve(false);
+    }, timeoutMs);
+  });
 }
 
+/**
+ * ⚠️ FOR TESTING ONLY — never call in production code.
+ * Directly mutating `isUpdating` can permanently break the update queue.
+ */
 export function getQueueInfoForTesting() {
+  if (!import.meta.env.DEV) {
+    throw new Error('getQueueInfoForTesting is only available in development/testing mode.');
+  }
   return {
     getIsUpdating: () => isUpdating,
-    setIsUpdating: (val: boolean) => { isUpdating = val; },
+    setIsUpdating: (val: boolean) => {
+      isUpdating = val;
+      if (!isUpdating && updateQueue.length === 0) {
+        const resolvers = [...flushResolvers];
+        flushResolvers.length = 0;
+        for (const r of resolvers) r();
+      }
+    },
     getQueueLength: () => updateQueue.length,
   };
 }
@@ -378,4 +423,9 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
     });
     processQueue();
   });
+}
+
+if (import.meta.env.DEV) {
+  (window as any).__mockFsWriteFile = writeFile;
+  (window as any).__mockFsReadFile = readFile;
 }

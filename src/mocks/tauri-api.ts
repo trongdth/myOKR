@@ -1,4 +1,6 @@
-const listeners: Record<string, Array<(event: any) => void>> = {};
+export type TauriEvent = { payload?: unknown };
+
+const listeners: Record<string, Array<(event: TauriEvent) => void>> = {};
 
 export async function invoke(cmd: string, _args?: Record<string, unknown>): Promise<unknown> {
   if (typeof window !== 'undefined') {
@@ -10,7 +12,7 @@ export async function invoke(cmd: string, _args?: Record<string, unknown>): Prom
   return undefined;
 }
 
-export async function listen(event: string, handler: (event: any) => void): Promise<() => void> {
+export async function listen(event: string, handler: (event: TauriEvent) => void): Promise<() => void> {
   if (!listeners[event]) {
     listeners[event] = [];
   }
@@ -21,7 +23,7 @@ export async function listen(event: string, handler: (event: any) => void): Prom
 }
 
 if (typeof window !== 'undefined') {
-  (window as any).__triggerTauriEvent = (event: string, payload?: any) => {
+  (window as any).__triggerTauriEvent = (event: string, payload?: unknown) => {
     const list = listeners[event];
     if (list) {
       for (const handler of list) {

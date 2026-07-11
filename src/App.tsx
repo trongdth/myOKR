@@ -189,7 +189,7 @@ export default function App() {
     // Run once on load/connect after a short delay
     const timeoutId = setTimeout(performSync, 5000);
 
-    const intervalId = window.setInterval(performSync, 5 * 60 * 1000);
+    const intervalId = window.setInterval(performSync, 15 * 60 * 1000);
 
     return () => {
       clearTimeout(timeoutId);

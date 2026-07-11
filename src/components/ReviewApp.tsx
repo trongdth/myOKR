@@ -200,9 +200,9 @@ export default function ReviewApp() {
   // Check if today is before the end date of the week
   const isWeekInProgress = (() => {
     const d = new Date();
-    const yyyy = d.getUTCFullYear();
-    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     const todayStr = `${yyyy}-${mm}-${dd}`;
     return todayStr < weekEnd;
   })();
@@ -315,15 +315,7 @@ export default function ReviewApp() {
             value={activeCycle.id} 
             disabled={showWizard}
             onChange={e => {
-              const newCycleId = e.target.value;
-              setExplicitCycleId(newCycleId);
-              const newCycle = cycles.find(c => c.id === newCycleId);
-              if (newCycle) {
-                const weeks = getMondaysForCycle(newCycle);
-                if (weeks.length > 0) {
-                  setSelectedWeek(weeks[0]);
-                }
-              }
+              setExplicitCycleId(e.target.value);
             }}
             style={{ padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
           >
