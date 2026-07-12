@@ -443,4 +443,32 @@ test.describe('Pomodoro: Switch task while running', () => {
     await expect(popover).toHaveCount(0);
     await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0/2');
   });
+
+  test('opens the Adjust Total Pomodoros popover, changes estimated pomodoros, and persists across reload', async ({ page }) => {
+    await addTask(page, 'Test Pomo Persist');
+    
+    const pomoBadge = page.locator('.task-item:has-text("Test Pomo Persist") .task-pomodoros');
+    await expect(pomoBadge).toBeVisible();
+    await pomoBadge.click();
+
+    const popover = page.locator('.pomo-estimate-popover');
+    await expect(popover).toBeVisible();
+
+    await popover.locator('button.pomo-counter-btn:has-text("+")').click();
+    await expect(popover.locator('.pomo-counter-value')).toHaveText('2');
+
+    await popover.locator('button.pomo-popover-confirm').click();
+    await expect(popover).toHaveCount(0);
+    await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0/2');
+
+    // Reload the page to simulate closing and reopening the app
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
+    await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+
+    // Verify it persisted
+    const pomoBadgeReloaded = page.locator('.task-item:has-text("Test Pomo Persist") .task-pomodoros');
+    await expect(pomoBadgeReloaded.locator('.task-pomo-count')).toHaveText('0/2');
+  });
 });

@@ -117,7 +117,7 @@ test.describe('Weekly Review Calculations & Repair', () => {
     });
 
     // Wait for the UI to reload and show the June 2026 cycle in the header
-    await expect(page.locator('.review-header').getByText('June 2026')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.review-header #cycle-select')).toHaveValue('cycle-test', { timeout: 10000 });
 
     // Select Week 1: June 1st to June 7th
     await page.locator('#week-select').selectOption({ label: '2026-06-01 to 2026-06-07' });

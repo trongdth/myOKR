@@ -135,6 +135,29 @@ test.describe('Desktop: Review Workflow', () => {
   });
 
   test('complete review wizard', async ({ page }) => {
+    // Select the first past week option that is not in progress
+    const select = page.locator('#week-select');
+    await select.evaluate((el: HTMLSelectElement) => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      for (let i = 0; i < el.options.length; i++) {
+        const option = el.options[i];
+        const monday = option.value;
+        const d = new Date(monday);
+        d.setUTCDate(d.getUTCDate() + 6);
+        const sundayStr = d.toISOString().slice(0, 10);
+        if (sundayStr <= todayStr) {
+          el.selectedIndex = i;
+          el.dispatchEvent(new Event('change'));
+          break;
+        }
+      }
+    });
+
     // Start review
     await page.locator('button:has-text("Start Weekly Review")').click();
     await expect(page.locator('text=Summary')).toBeVisible();
@@ -207,6 +230,29 @@ test.describe('Mobile: Core Workflows', () => {
   test('complete review wizard', async ({ page }) => {
     await navMobile(page, 'Review');
     await expect(page.locator('.review-header-title')).toBeVisible();
+
+    // Select the first past week option that is not in progress
+    const select = page.locator('#week-select');
+    await select.evaluate((el: HTMLSelectElement) => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      for (let i = 0; i < el.options.length; i++) {
+        const option = el.options[i];
+        const monday = option.value;
+        const d = new Date(monday);
+        d.setUTCDate(d.getUTCDate() + 6);
+        const sundayStr = d.toISOString().slice(0, 10);
+        if (sundayStr <= todayStr) {
+          el.selectedIndex = i;
+          el.dispatchEvent(new Event('change'));
+          break;
+        }
+      }
+    });
 
     await page.locator('button:has-text("Start Weekly Review")').click();
 

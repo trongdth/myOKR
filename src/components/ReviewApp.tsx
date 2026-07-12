@@ -4,7 +4,7 @@ import {
   loadCycles, loadObjectives, loadKeyResults,
   loadReviews, saveReviews, saveKeyResults,
   getCurrentWeekStart,
-  getRecentMondays, getWeekEndFromStart,
+  getMondaysForCycle, getWeekEndFromStart,
   getEffectiveCurrentValueAsOf,
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
@@ -15,6 +15,15 @@ import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
 import ProgressChart from './review/ProgressChart';
 import LoadingState from './shared/LoadingState';
+
+const SELECT_STYLE: React.CSSProperties = {
+  padding: '0.35rem 0.5rem',
+  borderRadius: '4px',
+  border: '1px solid var(--border)',
+  background: 'var(--bg-surface)',
+  color: 'var(--text-primary)',
+  fontSize: '0.85rem'
+};
 
 async function repairReviews(
   loadedReviews: WeeklyReview[],
@@ -176,10 +185,37 @@ export default function ReviewApp() {
     ? cycles.find(c => c.id === explicitCycleId) || inferredCycle 
     : inferredCycle;
 
+  // Keep selectedWeek in sync with activeCycle's weeks
+  useEffect(() => {
+    if (activeCycle) {
+      const weeks = getMondaysForCycle(activeCycle);
+      if (weeks.length > 0 && !weeks.includes(selectedWeek)) {
+        const todayWeek = getCurrentWeekStart();
+        if (weeks.includes(todayWeek)) {
+          setSelectedWeek(todayWeek);
+        } else {
+          setSelectedWeek(weeks[0]);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCycle?.id, activeCycle?.month, activeCycle?.year]);
+
   // Check if current week already has a completed review
   const currentWeekReview = reviews.find(
     r => r.weekStartDate === weekStart && r.completedAt
   );
+
+  const todayStr = (() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  })();
+
+  const isFutureWeek = todayStr < weekStart;
+  const isCurrentWeekInProgress = selectedWeek === getCurrentWeekStart() && todayStr <= weekEnd;
 
   const syncKeyResultsFromReviews = async (currentReviews: WeeklyReview[], currentKRs: KeyResult[]) => {
     const updatedKRs = currentKRs.map(kr => {
@@ -282,9 +318,22 @@ export default function ReviewApp() {
     <div className="review-container">
       <div className="review-header">
         <h2 className="review-header-title">📋 Weekly Review</h2>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          {activeCycle.name}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label htmlFor="cycle-select" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cycle:</label>
+          <select 
+            id="cycle-select" 
+            value={activeCycle.id} 
+            disabled={showWizard}
+            onChange={e => {
+              setExplicitCycleId(e.target.value);
+            }}
+            style={SELECT_STYLE}
+          >
+            {cycles.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Wizard or Start card */}
@@ -314,25 +363,12 @@ export default function ReviewApp() {
                   setSelectedWeek(e.target.value);
                   setExplicitCycleId(null);
                 }}
-                style={{ padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                style={SELECT_STYLE}
               >
-                {getRecentMondays().map(monday => (
+                {getMondaysForCycle(activeCycle).map(monday => (
                   <option key={monday} value={monday}>
                     {monday} to {getWeekEndFromStart(monday)}
                   </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label htmlFor="cycle-select" style={{ color: 'var(--text-muted)' }}>Cycle:</label>
-              <select 
-                id="cycle-select" 
-                value={activeCycle.id} 
-                onChange={e => setExplicitCycleId(e.target.value)}
-                style={{ padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              >
-                {cycles.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
@@ -344,6 +380,22 @@ export default function ReviewApp() {
               <div className="review-start-card-desc">
                 Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
                 If you need to edit this review, you can do so in the Past Reviews section below.
+              </div>
+            </>
+          ) : isFutureWeek ? (
+            <>
+              <div className="review-start-card-icon">📅</div>
+              <div className="review-start-card-title">Week has not started yet</div>
+              <div className="review-start-card-desc">
+                This week (starting {weekStart}) is in the future. You can start the weekly review once the week has ended.
+              </div>
+            </>
+          ) : isCurrentWeekInProgress ? (
+            <>
+              <div className="review-start-card-icon">⏳</div>
+              <div className="review-start-card-title">Week is still in progress</div>
+              <div className="review-start-card-desc">
+                This week (ending {weekEnd}) is still ongoing. You can start the weekly review once the week is complete.
               </div>
             </>
           ) : (
