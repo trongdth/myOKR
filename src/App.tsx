@@ -141,7 +141,9 @@ export default function App() {
       } catch (err) {
         console.error('Failed to flush Automerge queue on close:', err);
       } finally {
-        invoke('hide_window').catch(console.error);
+        if (!cancelled) {
+          invoke('hide_window').catch(console.error);
+        }
         isClosing = false;
       }
     }).then((fn) => {
@@ -149,10 +151,16 @@ export default function App() {
       else unlisten = fn;
     }).catch(console.error);
 
-    return () => {
+    const cleanup = () => {
       cancelled = true;
       if (unlisten) unlisten();
     };
+
+    if (import.meta.env.DEV) {
+      window.__cleanupCloseHandler = cleanup;
+    }
+
+    return cleanup;
   }, []);
 
   useEffect(() => {

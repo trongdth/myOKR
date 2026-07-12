@@ -8,11 +8,11 @@ import { initAndMigrateData, getAutomergeDoc, updateAutomergeDoc, flushAutomerge
 // runs `vite`, where import.meta.env.DEV is true). Strip them from prod bundles so a
 // shipped app never exposes arbitrary read/write access to the full doc on `window`.
 if (import.meta.env.DEV) {
-  (window as any).__runMigration = initAndMigrateData;
-  (window as any).__getAutomergeDoc = getAutomergeDoc;
-  (window as any).__updateAutomergeDoc = updateAutomergeDoc;
-  (window as any).__flushAutomergeQueue = flushAutomergeQueue;
-  (window as any).__getQueueInfoForTesting = getQueueInfoForTesting;
+  window.__runMigration = initAndMigrateData;
+  window.__getAutomergeDoc = getAutomergeDoc;
+  window.__updateAutomergeDoc = updateAutomergeDoc;
+  window.__flushAutomergeQueue = flushAutomergeQueue;
+  window.__getQueueInfoForTesting = getQueueInfoForTesting;
 }
 
 

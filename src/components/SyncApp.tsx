@@ -112,14 +112,14 @@ export default function SyncApp() {
   return (
     <div className="okr-container">
       <div className="okr-header">
-        <h1 className="okr-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <h2 className="okr-header-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-blue)' }}>
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
           Cloud Sync
-        </h1>
+        </h2>
       </div>
 
       <div className="okr-card" style={{ marginBottom: '2rem', background: 'var(--bg-secondary)', border: 'none', padding: '1.25rem 1.5rem' }}>

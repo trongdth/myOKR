@@ -4,10 +4,10 @@ const listeners: Record<string, Array<(event: TauriEvent) => void>> = {};
 
 export async function invoke(cmd: string, _args?: Record<string, unknown>): Promise<unknown> {
   if (typeof window !== 'undefined') {
-    if (!(window as any).__tauriInvokes) {
-      (window as any).__tauriInvokes = [];
+    if (!window.__tauriInvokes) {
+      window.__tauriInvokes = [];
     }
-    (window as any).__tauriInvokes.push(cmd);
+    window.__tauriInvokes.push(cmd);
   }
   return undefined;
 }
@@ -23,7 +23,7 @@ export async function listen(event: string, handler: (event: TauriEvent) => void
 }
 
 if (typeof window !== 'undefined') {
-  (window as any).__triggerTauriEvent = (event: string, payload?: unknown) => {
+  window.__triggerTauriEvent = (event: string, payload?: unknown) => {
     const list = listeners[event];
     if (list) {
       for (const handler of list) {

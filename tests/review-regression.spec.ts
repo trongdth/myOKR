@@ -151,24 +151,54 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
 
     await expect(cycleSelect).toHaveValue('cycle-current');
 
-    // Select the first week option (which is the latest/future week or current week)
-    await weekSelect.selectOption({ index: 0 });
+    // Calculate current week start date (Monday)
+    const currentWeekStart = (() => {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(d.setDate(diff));
+      const yyyy = monday.getFullYear();
+      const mm = String(monday.getMonth() + 1).padStart(2, '0');
+      const dd = String(monday.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    })();
 
-    // Get the weekEnd value for the selected week from the UI text
-    const selectedText = await weekSelect.locator('option:checked').textContent();
-    // selectedText is like "2026-07-06 to 2026-07-12"
-    const weekEndMatch = selectedText?.match(/to (\d{4}-\d{2}-\d{2})/);
-    if (weekEndMatch) {
-      const weekEndStr = weekEndMatch[1];
-      if (todayStr < weekEndStr) {
-        // The week is in progress, so the button should not be visible.
-        // Instead, the "Week is still in progress" message should be shown.
-        await expect(page.locator('button:has-text("Start Weekly Review")')).toBeHidden();
-        await expect(page.locator('text=Week is still in progress')).toBeVisible();
-      } else {
-        // The week is completed, so the button should be visible.
-        await expect(page.locator('button:has-text("Start Weekly Review")')).toBeVisible();
+    // Find and categorize available week options
+    const optionElements = await weekSelect.locator('option').all();
+    let currentWeekValue = '';
+    let pastWeekValue = '';
+    let futureWeekValue = '';
+
+    for (const option of optionElements) {
+      const val = await option.getAttribute('value');
+      if (val === currentWeekStart) {
+        currentWeekValue = val;
+      } else if (val && val < currentWeekStart) {
+        pastWeekValue = val;
+      } else if (val && val > currentWeekStart) {
+        futureWeekValue = val;
       }
+    }
+
+    // 1. If the current week is selected, the start button must be hidden and "Week is still in progress" visible
+    if (currentWeekValue) {
+      await weekSelect.selectOption(currentWeekValue);
+      await expect(page.locator('button:has-text("Start Weekly Review")')).toBeHidden();
+      await expect(page.locator('text=Week is still in progress')).toBeVisible();
+    }
+
+    // 2. If a past week is selected, the start button must be visible
+    if (pastWeekValue) {
+      await weekSelect.selectOption(pastWeekValue);
+      await expect(page.locator('button:has-text("Start Weekly Review")')).toBeVisible();
+      await expect(page.locator('text=Week is still in progress')).toBeHidden();
+    }
+
+    // 3. If a future week is selected, the start button must be hidden and "Week has not started yet" visible
+    if (futureWeekValue) {
+      await weekSelect.selectOption(futureWeekValue);
+      await expect(page.locator('button:has-text("Start Weekly Review")')).toBeHidden();
+      await expect(page.locator('text=Week has not started yet')).toBeVisible();
     }
   });
 });

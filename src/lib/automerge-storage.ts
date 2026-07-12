@@ -266,6 +266,14 @@ const updateQueue: UpdateTask[] = [];
 let isUpdating = false;
 const flushResolvers: Array<() => void> = [];
 
+function drainFlushResolvers() {
+  const resolvers = [...flushResolvers];
+  flushResolvers.length = 0;
+  for (const resolve of resolvers) {
+    resolve();
+  }
+}
+
 async function processQueue() {
   if (isUpdating) return;
   isUpdating = true;
@@ -280,12 +288,7 @@ async function processQueue() {
     }
   }
   isUpdating = false;
-  // Trigger all pending flush resolvers
-  const resolvers = [...flushResolvers];
-  flushResolvers.length = 0;
-  for (const resolve of resolvers) {
-    resolve();
-  }
+  drainFlushResolvers();
 }
 
 // Append an incremental chunk (the new changes since the last save) to the
@@ -312,7 +315,7 @@ export async function flushAutomergeQueue(timeoutMs = 5000): Promise<boolean> {
   }
 
   return new Promise<boolean>((resolve) => {
-    let timerId: any = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
     let resolved = false;
 
     const cleanup = () => {
@@ -354,9 +357,7 @@ export function getQueueInfoForTesting() {
     setIsUpdating: (val: boolean) => {
       isUpdating = val;
       if (!isUpdating && updateQueue.length === 0) {
-        const resolvers = [...flushResolvers];
-        flushResolvers.length = 0;
-        for (const r of resolvers) r();
+        drainFlushResolvers();
       }
     },
     getQueueLength: () => updateQueue.length,
@@ -426,6 +427,6 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
 }
 
 if (import.meta.env.DEV) {
-  (window as any).__mockFsWriteFile = writeFile;
-  (window as any).__mockFsReadFile = readFile;
+  window.__mockFsWriteFile = writeFile;
+  window.__mockFsReadFile = readFile;
 }

@@ -116,9 +116,59 @@ test.describe('Automerge Queue Resilience', () => {
         await readFn('corrupted.bin');
         return false;
       } catch (e: any) {
-        return e.message.includes('Corrupted data');
+        return e.message.includes('Corrupted');
       }
     });
     expect(throwsError).toBe(true);
+  });
+
+  test('verifies that hide_window is not called if close event listener is unmounted/cancelled during queue flush', async ({ page }) => {
+    await waitForApp(page);
+
+    // Verify hooks are defined
+    const hasHooks = await page.evaluate(() => {
+      return (
+        typeof (window as any).__cleanupCloseHandler === 'function' &&
+        typeof (window as any).__getQueueInfoForTesting === 'function'
+      );
+    });
+    expect(hasHooks).toBe(true);
+
+    // Clear tauri invokes log
+    await page.evaluate(() => {
+      (window as any).__tauriInvokes = [];
+    });
+
+    // 1. Set isUpdating to true manually so that flushAutomergeQueue hangs
+    await page.evaluate(() => {
+      const info = (window as any).__getQueueInfoForTesting();
+      info.setIsUpdating(true);
+    });
+
+    // 2. Trigger window-close-requested event
+    await page.evaluate(() => {
+      (window as any).__triggerTauriEvent('window-close-requested');
+    });
+
+    // 3. While it's hanging, call the cleanup/unmount handler
+    await page.evaluate(() => {
+      (window as any).__cleanupCloseHandler();
+    });
+
+    // 4. Release the queue hang by setting isUpdating back to false
+    await page.evaluate(() => {
+      const info = (window as any).__getQueueInfoForTesting();
+      info.setIsUpdating(false);
+    });
+
+    // Wait a brief moment for async finally block to execute
+    await page.waitForTimeout(100);
+
+    // 5. Assert that 'hide_window' was NOT invoked because the handler was cancelled/unmounted!
+    const invokes = await page.evaluate(() => {
+      return (window as any).__tauriInvokes || [];
+    });
+    const hideWindowCalls = invokes.filter((cmd: string) => cmd === 'hide_window');
+    expect(hideWindowCalls.length).toBe(0);
   });
 });

@@ -22,6 +22,21 @@ export async function writeFile(path: string, contents: Uint8Array, _options?: a
 export async function readFile(path: string, _options?: any): Promise<Uint8Array> {
   const str = localStorage.getItem('mock_fs_' + path);
   if (!str) return new Uint8Array();
+
+  // Detect legacy CSV format (comma-separated byte values)
+  if (str.includes(',')) {
+    const parts = str.split(',');
+    const bytes = new Uint8Array(parts.length);
+    for (let i = 0; i < parts.length; i++) {
+      const n = Number(parts[i]);
+      if (Number.isNaN(n) || n < 0 || n > 255) {
+        throw new Error(`Corrupted CSV data at index ${i} for path: ${path}`);
+      }
+      bytes[i] = n;
+    }
+    return bytes;
+  }
+
   try {
     const binary = atob(str);
     const bytes = new Uint8Array(binary.length);
@@ -30,16 +45,6 @@ export async function readFile(path: string, _options?: any): Promise<Uint8Array
     }
     return bytes;
   } catch (err) {
-    // Fallback to legacy CSV format to maintain backward compatibility:
-    const parts = str.split(',');
-    const bytes = new Uint8Array(parts.length);
-    for (let i = 0; i < parts.length; i++) {
-      const n = Number(parts[i]);
-      if (Number.isNaN(n)) {
-        throw new Error(`Corrupted data (not base64 and invalid CSV) at index ${i} for path: ${path}. Error: ${err}`);
-      }
-      bytes[i] = n;
-    }
-    return bytes;
+    throw new Error(`Corrupted data for path: ${path}. Error: ${err}`);
   }
 }
