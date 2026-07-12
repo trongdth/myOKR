@@ -8,10 +8,14 @@ interface Window {
   __flushAutomergeQueue?: typeof import('./lib/automerge-storage').flushAutomergeQueue;
   __getQueueInfoForTesting?: typeof import('./lib/automerge-storage').getQueueInfoForTesting;
   
-  __mockFsWriteFile?: typeof import('@tauri-apps/plugin-fs').writeFile;
-  __mockFsReadFile?: typeof import('@tauri-apps/plugin-fs').readFile;
+  __fsTestAdapter?: {
+    writeFile: typeof import('@tauri-apps/plugin-fs').writeFile;
+    readFile: typeof import('@tauri-apps/plugin-fs').readFile;
+  };
   
   __cleanupCloseHandler?: () => void;
   __triggerTauriEvent?: (event: string, payload?: unknown) => void;
   __tauriInvokes?: string[];
+  __getActiveListenerCount?: (event: string) => number;
+  __mockListen?: typeof import('./mocks/tauri-api').listen;
 }

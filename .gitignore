@@ -27,6 +27,7 @@ dist-ssr
 .omc/
 .claude
 .antigravitycli/
+docs
 
 # MCP
 .playwright-mcp/

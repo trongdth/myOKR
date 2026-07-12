@@ -133,7 +133,7 @@ export default function App() {
     let unlisten: (() => void) | null = null;
     let isClosing = false;
 
-    listen('window-close-requested', async () => {
+    const promise = listen('window-close-requested', async () => {
       if (isClosing) return;
       isClosing = true;
       try {
@@ -146,14 +146,20 @@ export default function App() {
         }
         isClosing = false;
       }
-    }).then((fn) => {
+    });
+
+    promise.then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
     }).catch(console.error);
 
     const cleanup = () => {
       cancelled = true;
-      if (unlisten) unlisten();
+      if (unlisten) {
+        unlisten();
+      } else {
+        promise.then((fn) => fn()).catch(console.error);
+      }
     };
 
     if (import.meta.env.DEV) {

@@ -356,8 +356,12 @@ export function getQueueInfoForTesting() {
     getIsUpdating: () => isUpdating,
     setIsUpdating: (val: boolean) => {
       isUpdating = val;
-      if (!isUpdating && updateQueue.length === 0) {
-        drainFlushResolvers();
+      if (!isUpdating) {
+        if (updateQueue.length === 0) {
+          drainFlushResolvers();
+        } else {
+          processQueue();
+        }
       }
     },
     getQueueLength: () => updateQueue.length,
@@ -427,6 +431,5 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
 }
 
 if (import.meta.env.DEV) {
-  window.__mockFsWriteFile = writeFile;
-  window.__mockFsReadFile = readFile;
+  window.__fsTestAdapter = { readFile, writeFile };
 }

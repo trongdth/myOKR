@@ -79,8 +79,10 @@ test.describe('Automerge Queue Resilience', () => {
 
     // 1. Verify that writing and reading binary works perfectly
     const readData = await page.evaluate(async () => {
-      const writeFn = (window as any).__mockFsWriteFile;
-      const readFn = (window as any).__mockFsReadFile;
+      const adapter = (window as any).__fsTestAdapter;
+      if (!adapter) throw new Error('__fsTestAdapter not exposed on window');
+      const writeFn = adapter.writeFile;
+      const readFn = adapter.readFile;
       
       const testData = new Uint8Array([72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33]); // "Hello, world!"
       await writeFn('test-file.bin', testData);
@@ -101,7 +103,8 @@ test.describe('Automerge Queue Resilience', () => {
     const legacyRead = await page.evaluate(async () => {
       // Manually set CSV data in localStorage
       localStorage.setItem('mock_fs_legacy-file.bin', '1,2,3,4,5');
-      const readFn = (window as any).__mockFsReadFile;
+      const adapter = (window as any).__fsTestAdapter;
+      const readFn = adapter.readFile;
       const result = await readFn('legacy-file.bin');
       return Array.from(result);
     });
@@ -111,7 +114,8 @@ test.describe('Automerge Queue Resilience', () => {
     const throwsError = await page.evaluate(async () => {
       // Manually set invalid CSV data
       localStorage.setItem('mock_fs_corrupted.bin', '1,two,3');
-      const readFn = (window as any).__mockFsReadFile;
+      const adapter = (window as any).__fsTestAdapter;
+      const readFn = adapter.readFile;
       try {
         await readFn('corrupted.bin');
         return false;
@@ -170,5 +174,92 @@ test.describe('Automerge Queue Resilience', () => {
     });
     const hideWindowCalls = invokes.filter((cmd: string) => cmd === 'hide_window');
     expect(hideWindowCalls.length).toBe(0);
+  });
+
+  test('verifies that setting isUpdating to false resumes queue processing if there are pending tasks', async ({ page }) => {
+    await waitForApp(page);
+
+    // 1. Manually pause queue processing
+    await page.evaluate(() => {
+      const info = (window as any).__getQueueInfoForTesting();
+      info.setIsUpdating(true);
+    });
+
+    // 2. Queue up an update doc task (this should remain pending because queue is paused)
+    const updatePromise = page.evaluate(async () => {
+      const updateDoc = (window as any).__updateAutomergeDoc;
+      await updateDoc('Queue resume test', (d: any) => {
+        d.testProperty = 'resumed';
+      });
+      return true;
+    });
+
+    // Verify it is not processed yet by checking doc
+    const beforeProperty = await page.evaluate(async () => {
+      const getDoc = (window as any).__getAutomergeDoc;
+      const doc = await getDoc();
+      return doc.testProperty;
+    });
+    expect(beforeProperty).toBeUndefined();
+
+    // 3. Resume queue processing
+    await page.evaluate(() => {
+      const info = (window as any).__getQueueInfoForTesting();
+      info.setIsUpdating(false);
+    });
+
+    // 4. Await the update task to complete and verify the change was applied
+    await updatePromise;
+    const afterProperty = await page.evaluate(async () => {
+      const getDoc = (window as any).__getAutomergeDoc;
+      const doc = await getDoc();
+      return doc.testProperty;
+    });
+    expect(afterProperty).toBe('resumed');
+  });
+
+  test('verifies close event listener is cleaned up and does not leak on unmount', async ({ page }) => {
+    await waitForApp(page);
+
+    // Get active listener count before cleanup
+    const countBefore = await page.evaluate(() => {
+      return window.__getActiveListenerCount ? window.__getActiveListenerCount('window-close-requested') : 0;
+    });
+    expect(countBefore).toBe(1);
+
+    // Call cleanup handler
+    await page.evaluate(() => {
+      if (window.__cleanupCloseHandler) {
+        window.__cleanupCloseHandler();
+      }
+    });
+
+    // Verify active listener count is now 0
+    const countAfter = await page.evaluate(() => {
+      return window.__getActiveListenerCount ? window.__getActiveListenerCount('window-close-requested') : 0;
+    });
+    expect(countAfter).toBe(0);
+  });
+
+  test('verifies that mock listen deduplicates duplicate handler registrations', async ({ page }) => {
+    await waitForApp(page);
+
+    const count = await page.evaluate(async () => {
+      const mockListen = window.__mockListen;
+      const getCount = window.__getActiveListenerCount;
+      if (!mockListen || !getCount) throw new Error('Helpers not exposed');
+      
+      const handler = () => {};
+      const unlisten1 = await mockListen('test-dedup-event', handler);
+      const unlisten2 = await mockListen('test-dedup-event', handler);
+      
+      const res = getCount('test-dedup-event');
+      // Clean up to avoid leaking
+      unlisten1();
+      unlisten2();
+      return res;
+    });
+
+    expect(count).toBe(1);
   });
 });

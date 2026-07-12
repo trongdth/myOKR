@@ -365,9 +365,7 @@ export function getMondaysForCycle(cycle: { month: number; year: number }): stri
 
   while (true) {
     const weekStartStr = current.toISOString().slice(0, 10);
-    const endCopy = new Date(current);
-    endCopy.setUTCDate(endCopy.getUTCDate() + 6);
-    const weekEndStr = endCopy.toISOString().slice(0, 10);
+    const weekEndStr = getWeekEndFromStart(weekStartStr);
 
     if (weekStartStr <= monthEnd && weekEndStr >= monthStart) {
       mondays.push(weekStartStr);

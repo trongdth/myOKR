@@ -16,7 +16,9 @@ export async function listen(event: string, handler: (event: TauriEvent) => void
   if (!listeners[event]) {
     listeners[event] = [];
   }
-  listeners[event].push(handler);
+  if (!listeners[event].includes(handler)) {
+    listeners[event].push(handler);
+  }
   return () => {
     listeners[event] = listeners[event].filter(h => h !== handler);
   };
@@ -31,4 +33,8 @@ if (typeof window !== 'undefined') {
       }
     }
   };
+  window.__getActiveListenerCount = (event: string) => {
+    return listeners[event] ? listeners[event].length : 0;
+  };
+  window.__mockListen = listen;
 }
