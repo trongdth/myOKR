@@ -7,6 +7,10 @@ interface Window {
   __updateAutomergeDoc?: typeof import('./lib/automerge-storage').updateAutomergeDoc;
   __flushAutomergeQueue?: typeof import('./lib/automerge-storage').flushAutomergeQueue;
   __getQueueInfoForTesting?: typeof import('./lib/automerge-storage').getQueueInfoForTesting;
+  __mergeExternalBinary?: typeof import('./lib/automerge-storage').mergeExternalBinary;
+  __getEffectiveCurrentValue?: typeof import('./lib/okr-storage').getEffectiveCurrentValue;
+  __getEffectiveCurrentValueAsOf?: typeof import('./lib/okr-storage').getEffectiveCurrentValueAsOf;
+  __isTickInCycleMonth?: typeof import('./lib/okr-storage').isTickInCycleMonth;
   
   __fsTestAdapter?: {
     writeFile: typeof import('@tauri-apps/plugin-fs').writeFile;

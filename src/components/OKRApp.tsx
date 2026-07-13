@@ -10,6 +10,7 @@ import {
 } from '../lib/okr-storage';
 import { generateId, loadSettings } from '../lib/pomodoro-storage';
 import { loadTasks, type PomodoroTask } from '../lib/pomodoro-storage';
+import { loadHabits, type Habit } from '../lib/habit-storage';
 import CycleSelector from './okr/CycleSelector';
 import ObjectiveCard from './okr/ObjectiveCard';
 import ConfirmModal from './ConfirmModal';
@@ -22,6 +23,7 @@ export default function OKRApp() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
   const [newObjTitle, setNewObjTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'objective' | 'kr' | 'cycle', id: string, title?: string } | null>(null);
@@ -37,6 +39,7 @@ export default function OKRApp() {
       setObjectives(await loadObjectives());
       setKeyResults(await loadKeyResults());
       setTasks(await loadTasks());
+      setHabits(await loadHabits());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
 
@@ -58,6 +61,7 @@ export default function OKRApp() {
       setObjectives(await loadObjectives());
       setKeyResults(await loadKeyResults());
       setTasks(await loadTasks());
+      setHabits(await loadHabits());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
     }
@@ -75,7 +79,7 @@ export default function OKRApp() {
     .filter(o => o.cycleId === activeCycleId)
     .sort((a, b) => a.order - b.order);
 
-  const overallProgress = computeOverallProgress(objectives, keyResults, activeCycleId, tasks, focusDuration);
+  const overallProgress = computeOverallProgress(objectives, keyResults, activeCycleId, tasks, focusDuration, habits, cycles);
 
   const activeCycle = cycles.find(c => c.id === activeCycleId);
   const canCloneActive = !!activeCycle && objectives.some(o => o.cycleId === activeCycleId);
@@ -284,6 +288,9 @@ export default function OKRApp() {
           onUpdateKeyResult={updateKeyResult}
           onDeleteKeyResult={deleteKeyResultRequest}
           onAddKeyResult={addKeyResult}
+          habits={habits}
+          objectives={objectives}
+          cycles={cycles}
         />
       ))}
 

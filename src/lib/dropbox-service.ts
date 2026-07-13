@@ -1,5 +1,5 @@
 import { Dropbox, DropboxAuth } from 'dropbox';
-import { getAutomergeBinary, mergeExternalBinary } from './automerge-storage';
+import { getAutomergeBinary, mergeExternalBinary, FORCE_SYNC_OVERWRITE_FLAG } from './automerge-storage';
 
 const DROPBOX_FILE_PATH = '/myokr-data.automerge';
 
@@ -93,25 +93,29 @@ export async function uploadToDropbox(clientId: string, refreshToken: string, bi
  * 1. Downloads the remote file
  * 2. Merges it with the local document
  * 3. Uploads the merged result
+ * Exception: after a local compaction (FORCE_SYNC_OVERWRITE_FLAG) the remote is
+ * replaced with the local doc instead of merged — see the flag's doc comment.
  * Returns true if successful and a merge happened, false if token invalid or no remote file.
  */
 export async function syncWithDropbox(clientId: string, refreshToken: string, forceUpload: boolean = false): Promise<boolean> {
   if (!clientId || !refreshToken) return false;
   try {
-    let finalBinary: Uint8Array;
-    
-    if (forceUpload) {
-      finalBinary = await getAutomergeBinary();
-    } else {
+    // Materialize the local doc FIRST so initAndMigrateData (and any compaction,
+    // which sets FORCE_SYNC_OVERWRITE_FLAG) has completed before the flag is read.
+    let finalBinary: Uint8Array = await getAutomergeBinary();
+    const compactedSinceLastSync = localStorage.getItem(FORCE_SYNC_OVERWRITE_FLAG) === '1';
+
+    if (!forceUpload && !compactedSinceLastSync) {
       const remoteBinary = await downloadFromDropbox(clientId, refreshToken);
       if (remoteBinary && remoteBinary.length > 0) {
         finalBinary = await mergeExternalBinary(remoteBinary);
-      } else {
-        finalBinary = await getAutomergeBinary();
       }
     }
-    
+
     await uploadToDropbox(clientId, refreshToken, finalBinary);
+    if (compactedSinceLastSync) {
+      localStorage.removeItem(FORCE_SYNC_OVERWRITE_FLAG);
+    }
     return true;
   } catch (error) {
     console.error('Sync failed:', error);

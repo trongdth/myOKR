@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
-import type { KeyResult, CompletionMode } from '../../lib/okr-storage';
-import type { Confidence } from '../../lib/okr-storage';
+import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useHoldRepeat } from '../../hooks/useHoldRepeat';
+import { saveHabits, type Habit } from '../../lib/habit-storage';
+import { generateId } from '../../lib/pomodoro-storage';
 
 interface Props {
   kr: KeyResult;
@@ -12,12 +13,15 @@ interface Props {
   focusDurationMinutes: number;
   onUpdate: (updated: KeyResult) => void;
   onDelete: (id: string) => void;
+  habits: Habit[];
+  objectives: Objective[];
+  cycles: OKRCycle[];
 }
 
 const CONFIDENCE_CYCLE: Confidence[] = ['not_set', 'on_track', 'at_risk', 'off_track'];
-const COMPLETION_MODES: CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks'];
+const COMPLETION_MODES: CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks', 'habit'];
 
-export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate, onDelete }: Props) {
+export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate, onDelete, habits, objectives, cycles }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(kr.title);
   const [showConfidencePopup, setShowConfidencePopup] = useState(false);
@@ -34,14 +38,14 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   useClickOutside(valueRef, showValuePopover, () => setShowValuePopover(false));
 
   const mode = kr.completionMode || 'manual';
-  const effectiveCurrent = getEffectiveCurrentValue(kr, tasks, focusDurationMinutes);
+  const effectiveCurrent = getEffectiveCurrentValue(kr, tasks, focusDurationMinutes, habits, objectives, cycles);
   const displayUnit = COMPLETION_MODE_META[mode].unit;
   const progress = kr.targetValue > 0 ? Math.min(100, (effectiveCurrent / kr.targetValue) * 100) : 0;
   const meta = CONFIDENCE_META[kr.confidence];
   const modeMeta = COMPLETION_MODE_META[mode];
-  const canShowPopover = mode === 'manual' || mode === 'focus_pomodoros' || mode === 'completed_tasks';
+  const canShowPopover = mode === 'manual' || mode === 'focus_pomodoros' || mode === 'completed_tasks' || mode === 'habit';
   const showCurrentAdjuster = mode === 'manual';
-  const showTargetAdjuster = mode === 'focus_pomodoros' || mode === 'completed_tasks';
+  const showTargetAdjuster = mode === 'focus_pomodoros' || mode === 'completed_tasks' || mode === 'habit';
 
   // Hold-repeat handlers for current value stepper
   const holdCurrentDec = useHoldRepeat(
@@ -188,6 +192,64 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
           ✕
         </button>
       </div>
+
+      {/* Habits picker link row */}
+      {mode === 'habit' && (
+        <div className="kr-habit-link-row" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', paddingLeft: '2.25em' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Linked Habit:</span>
+          <select
+            value={kr.habitId || ''}
+            onChange={async (e) => {
+              const val = e.target.value;
+              if (val === '__new__') {
+                const name = prompt('Enter name for the new habit:');
+                if (name && name.trim()) {
+                  const newId = generateId();
+                  const newHabit: Habit = {
+                    id: newId,
+                    name: name.trim(),
+                    status: 'want_to_form',
+                    ticks: [],
+                    order: habits.length,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+                  const updatedHabits = [...habits, newHabit];
+                  await saveHabits(updatedHabits);
+                  window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+                  onUpdate({
+                    ...kr,
+                    habitId: newId,
+                    unit: 'ticks',
+                    updatedAt: new Date().toISOString()
+                  });
+                }
+              } else {
+                onUpdate({
+                  ...kr,
+                  habitId: val || undefined,
+                  unit: 'ticks',
+                  updatedAt: new Date().toISOString()
+                });
+              }
+            }}
+            style={{
+              padding: '0.2rem 0.5rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border-color)',
+              fontSize: '0.8rem',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)'
+            }}
+          >
+            <option value="">-- Select a habit --</option>
+            {habits.map(h => (
+              <option key={h.id} value={h.id}>{h.name}</option>
+            ))}
+            <option value="__new__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>+ Create new habit...</option>
+          </select>
+        </div>
+      )}
 
       {/* Line 2: progress */}
       <div className="kr-row-bottom">

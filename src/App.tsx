@@ -13,8 +13,9 @@ const OKRApp = lazy(() => import('./components/OKRApp'));
 const ReviewApp = lazy(() => import('./components/ReviewApp'));
 const SyncApp = lazy(() => import('./components/SyncApp'));
 const Walkthrough = lazy(() => import('./components/Walkthrough'));
+const HabitsApp = lazy(() => import('./components/HabitsApp'));
 
-type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review' | 'sync';
+type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review' | 'sync' | 'habits';
 
 const HELP_BLOG_URL = 'https://code4food.work/blog/effective-okrs-with-myokr';
 
@@ -74,6 +75,19 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
         <circle cx="12" cy="12" r="10" />
         <circle cx="12" cy="12" r="6" />
         <circle cx="12" cy="12" r="2" />
+      </svg>
+    ),
+  },
+  {
+    id: 'habits',
+    label: 'Habits',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <polyline points="8 14 10 16 16 11" />
       </svg>
     ),
   },
@@ -211,10 +225,10 @@ export default function App() {
     };
   }, [isSyncConnected]);
 
-  const handleWalkthroughComplete = async (dismissed: boolean) => {
-    const newState: WalkthroughState = dismissed ? 'dismissed' : 'seen';
-    await saveWalkthroughState(newState);
+  const handleWalkthroughComplete = (dismissed: boolean) => {
     setShowWalkthrough(false);
+    const newState: WalkthroughState = dismissed ? 'dismissed' : 'seen';
+    saveWalkthroughState(newState).catch(console.error);
   };
 
   const handleNavClick = (id: Section) => {
@@ -319,6 +333,9 @@ export default function App() {
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
           {activeSection === 'okrs' && (
             <ErrorBoundary mode="section"><OKRApp key="okrs" /></ErrorBoundary>
+          )}
+          {activeSection === 'habits' && (
+            <ErrorBoundary mode="section"><HabitsApp key="habits" /></ErrorBoundary>
           )}
           {activeSection === 'review' && (
             <ErrorBoundary mode="section"><ReviewApp key="review" /></ErrorBoundary>
