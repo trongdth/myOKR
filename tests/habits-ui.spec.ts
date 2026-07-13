@@ -2,13 +2,18 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Habits Tab UI', () => {
   test.beforeEach(async ({ page }) => {
+    // Set localStorage to bypass walkthrough and open Habits directly
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_active_section', 'habits');
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
 
   test('allows creating, ticking, changing status, and deleting a habit', async ({ page }) => {
-    // Navigate to Habits tab
-    await page.locator('nav >> text=Habits').click();
+    // Verify we are on Habits tab
     await expect(page.locator('.habits-title')).toHaveText('📈 Habits');
 
     // Create a new habit
@@ -34,6 +39,14 @@ test.describe('Habits Tab UI', () => {
     // Update status
     const statusSelect = page.locator('.habit-status-select');
     await statusSelect.selectOption('formed');
+
+    // Now the habit is hidden (collapsible). We must toggle the formed section to see it
+    const toggleBtn = page.locator('.formed-habits-toggle');
+    await expect(toggleBtn).toBeVisible();
+    await expect(toggleBtn).toContainText('Formed Habits (1)');
+    await toggleBtn.click();
+
+    // Verify it is in the formed section and has value 'formed'
     await expect(statusSelect).toHaveValue('formed');
 
     // Delete the habit

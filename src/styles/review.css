@@ -914,10 +914,13 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 932px) {
   .review-container {
     padding: 1em 1em 3em;
   }
+}
+
+@media (max-width: 640px) {
 
   .review-stats-grid {
     grid-template-columns: 1fr;

@@ -190,6 +190,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleNavigate = (e: Event) => {
+      const section = (e as CustomEvent).detail as Section;
+      if (section) {
+        handleNavClick(section);
+      }
+    };
+    window.addEventListener('myokr-navigate-to-section', handleNavigate);
+    return () => window.removeEventListener('myokr-navigate-to-section', handleNavigate);
+  }, []);
+
+  useEffect(() => {
     if (!isSyncConnected) return;
 
     const handleSyncError = (e: any) => {

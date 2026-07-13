@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Habit KR Linking & Progress Workflow', () => {
   test.beforeEach(async ({ page }) => {
+    // Set localStorage to bypass walkthrough and open directly
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
@@ -111,5 +115,59 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(krRowAfter).toBeVisible();
     await expect(krRowAfter.locator('.kr-mode-badge-label')).toContainText('✏️ Manual');
     await expect(krRowAfter.locator('.kr-progress-text')).toContainText('1 / 10 %'); // Unit reverted to % for manual
+  });
+
+  test('navigates to Habits tab when selecting Create New Habit in KR dropdown', async ({ page }) => {
+    // Seed active cycle
+    await page.evaluate(async () => {
+      const updateDoc = (window as any).__updateAutomergeDoc;
+      if (!updateDoc) throw new Error('Automerge test hooks not exposed');
+      await updateDoc('Seed July 2026 cycle', (d: any) => {
+        const julyCycle = {
+          id: 'cycle-july-2026',
+          name: 'July 2026',
+          month: 6, // 0-indexed July
+          year: 2026,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        };
+        if (d.cycles) {
+          d.cycles.forEach((c: any) => c.isActive = false);
+          d.cycles.push(julyCycle);
+        } else {
+          d.cycles = [julyCycle];
+        }
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    // Go to OKRs tab and create objective + KR
+    await page.locator('nav >> text=OKRs').click();
+    await expect(page.locator('.okr-header-title')).toBeVisible();
+
+    const objInput = page.locator('.okr-add-objective >> input');
+    await objInput.fill('Habit Link Navigation Objective');
+    await page.locator('button:has-text("+ Add Objective")').click();
+
+    // Find and expand the objective card
+    const objHeader = page.locator('.objective-header:has-text("Habit Link Navigation Objective")');
+    await expect(objHeader).toBeVisible();
+    await objHeader.click();
+
+    // Create a Habit KR
+    const krInput = page.locator('.kr-add-row >> input');
+    await krInput.fill('Navigation KR');
+    const krModeSelect = page.locator('.kr-mode-select');
+    await krModeSelect.selectOption({ label: '📈 Habit Ticks' });
+    await page.locator('button:has-text("+ Add KR")').click();
+
+    // Select the "+ Create new habit..." option in the newly created KR
+    const linkSelect = page.locator('.kr-habit-link-row >> select');
+    await expect(linkSelect).toBeVisible();
+    await linkSelect.selectOption('__new__');
+
+    // Verify it redirects to Habits tab and shows title
+    await expect(page.locator('.habits-title')).toBeVisible();
+    await expect(page.locator('.habits-title')).toHaveText('📈 Habits');
   });
 });

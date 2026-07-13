@@ -4,8 +4,7 @@ import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from 
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useHoldRepeat } from '../../hooks/useHoldRepeat';
-import { saveHabits, type Habit } from '../../lib/habit-storage';
-import { generateId } from '../../lib/pomodoro-storage';
+import { type Habit } from '../../lib/habit-storage';
 
 interface Props {
   kr: KeyResult;
@@ -202,28 +201,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
             onChange={async (e) => {
               const val = e.target.value;
               if (val === '__new__') {
-                const name = prompt('Enter name for the new habit:');
-                if (name && name.trim()) {
-                  const newId = generateId();
-                  const newHabit: Habit = {
-                    id: newId,
-                    name: name.trim(),
-                    status: 'want_to_form',
-                    ticks: [],
-                    order: habits.length,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                  };
-                  const updatedHabits = [...habits, newHabit];
-                  await saveHabits(updatedHabits);
-                  window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-                  onUpdate({
-                    ...kr,
-                    habitId: newId,
-                    unit: 'ticks',
-                    updatedAt: new Date().toISOString()
-                  });
-                }
+                window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'habits' }));
               } else {
                 onUpdate({
                   ...kr,

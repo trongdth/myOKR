@@ -7,9 +7,9 @@ import {
   type Habit,
   type HabitStatus
 } from '../lib/habit-storage';
-import { loadKeyResults, getEffectiveCurrentValue } from '../lib/okr-storage';
+import { loadKeyResults, getEffectiveCurrentValue, loadObjectives, loadCycles } from '../lib/okr-storage';
 import { updateAutomergeDoc } from '../lib/automerge-storage';
-import { generateId, getLocalDateString } from '../lib/pomodoro-storage';
+import { generateId, getLocalDateString, loadTasks, loadSettings } from '../lib/pomodoro-storage';
 import ConfirmModal from './ConfirmModal';
 import LoadingState from './shared/LoadingState';
 
@@ -17,6 +17,7 @@ export default function HabitsApp() {
   const [isLoading, setIsLoading] = useState(true);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [newHabitName, setNewHabitName] = useState('');
+  const [showFormed, setShowFormed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{
     habitId: string;
     title: string;
@@ -105,26 +106,40 @@ export default function HabitsApp() {
     const linkedKRs = krs.filter(kr => kr.habitId === habitId);
 
     const performDelete = async () => {
+      const tasks = await loadTasks();
+      const settings = await loadSettings();
+      const objectives = await loadObjectives();
+      const cycles = await loadCycles();
+
+      const computedValuesMap: Record<string, number> = {};
+      linkedKRs.forEach(kr => {
+        computedValuesMap[kr.id] = getEffectiveCurrentValue(
+          kr,
+          tasks,
+          settings?.focusDuration || 25,
+          habits,
+          objectives,
+          cycles
+        );
+      });
+
       await updateAutomergeDoc('Delete habit', (d) => {
         if (d.keyResults) {
           d.keyResults.forEach(kr => {
             if (kr.habitId === habitId) {
-              const computedVal = getEffectiveCurrentValue(
-                kr,
-                d.tasks || [],
-                d.settings?.focusDuration || 25,
-                d.habits || [],
-                d.objectives || [],
-                d.cycles || []
-              );
               kr.completionMode = 'manual';
-              kr.currentValue = computedVal;
+              kr.currentValue = computedValuesMap[kr.id] || 0;
               delete kr.habitId;
             }
           });
         }
         
-        d.habits = (d.habits || []).filter(h => h.id !== habitId);
+        if (d.habits) {
+          const idx = d.habits.findIndex(h => h.id === habitId);
+          if (idx !== -1) {
+            d.habits.splice(idx, 1);
+          }
+        }
       });
       setHabits(await loadHabits());
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
@@ -188,31 +203,6 @@ export default function HabitsApp() {
     return `${months[today.getMonth()]} ${today.getFullYear()}`;
   };
 
-  const getHeatmapCells = (ticks: string[]) => {
-    const cells: { dateStr: string; level: number; isFuture: boolean }[] = [];
-    const todayDate = new Date();
-    const todayKey = getLocalDateString(todayDate);
-    
-    const currentDay = todayDate.getDay();
-    const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    
-    const startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
-    startDate.setDate(startDate.getDate() - daysToMonday - 28);
-
-    for (let i = 0; i < 35; i++) {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      const key = getLocalDateString(d);
-      const ticked = ticks.includes(key);
-      cells.push({
-        dateStr: key,
-        level: ticked ? 4 : 0,
-        isFuture: key > todayKey
-      });
-    }
-    return cells;
-  };
 
   if (isLoading) {
     return <LoadingState className="habits-container" />;
@@ -220,6 +210,91 @@ export default function HabitsApp() {
 
   const calendarDays = getCalendarDays();
   const todayStr = getLocalDateString();
+
+  const activeHabits = habits.filter(h => h.status !== 'formed');
+  const formedHabits = habits.filter(h => h.status === 'formed');
+
+  const renderHabitCard = (habit: Habit) => {
+    const { current: currentStreak, best: bestStreak } = computeHabitStreaks(habit.ticks);
+
+    return (
+      <div key={habit.id} className="habit-card">
+        <div className="habit-card-header">
+          <div className="habit-info">
+            <span className="habit-name">{habit.name}</span>
+            <div className="habit-meta">
+              <select
+                className="habit-status-select"
+                value={habit.status}
+                onChange={e => handleUpdateStatus(habit.id, e.target.value as HabitStatus)}
+              >
+                <option value="want_to_form">Want to form</option>
+                <option value="in_progress">In progress</option>
+                <option value="formed">Formed</option>
+              </select>
+            </div>
+          </div>
+          <div className="habit-actions">
+            <button
+              className="habit-delete-btn"
+              onClick={() => handleDeleteHabit(habit.id)}
+              title="Delete habit"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="habit-stats-section">
+          <div className="habit-stat-box">
+            <span className="habit-stat-val">🔥 {currentStreak}</span>
+            <span className="habit-stat-lbl">Current Streak</span>
+          </div>
+          <div className="habit-stat-box">
+            <span className="habit-stat-val">🏆 {bestStreak}</span>
+            <span className="habit-stat-lbl">Best Streak</span>
+          </div>
+          <div className="habit-stat-box">
+            <span className="habit-stat-val">📅 {habit.ticks.length}</span>
+            <span className="habit-stat-lbl">Total Ticks</span>
+          </div>
+        </div>
+
+        {/* Tick Grid (Calendar) */}
+        <div className="calendar-section">
+          <div className="calendar-title">{getMonthTitle()}</div>
+          <div className="calendar-grid">
+            <div className="calendar-weekday">M</div>
+            <div className="calendar-weekday">T</div>
+            <div className="calendar-weekday">W</div>
+            <div className="calendar-weekday">T</div>
+            <div className="calendar-weekday">F</div>
+            <div className="calendar-weekday">S</div>
+            <div className="calendar-weekday">S</div>
+            
+            {calendarDays.map((day, idx) => {
+              if (day.isBlank) {
+                return <div key={`blank-${idx}`} className="calendar-day blank" />;
+              }
+              const isTicked = habit.ticks.includes(day.dateStr);
+              const isToday = day.dateStr === todayStr;
+              return (
+                <button
+                  key={day.dateStr}
+                  className={`calendar-day${isTicked ? ' ticked' : ''}${isToday ? ' today' : ''}`}
+                  disabled={day.isFuture}
+                  onClick={() => handleToggleTick(habit.id, day.dateStr)}
+                >
+                  {day.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="habits-container">
@@ -242,103 +317,44 @@ export default function HabitsApp() {
       </div>
 
       <div className="habits-grid">
-        {habits.map(habit => {
-          const { current: currentStreak, best: bestStreak } = computeHabitStreaks(habit.ticks);
-          const heatmapCells = getHeatmapCells(habit.ticks);
-
-          return (
-            <div key={habit.id} className="habit-card">
-              <div className="habit-card-header">
-                <div className="habit-info">
-                  <span className="habit-name">{habit.name}</span>
-                  <div className="habit-meta">
-                    <select
-                      className="habit-status-select"
-                      value={habit.status}
-                      onChange={e => handleUpdateStatus(habit.id, e.target.value as HabitStatus)}
-                    >
-                      <option value="want_to_form">Want to form</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="formed">Formed</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="habit-actions">
-                  <button
-                    className="habit-delete-btn"
-                    onClick={() => handleDeleteHabit(habit.id)}
-                    title="Delete habit"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-
-              {/* Stats row */}
-              <div className="habit-stats-section">
-                <div className="habit-stat-box">
-                  <span className="habit-stat-val">🔥 {currentStreak}</span>
-                  <span className="habit-stat-lbl">Current Streak</span>
-                </div>
-                <div className="habit-stat-box">
-                  <span className="habit-stat-val">🏆 {bestStreak}</span>
-                  <span className="habit-stat-lbl">Best Streak</span>
-                </div>
-                <div className="habit-stat-box">
-                  <span className="habit-stat-val">📅 {habit.ticks.length}</span>
-                  <span className="habit-stat-lbl">Total Ticks</span>
-                </div>
-              </div>
-
-              {/* Tick Grid (Calendar) */}
-              <div className="calendar-section">
-                <div className="calendar-title">{getMonthTitle()}</div>
-                <div className="calendar-grid">
-                  <div className="calendar-weekday">M</div>
-                  <div className="calendar-weekday">T</div>
-                  <div className="calendar-weekday">W</div>
-                  <div className="calendar-weekday">T</div>
-                  <div className="calendar-weekday">F</div>
-                  <div className="calendar-weekday">S</div>
-                  <div className="calendar-weekday">S</div>
-                  
-                  {calendarDays.map((day, idx) => {
-                    if (day.isBlank) {
-                      return <div key={`blank-${idx}`} className="calendar-day blank" />;
-                    }
-                    const isTicked = habit.ticks.includes(day.dateStr);
-                    const isToday = day.dateStr === todayStr;
-                    return (
-                      <button
-                        key={day.dateStr}
-                        className={`calendar-day${isTicked ? ' ticked' : ''}${isToday ? ' today' : ''}`}
-                        disabled={day.isFuture}
-                        onClick={() => handleToggleTick(habit.id, day.dateStr)}
-                      >
-                        {day.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Heatmap */}
-              <div className="heatmap-section">
-                <span className="calendar-title">Last 5 weeks</span>
-                <div className="heatmap-grid">
-                  {heatmapCells.map((cell, idx) => (
-                    <div
-                      key={`cell-${idx}`}
-                      className={`heatmap-cell level-${cell.level}${cell.isFuture ? ' future' : ''}`}
-                      title={cell.dateStr}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {activeHabits.map(renderHabitCard)}
       </div>
+
+      {formedHabits.length > 0 && (
+        <div className="formed-habits-section" style={{ marginTop: '2rem' }}>
+          <button
+            className="formed-habits-toggle"
+            onClick={() => setShowFormed(!showFormed)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary, #475569)',
+              cursor: 'pointer',
+              fontWeight: '600',
+              padding: '0.5rem 0',
+              fontSize: '0.95rem'
+            }}
+          >
+            <span style={{
+              transform: showFormed ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+              display: 'inline-block'
+            }}>
+              ▶
+            </span>
+            Formed Habits ({formedHabits.length})
+          </button>
+          
+          {showFormed && (
+            <div className="habits-grid formed-habits-grid" style={{ marginTop: '1rem' }}>
+              {formedHabits.map(renderHabitCard)}
+            </div>
+          )}
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={!!confirmDelete}

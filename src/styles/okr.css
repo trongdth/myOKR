@@ -915,10 +915,13 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 932px) {
   .okr-container {
     padding: 1em 1em 3em;
   }
+}
+
+@media (max-width: 640px) {
 
   .okr-add-objective {
     flex-direction: column;
