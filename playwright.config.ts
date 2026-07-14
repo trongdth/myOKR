@@ -6,12 +6,12 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5188',
     viewport: { width: 1280, height: 800 },
   },
   webServer: {
     command: 'npx vite --config vite.screenshots.config.ts',
-    port: 5173,
+    port: 5188,
     reuseExistingServer: true,
   },
 });

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import type { Objective, KeyResult, CompletionMode } from '../../lib/okr-storage';
+import type { Objective, KeyResult, CompletionMode, OKRCycle } from '../../lib/okr-storage';
 import { computeObjectiveProgress, COMPLETION_MODE_META } from '../../lib/okr-storage';
 import { generateId } from '../../lib/pomodoro-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
+import type { Habit } from '../../lib/habit-storage';
 import KeyResultRow from './KeyResultRow';
 
 interface Props {
@@ -15,6 +16,9 @@ interface Props {
   onUpdateKeyResult: (updated: KeyResult) => void;
   onDeleteKeyResult: (id: string) => void;
   onAddKeyResult: (kr: KeyResult) => void;
+  habits: Habit[];
+  objectives: Objective[];
+  cycles: OKRCycle[];
 }
 
 export default function ObjectiveCard({
@@ -27,6 +31,9 @@ export default function ObjectiveCard({
   onUpdateKeyResult,
   onDeleteKeyResult,
   onAddKeyResult,
+  habits,
+  objectives,
+  cycles
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -55,7 +62,7 @@ export default function ObjectiveCard({
     .filter(kr => kr.objectiveId === objective.id)
     .sort((a, b) => a.order - b.order);
 
-  const progress = computeObjectiveProgress(objective.id, keyResults, tasks, focusDurationMinutes);
+  const progress = computeObjectiveProgress(objective.id, keyResults, tasks, focusDurationMinutes, habits, objectives, cycles);
 
   const saveTitle = () => {
     const t = titleDraft.trim();
@@ -73,7 +80,7 @@ export default function ObjectiveCard({
       id: generateId(),
       objectiveId: objective.id,
       title,
-      targetValue: mode === 'focus_hours' ? 10 : mode === 'focus_pomodoros' ? 20 : mode === 'completed_tasks' ? 5 : 100,
+      targetValue: mode === 'focus_hours' ? 10 : mode === 'focus_pomodoros' ? 20 : mode === 'completed_tasks' ? 5 : mode === 'habit' ? 10 : 100,
       currentValue: 0,
       unit: COMPLETION_MODE_META[mode].unit,
       confidence: 'not_set',
@@ -195,6 +202,9 @@ export default function ObjectiveCard({
                 focusDurationMinutes={focusDurationMinutes}
                 onUpdate={onUpdateKeyResult}
                 onDelete={onDeleteKeyResult}
+                habits={habits}
+                objectives={objectives}
+                cycles={cycles}
               />
             ))}
           </div>

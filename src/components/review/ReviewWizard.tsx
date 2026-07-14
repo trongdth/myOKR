@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import type { ReviewEntry, WeeklyReview, KeyResult, Objective } from '../../lib/okr-storage';
+import type { ReviewEntry, WeeklyReview, KeyResult, Objective, OKRCycle } from '../../lib/okr-storage';
 import { getEffectiveCurrentValueAsOf } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
 import { computeWeekTaskPomos } from '../../lib/pomodoro-storage';
+import type { Habit } from '../../lib/habit-storage';
 import ReviewStepKR from './ReviewStepKR';
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   history: DailyRecord[];
   reviews: WeeklyReview[];
   focusDurationMinutes: number;
+  habits: Habit[];
+  cycles: OKRCycle[];
   onComplete: (review: Omit<WeeklyReview, 'id'>) => void;
   onCancel: () => void;
 }
@@ -22,6 +25,7 @@ interface Props {
 export default function ReviewWizard({
   weekStart, weekEnd, cycleId,
   objectives, keyResults, tasks, history, reviews, focusDurationMinutes,
+  habits, cycles,
   onComplete, onCancel,
 }: Props) {
   // Build list of KRs to review (only those belonging to objectives in the active cycle)
@@ -52,11 +56,11 @@ export default function ReviewWizard({
       const isManual = kr.completionMode === 'manual' || !kr.completionMode;
       const previousValue = isManual
         ? (lastEntry ? lastEntry.currentValue : 0)
-        : getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes);
+        : getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes, habits, objectives, cycles);
 
       const currentValue = isManual
         ? kr.currentValue
-        : getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes);
+        : getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes, habits, objectives, cycles);
 
       return {
         keyResultId: kr.id,

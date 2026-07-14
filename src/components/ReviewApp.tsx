@@ -8,6 +8,7 @@ import {
   getEffectiveCurrentValueAsOf,
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
+import { loadHabits, type Habit } from '../lib/habit-storage';
 import { generateId } from '../lib/pomodoro-storage';
 import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
 import { reviewInCycle } from '../lib/review-utils';
@@ -31,6 +32,9 @@ async function repairReviews(
   loadedTasks: PomodoroTask[],
   loadedHistory: DailyRecord[],
   focusDur: number,
+  loadedHabits: Habit[],
+  loadedObjectives: Objective[],
+  loadedCycles: OKRCycle[],
 ): Promise<{ repaired: WeeklyReview[]; changed: boolean }> {
   let changed = false;
   const repaired = loadedReviews.map(r => {
@@ -46,8 +50,8 @@ async function repairReviews(
       const kr = loadedKRs.find(k => k.id === entry.keyResultId);
       if (!kr || kr.completionMode === 'manual' || !kr.completionMode) return entry;
 
-      const correctPrev = getEffectiveCurrentValueAsOf(kr, loadedTasks, loadedHistory, previousSunday, focusDur);
-      const correctCurr = getEffectiveCurrentValueAsOf(kr, loadedTasks, loadedHistory, r.weekEndDate, focusDur);
+      const correctPrev = getEffectiveCurrentValueAsOf(kr, loadedTasks, loadedHistory, previousSunday, focusDur, loadedHabits, loadedObjectives, loadedCycles);
+      const correctCurr = getEffectiveCurrentValueAsOf(kr, loadedTasks, loadedHistory, r.weekEndDate, focusDur, loadedHabits, loadedObjectives, loadedCycles);
 
       if (entry.previousValue !== correctPrev || entry.currentValue !== correctCurr) {
         entriesChanged = true;
@@ -81,6 +85,7 @@ export default function ReviewApp() {
   const [reviews, setReviews] = useState<WeeklyReview[]>([]);
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
   const [history, setHistory] = useState<DailyRecord[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekStart());
@@ -89,24 +94,36 @@ export default function ReviewApp() {
   useEffect(() => {
     async function init() {
       const loadedCycles = await loadCycles();
+      const loadedObjectives = await loadObjectives();
       const loadedKRs = await loadKeyResults();
       const loadedReviews = await loadReviews();
       const loadedTasks = await loadTasks();
       const loadedHistory = await loadHistory();
+      const loadedHabits = await loadHabits();
       const settings = await loadSettings();
       const focusDur = settings.focusDuration;
 
       setCycles(loadedCycles);
-      setObjectives(await loadObjectives());
+      setObjectives(loadedObjectives);
       setKeyResults(loadedKRs);
       setReviews(loadedReviews);
       setTasks(loadedTasks);
       setHistory(loadedHistory);
+      setHabits(loadedHabits);
       setFocusDuration(focusDur);
       setIsLoading(false);
 
       // Run review database repair to correct legacy entries timezone-safely
-      const { repaired, changed } = await repairReviews(loadedReviews, loadedKRs, loadedTasks, loadedHistory, focusDur);
+      const { repaired, changed } = await repairReviews(
+        loadedReviews,
+        loadedKRs,
+        loadedTasks,
+        loadedHistory,
+        focusDur,
+        loadedHabits,
+        loadedObjectives,
+        loadedCycles
+      );
       if (changed) {
         setReviews(repaired);
         try {
@@ -154,6 +171,7 @@ export default function ReviewApp() {
       setReviews(await loadReviews());
       setTasks(await loadTasks());
       setHistory(await loadHistory());
+      setHabits(await loadHabits());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
     }
@@ -348,6 +366,8 @@ export default function ReviewApp() {
           history={history}
           reviews={reviews}
           focusDurationMinutes={focusDuration}
+          habits={habits}
+          cycles={cycles}
           onComplete={handleCompleteReview}
           onCancel={() => setShowWizard(false)}
         />

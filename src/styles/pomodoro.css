@@ -917,10 +917,13 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 932px) {
   .pomodoro-container {
     padding: 1em 1em 3em;
   }
+}
+
+@media (max-width: 640px) {
 
   .timer-ring-container {
     width: 320px;

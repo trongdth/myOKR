@@ -4,12 +4,13 @@
 import { getAutomergeDoc, updateAutomergeDoc, sanitizeForAutomerge } from './automerge-storage';
 import { generateId } from './pomodoro-storage';
 import type { PomodoroTask, DailyRecord } from './pomodoro-storage';
+import type { Habit } from './habit-storage';
 
 // ===== TYPES =====
 
 export type Confidence = 'on_track' | 'at_risk' | 'off_track' | 'not_set';
 
-export type CompletionMode = 'manual' | 'focus_hours' | 'focus_pomodoros' | 'completed_tasks';
+export type CompletionMode = 'manual' | 'focus_hours' | 'focus_pomodoros' | 'completed_tasks' | 'habit';
 
 export const COMPLETION_MODE_META: Record<CompletionMode, {
   label: string;
@@ -20,6 +21,7 @@ export const COMPLETION_MODE_META: Record<CompletionMode, {
   focus_hours:       { label: 'Focus Hours',      icon: '⏱️', unit: 'hours' },
   focus_pomodoros:   { label: 'Pomodoros',        icon: '🍅', unit: 'pomodoros' },
   completed_tasks:   { label: 'Completed Tasks',  icon: '✅', unit: 'tasks' },
+  habit:             { label: 'Habit Ticks',      icon: '📈', unit: 'ticks' },
 };
 
 export const CONFIDENCE_META: Record<Confidence, {
@@ -65,6 +67,7 @@ export interface KeyResult {
   order: number;
   createdAt: string;
   updatedAt: string;
+  habitId?: string;
 }
 
 export interface ReviewEntry {
@@ -201,13 +204,34 @@ export function cloneCycleStructure(
   return { cycle, objectives, keyResults };
 }
 
+export function isTickInCycleMonth(tickStr: string, cycleMonth: number, cycleYear: number): boolean {
+  const parts = tickStr.split('-');
+  if (parts.length !== 3) return false;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+  return year === cycleYear && month === cycleMonth;
+}
+
 export function getEffectiveCurrentValue(
   kr: KeyResult,
   tasks: PomodoroTask[],
   focusDurationMinutes: number = 25,
+  habits: Habit[] = [],
+  objectives: Objective[] = [],
+  cycles: OKRCycle[] = [],
 ): number {
   if (kr.completionMode === 'manual' || !kr.completionMode) {
     return kr.currentValue;
+  }
+  if (kr.completionMode === 'habit') {
+    if (!kr.habitId) return 0;
+    const habit = habits.find(h => h.id === kr.habitId);
+    if (!habit) return 0;
+    const objective = objectives.find(o => o.id === kr.objectiveId);
+    if (!objective) return 0;
+    const cycle = cycles.find(c => c.id === objective.cycleId);
+    if (!cycle) return 0;
+    return habit.ticks.filter(tick => isTickInCycleMonth(tick, cycle.month, cycle.year)).length;
   }
   const linked = tasks.filter(t => t.keyResultId === kr.id);
   switch (kr.completionMode) {
@@ -230,9 +254,22 @@ export function getEffectiveCurrentValueAsOf(
   history: DailyRecord[],
   endDate: string,
   focusDurationMinutes: number = 25,
+  habits: Habit[] = [],
+  objectives: Objective[] = [],
+  cycles: OKRCycle[] = [],
 ): number {
   if (kr.completionMode === 'manual' || !kr.completionMode) {
     return kr.currentValue;
+  }
+  if (kr.completionMode === 'habit') {
+    if (!kr.habitId) return 0;
+    const habit = habits.find(h => h.id === kr.habitId);
+    if (!habit) return 0;
+    const objective = objectives.find(o => o.id === kr.objectiveId);
+    if (!objective) return 0;
+    const cycle = cycles.find(c => c.id === objective.cycleId);
+    if (!cycle) return 0;
+    return habit.ticks.filter(tick => tick <= endDate && isTickInCycleMonth(tick, cycle.month, cycle.year)).length;
   }
   const linked = tasks.filter(t => t.keyResultId === kr.id);
   const linkedIds = new Set(linked.map(t => t.id));
@@ -283,12 +320,15 @@ export function computeObjectiveProgress(
   keyResults: KeyResult[],
   tasks?: PomodoroTask[],
   focusDurationMinutes?: number,
+  habits?: Habit[],
+  objectives?: Objective[],
+  cycles?: OKRCycle[],
 ): number {
   const krs = keyResults.filter(kr => kr.objectiveId === objectiveId);
   if (krs.length === 0) return 0;
   const total = krs.reduce((sum, kr) => {
     const current = tasks
-      ? getEffectiveCurrentValue(kr, tasks, focusDurationMinutes)
+      ? getEffectiveCurrentValue(kr, tasks, focusDurationMinutes, habits, objectives, cycles)
       : kr.currentValue;
     const pct = kr.targetValue > 0 ? (current / kr.targetValue) * 100 : 0;
     return sum + Math.min(100, pct);
@@ -302,11 +342,13 @@ export function computeOverallProgress(
   cycleId: string,
   tasks?: PomodoroTask[],
   focusDurationMinutes?: number,
+  habits?: Habit[],
+  cycles?: OKRCycle[],
 ): number {
   const cycleObjectives = objectives.filter(o => o.cycleId === cycleId);
   if (cycleObjectives.length === 0) return 0;
   const total = cycleObjectives.reduce(
-    (sum, o) => sum + computeObjectiveProgress(o.id, keyResults, tasks, focusDurationMinutes),
+    (sum, o) => sum + computeObjectiveProgress(o.id, keyResults, tasks, focusDurationMinutes, habits, objectives, cycles),
     0,
   );
   return Math.round(total / cycleObjectives.length);
@@ -391,7 +433,7 @@ export function getWeekEndFromStart(startDate: string): string {
 
 // ===== NORMALIZATION (untrusted synced/imported state → safe app data) =====
 const CONFIDENCE_VALUES: readonly Confidence[] = ['on_track', 'at_risk', 'off_track', 'not_set'];
-const COMPLETION_MODE_VALUES: readonly CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks'];
+const COMPLETION_MODE_VALUES: readonly CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks', 'habit'];
 
 function finiteNumber(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
@@ -409,7 +451,7 @@ function normalizeKeyResult(k: unknown): KeyResult | null {
   const kr = plainK as Record<string, unknown>;
   const confidence = kr.confidence as unknown;
   const mode = kr.completionMode as unknown;
-  return {
+  const normalized: KeyResult = {
     ...(kr as unknown as KeyResult),
     title: typeof kr.title === 'string' ? kr.title : '',
     targetValue: finiteNumber(kr.targetValue, 0),
@@ -418,6 +460,10 @@ function normalizeKeyResult(k: unknown): KeyResult | null {
     confidence: CONFIDENCE_VALUES.includes(confidence as Confidence) ? (confidence as Confidence) : 'not_set',
     completionMode: COMPLETION_MODE_VALUES.includes(mode as CompletionMode) ? (mode as CompletionMode) : 'manual',
   };
+  if (typeof kr.habitId === 'string') {
+    normalized.habitId = kr.habitId;
+  }
+  return normalized;
 }
 
 function normalizeReviewEntry(e: unknown): ReviewEntry | null {

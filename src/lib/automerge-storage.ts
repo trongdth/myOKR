@@ -5,6 +5,7 @@ import { load } from '@tauri-apps/plugin-store';
 import type { OKRCycle, Objective, KeyResult, WeeklyReview, WalkthroughState } from './okr-storage';
 import type { PomodoroSettings, PomodoroTask, DailyRecord, TimerState } from './pomodoro-storage';
 import { DEFAULT_SETTINGS } from './pomodoro-storage';
+import type { Habit } from './habit-storage';
 
 let AutomergeLib: typeof import('@automerge/automerge') | null = null;
 
@@ -42,10 +43,22 @@ export interface AppState {
   tasks: PomodoroTask[];
   history: DailyRecord[];
   timerState: TimerState | null;
+  habits: Habit[];
 }
 
 export const AUTOMERGE_FILE = 'myokr-data.automerge';
 const BACKUP_FILE = 'myokr-data.automerge.bak';
+// Where an unloadable main file is stashed before recovery overwrites it.
+// Kept on disk so the data stays recoverable offline (chunk-by-chunk
+// loadIncremental can succeed where one-shot load OOMs).
+const CORRUPT_FILE = 'myokr-data.automerge.corrupt';
+
+// Set (in localStorage) when compaction rebuilds the doc with a fresh actor id.
+// A compacted doc shares no history with the pre-compaction remote, so merging
+// re-litigates every root key as a CRDT conflict with an unpredictable winner —
+// observed silently reverting user data. While set, syncWithDropbox replaces
+// the remote file instead of merging with it, then clears the flag.
+export const FORCE_SYNC_OVERWRITE_FLAG = 'myokr_force_sync_overwrite';
 
 // Compact (rebuild the doc from current state, dropping all change history) once
 // the persisted file grows past this size. Automerge docs grow forever and load
@@ -113,6 +126,7 @@ function compactDoc(
     d.tasks = doc.tasks;
     d.history = doc.history;
     d.timerState = doc.timerState;
+    d.habits = doc.habits || [];
   });
 }
 
@@ -159,6 +173,28 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
         console.warn('No valid backup found, initializing new document');
         doc = Automerge.init<AppState>();
       }
+
+      // The recovered doc did NOT come from `buffer`, so `buffer` must never
+      // become the incremental baseline or reach the compaction path (which
+      // would overwrite the good .bak with the corrupt bytes). Stash the
+      // unloadable file for offline recovery, then persist the recovered doc
+      // as the new main file. If the stash write fails, abort rather than
+      // risk the first appendIncremental() clobbering the only copy.
+      try {
+        await writeFile(CORRUPT_FILE, buffer, { baseDir: BaseDirectory.AppData });
+      } catch (stashErr) {
+        console.error('Failed to stash corrupt Automerge file:', stashErr);
+        throw new Error(`Fatal: could not preserve unloadable data file. ${stashErr}`);
+      }
+      const snapshot = Automerge.save(doc);
+      try {
+        await writeFile(AUTOMERGE_FILE, snapshot, { baseDir: BaseDirectory.AppData });
+      } catch (writeErr) {
+        console.error('Failed to write recovered Automerge file:', writeErr);
+      }
+      persistedBuffer = snapshot;
+      currentDoc = doc;
+      return doc;
     }
 
     // Compaction: history has bloated the file → rebuild from current state.
@@ -183,6 +219,11 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
       console.info(
         `[automerge] compacted ${buffer.length} → ${snapshot.length} bytes`,
       );
+      try {
+        localStorage.setItem(FORCE_SYNC_OVERWRITE_FLAG, '1');
+      } catch (e) {
+        console.error('Failed to set force-sync-overwrite flag:', e);
+      }
       persistedBuffer = snapshot;
       currentDoc = compacted;
       return currentDoc;
@@ -220,6 +261,7 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
     d.tasks = tasks;
     d.history = history;
     d.timerState = timerState;
+    d.habits = [];
   });
 
   try {
@@ -420,8 +462,20 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
         }
         const merged = Automerge.merge(localDoc, remoteDoc);
         currentDoc = merged;
-        await appendIncremental(Automerge, merged);
-        resolve(persistedBuffer ?? Automerge.save(merged));
+        // Persist as ONE full snapshot, not appended incremental chunks: a
+        // merge can pull in a large foreign history (e.g. a remote written
+        // before a local compaction), and a file made of hundreds of appended
+        // change chunks can exhaust WASM memory on one-shot load even though
+        // each chunk applies fine individually. save() emits a single loadable
+        // document chunk and resets the incremental baseline for later appends.
+        const snapshot = timed('save(merged)', () => Automerge.save(merged));
+        persistedBuffer = snapshot;
+        try {
+          await writeFile(AUTOMERGE_FILE, snapshot, { baseDir: BaseDirectory.AppData });
+        } catch (e) {
+          console.error('Failed to write merged Automerge file:', e);
+        }
+        resolve(snapshot);
       } catch (e) {
         reject(e);
       }
