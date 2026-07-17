@@ -83,8 +83,14 @@ npm run tauri build
 - **📊 Progress Tracking**: Update progress directly and set confidence levels (🟢 On Track, 🟡 At Risk, 🔴 Off Track).
 - **📋 Weekly Review Wizard**: Stepped, per-KR check-in with confidence scoring, reflection prompts, a progress chart, and review history — all auto-populated from your Pomodoro data.
 
+### 🔁 Habit Tracking
+- **📅 Monthly Calendar Grid**: Interactive, inline calendar grid to log completions daily at a glance.
+- **📈 Streak Calculations**: Track your progress with automatically calculated current and best completion streaks.
+- **🔗 Key Result Integration**: Link habits to Key Results to automatically calculate and update OKR progress based on monthly ticks.
+- **🔄 Status Lifecycle**: Move habits through status phases (`Want to form`, `In progress`, and `Formed`).
+
 ### Productivity Tools
-- **🍅 Pomodoro Timer**: Classic focus/break cycles with system tray integration.
+- **🍅 Pomodoro Timer**: Classic focus/break cycles with system tray integration and built-in **Generative Focus Music** (synthesized detuned warm pads, consonant pentatonic plucks, delay echo) generated 100% offline via the Web Audio API.
 - **✅ Task Management**: Built-in Eisenhower matrix prioritization, inline editing, and drag-to-reorder within each quadrant.
 - **🔗 Task-to-KR Linking**: Optionally link Pomodoro tasks to your OKR Key Results to ensure daily actions align with larger goals.
 - **📝 Markdown Notes**: Task and KR descriptions render full GitHub-flavored markdown (lists, tables, code, links) with sanitized HTML.
@@ -98,11 +104,14 @@ npm run tauri build
 
 ---
 
-## 💖 Support the Project
+## 💖 Support & Advertising
 
 If you find this project helpful, consider supporting its development! Your sponsorship helps me dedicate more time to maintaining and improving myOKR.
 
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge&logo=github)](https://github.com/sponsors/trongdth)
+
+### 📢 Sponsored By
+This project is proudly supported by [Apps Cyclone](https://appscyclone.com/), a leading software development firm. For inquiries, advertising, or partnership opportunities, contact [trong.dinh@appscyclone.com](mailto:trong.dinh@appscyclone.com).
 
 <!-- MARKDOWN LINKS & IMAGES -->
 [sponsors-shield]: https://img.shields.io/github/sponsors/trongdth?style=for-the-badge&color=ff69b4
