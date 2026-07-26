@@ -257,6 +257,20 @@ export default function App() {
     setSidebarOpen(false);
   };
 
+  // Group nav items so the Pomodoro header owns its sub-items. In the collapsed
+  // icon-rail (Turn-2/2a) the sub-items move into a hover flyout off the header.
+  type NavItem = (typeof NAV_ITEMS)[number];
+  const navGroups: { header?: NavItem; items: NavItem[]; single?: NavItem }[] = [];
+  for (const item of NAV_ITEMS) {
+    if (item.isHeader) {
+      navGroups.push({ header: item, items: [] });
+    } else if (item.isSubItem && navGroups.length && navGroups[navGroups.length - 1].header) {
+      navGroups[navGroups.length - 1].items.push(item);
+    } else {
+      navGroups.push({ single: item, items: [] });
+    }
+  }
+
   return (
     <>
     <div className="app-layout">
@@ -276,24 +290,43 @@ export default function App() {
           <span className="app-sidebar-logo-text">myOKR</span>
         </div>
         <nav className="app-sidebar-nav">
-          {NAV_ITEMS.map(item => {
-            if (item.isHeader) {
+          {navGroups.map(g => {
+            if (g.single) {
+              const item = g.single;
               return (
-                <div key={item.id} className="sidebar-nav-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75em', padding: '0.7em 0.85em', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.95rem', marginTop: '0.5em' }}>
+                <button
+                  key={item.id}
+                  title={item.label}
+                  className={`sidebar-nav-item${activeSection === item.id ? ' active' : ''}`}
+                  onClick={() => handleNavClick(item.id as Section)}
+                >
                   <span className="sidebar-nav-icon">{item.icon}</span>
                   <span className="sidebar-nav-label">{item.label}</span>
-                </div>
+                </button>
               );
             }
+            const header = g.header!;
+            const headerActive = activeSection.startsWith('pomodoro-');
             return (
-              <button
-                key={item.id}
-                className={`sidebar-nav-item${activeSection === item.id ? ' active' : ''}${item.isSubItem ? ' sub-item' : ''}`}
-                onClick={() => handleNavClick(item.id as Section)}
-              >
-                <span className="sidebar-nav-icon">{item.icon}</span>
-                <span className="sidebar-nav-label">{item.label}</span>
-              </button>
+              <div key={header.id} className={`nav-group${headerActive ? ' has-active' : ''}`}>
+                <div className="sidebar-nav-header" title={header.label}>
+                  <span className="sidebar-nav-icon">{header.icon}</span>
+                  <span className="sidebar-nav-label">{header.label}</span>
+                </div>
+                <div className="nav-group-items">
+                  {g.items.map(item => (
+                    <button
+                      key={item.id}
+                      title={item.label}
+                      className={`sidebar-nav-item sub-item${activeSection === item.id ? ' active' : ''}`}
+                      onClick={() => handleNavClick(item.id as Section)}
+                    >
+                      <span className="sidebar-nav-icon">{item.icon}</span>
+                      <span className="sidebar-nav-label">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             );
           })}
         </nav>

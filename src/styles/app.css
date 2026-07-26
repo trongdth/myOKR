@@ -121,6 +121,22 @@
   text-overflow: ellipsis;
 }
 
+/* Pomodoro group: header + its sub-items. position:relative anchors the flyout. */
+.nav-group {
+  position: relative;
+}
+
+.sidebar-nav-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.7em 0.85em;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-top: 0.5em;
+}
+
 .sidebar-divider {
   width: 100%;
   height: 1px;
@@ -211,8 +227,77 @@
   display: none;
 }
 
-/* ===== RESPONSIVE — SLIDE-IN DRAWER ===== */
-@media (max-width: 768px) {
+/* ===== RESPONSIVE — ICON RAIL (Turn-2/2a: 900–1279px) ===== */
+@media (min-width: 900px) and (max-width: 1279px) {
+  .app-sidebar {
+    width: 60px;
+    padding: 1em 0.25em;
+  }
+
+  .app-sidebar-logo {
+    justify-content: center;
+    padding: 0.5em 0.25em;
+    margin-bottom: 1em;
+  }
+
+  .app-sidebar-logo-text {
+    display: none;
+  }
+
+  .sidebar-nav-item,
+  .sidebar-nav-header {
+    justify-content: center;
+    padding: 0.7em 0.5em;
+  }
+
+  .sidebar-nav-label {
+    display: none;
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+
+  /* Highlight the Pomodoro header when one of its sub-sections is active. */
+  .nav-group.has-active .sidebar-nav-header {
+    color: var(--color-primary);
+  }
+
+  /* Pomodoro sub-items: hidden inline, revealed as a hover flyout off the rail. */
+  .nav-group-items {
+    display: none;
+    position: absolute;
+    left: calc(100% + 6px);
+    top: 0;
+    min-width: 168px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    z-index: 150;
+  }
+
+  .nav-group:hover .nav-group-items,
+  .nav-group:focus-within .nav-group-items {
+    display: flex;
+  }
+
+  /* Inside the flyout, sub-items show their label again and lose the indent. */
+  .nav-group-items .sidebar-nav-item {
+    justify-content: flex-start;
+    padding-left: 0.85em;
+  }
+
+  .nav-group-items .sidebar-nav-label {
+    display: inline;
+  }
+}
+
+/* ===== RESPONSIVE — SLIDE-IN DRAWER (<900px) ===== */
+@media (max-width: 899px) {
   /* Layout: column so topbar is above content */
   .app-layout {
     flex-direction: column;
