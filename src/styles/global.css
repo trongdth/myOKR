@@ -55,6 +55,14 @@
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
 
+  /* Spacing scale (see docs/design-system.md) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
   /* OKR Confidence status colors (enum is domain vocab in CONTEXT.md; colors
      are presentation — see docs/design-system.md). Amber is reserved for
      streaks, so at-risk is rose. */

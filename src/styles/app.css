@@ -12,7 +12,7 @@
 
 /* ===== SIDEBAR ===== */
 .app-sidebar {
-  width: 200px;
+  width: 212px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -178,6 +178,22 @@
   min-width: 0;
   overflow-y: auto;
   padding: 1em 1.5em 2em;
+}
+
+/* ===== PAGE SHELL (centered content container — see docs/design-system.md) ===== */
+.page-shell {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-inline: var(--space-8); /* 32px gutters */
+  box-sizing: border-box;
+}
+
+/* 12-column grid utility — children place themselves with grid-column. */
+.page-shell.cols-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-4);
 }
 
 /* ===== MOBILE TOPBAR (hidden on desktop) ===== */
