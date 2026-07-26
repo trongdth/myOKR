@@ -18,22 +18,32 @@
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
 
-  /* Accent colors - Cyan/Purple tech vibe */
-  --accent-cyan: #06b6d4;
-  --accent-purple: #a855f7;
+  /* Semantic color roles — the canonical tokens (see docs/design-system.md).
+     Color carries meaning, never decoration. One hue may serve more than one
+     role when the meaning aligns (cyan = primary action = focus). */
+  --color-primary: #22d3ee;   /* THE single primary action per screen */
+  --color-focus: var(--color-primary); /* focus-session / timer semantics */
+  --color-objective: #a855f7; /* OKR Objectives (violet) */
+  --color-streak: #f59e0b;    /* streaks — amber means streak, nothing else */
+  --color-risk: #f43f5e;      /* at-risk / warning (rose) */
+
+  /* Legacy aliases — kept so existing var(--accent-*) call-sites adopt the new
+     semantic values automatically. Migrate them to --color-* over time. */
+  --accent-cyan: var(--color-primary);
+  --accent-purple: var(--color-objective);
   --accent-gradient: linear-gradient(
     135deg,
-    var(--accent-cyan) 0%,
-    var(--accent-purple) 100%
-  );
+    var(--color-primary) 0%,
+    var(--color-objective) 100%
+  ); /* logo-only — see ADR-0010 / docs/design-system.md */
 
   /* Glow effects */
-  --glow-cyan: 0 0 20px rgba(6, 182, 212, 0.3);
+  --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.3);
   --glow-purple: 0 0 20px rgba(168, 85, 247, 0.3);
 
   /* Borders */
   --border-color: #27272a;
-  --border-glow: rgba(6, 182, 212, 0.2);
+  --border-glow: rgba(34, 211, 238, 0.2);
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -45,9 +55,11 @@
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
 
-  /* OKR status colors */
+  /* OKR Confidence status colors (enum is domain vocab in CONTEXT.md; colors
+     are presentation — see docs/design-system.md). Amber is reserved for
+     streaks, so at-risk is rose. */
   --okr-on-track: #22c55e;
-  --okr-at-risk: #eab308;
+  --okr-at-risk: var(--color-risk);
   --okr-off-track: #ef4444;
   --okr-not-set: #6b7280;
 
@@ -136,7 +148,7 @@ input:focus {
   align-items: center;
   gap: 0.5em;
   padding: 0.75em 1.5em;
-  background: var(--accent-gradient);
+  background: var(--color-primary);
   color: white;
   font-weight: 600;
   border: none;
