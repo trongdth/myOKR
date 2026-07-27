@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { X } from 'lucide-react';
 import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
@@ -188,7 +189,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
           onClick={e => { e.stopPropagation(); onDelete(kr.id); }}
           title="Delete key result"
         >
-          ✕
+          <X size={14} />
         </button>
       </div>
 

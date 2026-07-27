@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Target } from 'lucide-react';
 import '../styles/okr.css';
 import {
   ensureCyclesExist, saveCycles,
@@ -247,7 +248,7 @@ export default function OKRApp() {
       {/* Header */}
       <div className="okr-header">
         <div className="okr-header-left">
-          <h2 className="okr-header-title">🎯 Objectives & Key Results</h2>
+          <h2 className="okr-header-title"><Target size={18} style={{ verticalAlign: 'text-bottom' }} /> Objectives & Key Results</h2>
           <CycleSelector
             cycles={cycles}
             activeCycleId={activeCycleId}
@@ -270,7 +271,7 @@ export default function OKRApp() {
       {/* Objectives */}
       {cycleObjectives.length === 0 && (
         <div className="okr-empty">
-          <div className="okr-empty-icon">🎯</div>
+          <div className="okr-empty-icon"><Target size={32} /></div>
           <div className="okr-empty-text">No objectives for this cycle yet</div>
           <div className="okr-empty-hint">Add your first objective below to start tracking goals</div>
         </div>
