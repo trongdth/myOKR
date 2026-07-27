@@ -36,7 +36,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // 1. Go to Habits tab and create a habit
     await page.locator('nav >> text=Habits').click();
-    await expect(page.locator('.habits-title')).toHaveText('📈 Habits');
+    await expect(page.locator('.habits-title')).toHaveText('Habits');
 
     const habitInput = page.locator('.add-habit-input');
     await habitInput.fill('Forming E2E Habit');
@@ -60,7 +60,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     const krInput = page.locator('.kr-add-row >> input');
     await krInput.fill('E2E Ticking KR');
     const krModeSelect = page.locator('.kr-mode-select');
-    await krModeSelect.selectOption({ label: '📈 Habit Ticks' });
+    await krModeSelect.selectOption({ label: 'Habit Ticks' });
     await page.locator('button:has-text("+ Add KR")').click();
 
     // Select the linked habit in the newly created KR
@@ -78,7 +78,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await todayHabitBtn.click();
     
     // Check it displays ticked (contains visual indicator)
-    await expect(todayHabitBtn).toContainText('✅');
+    await expect(todayHabitBtn.locator('.lucide-check')).toBeVisible();
 
     // 4. Go back to OKRs and check progress
     await page.locator('nav >> text=OKRs').click();
@@ -113,7 +113,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     const krRowAfter = page.locator('.kr-row:has-text("E2E Ticking KR")');
     await expect(krRowAfter).toBeVisible();
-    await expect(krRowAfter.locator('.kr-mode-badge-label')).toContainText('✏️ Manual');
+    await expect(krRowAfter.locator('.kr-mode-badge-label')).toContainText('Manual');
     await expect(krRowAfter.locator('.kr-progress-text')).toContainText('1 / 10 %'); // Unit reverted to % for manual
   });
 
@@ -158,7 +158,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     const krInput = page.locator('.kr-add-row >> input');
     await krInput.fill('Navigation KR');
     const krModeSelect = page.locator('.kr-mode-select');
-    await krModeSelect.selectOption({ label: '📈 Habit Ticks' });
+    await krModeSelect.selectOption({ label: 'Habit Ticks' });
     await page.locator('button:has-text("+ Add KR")').click();
 
     // Select the "+ Create new habit..." option in the newly created KR
@@ -168,6 +168,6 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // Verify it redirects to Habits tab and shows title
     await expect(page.locator('.habits-title')).toBeVisible();
-    await expect(page.locator('.habits-title')).toHaveText('📈 Habits');
+    await expect(page.locator('.habits-title')).toHaveText('Habits');
   });
 });

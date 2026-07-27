@@ -18,7 +18,7 @@ test.describe('Habits Tab Layout and Title Styles', () => {
     // Verify Habits title style matches standard titles (color, font size, no gradient)
     const title = page.locator('.habits-title');
     await expect(title).toBeVisible();
-    await expect(title).toHaveText('📈 Habits');
+    await expect(title).toHaveText('Habits');
 
     const titleStyles = await title.evaluate((el) => {
       const styles = window.getComputedStyle(el);
@@ -145,29 +145,36 @@ test.describe('Habits Tab Layout and Title Styles', () => {
   });
 
   test('verifies horizontal container padding is applied on all screens below 932px viewport width', async ({ page }) => {
+    // At 800px the sidebar is a slide-in drawer, so open it before each nav click.
+    const clickNav = async (label: string) => {
+      const hamburger = page.locator('.hamburger-btn');
+      if (await hamburger.isVisible()) await hamburger.click();
+      await page.locator(`nav >> text=${label}`).first().click();
+    };
+
     // 1. Check OKRs tab
-    await page.locator('nav >> text=OKRs').click();
+    await clickNav('OKRs');
     const okrContainer = page.locator('.okr-container');
     await expect(okrContainer).toBeVisible();
     const okrPaddingLeft = await okrContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(okrPaddingLeft, 10)).toBeGreaterThan(0);
 
     // 2. Check Review tab
-    await page.locator('nav >> text=Review').click();
+    await clickNav('Review');
     const reviewContainer = page.locator('.review-container');
     await expect(reviewContainer).toBeVisible();
     const reviewPaddingLeft = await reviewContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(reviewPaddingLeft, 10)).toBeGreaterThan(0);
 
     // 3. Check Cloud Sync tab
-    await page.locator('nav >> text=Cloud Sync').click();
+    await clickNav('Cloud Sync');
     const syncContainer = page.locator('.okr-container'); // Cloud sync uses okr-container
     await expect(syncContainer).toBeVisible();
     const syncPaddingLeft = await syncContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(syncPaddingLeft, 10)).toBeGreaterThan(0);
 
     // 4. Check Habits tab
-    await page.locator('nav >> text=Habits').click();
+    await clickNav('Habits');
     const habitsContainer = page.locator('.habits-container');
     await expect(habitsContainer).toBeVisible();
     const habitsPaddingLeft = await habitsContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
