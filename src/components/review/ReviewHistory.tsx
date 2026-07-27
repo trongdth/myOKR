@@ -205,7 +205,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                     return (
                       <div key={entry.keyResultId}>
                         <div className="review-history-entry">
-                          <span className="review-history-entry-icon">{meta.icon}</span>
+                          <span className="review-history-entry-icon"><span style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color, display: 'inline-block' }} /></span>
                           <span className="review-history-entry-title">
                             {kr?.title || 'Unknown KR'}
                           </span>

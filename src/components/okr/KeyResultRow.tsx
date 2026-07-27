@@ -132,7 +132,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
             onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); setShowValuePopover(false); }}
             title={`${meta.label} — Click to change`}
           >
-            {meta.icon}
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color, display: 'inline-block' }} />
           </span>
           {showConfidencePopup && (
             <div className="confidence-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>

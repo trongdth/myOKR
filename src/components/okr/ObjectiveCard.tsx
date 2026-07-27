@@ -225,7 +225,7 @@ export default function ObjectiveCard({
               onChange={e => setNewKRMode(e.target.value as CompletionMode)}
             >
               {Object.entries(COMPLETION_MODE_META).map(([mode, meta]) => (
-                <option key={mode} value={mode}>{meta.icon} {meta.label}</option>
+                <option key={mode} value={mode}>{meta.label}</option>
               ))}
             </select>
             <button className="kr-add-btn" onClick={addKR}>+ Add KR</button>
