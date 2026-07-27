@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Timer, Play, X } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
-import type { KeyResult, Objective, Confidence } from '../../lib/okr-storage';
+import type { KeyResult, Objective } from '../../lib/okr-storage';
 import { EISENHOWER_META } from '../../lib/pomodoro-storage';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
 import type { ScoreBreakdown } from '../../lib/today-focus';
@@ -17,17 +18,10 @@ interface FocusCardProps {
   onSkip: () => void;
 }
 
-const CONFIDENCE_DOT_COLORS: Record<Confidence, string> = {
-  off_track: '#ef4444',
-  at_risk: '#eab308',
-  on_track: '#22c55e',
-  not_set: '#6b7280',
-};
-
 export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, onStart, onSkip }: FocusCardProps) {
   const [showWhy, setShowWhy] = useState(false);
   const catMeta = task.category ? EISENHOWER_META[task.category] : null;
-  const confidenceColor = kr ? CONFIDENCE_DOT_COLORS[kr.confidence] : undefined;
+  const confidenceColor = kr ? CONFIDENCE_META[kr.confidence].color : undefined;
   const remaining = Math.max(0, (task.estimatedPomodoros || 1) - task.completedPomodoros);
   const spansDays = remaining > maxShare;
 
@@ -57,7 +51,7 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
 
       {/* Title row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', paddingRight: '2rem' }}>
-        {catMeta && <span style={{ fontSize: '0.85rem' }}>{catMeta.icon}</span>}
+        {catMeta && <span style={{ width: 8, height: 8, borderRadius: '50%', background: catMeta.color, display: 'inline-block', flexShrink: 0 }} />}
         <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{task.title}</span>
       </div>
 
@@ -72,7 +66,7 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
 
       {/* Progress row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-        <span>🍅 {task.completedPomodoros} / {task.estimatedPomodoros}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Timer size={12} /> {task.completedPomodoros} / {task.estimatedPomodoros}</span>
         {catMeta && (
           <span style={{
             background: catMeta.bgColor,
@@ -93,8 +87,8 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
       {/* Actions row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         {isTop && (
-          <button className="btn" onClick={onStart} style={{ fontSize: '0.85rem', padding: '0.4em 1.2em' }}>
-            ▶ Start
+          <button className="btn" onClick={onStart} style={{ fontSize: '0.85rem', padding: '0.4em 1.2em', gap: '0.4em' }}>
+            <Play size={14} /> Start
           </button>
         )}
         <button
@@ -110,7 +104,7 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
           }}
           title="Skip this task"
         >
-          ✕ Skip
+          <X size={12} /> Skip
         </button>
 
         {/* Why this? chip */}

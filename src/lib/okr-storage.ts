@@ -31,7 +31,7 @@ export const CONFIDENCE_META: Record<Confidence, {
   icon: string;
 }> = {
   on_track:  { label: 'On Track',  color: '#22c55e', bgColor: 'rgba(34,197,94,0.12)',   icon: '🟢' },
-  at_risk:   { label: 'At Risk',   color: '#eab308', bgColor: 'rgba(234,179,8,0.12)',   icon: '🟡' },
+  at_risk:   { label: 'At Risk',   color: '#f43f5e', bgColor: 'rgba(244,63,94,0.12)',   icon: '🟡' },
   off_track: { label: 'Off Track', color: '#ef4444', bgColor: 'rgba(239,68,68,0.12)',   icon: '🔴' },
   not_set:   { label: 'Not Set',   color: '#6b7280', bgColor: 'rgba(107,114,128,0.12)', icon: '⚪' },
 };
