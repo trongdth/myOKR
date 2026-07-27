@@ -3,6 +3,9 @@ import { X, Pencil, Clock, Timer, CheckCheck, TrendingUp } from 'lucide-react';
 import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import { useHoldRepeat } from '../../hooks/useHoldRepeat';
+import { type Habit } from '../../lib/habit-storage';
 
 const COMPLETION_MODE_ICONS: Record<CompletionMode, ReactNode> = {
   manual: <Pencil size={12} />,
@@ -11,9 +14,6 @@ const COMPLETION_MODE_ICONS: Record<CompletionMode, ReactNode> = {
   completed_tasks: <CheckCheck size={12} />,
   habit: <TrendingUp size={12} />,
 };
-import { useClickOutside } from '../../hooks/useClickOutside';
-import { useHoldRepeat } from '../../hooks/useHoldRepeat';
-import { type Habit } from '../../lib/habit-storage';
 
 interface Props {
   kr: KeyResult;
@@ -132,7 +132,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
             onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); setShowValuePopover(false); }}
             title={`${meta.label} — Click to change`}
           >
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color, display: 'inline-block' }} />
+            <span className="confidence-dot confidence-dot--lg" style={{ background: meta.color }} />
           </span>
           {showConfidencePopup && (
             <div className="confidence-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>
@@ -142,7 +142,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
                   className={`confidence-option${kr.confidence === c ? ' selected' : ''}`}
                   onClick={() => setConfidence(c)}
                 >
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: CONFIDENCE_META[c].color, display: 'inline-block', flexShrink: 0 }} /> {CONFIDENCE_META[c].label}
+                  <span className="confidence-dot" style={{ background: CONFIDENCE_META[c].color }} /> {CONFIDENCE_META[c].label}
                 </button>
               ))}
             </div>

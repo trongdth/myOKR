@@ -248,7 +248,7 @@ export default function OKRApp() {
       {/* Header */}
       <div className="okr-header">
         <div className="okr-header-left">
-          <h2 className="okr-header-title"><Target size={18} style={{ verticalAlign: 'text-bottom' }} /> Objectives & Key Results</h2>
+          <h2 className="okr-header-title"><Target size={18} className="icon-inline" /> Objectives & Key Results</h2>
           <CycleSelector
             cycles={cycles}
             activeCycleId={activeCycleId}

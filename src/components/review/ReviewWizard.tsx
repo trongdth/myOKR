@@ -136,7 +136,7 @@ export default function ReviewWizard({
       {/* Header */}
       <div className="review-wizard-header">
         <span className="review-wizard-title">
-          <ClipboardList size={16} style={{ verticalAlign: 'text-bottom' }} /> Weekly Review — Week of {weekStart}
+          <ClipboardList size={16} className="icon-inline" /> Weekly Review — Week of {weekStart}
         </span>
         <span className="review-wizard-step-info">
           Step {currentStep + 1} of {totalSteps}
@@ -159,7 +159,7 @@ export default function ReviewWizard({
         {isSummaryStep && (
           <div>
             <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1em' }}>
-              <BarChart3 size={16} style={{ verticalAlign: 'text-bottom' }} /> This Week's Summary
+              <BarChart3 size={16} className="icon-inline" /> This Week's Summary
             </div>
             <div className="review-stats-grid">
               <div className="review-stat-card">
@@ -205,7 +205,7 @@ export default function ReviewWizard({
         {isReflectionStep && (
           <div className="review-reflection">
             <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5em' }}>
-              <MessageSquare size={16} style={{ verticalAlign: 'text-bottom' }} /> Overall Reflection
+              <MessageSquare size={16} className="icon-inline" /> Overall Reflection
             </div>
             <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '1em', lineHeight: 1.5 }}>
               What went well this week? What could be improved? Any goals for next week?
@@ -231,7 +231,7 @@ export default function ReviewWizard({
         </button>
         {isReflectionStep ? (
           <button className="review-nav-btn primary" onClick={handleComplete}>
-            <CheckCircle size={14} style={{ verticalAlign: 'text-bottom' }} /> Complete Review
+            <CheckCircle size={14} className="icon-inline" /> Complete Review
           </button>
         ) : (
           <button

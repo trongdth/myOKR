@@ -320,7 +320,7 @@ export default function ReviewApp() {
     return (
       <div className="review-container">
         <div className="review-header">
-          <h2 className="review-header-title"><ClipboardList size={18} style={{ verticalAlign: 'text-bottom' }} /> Weekly Review</h2>
+          <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
         </div>
         <div className="review-start-card">
           <div className="review-start-card-icon"><Target size={24} /></div>
@@ -336,7 +336,7 @@ export default function ReviewApp() {
   return (
     <div className="review-container">
       <div className="review-header">
-        <h2 className="review-header-title"><ClipboardList size={18} style={{ verticalAlign: 'text-bottom' }} /> Weekly Review</h2>
+        <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <label htmlFor="cycle-select" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cycle:</label>
           <select 
@@ -428,7 +428,7 @@ export default function ReviewApp() {
                 reflect on the week. This takes about 5 minutes.
               </div>
               <button className="review-start-btn" onClick={() => setShowWizard(true)}>
-                <Rocket size={16} style={{ verticalAlign: 'text-bottom' }} /> Start Weekly Review
+                <Rocket size={16} className="icon-inline" /> Start Weekly Review
               </button>
             </>
           )}

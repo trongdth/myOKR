@@ -82,7 +82,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
   if (sorted.length === 0) {
     return (
       <div className="review-history-section">
-        <div className="review-history-title"><BookOpen size={16} style={{ verticalAlign: 'text-bottom' }} /> Past Reviews</div>
+        <div className="review-history-title"><BookOpen size={16} className="icon-inline" /> Past Reviews</div>
         <div className="review-history-empty">
           No completed reviews yet. Complete your first weekly review to see history here.
         </div>
@@ -92,7 +92,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
 
   return (
     <div className="review-history-section">
-      <div className="review-history-title"><BookOpen size={16} style={{ verticalAlign: 'text-bottom' }} /> Past Reviews ({sorted.length})</div>
+      <div className="review-history-title"><BookOpen size={16} className="icon-inline" /> Past Reviews ({sorted.length})</div>
       <div className="review-history-list">
         {sorted.map(review => {
           const isExpanded = expandedId === review.id;
@@ -122,9 +122,9 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                 </div>
               </div>
               <div className="review-history-stats">
-                <span><Timer size={12} style={{ verticalAlign: 'text-bottom' }} /> {review.pomodoroStats.totalPomodoros} pomodoros</span>
-                <span><Clock size={12} style={{ verticalAlign: 'text-bottom' }} /> {review.pomodoroStats.totalFocusMinutes}m focus</span>
-                <span><CheckCircle size={12} style={{ verticalAlign: 'text-bottom' }} /> {review.pomodoroStats.tasksCompleted} tasks</span>
+                <span><Timer size={12} className="icon-inline" /> {review.pomodoroStats.totalPomodoros} pomodoros</span>
+                <span><Clock size={12} className="icon-inline" /> {review.pomodoroStats.totalFocusMinutes}m focus</span>
+                <span><CheckCircle size={12} className="icon-inline" /> {review.pomodoroStats.tasksCompleted} tasks</span>
                 <div className="review-history-inline-actions">
                   <button
                     className="review-delete-btn"
@@ -178,7 +178,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                                   className={`review-confidence-btn ${c.replace('_', '-')}${editEntry.confidence === c ? ' selected' : ''}`}
                                   onClick={() => setEditEntry({ ...editEntry, confidence: c })}
                                 >
-                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: CONFIDENCE_META[c].color, display: 'inline-block', flexShrink: 0 }} /> {CONFIDENCE_META[c].label}
+                                  <span className="confidence-dot" style={{ background: CONFIDENCE_META[c].color }} /> {CONFIDENCE_META[c].label}
                                 </button>
                               ))}
                             </div>
@@ -205,7 +205,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                     return (
                       <div key={entry.keyResultId}>
                         <div className="review-history-entry">
-                          <span className="review-history-entry-icon"><span style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color, display: 'inline-block' }} /></span>
+                          <span className="review-history-entry-icon"><span className="confidence-dot confidence-dot--lg" style={{ background: meta.color }} /></span>
                           <span className="review-history-entry-title">
                             {kr?.title || 'Unknown KR'}
                           </span>
@@ -229,7 +229,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                   })}
                   {review.reflection && (
                     <div className="review-history-reflection">
-                      <MessageSquare size={14} style={{ verticalAlign: 'text-bottom' }} /> {review.reflection}
+                      <MessageSquare size={14} className="icon-inline" /> {review.reflection}
                     </div>
                   )}
                 </div>

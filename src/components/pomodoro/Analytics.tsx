@@ -85,7 +85,7 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
   return (
     <div className="analytics-section">
       <div className="analytics-header">
-        <h3><BarChart3 size={18} style={{ verticalAlign: 'text-bottom' }} /> Analytics</h3>
+        <h3><BarChart3 size={18} className="icon-inline" /> Analytics</h3>
         <div className="analytics-actions">
           <button className="btn-sm" onClick={onExport}>Export JSON</button>
           <button className="btn-sm" onClick={onImport}>Import JSON</button>

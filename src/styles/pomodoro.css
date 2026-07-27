@@ -1905,6 +1905,7 @@
   display: flex;
   align-items: center;
   gap: 0.6em;
+  flex: 1;
 }
 
 .task-detail-title {
@@ -1914,6 +1915,29 @@
   font-weight: 600;
   line-height: 1.3;
   word-break: break-word;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+  margin-left: -0.3em;
+  transition: background-color 200ms ease;
+}
+
+.task-detail-title:hover {
+  background: var(--bg-tertiary);
+}
+
+.task-detail-title-input {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 6px;
+  padding: 0.25em 0.5em;
+  width: 100%;
+  outline: none;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
 }
 
 .task-detail-meta {
@@ -1979,7 +2003,7 @@
 .task-detail-desc-text {
   font-size: 0.92rem;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.7;
   word-break: break-word;
   padding: 0.75em;
   border-radius: 8px;
@@ -1995,7 +2019,7 @@
 
 /* Markdown rendering inside description */
 .task-detail-desc-text p {
-  margin: 0 0 0.8em;
+  margin: 0 0 1em;
 }
 .task-detail-desc-text p:last-child {
   margin-bottom: 0;
@@ -2007,8 +2031,8 @@
 .task-detail-desc-text h2,
 .task-detail-desc-text h3 {
   color: var(--text-primary);
-  margin: 0.5em 0 0.2em;
-  line-height: 1.3;
+  margin: 0.8em 0 0.3em;
+  line-height: 1.4;
 }
 .task-detail-desc-text h1:first-child,
 .task-detail-desc-text h2:first-child,
@@ -2021,12 +2045,12 @@
 
 .task-detail-desc-text ul,
 .task-detail-desc-text ol {
-  margin: 0.6em 0;
+  margin: 0.8em 0;
   padding-left: 1.5em;
 }
 .task-detail-desc-text ul { list-style: disc; }
 .task-detail-desc-text ol { list-style: decimal; }
-.task-detail-desc-text li { margin: 0.5em 0; }
+.task-detail-desc-text li { margin: 0.6em 0; }
 
 .task-detail-desc-text code {
   font-family: "JetBrains Mono", monospace;
@@ -2391,13 +2415,9 @@
 .task-detail-comment-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5em;
   margin-bottom: 0.4em;
-}
-
-.task-detail-comment-avatar {
-  font-size: 1rem;
-  line-height: 1;
 }
 
 .task-detail-comment-time {
@@ -2406,22 +2426,71 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
-.task-detail-comment-delete {
-  margin-left: auto;
+.task-detail-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
   opacity: 0;
   transition: opacity 200ms ease;
 }
 
-.task-detail-comment-item:hover .task-detail-comment-delete {
+.task-detail-comment-actions .task-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2em 0.35em;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: color 200ms ease, background-color 200ms ease;
+}
+
+.task-detail-comment-actions .task-action-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.task-detail-comment-actions .task-detail-comment-delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.task-detail-comment-item:hover .task-detail-comment-actions {
   opacity: 1;
 }
 
 .task-detail-comment-body {
   font-size: 0.9rem;
   color: var(--text-secondary);
-  line-height: 1.5;
-  padding-left: 1.6em;
+  line-height: 1.6;
+  padding-left: 0;
   word-break: break-word;
+}
+
+.task-detail-comment-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin-top: 0.4em;
+}
+
+.task-detail-comment-edit-input {
+  width: 100%;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.task-detail-comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
 }
 
 /* ===== RESPONSIVE — Task Detail ===== */

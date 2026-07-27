@@ -82,7 +82,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
         {/* Header */}
         <div className="prioritize-header">
           <div>
-            <h3 className="prioritize-title"><Zap size={18} style={{ verticalAlign: 'text-bottom' }} /> Prioritize Tasks</h3>
+            <h3 className="prioritize-title"><Zap size={18} className="icon-inline" /> Prioritize Tasks</h3>
             <p className="prioritize-subtitle">
               Using the <strong>Eisenhower Matrix</strong> — categorize tasks by urgency and importance to focus on what matters most.
             </p>
@@ -148,7 +148,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
                         style={{ borderLeftColor: meta.color }}
                       >
                         <span className="chip-title">{task.title}</span>
-                        <span className="chip-pomo">{task.completedPomodoros}/{task.estimatedPomodoros} <Timer size={12} style={{ verticalAlign: 'text-bottom' }} /></span>
+                        <span className="chip-pomo">{task.completedPomodoros}/{task.estimatedPomodoros} <Timer size={12} className="icon-inline" /></span>
                       </div>
                     ))}
                   </div>

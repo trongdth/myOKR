@@ -60,6 +60,7 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
 
@@ -157,7 +158,7 @@ input:focus {
   gap: 0.5em;
   padding: 0.75em 1.5em;
   background: var(--color-primary);
-  color: white;
+  color: var(--bg-primary);
   font-weight: 600;
   border: none;
   border-radius: 8px;
@@ -172,7 +173,7 @@ input:focus {
 .btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--glow-cyan);
-  color: white;
+  color: var(--bg-primary);
 }
 
 .btn-ghost {
@@ -194,6 +195,25 @@ input:focus {
   background: var(--bg-secondary);
   border-color: var(--accent-cyan);
   color: var(--text-primary);
+}
+
+/* ===== Inline-icon + status-dot utilities (avoid repeated inline styles) ===== */
+.icon-inline {
+  vertical-align: text-bottom;
+}
+
+/* Colored status dot — set the hue via inline `background`. */
+.confidence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.confidence-dot--lg {
+  width: 10px;
+  height: 10px;
 }
 
 /* Typography */

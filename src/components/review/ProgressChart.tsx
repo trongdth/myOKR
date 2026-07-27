@@ -46,7 +46,7 @@ export default function ProgressChart({ reviews, keyResults }: Props) {
   if (sortedReviews.length < 2) {
     return (
       <div className="progress-chart-container">
-        <div className="progress-chart-title"><TrendingUp size={16} style={{ verticalAlign: 'text-bottom' }} /> Progress Over Time</div>
+        <div className="progress-chart-title"><TrendingUp size={16} className="icon-inline" /> Progress Over Time</div>
         <div style={{ textAlign: 'center', padding: '2em', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
           Complete at least 2 weekly reviews to see your progress chart
         </div>
@@ -66,7 +66,7 @@ export default function ProgressChart({ reviews, keyResults }: Props) {
 
   return (
     <div className="progress-chart-container">
-      <div className="progress-chart-title"><TrendingUp size={16} style={{ verticalAlign: 'text-bottom' }} /> Progress Over Time</div>
+      <div className="progress-chart-title"><TrendingUp size={16} className="icon-inline" /> Progress Over Time</div>
       <svg className="progress-chart-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
         {/* Grid lines */}
         {[0, 25, 50, 75, 100].map(v => (

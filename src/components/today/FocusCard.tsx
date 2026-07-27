@@ -51,14 +51,14 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
 
       {/* Title row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', paddingRight: '2rem' }}>
-        {catMeta && <span style={{ width: 8, height: 8, borderRadius: '50%', background: catMeta.color, display: 'inline-block', flexShrink: 0 }} />}
+        {catMeta && <span className="confidence-dot" style={{ background: catMeta.color }} />}
         <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{task.title}</span>
       </div>
 
       {/* Meta row: KR link + confidence dot */}
       {kr && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-          {confidenceColor && <span style={{ width: 8, height: 8, borderRadius: '50%', background: confidenceColor, display: 'inline-block' }} />}
+          {confidenceColor && <span className="confidence-dot" style={{ background: confidenceColor }} />}
           <span>{objective ? `${objective.title} → ` : ''}{kr.title}</span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({CONFIDENCE_META[kr.confidence].label})</span>
         </div>

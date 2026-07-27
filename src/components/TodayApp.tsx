@@ -143,7 +143,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
         paddingBottom: '0.75rem',
         borderBottom: '1px solid var(--border-color)',
       }}>
-        Today's Plan: {totalSlices} / {budget} <Timer size={12} style={{ verticalAlign: 'text-bottom' }} />
+        Today's Plan: {totalSlices} / {budget} <Timer size={12} className="icon-inline" />
       </div>
 
       {/* Habits Today Row */}

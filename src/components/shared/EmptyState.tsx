@@ -32,9 +32,9 @@ export function EmptyState({ icon, title, message, actions, children }: EmptySta
       {message && <p className="empty-state-message">{message}</p>}
       {actions && actions.length > 0 && (
         <div className="empty-state-actions">
-          {actions.map((a, i) => (
+          {actions.map((a) => (
             <button
-              key={i}
+              key={a.label}
               className={a.primary ? 'btn empty-state-action' : 'btn-ghost empty-state-action'}
               onClick={a.onClick}
             >

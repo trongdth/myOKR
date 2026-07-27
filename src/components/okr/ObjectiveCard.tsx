@@ -115,7 +115,7 @@ export default function ObjectiveCard({
             onDoubleClick={e => { e.stopPropagation(); setTitleDraft(objective.title); setEditingTitle(true); }}
             title="Double-click to edit"
           >
-            <Target size={14} style={{ verticalAlign: 'text-bottom' }} /> {objective.title}
+            <Target size={14} className="icon-inline" /> {objective.title}
           </span>
         )}
         <div className="objective-progress-badge">

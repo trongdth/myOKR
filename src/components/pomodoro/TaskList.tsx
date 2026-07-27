@@ -203,12 +203,12 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
       <div className="task-description-meta">
         {todoCount > 0 && (
           <span className="task-description-badge">
-            <SquareCheck size={12} style={{ verticalAlign: 'text-bottom' }} /> {task.todos!.filter(t => t.completed).length}/{todoCount}
+            <SquareCheck size={12} className="icon-inline" /> {task.todos!.filter(t => t.completed).length}/{todoCount}
           </span>
         )}
         {commentCount > 0 && (
           <span className="task-description-badge">
-            <MessageSquare size={12} style={{ verticalAlign: 'text-bottom' }} /> {commentCount}
+            <MessageSquare size={12} className="icon-inline" /> {commentCount}
           </span>
         )}
       </div>
@@ -217,7 +217,7 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
         onClick={e => { e.stopPropagation(); onExpand(); }}
         title="View details"
       >
-        {truncated ? <>more <ArrowUpRight size={12} style={{ verticalAlign: 'text-bottom' }} /></> : <ArrowUpRight size={12} style={{ verticalAlign: 'text-bottom' }} />}
+        {truncated ? <>more <ArrowUpRight size={12} className="icon-inline" /></> : <ArrowUpRight size={12} className="icon-inline" />}
       </button>
     </div>
   );
@@ -336,7 +336,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
   return (
     <div className="task-section">
       <div className="task-section-header">
-        <h3><ClipboardList size={18} style={{ verticalAlign: 'text-bottom' }} /> Tasks</h3>
+        <h3><ClipboardList size={18} className="icon-inline" /> Tasks</h3>
         <span className="task-count">
           {activeTasks.length} active · {completedTasks.length} done
         </span>
@@ -459,7 +459,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
                 const kr = keyResults.find(k => k.id === task.keyResultId);
                 return kr ? (
                   <span className="task-kr-badge" title={`Linked to: ${kr.title}`}>
-                    <Target size={12} style={{ verticalAlign: 'text-bottom' }} /> {kr.title.length > 20 ? kr.title.slice(0, 20) + '…' : kr.title}
+                    <Target size={12} className="icon-inline" /> {kr.title.length > 20 ? kr.title.slice(0, 20) + '…' : kr.title}
                   </span>
                 ) : null;
               })()}

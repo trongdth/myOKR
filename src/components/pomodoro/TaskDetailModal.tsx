@@ -238,6 +238,9 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
         ...task,
         comments: comments.map(c => c.id === editingCommentId ? { ...c, text: trimmed } : c),
       });
+    } else {
+      // Clearing the text removes the comment instead of silently keeping the old text.
+      onUpdate({ ...task, comments: comments.filter(c => c.id !== editingCommentId) });
     }
     setEditingCommentId(null);
   };
@@ -279,13 +282,13 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
           </div>
           <div className="task-detail-meta">
             <span className="task-detail-badge" style={{ borderColor: meta.color, color: meta.color }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, display: 'inline-block', verticalAlign: 'middle' }} /> {meta.label}
+              <span className="confidence-dot" style={{ background: meta.color, verticalAlign: 'middle' }} /> {meta.label}
             </span>
             <span className="task-detail-badge">
-              <Timer size={12} style={{ verticalAlign: 'text-bottom' }} /> {task.completedPomodoros}/{task.estimatedPomodoros}
+              <Timer size={12} className="icon-inline" /> {task.completedPomodoros}/{task.estimatedPomodoros}
             </span>
             {task.isCompleted && (
-              <span className="task-detail-badge task-detail-badge-done"><CheckCircle size={12} style={{ verticalAlign: 'text-bottom' }} /> Done</span>
+              <span className="task-detail-badge task-detail-badge-done"><CheckCircle size={12} className="icon-inline" /> Done</span>
             )}
             {keyResults.length > 0 && (
               <select
@@ -353,7 +356,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             className={`task-detail-tab${activeTab === 'todos' ? ' active' : ''}`}
             onClick={() => setActiveTab('todos')}
           >
-            <SquareCheck size={14} style={{ verticalAlign: 'text-bottom' }} /> Todo list
+            <SquareCheck size={14} className="icon-inline" /> Todo list
             {todos.length > 0 && (
               <span className="task-detail-tab-count">{completedTodos}/{todos.length}</span>
             )}
@@ -362,7 +365,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             className={`task-detail-tab${activeTab === 'comments' ? ' active' : ''}`}
             onClick={() => setActiveTab('comments')}
           >
-            <MessageSquare size={14} style={{ verticalAlign: 'text-bottom' }} /> Comments
+            <MessageSquare size={14} className="icon-inline" /> Comments
             {comments.length > 0 && (
               <span className="task-detail-tab-count">{comments.length}</span>
             )}
@@ -473,16 +476,10 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                       <span className="task-detail-comment-time">{formatRelativeTime(comment.createdAt)}</span>
                       <div className="task-detail-comment-actions">
                         <button className="task-action-btn task-detail-comment-edit" onClick={() => startEditComment(comment)} title="Edit comment">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
+                          <Pencil size={14} />
                         </button>
                         <button className="task-action-btn task-detail-comment-delete" onClick={() => deleteCommentRequest(comment.id)} title="Delete comment">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
+                          <X size={14} />
                         </button>
                       </div>
                     </div>

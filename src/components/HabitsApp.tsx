@@ -249,15 +249,15 @@ export default function HabitsApp() {
         {/* Stats row */}
         <div className="habit-stats-section">
           <div className="habit-stat-box">
-            <span className="habit-stat-val"><Flame size={14} style={{ verticalAlign: 'text-bottom' }} /> {currentStreak}</span>
+            <span className="habit-stat-val"><Flame size={14} className="icon-inline" /> {currentStreak}</span>
             <span className="habit-stat-lbl">Current Streak</span>
           </div>
           <div className="habit-stat-box">
-            <span className="habit-stat-val"><Trophy size={14} style={{ verticalAlign: 'text-bottom' }} /> {bestStreak}</span>
+            <span className="habit-stat-val"><Trophy size={14} className="icon-inline" /> {bestStreak}</span>
             <span className="habit-stat-lbl">Best Streak</span>
           </div>
           <div className="habit-stat-box">
-            <span className="habit-stat-val"><Calendar size={14} style={{ verticalAlign: 'text-bottom' }} /> {habit.ticks.length}</span>
+            <span className="habit-stat-val"><Calendar size={14} className="icon-inline" /> {habit.ticks.length}</span>
             <span className="habit-stat-lbl">Total Ticks</span>
           </div>
         </div>
@@ -300,7 +300,7 @@ export default function HabitsApp() {
   return (
     <div className="habits-container">
       <div className="habits-header">
-        <h2 className="habits-title"><TrendingUp size={18} style={{ verticalAlign: 'text-bottom' }} /> Habits</h2>
+        <h2 className="habits-title"><TrendingUp size={18} className="icon-inline" /> Habits</h2>
       </div>
 
       <div className="add-habit-card">

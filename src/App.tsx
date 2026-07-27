@@ -33,6 +33,20 @@ const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.R
   { id: 'sync', label: 'Cloud Sync', icon: <Upload size={18} /> },
 ];
 
+// Group nav items so the Pomodoro header owns its sub-items. In the collapsed
+// icon-rail (Turn-2/2a) the sub-items move into a hover flyout off the header.
+type NavItem = (typeof NAV_ITEMS)[number];
+const navGroups: { header?: NavItem; items: NavItem[]; single?: NavItem }[] = [];
+for (const item of NAV_ITEMS) {
+  if (item.isHeader) {
+    navGroups.push({ header: item, items: [] });
+  } else if (item.isSubItem && navGroups.length && navGroups[navGroups.length - 1].header) {
+    navGroups[navGroups.length - 1].items.push(item);
+  } else {
+    navGroups.push({ single: item, items: [] });
+  }
+}
+
 export default function App() {
   const [activeSection, setActiveSection] = useState<Section>(() => {
     return (localStorage.getItem('myokr_active_section') as Section) || 'today';
@@ -173,20 +187,6 @@ export default function App() {
     setSidebarOpen(false);
   };
 
-  // Group nav items so the Pomodoro header owns its sub-items. In the collapsed
-  // icon-rail (Turn-2/2a) the sub-items move into a hover flyout off the header.
-  type NavItem = (typeof NAV_ITEMS)[number];
-  const navGroups: { header?: NavItem; items: NavItem[]; single?: NavItem }[] = [];
-  for (const item of NAV_ITEMS) {
-    if (item.isHeader) {
-      navGroups.push({ header: item, items: [] });
-    } else if (item.isSubItem && navGroups.length && navGroups[navGroups.length - 1].header) {
-      navGroups[navGroups.length - 1].items.push(item);
-    } else {
-      navGroups.push({ single: item, items: [] });
-    }
-  }
-
   return (
     <>
     <div className="app-layout">
@@ -225,7 +225,7 @@ export default function App() {
             const headerActive = activeSection.startsWith('pomodoro-');
             return (
               <div key={header.id} className={`nav-group${headerActive ? ' has-active' : ''}`}>
-                <div className="sidebar-nav-header" title={header.label}>
+                <div className="sidebar-nav-header" title={header.label} tabIndex={0}>
                   <span className="sidebar-nav-icon">{header.icon}</span>
                   <span className="sidebar-nav-label">{header.label}</span>
                 </div>
@@ -258,7 +258,7 @@ export default function App() {
             <a href="#" onClick={(e) => {
               e.preventDefault();
               invoke('open_external', { url: HELP_BLOG_URL });
-            }}><BookOpen size={14} style={{ verticalAlign: 'text-bottom' }} /> Effective OKR guide</a>
+            }}><BookOpen size={14} className="icon-inline" /> Effective OKR guide</a>
           </div>
         </div>
       </aside>

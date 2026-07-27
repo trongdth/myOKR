@@ -21,7 +21,7 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
     <div className="review-kr-step">
       {/* Header */}
       <div className="review-kr-header">
-        <span className="review-kr-objective-label"><Target size={12} style={{ verticalAlign: 'text-bottom' }} /> {objective.title}</span>
+        <span className="review-kr-objective-label"><Target size={12} className="icon-inline" /> {objective.title}</span>
         <span className="review-kr-title">{keyResult.title}</span>
       </div>
 
@@ -66,7 +66,7 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
                 className={`review-confidence-btn ${cls}${entry.confidence === c ? ' selected' : ''}`}
                 onClick={() => onChange({ ...entry, confidence: c })}
               >
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, display: 'inline-block', flexShrink: 0 }} /> {meta.label}
+                <span className="confidence-dot" style={{ background: meta.color }} /> {meta.label}
               </button>
             );
           })}
