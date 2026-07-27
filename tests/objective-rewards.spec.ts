@@ -110,6 +110,6 @@ test.describe('Objective Rewards system', () => {
     await expect(rewardCard).toHaveClass(/unlocked/);
     await expect(rewardCard.locator('.objective-reward-label')).toContainText('UNLOCKED REWARD');
     await expect(rewardCard.locator('.objective-reward-text')).toContainText('Go to the cinema');
-    await expect(rewardCard.locator('.objective-reward-icon')).toContainText('🏆');
+    await expect(rewardCard.locator('.objective-reward-icon .lucide-trophy')).toBeVisible();
   });
 });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { RefreshCw, Timer, Check, Square, ClipboardList } from 'lucide-react';
 import { loadTasks, loadSettings, getLocalDateString, type PomodoroSettings } from '../lib/pomodoro-storage';
 import { loadKeyResults, loadObjectives, getActiveCycle, type KeyResult, type Objective } from '../lib/okr-storage';
 import { loadHabits, saveHabits, type Habit } from '../lib/habit-storage';
@@ -14,6 +15,7 @@ import {
 } from '../lib/today-focus';
 import FocusCard from './today/FocusCard';
 import LoadingState from './shared/LoadingState';
+import { EmptyState } from './shared/EmptyState';
 
 interface TodayAppProps {
   onStartTask: (taskId: string) => void;
@@ -121,7 +123,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
           Today's Focus
         </h1>
         <button
@@ -129,7 +131,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
           className="btn-ghost"
           title="Recompute today's plan from scratch (clears skips)"
         >
-          ↻ Replan
+          <RefreshCw size={14} /> Replan
         </button>
       </div>
 
@@ -141,7 +143,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
         paddingBottom: '0.75rem',
         borderBottom: '1px solid var(--border-color)',
       }}>
-        Today's Plan: {totalSlices} / {budget} 🍅
+        Today's Plan: {totalSlices} / {budget} <Timer size={12} className="icon-inline" />
       </div>
 
       {/* Habits Today Row */}
@@ -171,17 +173,17 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
                     gap: '0.5rem',
                     padding: '0.5rem 0.75rem',
                     borderRadius: '8px',
-                    background: isTicked ? 'var(--accent-gradient)' : 'var(--bg-primary)',
+                    background: isTicked ? 'var(--color-streak)' : 'var(--bg-primary)',
                     color: isTicked ? '#fff' : 'var(--text-primary)',
                     fontSize: '0.9rem',
                     fontWeight: 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: isTicked ? '0 2px 6px rgba(99, 102, 241, 0.2)' : 'none',
+                    boxShadow: isTicked ? '0 2px 6px rgba(245, 158, 11, 0.25)' : 'none',
                     border: isTicked ? '1px solid transparent' : '1px solid var(--border-color)'
                   }}
                 >
-                  <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>{isTicked ? '✅' : '⬜'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: '1' }}>{isTicked ? <Check size={14} /> : <Square size={14} />}</span>
                   <span>{habit.name}</span>
                 </button>
               );
@@ -191,26 +193,13 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
       )}
 
       {displayed.length === 0 ? (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '3rem 1rem',
-          gap: '1rem',
-          color: 'var(--text-secondary)',
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-        }}>
-          <span style={{ fontSize: '2.5rem' }}>📋</span>
-          <h2 style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1.2rem' }}>No tasks yet</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', maxWidth: '300px' }}>
-            Add tasks with priorities to get your daily focus picks.
-          </p>
-          <button className="btn" onClick={onGoToTasks} style={{ marginTop: '0.5rem' }}>
-            Go to Tasks
-          </button>
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+          <EmptyState
+            icon={<ClipboardList size={40} />}
+            title="No tasks yet"
+            message="Add tasks with priorities to get your daily focus picks."
+            actions={[{ label: 'Go to Tasks', onClick: onGoToTasks, primary: true }]}
+          />
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

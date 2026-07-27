@@ -14,26 +14,24 @@ export type CompletionMode = 'manual' | 'focus_hours' | 'focus_pomodoros' | 'com
 
 export const COMPLETION_MODE_META: Record<CompletionMode, {
   label: string;
-  icon: string;
   unit: string;
 }> = {
-  manual:            { label: 'Manual',           icon: '✏️', unit: '%' },
-  focus_hours:       { label: 'Focus Hours',      icon: '⏱️', unit: 'hours' },
-  focus_pomodoros:   { label: 'Pomodoros',        icon: '🍅', unit: 'pomodoros' },
-  completed_tasks:   { label: 'Completed Tasks',  icon: '✅', unit: 'tasks' },
-  habit:             { label: 'Habit Ticks',      icon: '📈', unit: 'ticks' },
+  manual:            { label: 'Manual',           unit: '%' },
+  focus_hours:       { label: 'Focus Hours',      unit: 'hours' },
+  focus_pomodoros:   { label: 'Pomodoros',        unit: 'pomodoros' },
+  completed_tasks:   { label: 'Completed Tasks',  unit: 'tasks' },
+  habit:             { label: 'Habit Ticks',      unit: 'ticks' },
 };
 
 export const CONFIDENCE_META: Record<Confidence, {
   label: string;
   color: string;
   bgColor: string;
-  icon: string;
 }> = {
-  on_track:  { label: 'On Track',  color: '#22c55e', bgColor: 'rgba(34,197,94,0.12)',   icon: '🟢' },
-  at_risk:   { label: 'At Risk',   color: '#eab308', bgColor: 'rgba(234,179,8,0.12)',   icon: '🟡' },
-  off_track: { label: 'Off Track', color: '#ef4444', bgColor: 'rgba(239,68,68,0.12)',   icon: '🔴' },
-  not_set:   { label: 'Not Set',   color: '#6b7280', bgColor: 'rgba(107,114,128,0.12)', icon: '⚪' },
+  on_track:  { label: 'On Track',  color: '#22c55e', bgColor: 'rgba(34,197,94,0.12)' },
+  at_risk:   { label: 'At Risk',   color: '#f43f5e', bgColor: 'rgba(244,63,94,0.12)' },
+  off_track: { label: 'Off Track', color: '#ef4444', bgColor: 'rgba(239,68,68,0.12)' },
+  not_set:   { label: 'Not Set',   color: '#6b7280', bgColor: 'rgba(107,114,128,0.12)' },
 };
 
 export interface OKRCycle {

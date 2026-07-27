@@ -97,20 +97,20 @@ function compareScored(a: ScoredTask, b: ScoredTask): number {
 export function getWhyReasons(b: ScoreBreakdown): string[] {
   const reasons: string[] = [];
 
-  if (b.categoryRank === 0) reasons.push('🔥 Top-priority Do task');
-  else if (b.categoryRank === 1) reasons.push('📋 Important Decide task');
-  else if (b.categoryRank === 2) reasons.push('👉 Delegate task');
+  if (b.categoryRank === 0) reasons.push('Top-priority Do task');
+  else if (b.categoryRank === 1) reasons.push('Important Decide task');
+  else if (b.categoryRank === 2) reasons.push('Delegate task');
 
   if (b.urgency >= 1) {
-    reasons.push(`⏰ Needs every remaining day (${b.daysLeft}) to finish`);
+    reasons.push(`Needs every remaining day (${b.daysLeft}) to finish`);
   } else if (b.urgency >= 0.5) {
-    reasons.push(`⏰ Needs ~${Math.ceil(b.daysNeeded)} of the ${b.daysLeft} days left in the cycle`);
+    reasons.push(`Needs ~${Math.ceil(b.daysNeeded)} of the ${b.daysLeft} days left in the cycle`);
   }
 
-  if (b.momentum >= 1) reasons.push('🚀 Already in progress');
+  if (b.momentum >= 1) reasons.push('Already in progress');
 
-  if (b.confidenceRank === 4) reasons.push('⚠️ KR is off-track');
-  else if (b.confidenceRank === 3) reasons.push('🟡 KR is at risk');
+  if (b.confidenceRank === 4) reasons.push('KR is off-track');
+  else if (b.confidenceRank === 3) reasons.push('KR is at risk');
 
   return reasons;
 }

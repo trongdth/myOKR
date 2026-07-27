@@ -14,10 +14,10 @@
       {
         "label": "main",
         "title": "myOKR — Pomodoro Timer",
-        "width": 540,
-        "height": 820,
-        "minWidth": 420,
-        "minHeight": 600,
+        "width": 1280,
+        "height": 800,
+        "minWidth": 820,
+        "minHeight": 640,
         "center": true,
         "decorations": true
       }

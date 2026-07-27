@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { BarChart3 } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { EISENHOWER_META } from '../../lib/pomodoro-storage';
 
@@ -23,7 +24,7 @@ export default function LinkedTasksThisWeek({ linkedTasksThisWeek }: Props) {
         className="review-pomo-insight"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="review-pomo-insight-icon">📊</span>
+        <span className="review-pomo-insight-icon"><BarChart3 size={14} /></span>
         <span>
           {totalPomos} pomodoro{totalPomos !== 1 ? 's' : ''} across {taskCount} linked task{taskCount !== 1 ? 's' : ''} this week
           {isExpanded ? ' ▴' : ' ▾'}
@@ -32,9 +33,8 @@ export default function LinkedTasksThisWeek({ linkedTasksThisWeek }: Props) {
       {isExpanded && (
         <div className="review-pomo-insight-expand">
           {linkedTasksThisWeek.map(({ task, pomos }) => {
-            const icon = task?.category
-              ? EISENHOWER_META[task.category].icon
-              : '⚫';
+            const dotColor = task?.category ? EISENHOWER_META[task.category].color : 'var(--text-muted)';
+            const icon = <span className="confidence-dot" style={{ background: dotColor }} />;
             const title = task
               ? task.title
               : '(deleted task)';

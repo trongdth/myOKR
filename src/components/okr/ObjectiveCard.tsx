@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ChevronRight, Target, X, Gift, Trophy, Lock, Pencil } from 'lucide-react';
 import type { Objective, KeyResult, CompletionMode, OKRCycle } from '../../lib/okr-storage';
 import { computeObjectiveProgress, COMPLETION_MODE_META } from '../../lib/okr-storage';
 import { generateId } from '../../lib/pomodoro-storage';
@@ -97,7 +98,7 @@ export default function ObjectiveCard({
     <div className="objective-card">
       {/* Header */}
       <div className="objective-header" onClick={() => setExpanded(!expanded)}>
-        <span className={`objective-expand-icon${expanded ? ' expanded' : ''}`}>▶</span>
+        <span className={`objective-expand-icon${expanded ? ' expanded' : ''}`}><ChevronRight size={14} /></span>
         {editingTitle ? (
           <input
             className="objective-title-input"
@@ -114,7 +115,7 @@ export default function ObjectiveCard({
             onDoubleClick={e => { e.stopPropagation(); setTitleDraft(objective.title); setEditingTitle(true); }}
             title="Double-click to edit"
           >
-            🎯 {objective.title}
+            <Target size={14} className="icon-inline" /> {objective.title}
           </span>
         )}
         <div className="objective-progress-badge">
@@ -129,7 +130,7 @@ export default function ObjectiveCard({
             onClick={e => { e.stopPropagation(); onDeleteObjective(objective.id); }}
             title="Delete objective"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       </div>
@@ -141,7 +142,7 @@ export default function ObjectiveCard({
           <div className="objective-reward-container">
             {editingReward || !objective.reward ? (
               <div className="objective-reward-input-wrap">
-                <span className="objective-reward-icon-prefix">🎁</span>
+                <span className="objective-reward-icon-prefix"><Gift size={14} /></span>
                 <input
                   type="text"
                   className="objective-reward-input"
@@ -165,7 +166,7 @@ export default function ObjectiveCard({
             ) : (
               <div className={`objective-reward-card${progress === 100 ? ' unlocked' : ' locked'}`}>
                 <div className="objective-reward-content">
-                  <span className="objective-reward-icon">{progress === 100 ? '🏆' : '🔒'}</span>
+                  <span className="objective-reward-icon">{progress === 100 ? <Trophy size={16} /> : <Lock size={16} />}</span>
                   <div className="objective-reward-text-group">
                     <span className="objective-reward-label">
                       {progress === 100 ? 'UNLOCKED REWARD' : 'TARGET REWARD'}
@@ -181,7 +182,7 @@ export default function ObjectiveCard({
                   }}
                   title="Edit reward"
                 >
-                  ✏️
+                  <Pencil size={14} />
                 </button>
               </div>
             )}
@@ -224,7 +225,7 @@ export default function ObjectiveCard({
               onChange={e => setNewKRMode(e.target.value as CompletionMode)}
             >
               {Object.entries(COMPLETION_MODE_META).map(([mode, meta]) => (
-                <option key={mode} value={mode}>{meta.icon} {meta.label}</option>
+                <option key={mode} value={mode}>{meta.label}</option>
               ))}
             </select>
             <button className="kr-add-btn" onClick={addKR}>+ Add KR</button>

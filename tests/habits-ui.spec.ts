@@ -14,7 +14,7 @@ test.describe('Habits Tab UI', () => {
 
   test('allows creating, ticking, changing status, and deleting a habit', async ({ page }) => {
     // Verify we are on Habits tab
-    await expect(page.locator('.habits-title')).toHaveText('📈 Habits');
+    await expect(page.locator('.habits-title')).toHaveText('Habits');
 
     // Create a new habit
     const input = page.locator('.add-habit-input');

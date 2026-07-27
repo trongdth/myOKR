@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ClipboardList, Target, CheckCircle, Calendar, Hourglass, Rocket } from 'lucide-react';
 import '../styles/review.css';
 import {
   loadCycles, loadObjectives, loadKeyResults,
@@ -319,10 +320,10 @@ export default function ReviewApp() {
     return (
       <div className="review-container">
         <div className="review-header">
-          <h2 className="review-header-title">📋 Weekly Review</h2>
+          <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
         </div>
         <div className="review-start-card">
-          <div className="review-start-card-icon">🎯</div>
+          <div className="review-start-card-icon"><Target size={24} /></div>
           <div className="review-start-card-title">No OKR cycle found</div>
           <div className="review-start-card-desc">
             Create your first OKR cycle in the OKRs tab to start weekly reviews.
@@ -335,7 +336,7 @@ export default function ReviewApp() {
   return (
     <div className="review-container">
       <div className="review-header">
-        <h2 className="review-header-title">📋 Weekly Review</h2>
+        <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <label htmlFor="cycle-select" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cycle:</label>
           <select 
@@ -395,7 +396,7 @@ export default function ReviewApp() {
           </div>
           {currentWeekReview ? (
             <>
-              <div className="review-start-card-icon">✅</div>
+              <div className="review-start-card-icon"><CheckCircle size={24} /></div>
               <div className="review-start-card-title">This week's review is complete!</div>
               <div className="review-start-card-desc">
                 Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
@@ -404,7 +405,7 @@ export default function ReviewApp() {
             </>
           ) : isFutureWeek ? (
             <>
-              <div className="review-start-card-icon">📅</div>
+              <div className="review-start-card-icon"><Calendar size={24} /></div>
               <div className="review-start-card-title">Week has not started yet</div>
               <div className="review-start-card-desc">
                 This week (starting {weekStart}) is in the future. You can start the weekly review once the week has ended.
@@ -412,7 +413,7 @@ export default function ReviewApp() {
             </>
           ) : isCurrentWeekInProgress ? (
             <>
-              <div className="review-start-card-icon">⏳</div>
+              <div className="review-start-card-icon"><Hourglass size={24} /></div>
               <div className="review-start-card-title">Week is still in progress</div>
               <div className="review-start-card-desc">
                 This week (ending {weekEnd}) is still ongoing. You can start the weekly review once the week is complete.
@@ -420,14 +421,14 @@ export default function ReviewApp() {
             </>
           ) : (
             <>
-              <div className="review-start-card-icon">📋</div>
+              <div className="review-start-card-icon"><ClipboardList size={24} /></div>
               <div className="review-start-card-title">Time for your weekly review!</div>
               <div className="review-start-card-desc">
                 Review your progress on each Key Result, assess your confidence, and
                 reflect on the week. This takes about 5 minutes.
               </div>
               <button className="review-start-btn" onClick={() => setShowWizard(true)}>
-                🚀 Start Weekly Review
+                <Rocket size={16} className="icon-inline" /> Start Weekly Review
               </button>
             </>
           )}

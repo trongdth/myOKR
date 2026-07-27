@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { Calendar, X } from 'lucide-react';
 import type { OKRCycle } from '../../lib/okr-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
@@ -30,7 +31,7 @@ export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreat
         className={`cycle-selector-btn${open ? ' open' : ''}`}
         onClick={() => setOpen(!open)}
       >
-        <span>📅</span>
+        <span><Calendar size={14} /></span>
         <span>{activeCycle?.name || 'Select Cycle'}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 5l3 3 3-3" />
@@ -55,7 +56,7 @@ export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreat
                     aria-label={`Delete ${cycle.name}`}
                     onClick={(e) => { e.stopPropagation(); onDeleteCycle!(cycle.id); setOpen(false); }}
                   >
-                    ✕
+                    <X size={12} />
                   </button>
                 )}
               </div>

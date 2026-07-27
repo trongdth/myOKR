@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { BarChart3, Timer, Clock, Trophy, Flame, CheckCircle } from 'lucide-react';
 import { getLocalDateString, type DailyRecord, type PomodoroTask } from '../../lib/pomodoro-storage';
 
 interface Props {
@@ -84,7 +85,7 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
   return (
     <div className="analytics-section">
       <div className="analytics-header">
-        <h3>📊 Analytics</h3>
+        <h3><BarChart3 size={18} className="icon-inline" /> Analytics</h3>
         <div className="analytics-actions">
           <button className="btn-sm" onClick={onExport}>Export JSON</button>
           <button className="btn-sm" onClick={onImport}>Import JSON</button>
@@ -95,22 +96,22 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
       {/* Stats cards */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon">🍅</div>
+          <div className="stat-icon"><Timer size={20} /></div>
           <div className="stat-value">{todayRecord?.completedPomodoros || 0}</div>
           <div className="stat-label">Today</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">⏱️</div>
+          <div className="stat-icon"><Clock size={20} /></div>
           <div className="stat-value">{todayRecord?.totalFocusMinutes || 0}m</div>
           <div className="stat-label">Focus Time</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">🏆</div>
+          <div className="stat-icon"><Trophy size={20} /></div>
           <div className="stat-value">{totalPomodoros}</div>
           <div className="stat-label">All Time</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">🔥</div>
+          <div className="stat-icon"><Flame size={20} /></div>
           <div className="stat-value">{streak}</div>
           <div className="stat-label">Day Streak</div>
         </div>
@@ -120,7 +121,7 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
       <div className="chart-container">
         <div className="chart-title">
           Last 7 Days
-          {streak > 1 && <span className="streak-badge" style={{ marginLeft: '0.75em' }}>🔥 {streak} days</span>}
+          {streak > 1 && <span className="streak-badge" style={{ marginLeft: '0.75em', display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><Flame size={14} /> {streak} days</span>}
         </div>
         <div className="bar-chart">
           {weekData.map(d => (
@@ -200,7 +201,7 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
                 return (
                   <tr key={task.id}>
                     <td style={{ color: 'var(--text-primary)' }}>{task.title}</td>
-                    <td>{task.isCompleted ? '✅ Done' : '⏳ Active'}</td>
+                    <td>{task.isCompleted ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><CheckCircle size={14} /> Done</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><Clock size={14} /> Active</span>}</td>
                     <td style={{ fontFamily: "'JetBrains Mono', monospace" }}>{task.completedPomodoros}/{task.estimatedPomodoros}</td>
                     <td style={{ fontFamily: "'JetBrains Mono', monospace" }}>{pct}%</td>
                   </tr>

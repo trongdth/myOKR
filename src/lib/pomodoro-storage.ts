@@ -23,13 +23,12 @@ export const EISENHOWER_META: Record<EisenhowerCategory, {
   description: string;
   color: string;
   bgColor: string;
-  icon: string;
   axis: { urgent: boolean; important: boolean };
 }> = {
-  do:       { label: 'Do',       description: 'Get it done now',          color: '#ef4444', bgColor: 'rgba(239,68,68,0.12)',   icon: '🔴', axis: { urgent: true,  important: true  } },
-  decide:   { label: 'Decide',   description: 'Schedule a time to do it', color: '#eab308', bgColor: 'rgba(234,179,8,0.12)',   icon: '🟡', axis: { urgent: false, important: true  } },
-  delegate: { label: 'Delegate', description: 'Who can do it for you?',   color: '#f97316', bgColor: 'rgba(249,115,22,0.12)',  icon: '🟠', axis: { urgent: true,  important: false } },
-  delete:   { label: 'Delete',   description: 'Eliminate it',             color: '#6b7280', bgColor: 'rgba(107,114,128,0.12)', icon: '⚪', axis: { urgent: false, important: false } },
+  do:       { label: 'Do',       description: 'Get it done now',          color: '#ef4444', bgColor: 'rgba(239,68,68,0.12)',   axis: { urgent: true,  important: true  } },
+  decide:   { label: 'Decide',   description: 'Schedule a time to do it', color: '#eab308', bgColor: 'rgba(234,179,8,0.12)',   axis: { urgent: false, important: true  } },
+  delegate: { label: 'Delegate', description: 'Who can do it for you?',   color: '#f97316', bgColor: 'rgba(249,115,22,0.12)',  axis: { urgent: true,  important: false } },
+  delete:   { label: 'Delete',   description: 'Eliminate it',             color: '#6b7280', bgColor: 'rgba(107,114,128,0.12)', axis: { urgent: false, important: false } },
 };
 
 export const EISENHOWER_PRIORITY_ORDER: EisenhowerCategory[] = ['do', 'decide', 'delegate', 'delete'];

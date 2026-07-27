@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { Pencil, Timer, CheckCircle, X, SquareCheck, MessageSquare, Check } from 'lucide-react';
 import type { PomodoroTask, TodoItem, TaskComment } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -36,12 +37,17 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const [newTodoText, setNewTodoText] = useState('');
   const [newComment, setNewComment] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleText, setEditingTitleText] = useState(task.title);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'todo' | 'comment', id: string, text?: string } | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
   const [dragOverTodoId, setDragOverTodoId] = useState<string | null>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +55,40 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const comments: TaskComment[] = task.comments || [];
 
   useModalEffects(onClose);
+
+  // Sync title text if task prop changes externally
+  useEffect(() => {
+    setEditingTitleText(task.title);
+  }, [task.title]);
+
+  // Focus title input on edit start
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // --- Title ---
+  const startEditTitle = () => {
+    setEditingTitleText(task.title);
+    setIsEditingTitle(true);
+  };
+
+  const saveTitle = () => {
+    const trimmed = editingTitleText.trim();
+    if (trimmed && trimmed !== task.title) {
+      onUpdate({ ...task, title: trimmed });
+    } else {
+      setEditingTitleText(task.title);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const cancelEditTitle = () => {
+    setEditingTitleText(task.title);
+    setIsEditingTitle(false);
+  };
 
   // Auto-focus description textarea when entering edit mode
   useEffect(() => {
@@ -185,6 +225,28 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
     onUpdate({ ...task, comments: comments.filter(c => c.id !== id) });
   };
 
+  const startEditComment = (comment: TaskComment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.text);
+  };
+
+  const commitEditComment = () => {
+    if (!editingCommentId) return;
+    const trimmed = editingCommentText.trim();
+    if (trimmed) {
+      onUpdate({
+        ...task,
+        comments: comments.map(c => c.id === editingCommentId ? { ...c, text: trimmed } : c),
+      });
+    } else {
+      // Clearing the text removes the comment instead of silently keeping the old text.
+      onUpdate({ ...task, comments: comments.filter(c => c.id !== editingCommentId) });
+    }
+    setEditingCommentId(null);
+  };
+
+  const cancelEditComment = () => setEditingCommentId(null);
+
   const meta = EISENHOWER_META[task.category || 'do'];
   const completedTodos = todos.filter(t => t.completed).length;
 
@@ -195,17 +257,38 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
         <div className="task-detail-header">
           <div className="task-detail-title-row">
             <span className="category-dot" style={{ background: meta.color, width: 12, height: 12 }} />
-            <h3 className="task-detail-title">{task.title}</h3>
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                className="task-detail-title-input"
+                value={editingTitleText}
+                onChange={e => setEditingTitleText(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveTitle();
+                  if (e.key === 'Escape') cancelEditTitle();
+                }}
+              />
+            ) : (
+              <>
+                <h3 className="task-detail-title" onClick={startEditTitle} title="Click to edit title">
+                  {task.title}
+                </h3>
+                <button className="task-detail-edit-btn" onClick={startEditTitle} title="Edit title">
+                  <Pencil size={14} />
+                </button>
+              </>
+            )}
           </div>
           <div className="task-detail-meta">
             <span className="task-detail-badge" style={{ borderColor: meta.color, color: meta.color }}>
-              {meta.icon} {meta.label}
+              <span className="confidence-dot" style={{ background: meta.color, verticalAlign: 'middle' }} /> {meta.label}
             </span>
             <span className="task-detail-badge">
-              🍅 {task.completedPomodoros}/{task.estimatedPomodoros}
+              <Timer size={12} className="icon-inline" /> {task.completedPomodoros}/{task.estimatedPomodoros}
             </span>
             {task.isCompleted && (
-              <span className="task-detail-badge task-detail-badge-done">✅ Done</span>
+              <span className="task-detail-badge task-detail-badge-done"><CheckCircle size={12} className="icon-inline" /> Done</span>
             )}
             {keyResults.length > 0 && (
               <select
@@ -213,14 +296,14 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                 value={task.keyResultId || ''}
                 onChange={e => onUpdate({ ...task, keyResultId: e.target.value || undefined })}
               >
-                <option value="">🎯 No KR</option>
+                <option value="">No KR</option>
                 {keyResults.map(kr => (
                   <option key={kr.id} value={kr.id}>{kr.title}</option>
                 ))}
               </select>
             )}
           </div>
-          <button className="prioritize-close" onClick={onClose}>✕</button>
+          <button className="prioritize-close" onClick={onClose}><X size={16} /></button>
         </div>
 
         {/* Description */}
@@ -235,7 +318,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             Description
             {!isEditingDesc && (
               <button className="task-detail-edit-btn" onClick={() => setIsEditingDesc(true)}>
-                ✎
+                <Pencil size={14} />
               </button>
             )}
           </div>
@@ -261,7 +344,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                   <Markdown>{description}</Markdown>
                 </Suspense>
               ) : (
-                'No description yet — click ✎ to add one.'
+                'No description yet — click to add one.'
               )}
             </div>
           )}
@@ -273,7 +356,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             className={`task-detail-tab${activeTab === 'todos' ? ' active' : ''}`}
             onClick={() => setActiveTab('todos')}
           >
-            ☑ Todo list
+            <SquareCheck size={14} className="icon-inline" /> Todo list
             {todos.length > 0 && (
               <span className="task-detail-tab-count">{completedTodos}/{todos.length}</span>
             )}
@@ -282,7 +365,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             className={`task-detail-tab${activeTab === 'comments' ? ' active' : ''}`}
             onClick={() => setActiveTab('comments')}
           >
-            💬 Comments
+            <MessageSquare size={14} className="icon-inline" /> Comments
             {comments.length > 0 && (
               <span className="task-detail-tab-count">{comments.length}</span>
             )}
@@ -339,7 +422,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                     <button
                       className={`task-checkbox${todo.completed ? ' checked' : ''}`}
                       onClick={() => toggleTodo(todo.id)}
-                    >✓</button>
+                    ><Check size={16} /></button>
                     {editingTodoId === todo.id ? (
                       <input
                         className="task-detail-todo-edit-input"
@@ -355,7 +438,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                     ) : (
                       <span className="task-detail-todo-text" onClick={() => startEditTodo(todo)}>{todo.text}</span>
                     )}
-                    <button className="task-action-btn" onClick={() => deleteTodoRequest(todo.id)} title="Delete">✕</button>
+                    <button className="task-action-btn" onClick={() => deleteTodoRequest(todo.id)} title="Delete"><X size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -390,11 +473,40 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                 {comments.map(comment => (
                   <div key={comment.id} className="task-detail-comment-item">
                     <div className="task-detail-comment-header">
-                      <span className="task-detail-comment-avatar">👤</span>
                       <span className="task-detail-comment-time">{formatRelativeTime(comment.createdAt)}</span>
-                      <button className="task-action-btn task-detail-comment-delete" onClick={() => deleteCommentRequest(comment.id)} title="Delete">✕</button>
+                      <div className="task-detail-comment-actions">
+                        <button className="task-action-btn task-detail-comment-edit" onClick={() => startEditComment(comment)} title="Edit comment">
+                          <Pencil size={14} />
+                        </button>
+                        <button className="task-action-btn task-detail-comment-delete" onClick={() => deleteCommentRequest(comment.id)} title="Delete comment">
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="task-detail-comment-body">{comment.text}</div>
+                    {editingCommentId === comment.id ? (
+                      <div className="task-detail-comment-edit-box">
+                        <textarea
+                          className="task-detail-comment-edit-input"
+                          value={editingCommentText}
+                          onChange={e => setEditingCommentText(e.target.value)}
+                          autoFocus
+                          rows={2}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              commitEditComment();
+                            }
+                            if (e.key === 'Escape') cancelEditComment();
+                          }}
+                        />
+                        <div className="task-detail-comment-edit-actions">
+                          <button className="btn-sm" onClick={cancelEditComment}>Cancel</button>
+                          <button className="btn task-detail-save-btn" onClick={commitEditComment}>Save</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="task-detail-comment-body">{comment.text}</div>
+                    )}
                   </div>
                 ))}
               </div>

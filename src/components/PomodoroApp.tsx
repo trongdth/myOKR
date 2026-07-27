@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import '../styles/pomodoro.css';
 import {
   loadSettings, saveSettings, loadTasks, saveTasks, loadHistory, saveHistory,
@@ -275,7 +276,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
         saveTasks(updatedTasks).catch(console.error); // Fire and forget persistence
       }
 
-      sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a break.');
+      sendNotification('Pomodoro Complete!', 'Great work! Time for a break.');
 
       // Auto-transition to break
       const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
@@ -299,7 +300,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       }).catch(console.error);
     } else {
       // Break completed
-      sendNotification('☕ Break Over!', 'Ready to focus again?');
+      sendNotification('Break Over!', 'Ready to focus again?');
 
       // Auto-transition to focus
       setSessionType('focus');
@@ -672,9 +673,9 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
           {/* Controls */}
           <div className="timer-controls">
-            <button className="btn-icon" onClick={() => setIsConfirmResetOpen(true)} title="Reset">↺</button>
-            <button className="btn" onClick={toggleTimer}>{isRunning ? '⏸ Pause' : '▶ Start'}</button>
-            <button className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings">⚙</button>
+            <button className="btn-icon" onClick={() => setIsConfirmResetOpen(true)} title="Reset"><RotateCcw size={16} /></button>
+            <button className="btn" onClick={toggleTimer}>{isRunning ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Start</>}</button>
+            <button className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings"><Settings size={16} /></button>
           </div>
 
           {/* Active task indicator (fixed height to prevent layout shift) */}
