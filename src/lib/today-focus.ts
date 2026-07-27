@@ -127,19 +127,34 @@ export function rankTasks(
   cycle: OKRCycle | null,
   settings: PomodoroSettings,
   excludeIds: string[] = [],
+  opts: { shuffleTies?: boolean } = {},
 ): ScoredTask[] {
   const krMap = new Map(keyResults.map(kr => [kr.id, kr]));
   const daysLeft = getDaysLeftInCycle(cycle);
   const budget = getDailyPomodoroBudget(settings);
   const excludeSet = new Set(excludeIds);
 
+  // Pre-assign a random tie-break key per task so shuffling is a real shuffle
+  // (a random sort comparator is inconsistent across engines). Only used when
+  // reshuffling tied tasks on Replan.
+  const tieKey = new Map<string, number>();
+
   return tasks
     .filter(t => !t.isCompleted && t.category !== 'delete' && !excludeSet.has(t.id))
     .map(t => {
       const kr = t.keyResultId ? krMap.get(t.keyResultId) : undefined;
+      if (opts.shuffleTies) tieKey.set(t.id, Math.random());
       return { ...t, _score: scoreTask(t, kr, daysLeft, budget) };
     })
-    .sort(compareScored);
+    .sort((a, b) => {
+      if (!opts.shuffleTies) return compareScored(a, b);
+      // Reshuffle within (category, urgency, confidence) bands; ignore the
+      // deterministic momentum/createdAt tiebreaks so genuine ties move.
+      if (a._score.categoryRank !== b._score.categoryRank) return a._score.categoryRank - b._score.categoryRank;
+      if (b._score.urgency !== a._score.urgency) return b._score.urgency - a._score.urgency;
+      if (b._score.confidenceRank !== a._score.confidenceRank) return b._score.confidenceRank - a._score.confidenceRank;
+      return (tieKey.get(a.id) ?? 0) - (tieKey.get(b.id) ?? 0);
+    });
 }
 
 // Fill the day in rank order. The top-ranked task is always included (its
@@ -219,9 +234,10 @@ export function buildTodayList(
   cycle: OKRCycle | null,
   settings: PomodoroSettings,
   plan: TodayPlan | null,
+  opts: { shuffleTies?: boolean } = {},
 ): { picked: ScoredTask[]; plan: TodayPlan } {
   const skippedIds = plan?.skippedIds ?? [];
-  const ranked = rankTasks(tasks, keyResults, cycle, settings, skippedIds);
+  const ranked = rankTasks(tasks, keyResults, cycle, settings, skippedIds, opts);
   const budget = getDailyPomodoroBudget(settings);
   const maxShare = getMaxTaskBudgetShare(budget);
 

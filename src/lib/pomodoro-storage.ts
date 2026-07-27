@@ -278,6 +278,44 @@ export function todayKey(): string {
   return getLocalDateString();
 }
 
+// Focus-day streak over history (the canonical definition shared by Analytics
+// and Today). A "focus day" = a DailyRecord with completedPomodoros > 0;
+// focus-minutes alone do not count. `current` ends at `now`'s local date — a
+// day with no completed pomodoro breaks it. `now` is injectable for tests.
+export function computeFocusStreak(
+  history: DailyRecord[],
+  now: Date = new Date(),
+): { current: number; best: number } {
+  const focusDays = new Set(
+    history.filter(r => r.completedPomodoros > 0).map(r => r.date),
+  );
+
+  let current = 0;
+  const cur = new Date(now);
+  while (focusDays.has(getLocalDateString(cur))) {
+    current++;
+    cur.setDate(cur.getDate() - 1);
+  }
+
+  let best = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const d of [...focusDays].sort()) {
+    if (prev) {
+      const diff = Math.round(
+        (new Date(d).getTime() - new Date(prev).getTime()) / 86_400_000,
+      );
+      run = diff === 1 ? run + 1 : 1;
+    } else {
+      run = 1;
+    }
+    best = Math.max(best, run);
+    prev = d;
+  }
+
+  return { current, best };
+}
+
 export function getTodayRecord(history: DailyRecord[]): DailyRecord {
   const key = todayKey();
   return history.find(r => r.date === key) || {

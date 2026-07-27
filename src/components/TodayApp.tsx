@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Check, Flame, ClipboardList, Plus, ChevronRight } from 'lucide-react';
 import {
   loadTasks,
   loadSettings,
   loadHistory,
   getLocalDateString,
+  computeFocusStreak,
   type PomodoroSettings,
   type DailyRecord,
 } from '../lib/pomodoro-storage';
@@ -24,7 +25,7 @@ import {
   clearTodayPlan,
   getDailyPomodoroBudget,
   getMaxTaskBudgetShare,
-  todaysSlice,
+  remainingPomodoros,
   type ScoredTask,
 } from '../lib/today-focus';
 import NowCard from './today/NowCard';
@@ -40,7 +41,7 @@ interface TodayAppProps {
 
 export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   const [displayed, setDisplayed] = useState<ScoredTask[]>([]);
-  const [allTasksCount, setAllTasksCount] = useState(0);
+  const [activeTaskCount, setActiveTaskCount] = useState(0);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
@@ -49,10 +50,11 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   const [settings, setSettings] = useState<PomodoroSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Drag and drop state for UP NEXT list
-  const draggedIndexRef = useRef<number | null>(null);
+  // Click-to-reorder selection in the UP NEXT list (Prioritize-style: click to
+  // select, click another task to place the selected one before it).
+  const [selectedUpNextId, setSelectedUpNextId] = useState<string | null>(null);
 
-  const compute = useCallback(async (opts: { reset?: boolean } = {}) => {
+  const compute = useCallback(async (opts: { reset?: boolean; shuffleTies?: boolean } = {}) => {
     const [tasks, krs, objs, cyc, sett, loadedHabits, loadedHistory] = await Promise.all([
       loadTasks(),
       loadKeyResults(),
@@ -63,7 +65,13 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
       loadHistory(),
     ]);
 
-    setAllTasksCount(tasks.length);
+    // Only actionable tasks count toward the backlog — completed, delete-category,
+    // AND finished-but-not-marked-complete tasks (remaining 0) are never plan
+    // candidates (a pomodoro completion doesn't auto-flip isCompleted, so a task
+    // can have completedPomodoros == estimatedPomodoros yet isCompleted=false).
+    setActiveTaskCount(
+      tasks.filter(t => !t.isCompleted && t.category !== 'delete' && remainingPomodoros(t) > 0).length,
+    );
     setActiveCycle(cyc);
 
     const activeObjIds = new Set(
@@ -79,7 +87,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
 
     if (opts.reset) clearTodayPlan();
     const savedPlan = opts.reset ? null : loadTodayPlan();
-    const { picked, plan } = buildTodayList(tasks, activeKrs, cyc, sett, savedPlan);
+    const { picked, plan } = buildTodayList(tasks, activeKrs, cyc, sett, savedPlan, opts);
     saveTodayPlan(plan);
     setDisplayed(picked);
   }, []);
@@ -113,7 +121,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   };
 
   const handleReplan = () => {
-    compute({ reset: true });
+    compute({ reset: true, shuffleTies: true });
   };
 
   const handlePromoteToNow = (promoteIdx: number) => {
@@ -133,23 +141,23 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     }
   };
 
-  const handleDropUpNext = (targetIdx: number) => {
-    const draggedIdx = draggedIndexRef.current;
-    if (draggedIdx === null || draggedIdx === targetIdx) return;
-
-    const newDisplayed = [...displayed];
-    const [moved] = newDisplayed.splice(draggedIdx, 1);
-    newDisplayed.splice(targetIdx, 0, moved);
-
-    setDisplayed(newDisplayed);
-    draggedIndexRef.current = null;
-
-    const plan = loadTodayPlan();
-    if (plan) {
-      saveTodayPlan({
-        ...plan,
-        taskIds: newDisplayed.map(t => t.id),
-      });
+  // Click-to-reorder: click selects; clicking a different task places the
+  // selected one just before it (Prioritize-modal pattern). Persists the order.
+  const handleUpNextCardClick = (taskId: string) => {
+    if (selectedUpNextId && selectedUpNextId !== taskId) {
+      const selectedIdx = displayed.findIndex(t => t.id === selectedUpNextId);
+      if (selectedIdx === -1) { setSelectedUpNextId(null); return; }
+      const newDisplayed = [...displayed];
+      const [moved] = newDisplayed.splice(selectedIdx, 1);
+      const targetIdx = newDisplayed.findIndex(t => t.id === taskId);
+      if (targetIdx === -1) newDisplayed.push(moved);
+      else newDisplayed.splice(targetIdx, 0, moved);
+      setDisplayed(newDisplayed);
+      const plan = loadTodayPlan();
+      if (plan) saveTodayPlan({ ...plan, taskIds: newDisplayed.map(t => t.id) });
+      setSelectedUpNextId(null);
+    } else {
+      setSelectedUpNextId(selectedUpNextId === taskId ? null : taskId);
     }
   };
 
@@ -195,20 +203,17 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   const nowTask = displayed.length > 0 ? displayed[0] : null;
   const upNextTasks = displayed.length > 1 ? displayed.slice(1) : [];
 
-  const totalSlices = displayed.reduce((sum, t) => sum + todaysSlice(t, maxShare), 0);
-  const sessionsLeft = Math.max(0, budget - totalSlices);
-
-  // Habits calculations
+  // Today's local date drives several same-day computations.
   const todayStr = getLocalDateString();
+  const todayRecord = history.find(r => r.date === todayStr);
+  const completedToday = todayRecord?.completedPomodoros ?? 0;
+  const sessionsLeft = Math.max(0, budget - completedToday);
+
   const habitsTickedTodayCount = habits.filter(h => h.ticks.includes(todayStr)).length;
 
-  // Streak calculations (combine habits ticks and history)
-  const historyDates = history
-    .filter(r => r.completedPomodoros > 0 || r.totalFocusMinutes > 0)
-    .map(r => r.date);
-  const allHabitTicks = habits.flatMap(h => h.ticks);
-  const combinedTicks = Array.from(new Set([...historyDates, ...allHabitTicks])).sort();
-  const streakInfo = computeHabitStreaks(combinedTicks);
+  // Focus-day streak — the canonical definition shared with Analytics. A habit
+  // tick on a non-focus day must not inflate the streak. See computeFocusStreak.
+  const streakInfo = computeFocusStreak(history);
 
   // Active Cycle & Objectives progress calculation
   const cycleObjectives = objectives.filter(
@@ -251,7 +256,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     ? `${formattedDateStr} · active cycle`
     : formattedDateStr;
 
-  const remainingBacklogCount = Math.max(0, allTasksCount - displayed.length);
+  const remainingBacklogCount = Math.max(0, activeTaskCount - displayed.length);
 
   return (
     <div className="today-dashboard">
@@ -268,13 +273,13 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
           title="Recompute today's plan from scratch"
         >
           <RefreshCw size={13} />
-          <span>Replan</span>
+          <span>Replan day</span>
         </button>
       </header>
 
       {/* Empty State fallback when no tasks exist */}
       {displayed.length === 0 ? (
-        <div style={{ background: '#10141A', border: '1px solid rgba(255, 255, 255, 0.07)', borderRadius: '14px' }}>
+        <div className="today-empty-wrap">
           <EmptyState
             icon={<ClipboardList size={40} />}
             title="No tasks in your daily plan"
@@ -284,8 +289,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
         </div>
       ) : (
         <>
-          {/* Top Hero Row */}
-          <section className="today-hero-row">
+          <section className="today-body">
             {/* NOW Card (#1 Task) */}
             {nowTask && (
               <NowCard
@@ -302,26 +306,26 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
               />
             )}
 
-            {/* Daily Plan Progress Card */}
-            <div className="today-hero-stat-card">
+            {/* Daily progress: pomodoros completed today vs the daily budget */}
+            <div className="today-hero-stat-card area-plan">
               <div className="today-stat-label">
-                Today's Plan: {totalSlices} / {budget}
+                TODAY
               </div>
               <div className="today-stat-val-row">
                 <span className="today-stat-value">
-                  {totalSlices}/{budget}
+                  {completedToday}/{budget}
                 </span>
                 <span className="today-stat-subtext">pomodoros</span>
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#727C8C' }}>
+              <div className="today-stat-foot">
                 {sessionsLeft === 0
                   ? 'Daily target reached'
-                  : `${sessionsLeft} session${sessionsLeft > 1 ? 's' : ''} left today`}
+                  : `${sessionsLeft} session${sessionsLeft > 1 ? 's' : ''} to target`}
               </div>
             </div>
 
             {/* Streak Stat Card */}
-            <div className="today-hero-stat-card">
+            <div className="today-hero-stat-card area-streak">
               <div className="today-stat-label">STREAK</div>
               <div className="today-stat-val-row">
                 <span className="today-streak-badge">
@@ -330,23 +334,19 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
                 </span>
                 <span className="today-stat-subtext">days</span>
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#727C8C' }}>
+              <div className="today-stat-foot">
                 Best: {streakInfo.best} day{streakInfo.best !== 1 ? 's' : ''}
               </div>
             </div>
-          </section>
-
-          {/* Bottom 3-Column Grid */}
-          <section className="today-grid-3col">
             {/* Column 1: UP NEXT */}
-            <div className="today-card-panel">
+            <div className="today-card-panel area-upnext">
               <div className="today-panel-header">
                 <div className="today-panel-title">UP NEXT</div>
                 <div className="today-panel-subtitle">drag to reorder</div>
               </div>
 
               {upNextTasks.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: '#4E5766', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                <div className="today-panel-empty">
                   No more tasks queued for today.
                 </div>
               ) : (
@@ -364,14 +364,9 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
                         objective={obj}
                         rank={actualIndex + 1}
                         maxShare={maxShare}
+                        selected={selectedUpNextId === task.id}
+                        onCardClick={() => handleUpNextCardClick(task.id)}
                         onPromote={() => handlePromoteToNow(actualIndex)}
-                        onDragStart={() => {
-                          draggedIndexRef.current = actualIndex;
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                        }}
-                        onDrop={() => handleDropUpNext(actualIndex)}
                       />
                     );
                   })}
@@ -386,14 +381,14 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
             </div>
 
             {/* Column 2: HABITS */}
-            <div className="today-card-panel">
+            <div className="today-card-panel area-habits">
               <div className="today-panel-header">
                 <div className="today-panel-title">
                   HABITS · {habitsTickedTodayCount} OF {habits.length}
                 </div>
                 <button
                   onClick={handleNavigateToHabits}
-                  style={{ background: 'none', border: 'none', color: '#727C8C', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="today-icon-btn"
                   title="Manage habits"
                 >
                   <Plus size={14} />
@@ -401,21 +396,11 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
               </div>
 
               {habits.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: '#4E5766', fontStyle: 'italic', padding: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="today-panel-empty today-habits-empty">
                   <div>No habits tracked yet.</div>
                   <button
                     onClick={handleNavigateToHabits}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      color: '#22D3EE',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      padding: 0,
-                    }}
+                    className="today-add-habit-link"
                   >
                     <Plus size={12} /> Add Habit
                   </button>
@@ -459,7 +444,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
             </div>
 
             {/* Column 3: CURRENT CYCLE / OKRs */}
-            <div className="today-card-panel cycle-panel">
+            <div className="today-card-panel cycle-panel area-cycle">
               <div className="today-panel-header">
                 <div className="today-panel-title">
                   {activeCycle ? activeCycle.name : 'CYCLE'} · {overallCycleProgress}%
@@ -467,7 +452,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
               </div>
 
               {objectiveProgresses.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: '#4E5766', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                <div className="today-panel-empty">
                   No active objectives in current cycle.
                 </div>
               ) : (

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { BarChart3, Timer, Clock, Trophy, Flame, CheckCircle } from 'lucide-react';
-import { getLocalDateString, type DailyRecord, type PomodoroTask } from '../../lib/pomodoro-storage';
+import { getLocalDateString, computeFocusStreak, type DailyRecord, type PomodoroTask } from '../../lib/pomodoro-storage';
 
 interface Props {
   history: DailyRecord[];
@@ -14,22 +14,8 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
   const today = getLocalDateString();
   const todayRecord = history.find(r => r.date === today);
 
-  // Streak calculation
-  const streak = useMemo(() => {
-    let count = 0;
-    const d = new Date();
-    while (true) {
-      const key = getLocalDateString(d);
-      const rec = history.find(r => r.date === key);
-      if (rec && rec.completedPomodoros > 0) {
-        count++;
-        d.setDate(d.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return count;
-  }, [history]);
+  // Streak — focus-only consecutive days (shared definition; see computeFocusStreak).
+  const streak = useMemo(() => computeFocusStreak(history).current, [history]);
 
   // Weekly data (last 7 days)
   const weekData = useMemo(() => {

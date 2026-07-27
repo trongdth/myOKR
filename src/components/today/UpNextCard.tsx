@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import type { PomodoroTask } from '../../lib/pomodoro-storage';
+import { type CSSProperties } from 'react';
+import { ChevronUp } from 'lucide-react';
+import { EISENHOWER_META, type PomodoroTask } from '../../lib/pomodoro-storage';
 import type { KeyResult, Objective } from '../../lib/okr-storage';
 import type { ScoreBreakdown } from '../../lib/today-focus';
 import { todaysSlice } from '../../lib/today-focus';
@@ -10,10 +11,9 @@ interface UpNextCardProps {
   objective?: Objective;
   rank: number;
   maxShare: number;
+  selected: boolean;
+  onCardClick: () => void;
   onPromote: () => void;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragOver?: (e: React.DragEvent) => void;
-  onDrop?: (e: React.DragEvent) => void;
 }
 
 export default function UpNextCard({
@@ -22,44 +22,30 @@ export default function UpNextCard({
   objective,
   rank,
   maxShare,
+  selected,
+  onCardClick,
   onPromote,
-  onDragStart,
-  onDragOver,
-  onDrop,
 }: UpNextCardProps) {
-  const [isDragOver, setIsDragOver] = useState(false);
-
   const completed = task.completedPomodoros || 0;
   const estimated = task.estimatedPomodoros || 1;
   const slice = todaysSlice(task, maxShare);
   const targetForDisplay = Math.min(estimated, completed + slice);
 
-  // Left accent border color based on Eisenhower category or KR confidence
-  let accentColor = '#22D3EE'; // default cyan
-  if (kr?.confidence === 'at_risk' || kr?.confidence === 'off_track' || task.category === 'do') {
-    accentColor = '#F87171'; // red at-risk / urgent
-  } else if (task.category === 'decide' || kr?.confidence === 'on_track') {
-    accentColor = '#F5A524'; // amber/orange
-  }
+  // Left accent = the task's Eisenhower category color — the canonical scheme
+  // shared with Tasks/Prioritize (EISENHOWER_META). delete-category tasks are
+  // filtered out before reaching UP NEXT, so only do/decide/delegate show.
+  const accentVar = EISENHOWER_META[task.category ?? 'decide'].color;
 
   return (
     <div
-      className={`focus-card today-upnext-item ${isDragOver ? 'drag-over' : ''}`}
-      style={{ boxShadow: `inset 2px 0 0 ${accentColor}` }}
-      onClick={onPromote}
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setIsDragOver(true);
-        onDragOver?.(e);
-      }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => {
-        setIsDragOver(false);
-        onDrop?.(e);
-      }}
-      title="Click to promote to NOW (#1) or drag to reorder"
+      className={`focus-card today-upnext-item ${selected ? 'is-selected' : ''}`}
+      style={{ '--today-accent': accentVar } as CSSProperties}
+      onClick={onCardClick}
+      title={
+        selected
+          ? 'Click another task to place this before it'
+          : 'Click to select, then click another task to reorder'
+      }
     >
       <div className="today-upnext-rank">{rank}</div>
 
@@ -75,6 +61,15 @@ export default function UpNextCard({
       <div className="today-upnext-count">
         {completed}/{targetForDisplay}
       </div>
+
+      <button
+        type="button"
+        className="today-upnext-promote"
+        onClick={(e) => { e.stopPropagation(); onPromote(); }}
+        title="Move to NOW (#1)"
+      >
+        <ChevronUp size={14} />
+      </button>
     </div>
   );
 }
