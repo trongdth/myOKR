@@ -8,7 +8,7 @@ import TodayApp from './components/TodayApp';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 import { flushAutomergeQueue } from './lib/automerge-storage';
-import { Clock, Timer, SquareCheck, BarChart3, Target, CalendarCheck, FileText, Upload } from 'lucide-react';
+import { Clock, Timer, SquareCheck, BarChart3, Target, CalendarCheck, FileText, Upload, BookOpen } from 'lucide-react';
 import { LogoMark } from './components/shared/LogoMark';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
@@ -258,7 +258,7 @@ export default function App() {
             <a href="#" onClick={(e) => {
               e.preventDefault();
               invoke('open_external', { url: HELP_BLOG_URL });
-            }}>📖 Effective OKR guide</a>
+            }}><BookOpen size={14} style={{ verticalAlign: 'text-bottom' }} /> Effective OKR guide</a>
           </div>
         </div>
       </aside>

@@ -34,8 +34,8 @@ export default function LinkedTasksThisWeek({ linkedTasksThisWeek }: Props) {
         <div className="review-pomo-insight-expand">
           {linkedTasksThisWeek.map(({ task, pomos }) => {
             const icon = task?.category
-              ? EISENHOWER_META[task.category].icon
-              : '⚫';
+              ? <span style={{ width: 8, height: 8, borderRadius: '50%', background: EISENHOWER_META[task.category].color, display: 'inline-block' }} />
+              : <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--text-muted)', display: 'inline-block' }} />;
             const title = task
               ? task.title
               : '(deleted task)';

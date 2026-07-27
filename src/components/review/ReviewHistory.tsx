@@ -178,7 +178,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                                   className={`review-confidence-btn ${c.replace('_', '-')}${editEntry.confidence === c ? ' selected' : ''}`}
                                   onClick={() => setEditEntry({ ...editEntry, confidence: c })}
                                 >
-                                  {CONFIDENCE_META[c].icon} {CONFIDENCE_META[c].label}
+                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: CONFIDENCE_META[c].color, display: 'inline-block', flexShrink: 0 }} /> {CONFIDENCE_META[c].label}
                                 </button>
                               ))}
                             </div>

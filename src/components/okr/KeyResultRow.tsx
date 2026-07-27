@@ -1,8 +1,16 @@
-import { useState, useRef } from 'react';
-import { X } from 'lucide-react';
+import { useState, useRef, type ReactNode } from 'react';
+import { X, Pencil, Clock, Timer, CheckCheck, TrendingUp } from 'lucide-react';
 import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
+
+const COMPLETION_MODE_ICONS: Record<CompletionMode, ReactNode> = {
+  manual: <Pencil size={12} />,
+  focus_hours: <Clock size={12} />,
+  focus_pomodoros: <Timer size={12} />,
+  completed_tasks: <CheckCheck size={12} />,
+  habit: <TrendingUp size={12} />,
+};
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 import { type Habit } from '../../lib/habit-storage';
@@ -134,7 +142,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
                   className={`confidence-option${kr.confidence === c ? ' selected' : ''}`}
                   onClick={() => setConfidence(c)}
                 >
-                  {CONFIDENCE_META[c].icon} {CONFIDENCE_META[c].label}
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: CONFIDENCE_META[c].color, display: 'inline-block', flexShrink: 0 }} /> {CONFIDENCE_META[c].label}
                 </button>
               ))}
             </div>
@@ -167,7 +175,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
             onClick={(e) => { e.stopPropagation(); setShowModePopup(!showModePopup); setShowConfidencePopup(false); setShowValuePopover(false); }}
             title={`Mode: ${modeMeta.label} — Click to change`}
           >
-            {modeMeta.icon} {modeMeta.label}
+            {COMPLETION_MODE_ICONS[mode]} {modeMeta.label}
           </span>
           {showModePopup && (
             <div className="mode-popup" style={{ top: '100%', right: 0, marginTop: 4 }}>
@@ -177,7 +185,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
                   className={`mode-option${mode === m ? ' selected' : ''}`}
                   onClick={() => setMode(m)}
                 >
-                  {COMPLETION_MODE_META[m].icon} {COMPLETION_MODE_META[m].label}
+                  {COMPLETION_MODE_ICONS[m]} {COMPLETION_MODE_META[m].label}
                 </button>
               ))}
             </div>
