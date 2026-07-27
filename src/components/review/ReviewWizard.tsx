@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { ClipboardList, BarChart3, Timer, Clock, CheckCircle, MessageSquare } from 'lucide-react';
 import type { ReviewEntry, WeeklyReview, KeyResult, Objective, OKRCycle } from '../../lib/okr-storage';
 import { getEffectiveCurrentValueAsOf } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
@@ -135,7 +136,7 @@ export default function ReviewWizard({
       {/* Header */}
       <div className="review-wizard-header">
         <span className="review-wizard-title">
-          📋 Weekly Review — Week of {weekStart}
+          <ClipboardList size={16} style={{ verticalAlign: 'text-bottom' }} /> Weekly Review — Week of {weekStart}
         </span>
         <span className="review-wizard-step-info">
           Step {currentStep + 1} of {totalSteps}
@@ -158,21 +159,21 @@ export default function ReviewWizard({
         {isSummaryStep && (
           <div>
             <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1em' }}>
-              📊 This Week's Summary
+              <BarChart3 size={16} style={{ verticalAlign: 'text-bottom' }} /> This Week's Summary
             </div>
             <div className="review-stats-grid">
               <div className="review-stat-card">
-                <div className="review-stat-icon">🍅</div>
+                <div className="review-stat-icon"><Timer size={18} /></div>
                 <div className="review-stat-value">{pomodoroStats.totalPomodoros}</div>
                 <div className="review-stat-label">Pomodoros</div>
               </div>
               <div className="review-stat-card">
-                <div className="review-stat-icon">⏱️</div>
+                <div className="review-stat-icon"><Clock size={18} /></div>
                 <div className="review-stat-value">{pomodoroStats.totalFocusMinutes}m</div>
                 <div className="review-stat-label">Focus Time</div>
               </div>
               <div className="review-stat-card">
-                <div className="review-stat-icon">✅</div>
+                <div className="review-stat-icon"><CheckCircle size={18} /></div>
                 <div className="review-stat-value">{pomodoroStats.tasksCompleted}</div>
                 <div className="review-stat-label">Tasks Done</div>
               </div>
@@ -204,7 +205,7 @@ export default function ReviewWizard({
         {isReflectionStep && (
           <div className="review-reflection">
             <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5em' }}>
-              💭 Overall Reflection
+              <MessageSquare size={16} style={{ verticalAlign: 'text-bottom' }} /> Overall Reflection
             </div>
             <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '1em', lineHeight: 1.5 }}>
               What went well this week? What could be improved? Any goals for next week?
@@ -230,7 +231,7 @@ export default function ReviewWizard({
         </button>
         {isReflectionStep ? (
           <button className="review-nav-btn primary" onClick={handleComplete}>
-            ✅ Complete Review
+            <CheckCircle size={14} style={{ verticalAlign: 'text-bottom' }} /> Complete Review
           </button>
         ) : (
           <button

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export default function ConfirmModal({
       <div className="prioritize-modal confirm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: '2em' }}>
         <div className="prioritize-header" style={{ marginBottom: '1em' }}>
           <h3 className="prioritize-title" style={{ color: danger ? '#ef4444' : 'var(--text-primary)' }}>
-            {danger ? '🗑️ ' : ''}{title}
+            {danger ? <><Trash2 size={16} style={{ verticalAlign: 'text-bottom' }} /> </> : null}{title}
           </h3>
         </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.5em' }}>

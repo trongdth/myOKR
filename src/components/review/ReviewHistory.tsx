@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { BookOpen, Timer, Clock, CheckCircle, X, Pencil, MessageSquare } from 'lucide-react';
 import type { WeeklyReview, ReviewEntry, KeyResult, Objective, Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
@@ -81,7 +82,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
   if (sorted.length === 0) {
     return (
       <div className="review-history-section">
-        <div className="review-history-title">📚 Past Reviews</div>
+        <div className="review-history-title"><BookOpen size={16} style={{ verticalAlign: 'text-bottom' }} /> Past Reviews</div>
         <div className="review-history-empty">
           No completed reviews yet. Complete your first weekly review to see history here.
         </div>
@@ -91,7 +92,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
 
   return (
     <div className="review-history-section">
-      <div className="review-history-title">📚 Past Reviews ({sorted.length})</div>
+      <div className="review-history-title"><BookOpen size={16} style={{ verticalAlign: 'text-bottom' }} /> Past Reviews ({sorted.length})</div>
       <div className="review-history-list">
         {sorted.map(review => {
           const isExpanded = expandedId === review.id;
@@ -121,16 +122,16 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                 </div>
               </div>
               <div className="review-history-stats">
-                <span>🍅 {review.pomodoroStats.totalPomodoros} pomodoros</span>
-                <span>⏱ {review.pomodoroStats.totalFocusMinutes}m focus</span>
-                <span>✅ {review.pomodoroStats.tasksCompleted} tasks</span>
+                <span><Timer size={12} style={{ verticalAlign: 'text-bottom' }} /> {review.pomodoroStats.totalPomodoros} pomodoros</span>
+                <span><Clock size={12} style={{ verticalAlign: 'text-bottom' }} /> {review.pomodoroStats.totalFocusMinutes}m focus</span>
+                <span><CheckCircle size={12} style={{ verticalAlign: 'text-bottom' }} /> {review.pomodoroStats.tasksCompleted} tasks</span>
                 <div className="review-history-inline-actions">
                   <button
                     className="review-delete-btn"
                     onClick={e => { e.stopPropagation(); setDeleteTargetId(review.id); }}
                     title="Delete review"
                   >
-                    ✕
+                    <X size={14} />
                   </button>
                 </div>
               </div>
@@ -215,7 +216,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                             className="review-history-action-btn edit"
                             onClick={e => { e.stopPropagation(); startEntryEdit(entry); }}
                           >
-                            ✏️
+                            <Pencil size={14} />
                           </button>
                         </div>
                         {linkedForKr.length > 0 && (
@@ -228,7 +229,7 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                   })}
                   {review.reflection && (
                     <div className="review-history-reflection">
-                      💭 {review.reflection}
+                      <MessageSquare size={14} style={{ verticalAlign: 'text-bottom' }} /> {review.reflection}
                     </div>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import type { Confidence } from '../../lib/okr-storage';
+import { Target } from 'lucide-react';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
 import type { ReviewEntry, KeyResult, Objective } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
@@ -20,7 +21,7 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
     <div className="review-kr-step">
       {/* Header */}
       <div className="review-kr-header">
-        <span className="review-kr-objective-label">🎯 {objective.title}</span>
+        <span className="review-kr-objective-label"><Target size={12} style={{ verticalAlign: 'text-bottom' }} /> {objective.title}</span>
         <span className="review-kr-title">{keyResult.title}</span>
       </div>
 
