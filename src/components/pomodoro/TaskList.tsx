@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect, memo } from 'react';
+import { Timer, SquareCheck, MessageSquare, ArrowUpRight, ClipboardList, X, Check, Target } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -151,7 +152,7 @@ function PomoEstimatePopover({ completed, estimated, onChange }: { completed: nu
         title="Click to set estimated pomodoros"
         style={{ cursor: 'pointer' }}
       >
-        <span className="task-pomo-icon main-icon">🍅</span>
+        <span className="task-pomo-icon main-icon"><Timer size={14} /></span>
         <span className="task-pomo-count">{completed}/{estimated}</span>
       </div>
       {open && (
@@ -202,12 +203,12 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
       <div className="task-description-meta">
         {todoCount > 0 && (
           <span className="task-description-badge">
-            ☑ {task.todos!.filter(t => t.completed).length}/{todoCount}
+            <SquareCheck size={12} style={{ verticalAlign: 'text-bottom' }} /> {task.todos!.filter(t => t.completed).length}/{todoCount}
           </span>
         )}
         {commentCount > 0 && (
           <span className="task-description-badge">
-            💬 {commentCount}
+            <MessageSquare size={12} style={{ verticalAlign: 'text-bottom' }} /> {commentCount}
           </span>
         )}
       </div>
@@ -216,7 +217,7 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
         onClick={e => { e.stopPropagation(); onExpand(); }}
         title="View details"
       >
-        {truncated ? 'more ↗' : '↗'}
+        {truncated ? <>more <ArrowUpRight size={12} style={{ verticalAlign: 'text-bottom' }} /></> : <ArrowUpRight size={12} style={{ verticalAlign: 'text-bottom' }} />}
       </button>
     </div>
   );
@@ -335,7 +336,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
   return (
     <div className="task-section">
       <div className="task-section-header">
-        <h3>📋 Tasks</h3>
+        <h3><ClipboardList size={18} style={{ verticalAlign: 'text-bottom' }} /> Tasks</h3>
         <span className="task-count">
           {activeTasks.length} active · {completedTasks.length} done
         </span>
@@ -359,7 +360,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             onChange={e => setNewKeyResultId(e.target.value)}
             title="Link to Key Result (optional)"
           >
-            <option value="">🎯 No KR</option>
+            <option value="">No KR</option>
             {keyResults.map(kr => (
               <option key={kr.id} value={kr.id}>{kr.title}</option>
             ))}
@@ -384,7 +385,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             <span className="task-search-count">{filteredTasks.length} found</span>
           )}
           {searchQuery && (
-            <button className="task-search-clear" onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}>✕</button>
+            <button className="task-search-clear" onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}><X size={14} /></button>
           )}
           {!searchQuery && (
             <kbd className="task-search-shortcut">⌘K</kbd>
@@ -412,7 +413,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             <button
               className={`task-checkbox${task.isCompleted ? ' checked' : ''}`}
               onClick={e => { e.stopPropagation(); toggleComplete(task.id); }}
-            >✓</button>
+            ><Check size={16} /></button>
             {editingTaskId === task.id ? (
               <input
                 type="text"
@@ -440,7 +441,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
                 {task.title}
               </span>
             )}
-            <button className="task-delete-btn" onClick={e => { e.stopPropagation(); deleteTask(task.id); }} title="Delete">✕</button>
+            <button className="task-delete-btn" onClick={e => { e.stopPropagation(); deleteTask(task.id); }} title="Delete"><X size={14} /></button>
             <CategoryBadge
               category={task.category || 'do'}
               onChange={c => updateCategory(task.id, c)}
@@ -458,7 +459,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
                 const kr = keyResults.find(k => k.id === task.keyResultId);
                 return kr ? (
                   <span className="task-kr-badge" title={`Linked to: ${kr.title}`}>
-                    🎯 {kr.title.length > 20 ? kr.title.slice(0, 20) + '…' : kr.title}
+                    <Target size={12} style={{ verticalAlign: 'text-bottom' }} /> {kr.title.length > 20 ? kr.title.slice(0, 20) + '…' : kr.title}
                   </span>
                 ) : null;
               })()}
@@ -482,11 +483,11 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             </div>
             {showCompleted && completedTasks.map(task => (
               <div key={task.id} className="task-item completed-task">
-                <button className="task-delete-btn" onClick={() => deleteTask(task.id)} title="Delete">✕</button>
+                <button className="task-delete-btn" onClick={() => deleteTask(task.id)} title="Delete"><X size={14} /></button>
                 <button
                   className="task-checkbox checked"
                   onClick={() => toggleComplete(task.id)}
-                >✓</button>
+                ><Check size={16} /></button>
                 <span className="task-name">{task.title}</span>
                 <CategoryBadge
                   category={task.category || 'do'}
@@ -494,7 +495,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
                 />
                 <div className="task-controls">
                   <div className="task-pomodoros">
-                    <span className="task-pomo-icon main-icon">🍅</span>
+                    <span className="task-pomo-icon main-icon"><Timer size={14} /></span>
                     <span className="task-pomo-count">
                       {task.completedPomodoros}/{task.estimatedPomodoros}
                     </span>

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Zap, X, Timer } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
 import { EISENHOWER_META, EISENHOWER_PRIORITY_ORDER } from '../../lib/pomodoro-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
@@ -81,12 +82,12 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
         {/* Header */}
         <div className="prioritize-header">
           <div>
-            <h3 className="prioritize-title">⚡ Prioritize Tasks</h3>
+            <h3 className="prioritize-title"><Zap size={18} style={{ verticalAlign: 'text-bottom' }} /> Prioritize Tasks</h3>
             <p className="prioritize-subtitle">
               Using the <strong>Eisenhower Matrix</strong> — categorize tasks by urgency and importance to focus on what matters most.
             </p>
           </div>
-          <button className="prioritize-close" onClick={onClose}>✕</button>
+          <button className="prioritize-close" onClick={onClose}><X size={16} /></button>
         </div>
 
         {/* Axis labels */}
@@ -117,7 +118,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
                   onClick={() => handleQuadrantClick(key)}
                 >
                   <div className="quadrant-header">
-                    <span className="quadrant-icon">{meta.icon}</span>
+                    <span className="quadrant-icon" style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color, display: 'inline-block' }} />
                     <span className="quadrant-label" style={{ color: meta.color }}>{meta.label.toUpperCase()}</span>
                     <span className="quadrant-count">{quadTasks.length}</span>
                   </div>
@@ -147,7 +148,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
                         style={{ borderLeftColor: meta.color }}
                       >
                         <span className="chip-title">{task.title}</span>
-                        <span className="chip-pomo">{task.completedPomodoros}/{task.estimatedPomodoros} 🍅</span>
+                        <span className="chip-pomo">{task.completedPomodoros}/{task.estimatedPomodoros} <Timer size={12} style={{ verticalAlign: 'text-bottom' }} /></span>
                       </div>
                     ))}
                   </div>
@@ -160,7 +161,7 @@ export default function PrioritizeModal({ tasks, activeTaskId, onTasksChange, on
         {/* Footer */}
         <div className="prioritize-footer">
           <div className="prioritize-hint">
-            💡 Drag onto a task to reorder before it, drag onto empty space to add to quadrant. Tap a task then tap another to reorder.
+            Drag onto a task to reorder before it, drag onto empty space to add to quadrant. Tap a task then tap another to reorder.
           </div>
           <div className="prioritize-actions">
             <button className="btn-sm" onClick={onClose}>Cancel</button>
