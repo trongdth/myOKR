@@ -1,0 +1,586 @@
+/* 
+  myOKR — Today Dashboard (1b) Redesign Styles
+  Compliant with UI Review Doc (Turn 1 & Turn 2 Responsive Specs)
+*/
+
+.today-dashboard {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  color: var(--text-primary);
+}
+
+/* Header section */
+.today-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.today-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.today-title {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.today-date-subtitle {
+  font-size: 0.85rem;
+  color: #727C8C;
+  font-weight: 400;
+}
+
+.today-replan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #B7BFCC;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.today-replan-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+/* Hero Section Top Row */
+.today-hero-row {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+/* NOW Card (#1) */
+.today-now-card {
+  background: linear-gradient(180deg, #141A22 0%, #10141A 100%);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 14px;
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.today-now-card:hover {
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow: 0 6px 24px rgba(34, 211, 238, 0.12);
+}
+
+.today-now-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.today-now-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.today-now-rank-pill {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #22D3EE;
+  text-transform: uppercase;
+}
+
+.today-now-status-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 5px;
+  line-height: 1.2;
+}
+
+.today-now-status-pill.at-risk {
+  color: #FCA5A5;
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.today-now-status-pill.on-track {
+  color: #6EE7B7;
+  background: rgba(52, 211, 153, 0.14);
+}
+
+.today-now-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #FFFFFF;
+  line-height: 1.3;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today-now-kr-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  color: #8A93A3;
+  min-width: 0;
+}
+
+.today-now-kr-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.today-kr-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: #A78BFA;
+  flex-shrink: 0;
+}
+
+.today-now-pomo-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.today-pomo-segment {
+  width: 14px;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.10);
+  transition: background 0.15s ease;
+}
+
+.today-pomo-segment.filled {
+  background: #22D3EE;
+}
+
+.today-now-pomo-count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: #727C8C;
+  margin-left: 0.3rem;
+}
+
+.today-now-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.today-btn-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 42px;
+  padding: 0 1.35rem;
+  border-radius: 10px;
+  background: #22D3EE;
+  color: #04222A;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 10px rgba(34, 211, 238, 0.3);
+}
+
+.today-btn-start:hover {
+  background: #38BDF8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(34, 211, 238, 0.4);
+}
+
+.today-btn-skip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #B7BFCC;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.today-btn-skip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+/* Stat Cards (Plan Progress & Streak) */
+.today-hero-stat-card {
+  background: #10141A;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.today-stat-label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: #727C8C;
+  text-transform: uppercase;
+}
+
+.today-stat-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.today-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+}
+
+.today-stat-subtext {
+  font-size: 0.8rem;
+  color: #8A93A3;
+}
+
+.today-streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #F5A524;
+  font-weight: 600;
+}
+
+/* Bottom Grid (3 Columns) */
+.today-grid-3col {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.today-card-panel {
+  background: #10141A;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.today-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.today-panel-title {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #727C8C;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.today-panel-subtitle {
+  font-size: 0.75rem;
+  color: #4E5766;
+}
+
+/* Up Next Items */
+.today-upnext-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.today-upnext-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: #151A22;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  user-select: none;
+}
+
+.today-upnext-item:hover {
+  background: #1C232E;
+  transform: translateX(2px);
+}
+
+.today-upnext-item.drag-over {
+  border: 1px dashed #22D3EE;
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.today-upnext-rank {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: #4E5766;
+  font-weight: 600;
+  width: 16px;
+  text-align: center;
+}
+
+.today-upnext-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.today-upnext-title {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #E2E8F0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today-upnext-kr {
+  font-size: 0.72rem;
+  color: #727C8C;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today-upnext-count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: #8A93A3;
+  flex-shrink: 0;
+}
+
+.today-upnext-backlog-count {
+  margin-top: auto;
+  font-size: 0.78rem;
+  color: #4E5766;
+  padding-top: 0.25rem;
+}
+
+/* Habit Items */
+.today-habit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.today-habit-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 44px;
+  padding: 0 0.75rem;
+  background: #151A22;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.today-habit-item:hover {
+  background: #1C232E;
+}
+
+.today-habit-item.active-pending {
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.today-habit-check-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.today-habit-check-box.checked {
+  background: #34D399;
+  color: #05231A;
+}
+
+.today-habit-check-box.unchecked {
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+}
+
+.today-habit-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #E2E8F0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today-habit-name.completed {
+  color: #8A93A3;
+  text-decoration: line-through;
+}
+
+.today-habit-streak-pill {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #F5A524;
+  flex-shrink: 0;
+}
+
+/* OKRs Cycle Column */
+.today-okr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.today-okr-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.today-okr-header-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.today-okr-title {
+  color: #C6CDD8;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 75%;
+}
+
+.today-okr-pct {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: #8A93A3;
+  font-weight: 600;
+}
+
+.today-okr-pct.at-risk {
+  color: #F87171;
+}
+
+.today-okr-progress-track {
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.today-okr-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: #A78BFA;
+  transition: width 0.3s ease;
+}
+
+.today-okr-progress-fill.at-risk {
+  background: #F87171;
+}
+
+.today-review-callout {
+  margin-top: auto;
+  font-size: 0.8rem;
+  color: #22D3EE;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color 0.15s ease;
+}
+
+.today-review-callout:hover {
+  color: #38BDF8;
+  text-decoration: underline;
+}
+
+/* Responsive / Turn 2 Breakpoints */
+@media (max-width: 1100px) {
+  .today-hero-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .today-grid-3col {
+    grid-template-columns: 1.35fr 1fr;
+  }
+
+  .today-card-panel.cycle-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 820px) {
+  .today-grid-3col {
+    grid-template-columns: 1fr;
+  }
+  
+  .today-now-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .today-now-actions {
+    justify-content: flex-end;
+  }
+}
