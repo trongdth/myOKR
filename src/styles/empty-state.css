@@ -1,0 +1,46 @@
+/* ===== EMPTY STATE (P04 — see docs/design-system.md) ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-6);
+  min-height: 240px;
+  color: var(--text-secondary);
+}
+
+.empty-state-icon {
+  display: flex;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+/* CSS sizing wins over Lucide's width/height attributes. */
+.empty-state-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.empty-state-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.empty-state-message {
+  margin: 0;
+  max-width: 420px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
