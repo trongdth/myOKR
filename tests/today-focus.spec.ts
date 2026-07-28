@@ -60,11 +60,12 @@ test.describe('Today Focus', () => {
     }
   });
 
-  test('backlog count excludes completed and delete-category tasks', async ({ page }) => {
-    // Seed has 8 tasks; 5 are displayed (task-6, task-1, task-3, task-5, task-7).
-    // Not displayed: task-2 (completed), task-4 (completed), task-8 (delete). Backlog is 0 → hidden.
+  test('backlog count includes remaining uncompleted tasks', async ({ page }) => {
+    // Seed has 8 tasks; 2 are completed (task-2, task-4). 6 are uncompleted.
+    // 5 are displayed (task-6, task-1, task-3, task-5, task-7).
+    // Remaining uncompleted task: task-8 (delete). Backlog is 6 - 5 = 1 → "+ 1 more in the backlog".
     const backlog = page.locator('.today-upnext-backlog-count');
-    await expect(backlog).toHaveCount(0);
+    await expect(backlog).toContainText('+ 1 more in the backlog');
   });
 
   test('UP NEXT accent follows the Eisenhower category color', async ({ page }) => {
