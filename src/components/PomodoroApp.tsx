@@ -5,7 +5,7 @@ import {
   loadSettings, saveSettings, loadTasks, saveTasks, loadHistory, saveHistory,
   loadTimerState, saveTimerState, clearTimerState,
   getTodayRecord, upsertTodayRecord, playCompletionSound, sendNotification,
-  requestNotificationPermission, DEFAULT_SETTINGS,
+  requestNotificationPermission, DEFAULT_SETTINGS, applyPomodoroCompletion,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../lib/pomodoro-storage';
 import { startFocusMusic, stopFocusMusic } from '../lib/focus-music';
@@ -267,10 +267,12 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       lastFocusTaskId.current = activeTaskId;
 
-      // Update active task (Synchronous state update)
+      // Update active task (Synchronous state update). applyPomodoroCompletion
+      // flips isCompleted when the estimate is reached — a pomodoro is the unit
+      // of work, so the last one finishes the task.
       if (activeTaskId) {
         const updatedTasks = tasks.map(t =>
-          t.id === activeTaskId ? { ...t, completedPomodoros: t.completedPomodoros + 1 } : t
+          t.id === activeTaskId ? applyPomodoroCompletion(t, now) : t
         );
         setTasks(updatedTasks);
         saveTasks(updatedTasks).catch(console.error); // Fire and forget persistence

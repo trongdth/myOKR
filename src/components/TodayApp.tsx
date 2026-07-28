@@ -25,7 +25,6 @@ import {
   clearTodayPlan,
   getDailyPomodoroBudget,
   getMaxTaskBudgetShare,
-  remainingPomodoros,
   type ScoredTask,
 } from '../lib/today-focus';
 import NowCard from './today/NowCard';
@@ -65,13 +64,11 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
       loadHistory(),
     ]);
 
-    // Only actionable tasks count toward the backlog — completed, delete-category,
-    // AND finished-but-not-marked-complete tasks (remaining 0) are never plan
-    // candidates (a pomodoro completion doesn't auto-flip isCompleted, so a task
-    // can have completedPomodoros == estimatedPomodoros yet isCompleted=false).
-    setActiveTaskCount(
-      tasks.filter(t => !t.isCompleted && t.category !== 'delete' && remainingPomodoros(t) > 0).length,
-    );
+    // Only actionable tasks count toward the backlog — those not marked complete
+    // and not in the delete quadrant. (Reaching the pomodoro estimate now auto-
+    // completes a task via applyPomodoroCompletion, so isCompleted is the single
+    // source of truth for "done" — no separate remaining>0 gate needed.)
+    setActiveTaskCount(tasks.filter(t => !t.isCompleted && t.category !== 'delete').length);
     setActiveCycle(cyc);
 
     const activeObjIds = new Set(

@@ -54,46 +54,6 @@ test.describe('Today Focus', () => {
     await expect(backlog).toContainText('+ 1 more in the backlog');
   });
 
-  test('backlog count excludes finished-but-not-marked-complete tasks', async ({ page }) => {
-    // A pomodoro completion increments completedPomodoros but does NOT auto-flip
-    // isCompleted. So a task with completedPomodoros == estimatedPomodoros is
-    // "finished" (remaining 0, never pickable by fillBudget) yet still counts as
-    // active — inflating the backlog. Such tasks must NOT be counted.
-    //
-    // Fixture: 2 finished-not-marked (A,B, remaining 0) + 7 actionable 'do' tasks
-    // (C..I, remaining 2 each) + 1 delete. budget=10, maxShare=5, MAX_CARDS=5 →
-    // 5 actionable displayed, 2 actionable in backlog → "+2". A and B add NO
-    // backlog (nothing left to do). Buggy code shows "+4" (counts A, B).
-    await page.evaluate(async () => {
-      const anyWin = window as unknown as { __updateAutomergeDoc: (msg: string, fn: (d: unknown) => void) => Promise<void> };
-      await anyWin.__updateAutomergeDoc('finished-not-marked tasks', (doc) => {
-        const d = doc as { tasks: unknown[] };
-        const mk = (id: string, title: string, est: number, comp: number, completed: boolean, category: string, off: number) => ({
-          id, title, estimatedPomodoros: est, completedPomodoros: comp, isCompleted: completed, category,
-          createdAt: `2026-05-${10 + off}T0${off}:00:00.000Z`, todos: [], comments: [],
-        });
-        d.tasks = [
-          mk('A', 'Finished not marked A', 2, 2, false, 'do', 1),
-          mk('B', 'Finished not marked B', 2, 2, false, 'do', 2),
-          mk('C', 'Actionable C', 2, 0, false, 'do', 3),
-          mk('D', 'Actionable D', 2, 0, false, 'do', 4),
-          mk('E', 'Actionable E', 2, 0, false, 'do', 5),
-          mk('F', 'Actionable F', 2, 0, false, 'do', 6),
-          mk('G', 'Actionable G', 2, 0, false, 'do', 7),
-          mk('H', 'Actionable H', 2, 0, false, 'do', 8),
-          mk('I', 'Actionable I', 2, 0, false, 'do', 9),
-          mk('X', 'Delete task', 1, 0, false, 'delete', 1),
-        ];
-      });
-    });
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
-
-    const backlog = page.locator('.today-upnext-backlog-count');
-    await expect(backlog).toContainText('+ 2 more in the backlog');
-  });
-
   test('UP NEXT accent follows the Eisenhower category color', async ({ page }) => {
     const items = page.locator('.today-upnext-item');
     await expect(items).toHaveCount(3);

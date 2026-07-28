@@ -61,6 +61,29 @@ export interface PomodoroTask {
   keyResultId?: string;
 }
 
+/**
+ * Apply one completed pomodoro session to a task. A pomodoro is the unit of
+ * work, so reaching the estimate finishes the task: `isCompleted` flips and
+ * `completedAt` is stamped. This keeps `isCompleted` in sync with pomodoro
+ * progress (a bare increment would let a 3/3 task stay "open" forever), so the
+ * Today backlog count — `!isCompleted && category !== 'delete'` — stays honest
+ * without a separate `remaining > 0` gate.
+ *
+ * `now` is passed in (not read from `new Date()`) so the timestamp is
+ * deterministic in tests. Already-complete tasks keep incrementing (over-
+ * delivery) without resetting their original completion time.
+ */
+export function applyPomodoroCompletion(task: PomodoroTask, now: string): PomodoroTask {
+  const newCompleted = task.completedPomodoros + 1;
+  const estimate = task.estimatedPomodoros || 1;
+  const justFinished = !task.isCompleted && newCompleted >= estimate;
+  return {
+    ...task,
+    completedPomodoros: newCompleted,
+    ...(justFinished ? { isCompleted: true, completedAt: now } : {}),
+  };
+}
+
 export interface SessionRecord {
   startedAt: string;
   endedAt: string;
