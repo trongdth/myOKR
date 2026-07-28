@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Check, Flame, ClipboardList, Plus, ChevronRight } from 'lucide-react';
+import { RefreshCw, Check, ClipboardList, Plus, ChevronRight } from 'lucide-react';
 import {
   loadTasks,
   loadSettings,
@@ -138,17 +138,20 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     }
   };
 
-  // Click-to-reorder: click selects; clicking a different task places the
-  // selected one just before it (Prioritize-modal pattern). Persists the order.
+  // Click-to-reorder: click selects; clicking a different task swaps positions
+  // of the selected task and target task. Persists the order.
   const handleUpNextCardClick = (taskId: string) => {
     if (selectedUpNextId && selectedUpNextId !== taskId) {
       const selectedIdx = displayed.findIndex(t => t.id === selectedUpNextId);
-      if (selectedIdx === -1) { setSelectedUpNextId(null); return; }
+      const targetIdx = displayed.findIndex(t => t.id === taskId);
+      if (selectedIdx === -1 || targetIdx === -1) {
+        setSelectedUpNextId(null);
+        return;
+      }
       const newDisplayed = [...displayed];
-      const [moved] = newDisplayed.splice(selectedIdx, 1);
-      const targetIdx = newDisplayed.findIndex(t => t.id === taskId);
-      if (targetIdx === -1) newDisplayed.push(moved);
-      else newDisplayed.splice(targetIdx, 0, moved);
+      const temp = newDisplayed[selectedIdx];
+      newDisplayed[selectedIdx] = newDisplayed[targetIdx];
+      newDisplayed[targetIdx] = temp;
       setDisplayed(newDisplayed);
       const plan = loadTodayPlan();
       if (plan) saveTodayPlan({ ...plan, taskIds: newDisplayed.map(t => t.id) });
@@ -211,6 +214,16 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   // Focus-day streak — the canonical definition shared with Analytics. A habit
   // tick on a non-focus day must not inflate the streak. See computeFocusStreak.
   const streakInfo = computeFocusStreak(history);
+
+  // Generate 7-day history for streak card day-squares ending on today
+  const last7Days = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = getLocalDateString(d);
+    const rec = history.find(r => r.date === dateStr);
+    const count = rec?.completedPomodoros ?? 0;
+    return { dateStr, count, isToday: i === 6 };
+  });
 
   // Active Cycle & Objectives progress calculation
   const cycleObjectives = objectives.filter(
@@ -305,19 +318,36 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
 
             {/* Daily progress: pomodoros completed today vs the daily budget */}
             <div className="today-hero-stat-card area-plan">
-              <div className="today-stat-label">
-                TODAY
-              </div>
-              <div className="today-stat-val-row">
-                <span className="today-stat-value">
-                  {completedToday}/{budget}
-                </span>
-                <span className="today-stat-subtext">pomodoros</span>
-              </div>
-              <div className="today-stat-foot">
-                {sessionsLeft === 0
-                  ? 'Daily target reached'
-                  : `${sessionsLeft} session${sessionsLeft > 1 ? 's' : ''} to target`}
+              <div className="today-stat-label">TODAY</div>
+              <div className="today-pomo-ring-container">
+                <div className="today-pomo-ring-wrap">
+                  <svg className="today-pomo-ring-svg" width="124" height="124" viewBox="0 0 124 124">
+                    <circle cx="62" cy="62" r="52" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="10" />
+                    <circle
+                      cx="62"
+                      cy="62"
+                      r="52"
+                      fill="none"
+                      stroke="var(--color-primary)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray="326.7"
+                      strokeDashoffset={326.7 * (1 - Math.min(1, completedToday / Math.max(1, budget)))}
+                      transform="rotate(-90 62 62)"
+                    />
+                  </svg>
+                  <div className="today-pomo-ring-content">
+                    <div className="today-stat-value">
+                      {completedToday}<span className="today-pomo-budget">/{budget}</span>
+                    </div>
+                    <div className="today-stat-subtext">pomodoros</div>
+                  </div>
+                </div>
+                <div className="today-stat-foot">
+                  {sessionsLeft === 0
+                    ? 'Daily target reached'
+                    : `${sessionsLeft} session${sessionsLeft > 1 ? 's' : ''} left today`}
+                </div>
               </div>
             </div>
 
@@ -326,20 +356,25 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
               <div className="today-stat-label">STREAK</div>
               <div className="today-stat-val-row">
                 <span className="today-streak-badge">
-                  <Flame size={20} fill="currentColor" />
-                  <span className="today-stat-value">{streakInfo.current}</span>
+                  <span className="today-streak-value today-stat-value">{streakInfo.current}</span>
                 </span>
                 <span className="today-stat-subtext">days</span>
               </div>
-              <div className="today-stat-foot">
-                Best: {streakInfo.best} day{streakInfo.best !== 1 ? 's' : ''}
+              <div className="today-streak-history">
+                {last7Days.map((day) => (
+                  <div
+                    key={day.dateStr}
+                    className={`today-streak-day-square ${day.count > 0 ? 'filled' : (day.isToday ? 'today-pending' : 'empty')}`}
+                    title={`${day.dateStr}: ${day.count} pomodoros`}
+                  />
+                ))}
               </div>
             </div>
             {/* Column 1: UP NEXT */}
             <div className="today-card-panel area-upnext">
               <div className="today-panel-header">
                 <div className="today-panel-title">UP NEXT</div>
-                <div className="today-panel-subtitle">drag to reorder</div>
+                <div className="today-panel-subtitle">click to reorder</div>
               </div>
 
               {upNextTasks.length === 0 ? (

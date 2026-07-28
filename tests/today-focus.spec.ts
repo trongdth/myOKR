@@ -17,25 +17,39 @@ test.describe('Today Focus', () => {
   });
 
   test('ranks strictly by Eisenhower category, then urgency, then KR confidence', async ({ page }) => {
-    // budget=10, maxShare=5, daysLeft=7
+    // budget=13 (320/25), maxShare=6, daysLeft=7
     // do: task-6 (rem 2, at_risk KR) > task-1 (rem 2, on_track KR) — confidence tie-break
-    // decide: task-3 (rem 3) > task-5 (rem 2) — urgency (more remaining effort)
-    // delegate: task-7 (rem 2) — slice doesn't fit after 9/10 used
+    // decide: task-3 (rem 2) > task-5 (rem 2) — urgency (more remaining effort)
+    // delegate: task-7 (rem 2) — all fit into 13 budget
     const cards = page.locator('.focus-card');
-    await expect(cards).toHaveCount(4);
+    await expect(cards).toHaveCount(5);
 
     await expect(cards.nth(0)).toContainText('Refactor auth module');
     await expect(cards.nth(1)).toContainText('Design new dashboard layout');
     await expect(cards.nth(2)).toContainText('Write API documentation');
     await expect(cards.nth(3)).toContainText('Plan sprint retrospective');
+    await expect(cards.nth(4)).toContainText('Update README screenshots');
   });
 
-  test('plan stat shows completed-today progress against the daily budget', async ({ page }) => {
-    // Seed today has 3 completed pomodoros; budget = round(240/25) = 10.
-    // The stat reflects work DONE today (3/10), not the planned slice total.
+  test('plan stat shows completed-today progress against the daily budget with circular SVG ring', async ({ page }) => {
+    // Seed today has 3 completed pomodoros; budget = round(320/25) = 13.
+    // The stat reflects work DONE today (3/13), not the planned slice total.
     const card = page.locator('.area-plan');
     await expect(card).toContainText('TODAY');
-    await expect(card.locator('.today-stat-value')).toHaveText('3/10');
+    await expect(card.locator('.today-stat-value')).toHaveText('3/13');
+    // Must contain circular SVG ring
+    await expect(card.locator('.today-pomo-ring-svg')).toBeVisible();
+  });
+
+  test('STREAK card renders 7 day-squares for weekly history and 14px days label', async ({ page }) => {
+    const card = page.locator('.area-streak');
+    await expect(card).toContainText('STREAK');
+    const daySquares = card.locator('.today-streak-day-square');
+    await expect(daySquares).toHaveCount(7);
+
+    const daysLabel = card.locator('.today-stat-subtext');
+    const fontSize = await daysLabel.evaluate(el => getComputedStyle(el).fontSize);
+    expect(Math.round(parseFloat(fontSize))).toBe(14);
   });
 
   test('delete-category task never appears', async ({ page }) => {
@@ -47,36 +61,41 @@ test.describe('Today Focus', () => {
   });
 
   test('backlog count excludes completed and delete-category tasks', async ({ page }) => {
-    // Seed has 8 tasks; 4 are displayed (task-6, task-1, task-3, task-5).
-    // Not displayed: task-2 (completed), task-4 (completed), task-7 (delegate,
-    // actionable), task-8 (delete). Only task-7 is a real backlog item → "+1".
+    // Seed has 8 tasks; 5 are displayed (task-6, task-1, task-3, task-5, task-7).
+    // Not displayed: task-2 (completed), task-4 (completed), task-8 (delete). Backlog is 0 → hidden.
     const backlog = page.locator('.today-upnext-backlog-count');
-    await expect(backlog).toContainText('+ 1 more in the backlog');
+    await expect(backlog).toHaveCount(0);
   });
 
   test('UP NEXT accent follows the Eisenhower category color', async ({ page }) => {
     const items = page.locator('.today-upnext-item');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(4);
     const accentOf = (i: number) =>
       items.nth(i).evaluate(el => getComputedStyle(el).getPropertyValue('--today-accent').trim());
-    // task-1 (do) → red, task-3 (decide) → amber, task-5 (decide) → amber.
+    // task-1 (do) → red, task-3 (decide) → amber, task-5 (decide) → amber, task-7 (delegate) → orange.
     expect(await accentOf(0)).toBe('#ef4444');
     expect(await accentOf(1)).toBe('#eab308');
     expect(await accentOf(2)).toBe('#eab308');
+    expect(await accentOf(3)).toBe('#f97316');
   });
 
-  test('click-to-reorder: click a card then another to place it before', async ({ page }) => {
+  test('UP NEXT subtitle reads "click to reorder"', async ({ page }) => {
+    const subtitle = page.locator('.area-upnext .today-panel-subtitle');
+    await expect(subtitle).toHaveText('click to reorder');
+  });
+
+  test('click-to-reorder: clicking 1st row then 2nd row swaps their positions', async ({ page }) => {
     const items = page.locator('.today-upnext-item');
-    await expect(items).toHaveCount(3);
-    // UP NEXT initial order: task-1, task-3, task-5
+    await expect(items).toHaveCount(4);
+    // UP NEXT initial order: task-1, task-3, task-5, task-7
     await expect(items.nth(0)).toContainText('Design new dashboard layout');
-    await expect(items.nth(2)).toContainText('Plan sprint retrospective');
+    await expect(items.nth(1)).toContainText('Write API documentation');
 
-    // Click first (select), then click the last (place selected before it).
+    // Click 1st row (select), then click 2nd row (swap 1st and 2nd).
     await items.nth(0).click();
-    await items.nth(2).click();
+    await items.nth(1).click();
 
-    // task-1 placed before task-5 → order: task-3, task-1, task-5.
+    // 1st row item moves to 2nd row and 2nd row item moves to 1st row.
     await expect(items.nth(0)).toContainText('Write API documentation');
     await expect(items.nth(1)).toContainText('Design new dashboard layout');
   });
@@ -123,12 +142,12 @@ test.describe('Today Focus', () => {
 
   test('plan is stable across reloads', async ({ page }) => {
     const cards = page.locator('.focus-card');
-    await expect(cards).toHaveCount(4);
+    await expect(cards).toHaveCount(5);
     const firstTitle = await cards.nth(0).textContent();
 
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(cards).toHaveCount(4);
+    await expect(cards).toHaveCount(5);
     expect(await cards.nth(0).textContent()).toBe(firstTitle);
   });
 
@@ -140,8 +159,8 @@ test.describe('Today Focus', () => {
     await expect(topCard).toContainText('At Risk');
   });
 
-  test('Start button on top card jumps to Timer with task selected', async ({ page }) => {
-    await page.locator('.focus-card .btn:has-text("Start")').click();
+  test('Start focus button on top card jumps to Timer with task selected', async ({ page }) => {
+    await page.locator('.focus-card .btn:has-text("Start focus")').click();
 
     await expect(page.locator('.timer-section')).toBeVisible();
     await expect(page.locator('text=Working on:')).toBeVisible();
@@ -150,12 +169,12 @@ test.describe('Today Focus', () => {
 
   test('Skip removes card, refills, and persists across reload', async ({ page }) => {
     const cards = page.locator('.focus-card');
-    await expect(cards).toHaveCount(4);
+    await expect(cards).toHaveCount(5);
 
     // Skip top card (task-6)
     await cards.nth(0).locator('button:has-text("Skip")').click();
 
-    // After skip: task-1, task-3, task-5, task-7 fill the budget (2+3+2+2=9/10)
+    // After skip: task-1, task-3, task-5, task-7 fill the budget
     await expect(cards).toHaveCount(4);
     await expect(cards.nth(0)).toContainText('Design new dashboard layout');
     await expect(cards.nth(3)).toContainText('Update README screenshots');

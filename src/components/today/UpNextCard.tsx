@@ -43,7 +43,7 @@ export default function UpNextCard({
       onClick={onCardClick}
       title={
         selected
-          ? 'Click another task to place this before it'
+          ? 'Click another task to swap position with it'
           : 'Click to select, then click another task to reorder'
       }
     >

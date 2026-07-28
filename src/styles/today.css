@@ -79,10 +79,7 @@
   display: grid;
   gap: 1rem;
   align-items: stretch;
-  /* minmax(0, …) lets tracks shrink below their content's min-width so the
-     grid can't overflow its container (the nowrap NOW title truncates via
-     ellipsis instead of blowing the column out to ~750px). */
-  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     "now    plan   streak"
     "upnext habits cycle";
@@ -101,11 +98,11 @@
   background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
   border: 1px solid rgba(34, 211, 238, 0.28);
   border-radius: 14px;
-  padding: 1.25rem 1.4rem;
+  padding: 1.25rem 1.25rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
-  gap: 1.25rem;
+  gap: 0.85rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -120,12 +117,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.75rem;
 }
 
 .today-now-badge-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.65rem;
 }
 
@@ -139,32 +137,36 @@
 }
 
 .today-now-status-pill {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 5px;
   line-height: 1.2;
 }
 
 .today-now-status-pill.at-risk {
   color: var(--color-risk);
-  background: rgba(244, 63, 94, 0.14);
+  background: rgba(248, 113, 113, 0.12);
 }
 
 .today-now-status-pill.on-track {
   color: var(--okr-on-track);
-  background: rgba(34, 197, 94, 0.14);
+  background: rgba(52, 211, 153, 0.12);
+}
+
+.today-now-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .today-now-title {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.25;
   margin: 0;
-  /* Wrap long titles; clamp at 2 lines so a very long title can't grow the
-     card unbounded (ellipsis only as a last resort). */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -175,7 +177,7 @@
 .today-now-kr-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.4rem;
   font-size: 0.78rem;
   color: var(--text-secondary);
   min-width: 0;
@@ -199,16 +201,21 @@
   flex-shrink: 0;
 }
 
+.today-now-pomo-bar-row {
+  display: flex;
+  align-items: center;
+}
+
 .today-now-pomo-bar {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   flex-shrink: 0;
 }
 
 .today-pomo-segment {
-  width: 14px;
-  height: 5px;
+  width: 20px;
+  height: 6px;
   border-radius: 99px;
   background: rgba(255, 255, 255, 0.10);
   transition: background var(--transition-fast);
@@ -222,14 +229,14 @@
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.75rem;
   color: var(--text-muted);
-  margin-left: 0.3rem;
+  margin-left: 0.4rem;
 }
 
 .today-now-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  flex-shrink: 0;
+  gap: 0.65rem;
+  margin-top: auto;
 }
 
 .today-btn-start {
@@ -237,17 +244,16 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 42px;
-  padding: 0 1.35rem;
+  height: 44px;
+  padding: 0 1.65rem;
   border-radius: 10px;
   background: var(--color-primary);
-  color: var(--bg-primary);
-  font-size: 0.92rem;
+  color: #04222A;
+  font-size: 0.94rem;
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  box-shadow: 0 2px 10px rgba(34, 211, 238, 0.3);
 }
 
 .today-btn-start:hover {
@@ -259,13 +265,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 42px;
-  padding: 0 1rem;
+  height: 44px;
+  padding: 0 1.15rem;
   border-radius: 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -281,11 +287,99 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 14px;
-  padding: 1.1rem 1.25rem;
+  padding: 1.15rem 1.25rem;
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.today-hero-stat-card.area-plan {
+  align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.75rem;
+}
+
+.today-pomo-ring-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.today-pomo-ring-wrap {
+  position: relative;
+  width: 124px;
+  height: 124px;
+}
+
+.today-pomo-ring-svg {
+  width: 124px;
+  height: 124px;
+}
+
+.today-pomo-ring-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.today-pomo-ring-content .today-stat-value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 1.85rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.today-pomo-budget {
+  color: var(--text-muted);
+}
+
+.today-pomo-ring-content .today-stat-subtext {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.today-streak-value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 2.35rem;
+  font-weight: 500;
+  color: var(--color-streak);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.today-streak-history {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.today-streak-day-square {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  transition: opacity var(--transition-fast);
+}
+
+.today-streak-day-square.filled {
+  background: rgba(245, 165, 36, 0.85);
+}
+
+.today-streak-day-square.today-pending {
+  border: 1px dashed rgba(245, 165, 36, 0.5);
+  background: transparent;
+}
+
+.today-streak-day-square.empty {
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .today-stat-label {
@@ -300,6 +394,11 @@
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
+}
+
+.today-stat-val-row .today-stat-subtext {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
 }
 
 .today-stat-value {
@@ -517,7 +616,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  height: 44px;
+  height: 46px;
   padding: 0 0.75rem;
   background: var(--bg-tertiary);
   border: 1px solid transparent;
@@ -535,9 +634,9 @@
 }
 
 .today-habit-check-box {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -547,7 +646,7 @@
 
 .today-habit-check-box.checked {
   background: var(--okr-on-track);
-  color: var(--bg-primary);
+  color: #05231A;
 }
 
 .today-habit-check-box.unchecked {
@@ -559,6 +658,7 @@
   flex: 1;
   font-size: 0.85rem;
   color: var(--text-primary);
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

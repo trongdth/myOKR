@@ -6,7 +6,7 @@ import type { KeyResult, Confidence, OKRCycle } from './okr-storage';
 
 // ===== CONSTANTS =====
 
-export const DAILY_FOCUS_MINUTES = 240; // 4 focused hours — research-backed ceiling
+export const DAILY_FOCUS_MINUTES = 320; // 320 minutes — 8 pomodoros @ 40 min/session ceiling
 
 // Lower rank sorts first. Category is the primary key — a Do task can never
 // be outranked by a Decide task, regardless of other factors.
@@ -33,7 +33,7 @@ export function getDailyPomodoroBudget(settings: PomodoroSettings): number {
 }
 
 export function getMaxTaskBudgetShare(budget: number): number {
-  return Math.max(2, Math.floor(budget / 2));
+  return Math.max(5, Math.floor(budget / 2));
 }
 
 export function remainingPomodoros(task: PomodoroTask): number {
