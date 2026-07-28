@@ -22,6 +22,8 @@ export default function NowCard({ task, kr, objective, maxShare, onStart, onSkip
 
   const confidenceLabel = kr ? CONFIDENCE_META[kr.confidence].label : '';
   const isAtRisk = kr?.confidence === 'at_risk' || kr?.confidence === 'off_track';
+  const krText = kr ? `${objective ? objective.title + ' → ' : ''}${kr.title}` : 'No key result linked';
+  const statusLabel = kr ? confidenceLabel : (isAtRisk ? 'At Risk' : 'On Track');
 
   // Render max 8 pomo segments for compact visualization
   const maxSegments = Math.min(8, Math.max(1, targetForDisplay));
@@ -34,7 +36,7 @@ export default function NowCard({ task, kr, objective, maxShare, onStart, onSkip
         <div className="today-now-badge-row">
           <span className="today-now-rank-pill">NOW · #1</span>
           <span className={`today-now-status-pill ${isAtRisk ? 'at-risk' : 'on-track'}`}>
-            {kr ? confidenceLabel : (isAtRisk ? 'At Risk' : 'On Track')}
+            {statusLabel}
           </span>
         </div>
 
@@ -44,11 +46,9 @@ export default function NowCard({ task, kr, objective, maxShare, onStart, onSkip
             {task.title}
           </h2>
           <div className="today-now-kr-row">
-            <div className="today-now-kr-text" title={kr ? `${objective ? objective.title + ' → ' : ''}${kr.title}` : 'No key result linked'}>
+            <div className="today-now-kr-text" title={krText}>
               <span className="today-kr-dot" />
-              <span>
-                {kr ? `${objective ? objective.title + ' → ' : ''}${kr.title}` : 'No key result linked'}
-              </span>
+              <span>{krText}</span>
             </div>
           </div>
         </div>

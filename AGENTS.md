@@ -17,3 +17,7 @@ plus its own per-screen section in that doc.
 
 - Tests: `npx playwright test` (mocked Tauri env, see the rules doc)
 - Typecheck: `npx tsc --noEmit` · Build: `npm run build` · App: `npx tauri build`
+- Mobile app: `mobile/` is a git submodule (`https://github.com/trongdth/myOKR-mobile`). Run `git submodule update --init --recursive` when checking out.
+  - Tech Stack: Flutter (Dart) + Rust (`flutter_rust_bridge`).
+  - Tests: `cd mobile && flutter test` · Rust check: `cd mobile/rust && cargo check`
+  - Directive: When modifying shared Automerge CRDT schemas, persistence rules, or domain logic, inspect and update `mobile/` alongside desktop code.

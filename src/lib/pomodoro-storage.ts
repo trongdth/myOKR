@@ -323,10 +323,12 @@ export function computeFocusStreak(
   let best = 0;
   let run = 0;
   let prev: string | null = null;
-  for (const d of [...focusDays].sort()) {
+  for (const d of [...focusDays].sort((a, b) => a.localeCompare(b))) {
     if (prev) {
+      const [dy, dm, dd] = d.split('-').map(Number);
+      const [py, pm, pd] = prev.split('-').map(Number);
       const diff = Math.round(
-        (new Date(d).getTime() - new Date(prev).getTime()) / 86_400_000,
+        (new Date(dy, dm - 1, dd).getTime() - new Date(py, pm - 1, pd).getTime()) / 86_400_000,
       );
       run = diff === 1 ? run + 1 : 1;
     } else {

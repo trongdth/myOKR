@@ -58,3 +58,33 @@ test.describe('applyPomodoroCompletion', () => {
     expect(r).toEqual({ completedPomodoros: 4, isCompleted: true, completedAt: FIXED });
   });
 });
+
+test.describe('computeFocusStreak', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('calculates streak using local dates and explicit sorting', async ({ page }) => {
+    const streak = await page.evaluate(async () => {
+      const mod = await import('/src/lib/pomodoro-storage.ts') as {
+        computeFocusStreak: (
+          history: Array<{ date: string; completedPomodoros: number }>,
+          now?: Date,
+        ) => { current: number; best: number };
+      };
+      const history = [
+        { date: '2026-05-24', completedPomodoros: 1 },
+        { date: '2026-05-23', completedPomodoros: 2 },
+        { date: '2026-05-22', completedPomodoros: 1 },
+      ];
+      return mod.computeFocusStreak(history, new Date('2026-05-24T10:00:00'));
+    });
+    expect(streak).toEqual({ current: 3, best: 3 });
+  });
+});
+

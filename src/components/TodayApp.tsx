@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Check, ClipboardList, Plus, ChevronRight } from 'lucide-react';
+
+const RING_RADIUS = 52;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 import {
   loadTasks,
   loadSettings,
@@ -88,7 +91,13 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   }, []);
 
   useEffect(() => {
-    compute().then(() => setIsLoading(false));
+    compute()
+      .catch(err => {
+        console.error('Failed to compute today list:', err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [compute]);
 
   useEffect(() => {
@@ -159,7 +168,7 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     }
   };
 
-  const handleToggleHabitToday = async (habitId: string) => {
+  const handleToggleHabitToday = (habitId: string) => {
     const todayStr = getLocalDateString();
     const updated = habits.map(h => {
       if (h.id === habitId) {
@@ -175,8 +184,13 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
       return h;
     });
     setHabits(updated);
-    await saveHabits(updated);
-    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    saveHabits(updated)
+      .then(() => {
+        window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+      })
+      .catch(err => {
+        console.error('Failed to save habits:', err);
+      });
   };
 
   const handleNavigateToReview = () => {
@@ -191,15 +205,75 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
     );
   };
 
+  const krMap = useMemo(() => new Map(keyResults.map(kr => [kr.id, kr])), [keyResults]);
+  const objMap = useMemo(() => new Map(objectives.map(o => [o.id, o])), [objectives]);
+
+  // Focus-day streak — the canonical definition shared with Analytics. A habit
+  // tick on a non-focus day must not inflate the streak. See computeFocusStreak.
+  const streakInfo = useMemo(() => computeFocusStreak(history), [history]);
+
+  // Generate 7-day history for streak card day-squares ending on today
+  const last7Days = useMemo(
+    () =>
+      Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dateStr = getLocalDateString(d);
+        const rec = history.find(r => r.date === dateStr);
+        const count = rec?.completedPomodoros ?? 0;
+        return { dateStr, count, isToday: i === 6 };
+      }),
+    [history]
+  );
+
+  // Active Cycle & Objectives progress calculation
+  const cycleObjectives = useMemo(
+    () => objectives.filter(o => !activeCycle || o.cycleId === activeCycle.id),
+    [objectives, activeCycle]
+  );
+
+  const objectiveProgresses = useMemo(
+    () =>
+      cycleObjectives.map(obj => {
+        const objKrs = keyResults.filter(kr => kr.objectiveId === obj.id);
+        if (objKrs.length === 0) return { objective: obj, progress: 0, isAtRisk: false };
+
+        const totalPct = objKrs.reduce((acc, kr) => {
+          const pct = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
+          return acc + Math.min(100, Math.round(pct));
+        }, 0);
+
+        const avgPct = Math.round(totalPct / objKrs.length);
+        const hasAtRiskKr = objKrs.some(
+          kr => kr.confidence === 'at_risk' || kr.confidence === 'off_track'
+        );
+
+        return { objective: obj, progress: avgPct, isAtRisk: hasAtRiskKr || avgPct === 0 };
+      }),
+    [cycleObjectives, keyResults]
+  );
+
+  const overallCycleProgress = useMemo(
+    () =>
+      objectiveProgresses.length > 0
+        ? Math.round(
+            objectiveProgresses.reduce((sum, item) => sum + item.progress, 0) /
+              objectiveProgresses.length
+          )
+        : 0,
+    [objectiveProgresses]
+  );
+
   if (isLoading || !settings) return <LoadingState className="today-container" />;
 
-  const krMap = new Map(keyResults.map(kr => [kr.id, kr]));
-  const objMap = new Map(objectives.map(o => [o.id, o]));
   const budget = getDailyPomodoroBudget(settings);
   const maxShare = getMaxTaskBudgetShare(budget);
 
   const nowTask = displayed.length > 0 ? displayed[0] : null;
   const upNextTasks = displayed.length > 1 ? displayed.slice(1) : [];
+
+  const nowKr = nowTask?.keyResultId ? krMap.get(nowTask.keyResultId) : undefined;
+  const nowObj = nowKr ? objMap.get(nowKr.objectiveId) : undefined;
 
   // Today's local date drives several same-day computations.
   const todayStr = getLocalDateString();
@@ -208,50 +282,6 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
   const sessionsLeft = Math.max(0, budget - completedToday);
 
   const habitsTickedTodayCount = habits.filter(h => h.ticks.includes(todayStr)).length;
-
-  // Focus-day streak — the canonical definition shared with Analytics. A habit
-  // tick on a non-focus day must not inflate the streak. See computeFocusStreak.
-  const streakInfo = computeFocusStreak(history);
-
-  // Generate 7-day history for streak card day-squares ending on today
-  const last7Days = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const dateStr = getLocalDateString(d);
-    const rec = history.find(r => r.date === dateStr);
-    const count = rec?.completedPomodoros ?? 0;
-    return { dateStr, count, isToday: i === 6 };
-  });
-
-  // Active Cycle & Objectives progress calculation
-  const cycleObjectives = objectives.filter(
-    o => !activeCycle || o.cycleId === activeCycle.id
-  );
-
-  const objectiveProgresses = cycleObjectives.map(obj => {
-    const objKrs = keyResults.filter(kr => kr.objectiveId === obj.id);
-    if (objKrs.length === 0) return { objective: obj, progress: 0, isAtRisk: false };
-
-    const totalPct = objKrs.reduce((acc, kr) => {
-      const pct = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
-      return acc + Math.min(100, Math.round(pct));
-    }, 0);
-
-    const avgPct = Math.round(totalPct / objKrs.length);
-    const hasAtRiskKr = objKrs.some(
-      kr => kr.confidence === 'at_risk' || kr.confidence === 'off_track'
-    );
-
-    return { objective: obj, progress: avgPct, isAtRisk: hasAtRiskKr || avgPct === 0 };
-  });
-
-  const overallCycleProgress =
-    objectiveProgresses.length > 0
-      ? Math.round(
-          objectiveProgresses.reduce((sum, item) => sum + item.progress, 0) /
-            objectiveProgresses.length
-        )
-      : 0;
 
   // Format date header string
   const now = new Date();
@@ -302,12 +332,8 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
             {nowTask && (
               <NowCard
                 task={nowTask}
-                kr={nowTask.keyResultId ? krMap.get(nowTask.keyResultId) : undefined}
-                objective={
-                  nowTask.keyResultId && krMap.get(nowTask.keyResultId)
-                    ? objMap.get(krMap.get(nowTask.keyResultId)!.objectiveId)
-                    : undefined
-                }
+                kr={nowKr}
+                objective={nowObj}
                 maxShare={maxShare}
                 onStart={() => handleStart(nowTask.id)}
                 onSkip={() => handleSkip(nowTask.id)}
@@ -320,17 +346,17 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
               <div className="today-pomo-ring-container">
                 <div className="today-pomo-ring-wrap">
                   <svg className="today-pomo-ring-svg" width="124" height="124" viewBox="0 0 124 124">
-                    <circle cx="62" cy="62" r="52" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="10" />
+                    <circle cx="62" cy="62" r={RING_RADIUS} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="10" />
                     <circle
                       cx="62"
                       cy="62"
-                      r="52"
+                      r={RING_RADIUS}
                       fill="none"
                       stroke="var(--color-primary)"
                       strokeWidth="10"
                       strokeLinecap="round"
-                      strokeDasharray="326.7"
-                      strokeDashoffset={326.7 * (1 - Math.min(1, completedToday / Math.max(1, budget)))}
+                      strokeDasharray={RING_CIRCUMFERENCE}
+                      strokeDashoffset={RING_CIRCUMFERENCE * (1 - Math.min(1, completedToday / Math.max(1, budget)))}
                       transform="rotate(-90 62 62)"
                     />
                   </svg>
