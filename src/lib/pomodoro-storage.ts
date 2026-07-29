@@ -61,6 +61,29 @@ export interface PomodoroTask {
   keyResultId?: string;
 }
 
+/**
+ * Apply one completed pomodoro session to a task. A pomodoro is the unit of
+ * work, so reaching the estimate finishes the task: `isCompleted` flips and
+ * `completedAt` is stamped. This keeps `isCompleted` in sync with pomodoro
+ * progress (a bare increment would let a 3/3 task stay "open" forever), so the
+ * Today backlog count — `!isCompleted && category !== 'delete'` — stays honest
+ * without a separate `remaining > 0` gate.
+ *
+ * `now` is passed in (not read from `new Date()`) so the timestamp is
+ * deterministic in tests. Already-complete tasks keep incrementing (over-
+ * delivery) without resetting their original completion time.
+ */
+export function applyPomodoroCompletion(task: PomodoroTask, now: string): PomodoroTask {
+  const newCompleted = task.completedPomodoros + 1;
+  const estimate = task.estimatedPomodoros || 1;
+  const justFinished = !task.isCompleted && newCompleted >= estimate;
+  return {
+    ...task,
+    completedPomodoros: newCompleted,
+    ...(justFinished ? { isCompleted: true, completedAt: now } : {}),
+  };
+}
+
 export interface SessionRecord {
   startedAt: string;
   endedAt: string;
@@ -276,6 +299,46 @@ export function getLocalDateString(d: Date = new Date()): string {
 
 export function todayKey(): string {
   return getLocalDateString();
+}
+
+// Focus-day streak over history (the canonical definition shared by Analytics
+// and Today). A "focus day" = a DailyRecord with completedPomodoros > 0;
+// focus-minutes alone do not count. `current` ends at `now`'s local date — a
+// day with no completed pomodoro breaks it. `now` is injectable for tests.
+export function computeFocusStreak(
+  history: DailyRecord[],
+  now: Date = new Date(),
+): { current: number; best: number } {
+  const focusDays = new Set(
+    history.filter(r => r.completedPomodoros > 0).map(r => r.date),
+  );
+
+  let current = 0;
+  const cur = new Date(now);
+  while (focusDays.has(getLocalDateString(cur))) {
+    current++;
+    cur.setDate(cur.getDate() - 1);
+  }
+
+  let best = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const d of [...focusDays].sort((a, b) => a.localeCompare(b))) {
+    if (prev) {
+      const [dy, dm, dd] = d.split('-').map(Number);
+      const [py, pm, pd] = prev.split('-').map(Number);
+      const diff = Math.round(
+        (new Date(dy, dm - 1, dd).getTime() - new Date(py, pm - 1, pd).getTime()) / 86_400_000,
+      );
+      run = diff === 1 ? run + 1 : 1;
+    } else {
+      run = 1;
+    }
+    best = Math.max(best, run);
+    prev = d;
+  }
+
+  return { current, best };
 }
 
 export function getTodayRecord(history: DailyRecord[]): DailyRecord {

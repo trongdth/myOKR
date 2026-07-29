@@ -6,7 +6,7 @@ import type { KeyResult, Confidence, OKRCycle } from './okr-storage';
 
 // ===== CONSTANTS =====
 
-export const DAILY_FOCUS_MINUTES = 240; // 4 focused hours — research-backed ceiling
+export const DAILY_FOCUS_MINUTES = 320; // 320 minutes — 8 pomodoros @ 40 min/session ceiling
 
 // Lower rank sorts first. Category is the primary key — a Do task can never
 // be outranked by a Decide task, regardless of other factors.
@@ -33,7 +33,7 @@ export function getDailyPomodoroBudget(settings: PomodoroSettings): number {
 }
 
 export function getMaxTaskBudgetShare(budget: number): number {
-  return Math.max(2, Math.floor(budget / 2));
+  return Math.max(5, Math.floor(budget / 2));
 }
 
 export function remainingPomodoros(task: PomodoroTask): number {
@@ -127,19 +127,34 @@ export function rankTasks(
   cycle: OKRCycle | null,
   settings: PomodoroSettings,
   excludeIds: string[] = [],
+  opts: { shuffleTies?: boolean } = {},
 ): ScoredTask[] {
   const krMap = new Map(keyResults.map(kr => [kr.id, kr]));
   const daysLeft = getDaysLeftInCycle(cycle);
   const budget = getDailyPomodoroBudget(settings);
   const excludeSet = new Set(excludeIds);
 
+  // Pre-assign a random tie-break key per task so shuffling is a real shuffle
+  // (a random sort comparator is inconsistent across engines). Only used when
+  // reshuffling tied tasks on Replan.
+  const tieKey = new Map<string, number>();
+
   return tasks
     .filter(t => !t.isCompleted && t.category !== 'delete' && !excludeSet.has(t.id))
     .map(t => {
       const kr = t.keyResultId ? krMap.get(t.keyResultId) : undefined;
+      if (opts.shuffleTies) tieKey.set(t.id, Math.random());
       return { ...t, _score: scoreTask(t, kr, daysLeft, budget) };
     })
-    .sort(compareScored);
+    .sort((a, b) => {
+      if (!opts.shuffleTies) return compareScored(a, b);
+      // Reshuffle within (category, urgency, confidence) bands; ignore the
+      // deterministic momentum/createdAt tiebreaks so genuine ties move.
+      if (a._score.categoryRank !== b._score.categoryRank) return a._score.categoryRank - b._score.categoryRank;
+      if (b._score.urgency !== a._score.urgency) return b._score.urgency - a._score.urgency;
+      if (b._score.confidenceRank !== a._score.confidenceRank) return b._score.confidenceRank - a._score.confidenceRank;
+      return (tieKey.get(a.id) ?? 0) - (tieKey.get(b.id) ?? 0);
+    });
 }
 
 // Fill the day in rank order. The top-ranked task is always included (its
@@ -219,9 +234,10 @@ export function buildTodayList(
   cycle: OKRCycle | null,
   settings: PomodoroSettings,
   plan: TodayPlan | null,
+  opts: { shuffleTies?: boolean } = {},
 ): { picked: ScoredTask[]; plan: TodayPlan } {
   const skippedIds = plan?.skippedIds ?? [];
-  const ranked = rankTasks(tasks, keyResults, cycle, settings, skippedIds);
+  const ranked = rankTasks(tasks, keyResults, cycle, settings, skippedIds, opts);
   const budget = getDailyPomodoroBudget(settings);
   const maxShare = getMaxTaskBudgetShare(budget);
 

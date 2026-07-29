@@ -21,6 +21,20 @@ async function selectTask(page: Page, name: string) {
   await page.locator(`.task-item:has-text("${name}")`).click();
 }
 
+// Bump a task's pomodoro estimate to 2 via the Adjust Total Pomodoros popover.
+// Under Option C a task auto-completes when its estimate is met; new tasks
+// default to estimate=1, so one session would finish them. Tests that need a
+// task to stay NOT-done after a single session bump it to 2 first (1/2).
+async function bumpEstimateToTwo(page: Page, name: string) {
+  const pomoBadge = page.locator(`.task-item:has-text("${name}") .task-pomodoros`);
+  await pomoBadge.click();
+  const popover = page.locator('.pomo-estimate-popover');
+  await expect(popover).toBeVisible();
+  await popover.locator('button.pomo-counter-btn:has-text("+")').click();
+  await popover.locator('button.pomo-popover-confirm').click();
+  await expect(popover).toHaveCount(0);
+}
+
 async function openSettings(page: Page) {
   await page.locator('button[title="Settings"]').click();
   await expect(page.locator('.settings-panel')).toBeVisible();
@@ -153,6 +167,9 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
     // Create two tasks
     await addTask(page, 'Task Alpha');
     await addTask(page, 'Task Beta');
+    // Alpha needs >1 pomodoro so it stays NOT-done after one session (Option C
+    // auto-completes a task when its estimate is met; default estimate is 1).
+    await bumpEstimateToTwo(page, 'Task Alpha');
 
     // Select Task Alpha and start focus
     await selectTask(page, 'Task Alpha');
@@ -212,6 +229,9 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
 
     await addTask(page, 'Task A');
     await addTask(page, 'Task B');
+    // Task A needs >1 pomodoro so it stays NOT-done after one session (Option C
+    // auto-completes when the estimate is met; default estimate is 1).
+    await bumpEstimateToTwo(page, 'Task A');
 
     await selectTask(page, 'Task A');
     await page.locator('button:has-text("Start")').click();

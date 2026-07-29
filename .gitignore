@@ -27,6 +27,12 @@ dist-ssr
 .omc/
 .claude
 .antigravitycli/
+.scratch/
+docs/adr/
+docs/agents/
+
+# Other
+CONTEXT.md
 
 # MCP
 .playwright-mcp/

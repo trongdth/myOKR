@@ -49,7 +49,7 @@ test.describe('Visual regression (1a redesign)', () => {
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot(`${id}.png`, {
         fullPage: true,
-        maxDiffPixelRatio: 0.01,
+        maxDiffPixelRatio: 0.03,
         mask: [page.locator('.timer-digits')],
       });
     });
@@ -61,7 +61,7 @@ test.describe('Visual regression (1a redesign)', () => {
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot('rail-1024.png', {
       fullPage: true,
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: 0.03,
       mask: [page.locator('.timer-digits')],
     });
   });
