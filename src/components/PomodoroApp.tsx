@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import '../styles/pomodoro.css';
 import {
@@ -227,6 +227,11 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading, sessionStartRef.current]);
 
   // ----- Derived values -----
+  const activeTask = useMemo(
+    () => (activeTaskId ? tasks.find(t => t.id === activeTaskId && !t.isCompleted) ?? null : null),
+    [activeTaskId, tasks]
+  );
+
   const totalSeconds = sessionType === 'focus'
     ? settings.focusDuration * 60
     : sessionType === 'shortBreak'
@@ -270,15 +275,18 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       // Update active task in Automerge doc in-place so newly created tasks are not wiped.
       if (activeTaskId) {
-        completePomodoroForTask(activeTaskId, now)
+        const completedTaskId = activeTaskId;
+        completePomodoroForTask(completedTaskId, now)
           .then(updatedTasks => {
             setTasks(updatedTasks);
-            const activeTask = updatedTasks.find(t => t.id === activeTaskId);
-            if (activeTask?.isCompleted) {
-              setActiveTaskId(null);
+            const completedTask = updatedTasks.find(t => t.id === completedTaskId);
+            if (completedTask?.isCompleted) {
+              setActiveTaskId(prev => (prev === completedTaskId ? null : prev));
             }
           })
-          .catch(console.error);
+          .catch(err => {
+            console.error('Failed to complete pomodoro for task:', err);
+          });
       }
 
       sendNotification('Pomodoro Complete!', 'Great work! Time for a break.');
@@ -313,7 +321,6 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       if (settings.autoStartFocus) {
         const prevId = lastFocusTaskId.current;
         const prevTask = prevId ? tasks.find(t => t.id === prevId) : null;
-        const currentActiveTask = activeTaskId ? tasks.find(t => t.id === activeTaskId && !t.isCompleted) : null;
 
         if (activeTaskId && prevId && activeTaskId !== prevId && prevTask && !prevTask.isCompleted) {
           pendingAutoStart.current = () => {
@@ -321,7 +328,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
             setIsRunning(true);
           };
           setIsConfirmTaskChangedOpen(true);
-        } else if (!currentActiveTask) {
+        } else if (!activeTask) {
           setIsConfirmNoTaskOpen(true);
         } else {
           if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
@@ -462,7 +469,6 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // ----- Controls -----
   const toggleTimer = () => {
-    const activeTask = activeTaskId ? tasks.find(t => t.id === activeTaskId && !t.isCompleted) : null;
     if (!isRunning && sessionType === 'focus' && !activeTask) {
       setIsConfirmNoTaskOpen(true);
       return;
@@ -688,12 +694,9 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
           {/* Active task indicator (fixed height to prevent layout shift) */}
           <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', minHeight: '1.5em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {(() => {
-              const activeTask = activeTaskId ? tasks.find(t => t.id === activeTaskId && !t.isCompleted) : null;
-              return activeTask ? (
-                <span>Working on: <strong style={{ color: 'var(--accent-cyan)' }}>{activeTask.title}</strong></span>
-              ) : null;
-            })()}
+            {activeTask ? (
+              <span>Working on: <strong style={{ color: 'var(--accent-cyan)' }}>{activeTask.title}</strong></span>
+            ) : null}
           </div>
 
           {/* Settings panel */}

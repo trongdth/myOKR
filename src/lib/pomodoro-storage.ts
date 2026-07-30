@@ -92,7 +92,9 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
 export async function completePomodoroForTask(taskId: string, now: string): Promise<PomodoroTask[]> {
   let updatedTasks: PomodoroTask[] = [];
   await updateAutomergeDoc('Complete pomodoro for task', (d) => {
-    if (!Array.isArray(d.tasks)) return;
+    if (!Array.isArray(d.tasks)) {
+      d.tasks = [];
+    }
     const idx = d.tasks.findIndex(t => t && t.id === taskId);
     if (idx !== -1) {
       const normalized = normalizeTask(d.tasks[idx]);
@@ -102,7 +104,7 @@ export async function completePomodoroForTask(taskId: string, now: string): Prom
     }
     updatedTasks = d.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null);
   });
-  return JSON.parse(JSON.stringify(updatedTasks));
+  return updatedTasks;
 }
 
 export interface SessionRecord {
