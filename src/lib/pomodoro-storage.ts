@@ -84,6 +84,27 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
   };
 }
 
+/**
+ * Safely complete a pomodoro for a single active task in the Automerge document.
+ * Modifies the task element in-place inside currentDoc.tasks rather than
+ * overwriting d.tasks with a potentially stale React state array.
+ */
+export async function completePomodoroForTask(taskId: string, now: string): Promise<PomodoroTask[]> {
+  let updatedTasks: PomodoroTask[] = [];
+  await updateAutomergeDoc('Complete pomodoro for task', (d) => {
+    if (!Array.isArray(d.tasks)) return;
+    const idx = d.tasks.findIndex(t => t && t.id === taskId);
+    if (idx !== -1) {
+      const normalized = normalizeTask(d.tasks[idx]);
+      if (normalized) {
+        d.tasks[idx] = sanitizeForAutomerge(applyPomodoroCompletion(normalized, now));
+      }
+    }
+    updatedTasks = d.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null);
+  });
+  return JSON.parse(JSON.stringify(updatedTasks));
+}
+
 export interface SessionRecord {
   startedAt: string;
   endedAt: string;

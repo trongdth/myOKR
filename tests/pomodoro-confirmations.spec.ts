@@ -126,6 +126,20 @@ test.describe('Pomodoro: No task selected warning', () => {
     await expect(page.locator('button:has-text("Start")')).toBeVisible();
   });
 
+  test('shows warning when starting focus if active task was completed', async ({ page }) => {
+    await addTask(page, 'Task to complete');
+    await selectTask(page, 'Task to complete');
+
+    // Complete the task manually
+    await page.locator('.task-item:has-text("Task to complete") .task-checkbox').click();
+
+    // Click Start — warning modal should appear because the active task is completed
+    await page.locator('button:has-text("Start")').click();
+
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await expect(page.locator('.confirm-modal .prioritize-title')).toHaveText(/No Task Selected/);
+  });
+
   test('does NOT show warning when starting break session', async ({ page }) => {
     // Switch to Short Break
     await page.locator('button.session-tab:has-text("Short Break")').click();
@@ -221,6 +235,29 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
     // No confirmation — timer should auto-start without modal
     await expect(page.locator('.confirm-modal')).toHaveCount(0, { timeout: 5000 });
     await expect(page.locator('button:has-text("Pause")')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('shows No Task Selected warning when break finishes after active task auto-completed', async ({ page }) => {
+    await setDurations(page, 1, 1);
+    await enableAutoStart(page);
+
+    // Create task with estimate 1 (default) so focus session completion auto-completes it
+    await addTask(page, 'Single Pomo Task');
+    await selectTask(page, 'Single Pomo Task');
+
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Wait for focus to complete and auto-transition to break
+    await waitForSessionTab(page, 'Short Break');
+
+    // Wait for break to complete and auto-transition to focus
+    await waitForSessionTab(page, 'Focus');
+
+    // Since the single pomo task was auto-completed, no active uncompleted task exists.
+    // "No Task Selected" warning modal should appear instead of starting focus with no task.
+    await expect(page.locator('.confirm-modal')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.confirm-modal .prioritize-title')).toHaveText(/No Task Selected/);
   });
 
   test('cancel on task changed confirmation stops auto-start', async ({ page }) => {

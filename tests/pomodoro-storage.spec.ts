@@ -88,3 +88,43 @@ test.describe('computeFocusStreak', () => {
   });
 });
 
+test.describe('completePomodoroForTask', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('preserves newly added tasks when completing a pomodoro for an active task', async ({ page }) => {
+    const result = await page.evaluate(async ({ now }) => {
+      const pomoStorage = await import('/src/lib/pomodoro-storage.ts');
+      
+      // Seed initial active task
+      await pomoStorage.saveTasks([
+        { id: 'task-active', title: 'Active Task', estimatedPomodoros: 2, completedPomodoros: 0, isCompleted: false, createdAt: now },
+      ]);
+
+      // Concurrently add a new task (simulating task added while timer was running)
+      const currentTasks = await pomoStorage.loadTasks();
+      await pomoStorage.saveTasks([
+        ...currentTasks,
+        { id: 'task-new', title: 'Newly Added Task', estimatedPomodoros: 1, completedPomodoros: 0, isCompleted: false, createdAt: now },
+      ]);
+
+      // Complete a pomodoro session for task-active
+      const updated = await pomoStorage.completePomodoroForTask('task-active', now);
+
+      // Verify Automerge persistence contains BOTH tasks
+      const loaded = await pomoStorage.loadTasks();
+      return { updated, loaded };
+    }, { now: FIXED });
+
+    expect(result.loaded).toHaveLength(2);
+    expect(result.loaded.find(t => t.id === 'task-active')?.completedPomodoros).toBe(1);
+    expect(result.loaded.find(t => t.id === 'task-new')?.title).toBe('Newly Added Task');
+  });
+});
+
