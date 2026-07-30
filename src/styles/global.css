@@ -48,6 +48,7 @@
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 300ms ease;
+  --transition-all-fast: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);

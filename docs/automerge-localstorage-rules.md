@@ -113,6 +113,10 @@ The Tauri `window-close-requested` handler calls `flushAutomergeQueue(5000)`
 before hiding the window. Anything that changes shutdown behavior must keep a
 bounded-time flush — no unbounded awaits, no skipping the flush.
 
+### 11. In-place element updates over root-array overwrites
+
+When mutating a single item (e.g. completing a pomodoro on an active task, toggling a todo), modify the target item in-place inside `updateAutomergeDoc` (e.g. `d.tasks[idx] = ...`) rather than overwriting `d.tasks` with a snapshot from React component state (`d.tasks = reactState`). Incident: `handleSessionComplete` closed over a stale `tasks` state array and called `saveTasks(updatedTasks)`, which executed `d.tasks = ...` and wiped out all tasks created while the timer was running.
+
 ## Testing rules
 
 - Browser tests run against mocks wired in `vite.screenshots.config.ts`:
@@ -126,7 +130,7 @@ bounded-time flush — no unbounded awaits, no skipping the flush.
 - A bug fix in this layer needs a regression test proven **red on the old
   code, green on the new** (stash the fix, run, restore). Existing coverage:
   `tests/data-corruption.spec.ts` (rules 4–5), `tests/automerge-queue.spec.ts`
-  (rules 1–2, 10), `tests/migration.spec.ts`, `tests/walkthrough.spec.ts`
+  (rules 1–2, 10), `tests/pomodoro-storage.spec.ts` (rule 11), `tests/migration.spec.ts`, `tests/walkthrough.spec.ts`
   (rule 3).
 - Playwright specs run in Node, so they can `import * as Automerge from
 '@automerge/automerge'` directly to build fixture binaries and decode what

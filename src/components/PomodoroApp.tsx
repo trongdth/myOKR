@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import '../styles/pomodoro.css';
 import {
   loadSettings, saveSettings, loadTasks, saveTasks, loadHistory, saveHistory,
   loadTimerState, saveTimerState, clearTimerState,
   getTodayRecord, upsertTodayRecord, playCompletionSound, sendNotification,
-  requestNotificationPermission, DEFAULT_SETTINGS, applyPomodoroCompletion,
+  requestNotificationPermission, DEFAULT_SETTINGS,
+  completePomodoroForTask,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../lib/pomodoro-storage';
 import { startFocusMusic, stopFocusMusic } from '../lib/focus-music';
@@ -226,6 +227,11 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
   }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading, sessionStartRef.current]);
 
   // ----- Derived values -----
+  const activeTask = useMemo(
+    () => (activeTaskId ? tasks.find(t => t.id === activeTaskId && !t.isCompleted) ?? null : null),
+    [activeTaskId, tasks]
+  );
+
   const totalSeconds = sessionType === 'focus'
     ? settings.focusDuration * 60
     : sessionType === 'shortBreak'
@@ -267,15 +273,20 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
       lastFocusTaskId.current = activeTaskId;
 
-      // Update active task (Synchronous state update). applyPomodoroCompletion
-      // flips isCompleted when the estimate is reached — a pomodoro is the unit
-      // of work, so the last one finishes the task.
+      // Update active task in Automerge doc in-place so newly created tasks are not wiped.
       if (activeTaskId) {
-        const updatedTasks = tasks.map(t =>
-          t.id === activeTaskId ? applyPomodoroCompletion(t, now) : t
-        );
-        setTasks(updatedTasks);
-        saveTasks(updatedTasks).catch(console.error); // Fire and forget persistence
+        const completedTaskId = activeTaskId;
+        completePomodoroForTask(completedTaskId, now)
+          .then(updatedTasks => {
+            setTasks(updatedTasks);
+            const completedTask = updatedTasks.find(t => t.id === completedTaskId);
+            if (completedTask?.isCompleted) {
+              setActiveTaskId(prev => (prev === completedTaskId ? null : prev));
+            }
+          })
+          .catch(err => {
+            console.error('Failed to complete pomodoro for task:', err);
+          });
       }
 
       sendNotification('Pomodoro Complete!', 'Great work! Time for a break.');
@@ -310,13 +321,14 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       if (settings.autoStartFocus) {
         const prevId = lastFocusTaskId.current;
         const prevTask = prevId ? tasks.find(t => t.id === prevId) : null;
+
         if (activeTaskId && prevId && activeTaskId !== prevId && prevTask && !prevTask.isCompleted) {
           pendingAutoStart.current = () => {
             if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
             setIsRunning(true);
           };
           setIsConfirmTaskChangedOpen(true);
-        } else if (!activeTaskId) {
+        } else if (!activeTask) {
           setIsConfirmNoTaskOpen(true);
         } else {
           if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
@@ -457,7 +469,7 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
   // ----- Controls -----
   const toggleTimer = () => {
-    if (!isRunning && sessionType === 'focus' && !activeTaskId) {
+    if (!isRunning && sessionType === 'focus' && !activeTask) {
       setIsConfirmNoTaskOpen(true);
       return;
     }
@@ -682,8 +694,8 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
 
           {/* Active task indicator (fixed height to prevent layout shift) */}
           <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', minHeight: '1.5em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {activeTaskId ? (
-              <span>Working on: <strong style={{ color: 'var(--accent-cyan)' }}>{tasks.find(t => t.id === activeTaskId)?.title}</strong></span>
+            {activeTask ? (
+              <span>Working on: <strong style={{ color: 'var(--accent-cyan)' }}>{activeTask.title}</strong></span>
             ) : null}
           </div>
 
