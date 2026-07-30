@@ -118,7 +118,7 @@
   border-radius: 50%;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
+  transition: var(--transition-all-fast);
 }
 
 .review-step-dot.completed {

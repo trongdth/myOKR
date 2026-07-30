@@ -342,9 +342,10 @@ async function appendIncremental(
   const inc = timed('saveIncremental', () => Automerge.saveIncremental(doc));
   if (inc.length === 0) return null;
   const base = persistedBuffer ?? new Uint8Array();
-  persistedBuffer = concatBytes(base, inc);
+  const next = concatBytes(base, inc);
   try {
-    await writeFile(AUTOMERGE_FILE, persistedBuffer, { baseDir: BaseDirectory.AppData });
+    await writeFile(AUTOMERGE_FILE, next, { baseDir: BaseDirectory.AppData });
+    persistedBuffer = next;
   } catch (e) {
     console.error('Failed to append Automerge changes to file:', e);
   }
@@ -437,8 +438,11 @@ export async function getAutomergeBinary(): Promise<Uint8Array> {
   // incrementals) and always mirrors currentDoc — return it directly instead
   // of re-running an O(doc) save().
   if (persistedBuffer) return persistedBuffer;
+  if (!currentDoc) {
+    throw new Error('currentDoc is null despite persistedBuffer being set');
+  }
   const Automerge = await getAutomerge();
-  return Automerge.save(currentDoc!);
+  return Automerge.save(currentDoc);
 }
 
 export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Array> {
@@ -453,7 +457,7 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
         if (!remoteBinary || remoteBinary.length === 0) {
           throw new Error('Remote binary is empty');
         }
-        let remoteDoc;
+        let remoteDoc: AutomergeType.Doc<AppState>;
         try {
           remoteDoc = timed('load(remote)', () => Automerge.load<AppState>(remoteBinary));
         } catch (loadErr) {

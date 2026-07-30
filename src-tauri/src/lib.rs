@@ -71,6 +71,8 @@ fn hide_window(window: tauri::Window) {
 #[tauri::command]
 fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, session_type: String) {
     let now = get_current_time_secs();
+    let is_focus = session_type == "focus";
+    let display_label = if is_focus { "Focus" } else { "Break" };
 
     // Bump the generation so any currently-running background loop notices the
     // change and exits instead of resuming (or completing) alongside this one.
@@ -96,13 +98,13 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
 
             // Re-check that we are still the active loop: is_running may have been
             // cleared by pause/reset, or a newer start may have bumped the generation.
-            let (end_time, session_label) = {
+            let end_time = {
                 let current_gen = *state_clone.generation.lock().unwrap();
                 let data = state_clone.data.lock().unwrap();
                 if !data.is_running || current_gen != my_generation {
                     break;
                 }
-                (data.end_timestamp_secs, data.session_type.clone())
+                data.end_timestamp_secs
             };
 
             let now = get_current_time_secs();
@@ -125,8 +127,8 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
                     let _ = tray.set_tooltip(Some("myOKR — Pomodoro Timer"));
                 }
 
-                let title = if session_label == "focus" { "🍅 Pomodoro Complete!" } else { "☕ Break Complete!" };
-                let body = if session_label == "focus" { "Great work! Time for a break." } else { "Time to focus!" };
+                let title = if is_focus { "🍅 Pomodoro Complete!" } else { "☕ Break Complete!" };
+                let body = if is_focus { "Great work! Time for a break." } else { "Time to focus!" };
 
                 // Trigger notification safely (WITHOUT holding locks, catching errors)
                 let _ = app_clone.notification()
@@ -141,7 +143,6 @@ fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, ses
                 let remaining = (end_time - now) as u32;
 
                 let timer_text = format!("{:02}:{:02}", remaining / 60, remaining % 60);
-                let display_label = if session_label == "focus" { "Focus" } else { "Break" };
 
                 // Update tray directly
                 if let Some(tray) = app_clone.tray_by_id("main-tray") {
