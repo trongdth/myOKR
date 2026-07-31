@@ -8,7 +8,7 @@ import TodayApp from './components/TodayApp';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 import { flushAutomergeQueue } from './lib/automerge-storage';
-import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown, HelpCircle } from 'lucide-react';
+import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown, HelpCircle, Clock } from 'lucide-react';
 import { LogoMark } from './components/shared/LogoMark';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
@@ -70,7 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'focus',
     label: 'Focus',
-    icon: <Target size={18} />,
+    icon: <Clock size={18} />,
     defaultTab: 'day-plan',
     items: [
       { id: 'day-plan', label: 'Day plan' },
