@@ -302,8 +302,19 @@ export default function PomodoroApp({
       // Auto-transition to break
       const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
       const nextType: SessionType = isLongBreak ? 'longBreak' : 'shortBreak';
+      const nextTimeLeft = (isLongBreak ? settings.longBreakDuration : settings.shortBreakDuration) * 60;
       setSessionType(nextType);
-      setTimeLeft(isLongBreak ? settings.longBreakDuration * 60 : settings.shortBreakDuration * 60);
+      setTimeLeft(nextTimeLeft);
+      saveTimerState({
+        sessionType: nextType,
+        timeLeft: nextTimeLeft,
+        isRunning: settings.autoStartBreaks,
+        lastUpdated: new Date().toISOString(),
+        activeTaskId,
+        completedPomos: newCompleted,
+        sessionStartedAt: null,
+      });
+
       if (settings.autoStartBreaks) {
         if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
         autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
@@ -325,7 +336,18 @@ export default function PomodoroApp({
 
       // Auto-transition to focus
       setSessionType('focus');
-      setTimeLeft(settings.focusDuration * 60);
+      const nextTimeLeft = settings.focusDuration * 60;
+      setTimeLeft(nextTimeLeft);
+      saveTimerState({
+        sessionType: 'focus',
+        timeLeft: nextTimeLeft,
+        isRunning: false,
+        lastUpdated: new Date().toISOString(),
+        activeTaskId,
+        completedPomos,
+        sessionStartedAt: null,
+      });
+
       if (settings.autoStartFocus) {
         const prevId = lastFocusTaskId.current;
         const prevTask = prevId ? tasks.find(t => t.id === prevId) : null;
