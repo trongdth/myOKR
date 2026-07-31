@@ -65,10 +65,9 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await objInput.fill('Habit E2E Objective');
     await page.locator('button:has-text("+ Add Objective")').click();
 
-    // Find and expand the objective card
+    // Find the objective card (expanded by default)
     const objHeader = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader).toBeVisible();
-    await objHeader.click();
 
     // Create a Habit KR
     const krInput = page.locator('.kr-add-row >> input');
@@ -97,10 +96,8 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     // 4. Go back to OKRs and check progress
     await navTo(page, 'Objectives');
     
-    // Expand the objective again to make the KR row visible
     const objHeader2 = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader2).toBeVisible();
-    await objHeader2.click();
 
     const krRow = page.locator('.kr-row:has-text("E2E Ticking KR")');
     await expect(krRow).toBeVisible();
@@ -163,10 +160,8 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await objInput.fill('Habit Link Navigation Objective');
     await page.locator('button:has-text("+ Add Objective")').click();
 
-    // Find and expand the objective card
     const objHeader = page.locator('.objective-header:has-text("Habit Link Navigation Objective")');
     await expect(objHeader).toBeVisible();
-    await objHeader.click();
 
     // Create a Habit KR
     const krInput = page.locator('.kr-add-row >> input');

@@ -80,9 +80,8 @@ test.describe('Desktop: OKR Workflow', () => {
   });
 
   test('create KR for objective', async ({ page }) => {
-    // Wait for objectives to render, then expand first one
+    // Objectives are expanded by default
     await expect(page.locator('.objective-card').first()).toBeVisible({ timeout: 10000 });
-    await page.locator('.objective-header').first().click();
     await expect(page.locator('.objective-body').first()).toBeVisible();
 
     // Add KR
@@ -98,7 +97,7 @@ test.describe('Desktop: Task Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
     await navDesktop(page, 'Tasks');
-    await expect(page.locator('.task-section')).toBeVisible();
+    await expect(page.locator('.tasks-view-container')).toBeVisible();
   });
 
   test('create task linked to KR', async ({ page }) => {
@@ -106,15 +105,15 @@ test.describe('Desktop: Task Workflow', () => {
     await input.fill('Test Task E2E');
 
     // Wait for KR dropdown to populate (async keyResults load)
-    const krSelect = page.locator('select.task-kr-select');
+    const krSelect = page.locator('select.kr-select');
     await expect(krSelect).toBeVisible({ timeout: 10000 });
     await krSelect.selectOption({ index: 1 });
 
-    await page.locator('button.add-task-btn').click();
+    await page.locator('button.quick-add-btn').click();
     await expect(page.locator('text=Test Task E2E')).toBeVisible();
 
     // Verify KR badge is shown on the task
-    await expect(page.locator('.task-kr-badge').first()).toBeVisible();
+    await expect(page.locator('.card-kr').first()).toBeVisible();
 
     // Navigate away and back to verify persistence (reload from store)
     await navDesktop(page, 'OKRs');
@@ -243,11 +242,11 @@ test.describe('Mobile: Core Workflows', () => {
 
   test('navigate and create task', async ({ page }) => {
     await navMobile(page, 'Tasks');
-    await expect(page.locator('.task-section')).toBeVisible();
+    await expect(page.locator('.tasks-view-container')).toBeVisible();
 
     const input = page.locator('input[placeholder*="What are you working on?"]');
     await input.fill('Mobile Task');
-    await page.locator('button.add-task-btn').click();
+    await page.locator('button.quick-add-btn').click();
     await expect(page.locator('text=Mobile Task')).toBeVisible();
   });
 
