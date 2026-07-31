@@ -37,12 +37,10 @@ export default function PomodoroApp({
   tab,
   requestedTaskId,
   onRequestedTaskConsumed,
-  hideCompleted,
 }: {
   tab: 'timer' | 'tasks' | 'analytics' | 'done';
   requestedTaskId?: string | null;
   onRequestedTaskConsumed?: () => void;
-  hideCompleted?: boolean;
 }) {
   // ----- State -----
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
@@ -784,7 +782,7 @@ export default function PomodoroApp({
       {/* Tasks Tab */}
       {tab === 'tasks' && (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted={hideCompleted ?? true} />
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted />
         </div>
       )}
 

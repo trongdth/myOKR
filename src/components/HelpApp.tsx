@@ -103,7 +103,7 @@ export default function HelpApp() {
               <strong>App:</strong> myOKR (Desktop & Mobile)
             </p>
             <p>
-              <strong>Version:</strong> v0.3.0
+              <strong>Version:</strong> v{__APP_VERSION__}
             </p>
             <p>
               <strong>Author:</strong> Trong Dinh

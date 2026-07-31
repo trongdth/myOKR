@@ -334,7 +334,7 @@ export default function App() {
             <span className="sidebar-nav-label">Help & tour</span>
           </button>
 
-          <div className="sidebar-version-tag">v0.3.0</div>
+          <div className="sidebar-version-tag">v{__APP_VERSION__}</div>
         </div>
       </aside>
 
