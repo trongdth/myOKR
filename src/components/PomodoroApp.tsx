@@ -171,6 +171,12 @@ export default function PomodoroApp({
     }
   }, [tab]);
 
+  // Keep sessionTypeRef in sync so background sync callbacks don't capture stale state
+  const sessionTypeRef = useRef(sessionType);
+  useEffect(() => {
+    sessionTypeRef.current = sessionType;
+  }, [sessionType]);
+
   // Listen to background sync and reload data dynamically
   useEffect(() => {
     async function refreshData() {
@@ -178,19 +184,15 @@ export default function PomodoroApp({
       setSettings(prev => (jsonEqual(prev, s) ? prev : s));
       
       if (!isRunning) {
-        const saved = await loadTimerState();
-        if (!saved) {
-          setTimeLeft(s.focusDuration * 60);
-        } else if (!saved.isRunning) {
-          const dur = saved.sessionType === 'focus' ? s.focusDuration
-            : saved.sessionType === 'shortBreak' ? s.shortBreakDuration
-            : s.longBreakDuration;
-          const oldDur = saved.sessionType === 'focus' ? settings.focusDuration
-            : saved.sessionType === 'shortBreak' ? settings.shortBreakDuration
-            : settings.longBreakDuration;
-          if (saved.timeLeft === oldDur * 60) {
-            setTimeLeft(dur * 60);
-          }
+        const curType = sessionTypeRef.current;
+        const dur = curType === 'focus' ? s.focusDuration
+          : curType === 'shortBreak' ? s.shortBreakDuration
+          : s.longBreakDuration;
+        const oldDur = curType === 'focus' ? settings.focusDuration
+          : curType === 'shortBreak' ? settings.shortBreakDuration
+          : settings.longBreakDuration;
+        if (timeLeftRef.current === oldDur * 60) {
+          setTimeLeft(dur * 60);
         }
       }
 

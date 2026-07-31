@@ -529,3 +529,49 @@ test.describe('Pomodoro: Switch task while running', () => {
     await expect(pomoBadgeReloaded.locator('.task-pomo-count')).toHaveText('0/2');
   });
 });
+
+test.describe('Pomodoro: Long Break session completion', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    await speedUpTimers(page);
+  });
+
+  test('transitions to Focus session after Long Break when completing active task and selecting another during long break', async ({ page }) => {
+    await enableAutoStart(page);
+
+    // Open settings and set Focus=1, Short Break=1, Long Break=1, Pomos before long break=1
+    await openSettings(page);
+    const inputs = page.locator('.settings-grid input[type="number"]');
+    await inputs.nth(0).fill('1');
+    await inputs.nth(1).fill('1');
+    await inputs.nth(2).fill('1');
+    await inputs.nth(3).fill('1');
+    await page.locator('.timer-controls button[title="Settings"]').click();
+
+    await addTask(page, 'Task One');
+    await addTask(page, 'Task Two');
+    await bumpEstimateToTwo(page, 'Task One');
+
+    // Select Task One and start focus
+    await selectTask(page, 'Task One');
+    await page.locator('button:has-text("Start")').click();
+
+    // Since pomosBeforeLongBreak = 1, Focus 1 completes -> auto-transitions to Long Break and auto-starts
+    await waitForSessionTab(page, 'Long Break');
+
+    // In Long Break session:
+    // 1. Complete Task One manually via checkbox
+    const taskOneCheckbox = page.locator('.task-item:has-text("Task One") .task-checkbox');
+    await taskOneCheckbox.click();
+
+    // 2. Select Task Two
+    await selectTask(page, 'Task Two');
+    await expect(page.locator('text=Working on:')).toContainText('Task Two');
+
+    // 3. Wait for Long Break to complete
+    // When Long Break finishes, it MUST transition to Focus session tab
+    await waitForSessionTab(page, 'Focus');
+  });
+});
+
+
