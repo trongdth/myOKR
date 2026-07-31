@@ -7,11 +7,11 @@ async function waitForApp(page: Page) {
   await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
   // Navigate to Timer since Today is now the default landing tab
-  await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+  await page.locator('button[title="Session"]').first().click();
 }
 
 async function openSettings(page: Page) {
-  await page.locator('button[title="Settings"]').click();
+  await page.locator('.timer-controls button[title="Settings"]').click();
   await expect(page.locator('.settings-panel')).toBeVisible();
 }
 
@@ -61,7 +61,7 @@ test.describe('Pomodoro: Focus music setting', () => {
 
     await openSettings(page);
     await page.locator('.toggle-row:has-text("Focus music") .toggle-switch').click();
-    await page.locator('button[title="Settings"]').click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
 
     // Start the focus session — this triggers startFocusMusic() with a live AudioContext.
     await page.locator('button:has-text("Start")').click();

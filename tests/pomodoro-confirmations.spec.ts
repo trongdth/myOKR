@@ -7,7 +7,7 @@ async function waitForApp(page: Page) {
   await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
   // Navigate to Timer since Today is now the default landing tab
-  await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+  await page.locator('button[title="Session"]').first().click();
 }
 
 async function addTask(page: Page, name: string) {
@@ -36,7 +36,7 @@ async function bumpEstimateToTwo(page: Page, name: string) {
 }
 
 async function openSettings(page: Page) {
-  await page.locator('button[title="Settings"]').click();
+  await page.locator('.timer-controls button[title="Settings"]').click();
   await expect(page.locator('.settings-panel')).toBeVisible();
 }
 
@@ -50,7 +50,7 @@ async function enableAutoStart(page: Page) {
   if (await focusToggle.evaluate(el => !el.classList.contains('on'))) {
     await focusToggle.click();
   }
-  await page.locator('button[title="Settings"]').click();
+  await page.locator('.timer-controls button[title="Settings"]').click();
 }
 
 async function setDurations(page: Page, focus: number, shortBreak: number) {
@@ -58,7 +58,7 @@ async function setDurations(page: Page, focus: number, shortBreak: number) {
   const inputs = page.locator('.settings-grid input[type="number"]');
   await inputs.nth(0).fill(String(focus));
   await inputs.nth(1).fill(String(shortBreak));
-  await page.locator('button[title="Settings"]').click();
+  await page.locator('.timer-controls button[title="Settings"]').click();
 }
 
 // Wait for session tab to become active — detects session transitions
@@ -381,11 +381,11 @@ test.describe('Pomodoro: Switch task while running', () => {
 
   test('restores running state on startup and remains paused at correct remaining time when clicking Pause', async ({ page }) => {
     // Open settings and set Focus duration to 40 mins
-    await page.locator('button[title="Settings"]').click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
     const focusInput = page.locator('.settings-grid input[type="number"]').first();
     await focusInput.fill('40');
     // Close settings
-    await page.locator('button[title="Settings"]').click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
     await expect(page.locator('.timer-digits')).toHaveText('40:00');
 
     // Save running state at 20 mins to localStorage
@@ -407,7 +407,7 @@ test.describe('Pomodoro: Switch task while running', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0);
     // Navigate to Timer tab
-    await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+    await page.locator('button[title="Session"]').first().click();
 
     // Verify timer is restored to 20:00 (or slightly less, e.g. 19:59 due to reload time)
     const digitsBeforePause = await page.locator('.timer-digits').textContent();
@@ -426,10 +426,10 @@ test.describe('Pomodoro: Switch task while running', () => {
 
   test('does not reset paused timer progress to settings duration on data sync', async ({ page }) => {
     // Open settings and set Focus duration to 40 mins
-    await page.locator('button[title="Settings"]').click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
     const focusInput = page.locator('.settings-grid input[type="number"]').first();
     await focusInput.fill('40');
-    await page.locator('button[title="Settings"]').click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
     await expect(page.locator('.timer-digits')).toHaveText('40:00');
 
     // Save running state at 20 mins to localStorage
@@ -451,7 +451,7 @@ test.describe('Pomodoro: Switch task while running', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0);
     // Navigate to Timer tab
-    await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+    await page.locator('button[title="Session"]').first().click();
 
     // Verify timer is restored to 20:00
     const digitsBeforePause = await page.locator('.timer-digits').textContent();
@@ -522,7 +522,7 @@ test.describe('Pomodoro: Switch task while running', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
-    await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+    await page.locator('button[title="Session"]').first().click();
 
     // Verify it persisted
     const pomoBadgeReloaded = page.locator('.task-item:has-text("Test Pomo Persist") .task-pomodoros');

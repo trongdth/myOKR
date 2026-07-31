@@ -14,8 +14,9 @@ test.describe('Objective Rewards system', () => {
   test('allows creating, editing, and unlocking objective rewards', async ({ page }) => {
     await waitForApp(page);
 
-    // Go to OKRs tab
-    await page.locator('nav >> text=OKRs').click();
+    // Go to Objectives tab
+    await page.locator('button[title="Plan"]').click();
+    await page.locator('button[title="Objectives"]').click();
     await expect(page.locator('.okr-header-title')).toBeVisible();
 
     // Seed mock cycle, objective, and KR

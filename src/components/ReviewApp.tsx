@@ -320,7 +320,7 @@ export default function ReviewApp() {
     return (
       <div className="review-container">
         <div className="review-header">
-          <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
+          <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly review</h2>
         </div>
         <div className="review-start-card">
           <div className="review-start-card-icon"><Target size={24} /></div>

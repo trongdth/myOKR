@@ -147,9 +147,20 @@ test.describe('Habits Tab Layout and Title Styles', () => {
   test('verifies horizontal container padding is applied on all screens below 932px viewport width', async ({ page }) => {
     // At 800px the sidebar is a slide-in drawer, so open it before each nav click.
     const clickNav = async (label: string) => {
+      const target = label === 'OKRs' ? 'Objectives' : label === 'Review' ? 'Weekly review' : label === 'Timer' ? 'Session' : label === 'Cloud Sync' ? 'Settings' : label === 'Today' ? 'Day plan' : label;
       const hamburger = page.locator('.hamburger-btn');
       if (await hamburger.isVisible()) await hamburger.click();
-      await page.locator(`nav >> text=${label}`).first().click();
+      const itemBtn = page.locator(`button[title="${target}"], button.sidebar-nav-item:has-text("${target}")`).first();
+      if (!await itemBtn.isVisible()) {
+        if (['Tasks', 'Objectives', 'Done'].includes(target)) {
+          await page.locator('button[title="Plan"]').first().click();
+        } else if (['Analytics', 'Weekly review'].includes(target)) {
+          await page.locator('button[title="Progress"]').first().click();
+        } else if (['Day plan', 'Session', 'Habits'].includes(target)) {
+          await page.locator('button[title="Focus"]').first().click();
+        }
+      }
+      await itemBtn.dispatchEvent('click');
     };
 
     // 1. Check OKRs tab

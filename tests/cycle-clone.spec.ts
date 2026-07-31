@@ -10,7 +10,8 @@ test.describe('Clone cycle', () => {
   });
 
   test('clones structure into new cycle with reset progress and preserves source', async ({ page }) => {
-    await page.locator('button:has-text("OKRs")').click();
+    await page.locator('button[title="Plan"]').click();
+    await page.locator('button[title="Objectives"]').click();
 
     // Source cycle is the seeded May 2026 with overall progress 38%
     await expect(page.locator('.cycle-selector-btn')).toContainText('May 2026');
@@ -38,7 +39,8 @@ test.describe('Clone cycle', () => {
   });
 
   test('future + empty cycle can be deleted; current cycle cannot', async ({ page }) => {
-    await page.locator('button:has-text("OKRs")').click();
+    await page.locator('button[title="Plan"]').click();
+    await page.locator('button[title="Objectives"]').click();
     await expect(page.locator('.cycle-selector-btn')).toContainText('May 2026');
 
     // Current month (May 2026) is not deletable — no × button on its row

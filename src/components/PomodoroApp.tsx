@@ -33,7 +33,15 @@ const IS_TAURI = typeof window !== 'undefined' && (window as any).__TAURI_INTERN
 // resulting re-render) when a merge produced no actual data change.
 const jsonEqual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsumed }: { tab: 'timer' | 'tasks' | 'analytics'; requestedTaskId?: string | null; onRequestedTaskConsumed?: () => void }) {
+export default function PomodoroApp({
+  tab,
+  requestedTaskId,
+  onRequestedTaskConsumed,
+}: {
+  tab: 'timer' | 'tasks' | 'analytics' | 'done';
+  requestedTaskId?: string | null;
+  onRequestedTaskConsumed?: () => void;
+}) {
   // ----- State -----
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
@@ -774,7 +782,14 @@ export default function PomodoroApp({ tab, requestedTaskId, onRequestedTaskConsu
       {/* Tasks Tab */}
       {tab === 'tasks' && (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} />
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted />
+        </div>
+      )}
+
+      {/* Done Tab */}
+      {tab === 'done' && (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} showOnlyCompleted={true} />
         </div>
       )}
 

@@ -23,7 +23,7 @@ test.describe('Pomodoro Mobile View', () => {
     expect(containerBox?.width).toBeLessThanOrEqual(390);
 
     // Open Settings panel
-    await page.click('button[title="Settings"]');
+    await page.click('.timer-controls button[title="Settings"]');
     await page.waitForSelector('.settings-panel');
     
     const settingsBox = await page.locator('.settings-panel').boundingBox();
