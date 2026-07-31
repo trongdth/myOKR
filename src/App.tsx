@@ -8,7 +8,7 @@ import TodayApp from './components/TodayApp';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 import { flushAutomergeQueue } from './lib/automerge-storage';
-import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown } from 'lucide-react';
+import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown, HelpCircle } from 'lucide-react';
 import { LogoMark } from './components/shared/LogoMark';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
@@ -330,6 +330,7 @@ export default function App() {
             title="Help & tour"
             onClick={() => handleNavClick('help')}
           >
+            <span className="sidebar-nav-icon"><HelpCircle size={18} /></span>
             <span className="sidebar-nav-label">Help & tour</span>
           </button>
 

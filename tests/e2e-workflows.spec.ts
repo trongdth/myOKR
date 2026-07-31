@@ -63,6 +63,14 @@ test.describe('Desktop: OKR Workflow', () => {
     await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
   });
 
+  test('Help & tour button in sidebar renders a question mark icon', async ({ page }) => {
+    await waitForApp(page);
+    const helpBtn = page.locator('button[title="Help & tour"]');
+    await expect(helpBtn).toBeVisible();
+    await expect(helpBtn.locator('.sidebar-nav-icon')).toBeVisible();
+    await expect(helpBtn.locator('svg')).toBeVisible();
+  });
+
   test('create objective', async ({ page }) => {
     const input = page.locator('input[placeholder*="Add a new objective"]');
     await input.fill('Test Objective E2E');
