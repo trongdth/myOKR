@@ -9,7 +9,7 @@ test.describe('GitHub PR Feedback Fixes', () => {
   test('version tag dynamically displays app version from __APP_VERSION__', async ({ page }) => {
     const versionTag = page.locator('.sidebar-version-tag');
     await expect(versionTag).toBeVisible();
-    await expect(versionTag).toHaveText('v0.2.0');
+    await expect(versionTag).toHaveText('v0.3.0');
   });
 
   test('sync status dot has disconnected class when not connected', async ({ page }) => {
