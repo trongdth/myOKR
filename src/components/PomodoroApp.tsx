@@ -11,6 +11,10 @@ import {
 } from '../lib/pomodoro-storage';
 import { startFocusMusic, stopFocusMusic } from '../lib/focus-music';
 import TaskList from './pomodoro/TaskList';
+import TasksView from './pomodoro/TasksView';
+import DoneView from './pomodoro/DoneView';
+import CommandKModal from './pomodoro/CommandKModal';
+import TaskDetailModal from './pomodoro/TaskDetailModal';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
 import { invoke } from '@tauri-apps/api/core';
@@ -53,6 +57,10 @@ export default function PomodoroApp({
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [history, setHistory] = useState<DailyRecord[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
+  const [cycles, setCycles] = useState<OKRCycle[]>([]);
+  const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
+  const [selectedDetailTask, setSelectedDetailTask] = useState<PomodoroTask | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
   const [showPrioritizeModal, setShowPrioritizeModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,11 +142,15 @@ export default function PomodoroApp({
       setTasks(await loadTasks());
       setHistory(await loadHistory());
       
-      const activeCycle = await getActiveCycle();
-      if (activeCycle) {
+      const loadedCycles = await loadCycles();
+      setCycles(loadedCycles);
+      const currCycle = await getActiveCycle();
+      setActiveCycle(currCycle);
+
+      if (currCycle) {
         const krs = await loadKeyResults();
         const objs = await loadObjectives();
-        const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
+        const activeObjs = new Set(objs.filter(o => o.cycleId === currCycle.id).map(o => o.id));
         setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
       }
 
@@ -146,6 +158,18 @@ export default function PomodoroApp({
       setIsLoading(false);
     }
     init();
+  }, []);
+
+  // Global ⌘K Search shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(v => !v);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Consume requestedTaskId from Today view
@@ -783,21 +807,78 @@ export default function PomodoroApp({
 
       {/* Tasks Tab */}
       {tab === 'tasks' && (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted />
-        </div>
+        <TasksView
+          tasks={tasks}
+          activeTaskId={activeTaskId}
+          onTasksChange={handleTasksChange}
+          onSetActive={handleSetActiveTask}
+          onSelectTask={(t) => setSelectedDetailTask(t)}
+          onStartFocusTask={(t) => {
+            handleSetActiveTask(t.id);
+            window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
+          }}
+          keyResults={keyResults}
+          cycles={cycles}
+          activeCycle={activeCycle}
+          onOpenSearch={() => setIsSearchOpen(true)}
+        />
       )}
 
       {/* Done Tab */}
       {tab === 'done' && (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} showOnlyCompleted={true} />
-        </div>
+        <DoneView
+          tasks={tasks}
+          keyResults={keyResults}
+          onReopenTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+            handleTasksChange(updated);
+          }}
+          onSelectTask={(t) => setSelectedDetailTask(t)}
+        />
       )}
 
       {/* Analytics Tab */}
       {tab === 'analytics' && (
         <Analytics history={history} tasks={tasks} onExport={handleExport} onImport={handleImport} onClear={handleClearRequest} />
+      )}
+
+      {/* Global ⌘K Search Modal */}
+      {isSearchOpen && (
+        <CommandKModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          tasks={tasks}
+          keyResults={keyResults}
+          cycles={cycles}
+          activeCycleId={activeCycle?.id}
+          onSelectTask={(t) => setSelectedDetailTask(t)}
+          onStartFocusTask={(t) => {
+            handleSetActiveTask(t.id);
+            window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
+          }}
+          onReopenTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+            handleTasksChange(updated);
+          }}
+        />
+      )}
+
+      {/* Task Detail Modal */}
+      {selectedDetailTask && (
+        <TaskDetailModal
+          task={selectedDetailTask}
+          onUpdate={(updated) => {
+            const newTasks = tasks.map(t => t.id === updated.id ? updated : t);
+            handleTasksChange(newTasks);
+            setSelectedDetailTask(updated);
+          }}
+          onClose={() => setSelectedDetailTask(null)}
+          keyResults={keyResults}
+          onStartFocus={(t) => {
+            handleSetActiveTask(t.id);
+            window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
+          }}
+        />
       )}
 
       <ConfirmModal

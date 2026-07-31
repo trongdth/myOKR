@@ -46,6 +46,9 @@ export interface TaskComment {
   createdAt: string;
 }
 
+export type TaskBucket = 'today' | 'this_week' | 'backlog';
+export const TASK_BUCKETS: TaskBucket[] = ['today', 'this_week', 'backlog'];
+
 export interface PomodoroTask {
   id: string;
   title: string;
@@ -58,6 +61,8 @@ export interface PomodoroTask {
   createdAt: string;
   completedAt?: string;
   category?: EisenhowerCategory;
+  bucket?: TaskBucket;
+  dueDate?: string;
   keyResultId?: string;
 }
 
@@ -176,6 +181,8 @@ function normalizeTask(t: unknown): PomodoroTask | null {
   const plainT = JSON.parse(JSON.stringify(t));
   const task = plainT as Record<string, unknown>;
   const category = task.category as unknown;
+  const bucket = task.bucket as unknown;
+  const dueDate = task.dueDate as unknown;
   return {
     ...(task as unknown as PomodoroTask),
     title: typeof task.title === 'string' ? task.title : '',
@@ -183,9 +190,70 @@ function normalizeTask(t: unknown): PomodoroTask | null {
     completedPomodoros: finiteNumber(task.completedPomodoros, 0),
     isCompleted: typeof task.isCompleted === 'boolean' ? task.isCompleted : false,
     category: EISENHOWER_CATEGORIES.includes(category as EisenhowerCategory) ? (category as EisenhowerCategory) : undefined,
+    bucket: TASK_BUCKETS.includes(bucket as TaskBucket) ? (bucket as TaskBucket) : 'backlog',
+    dueDate: typeof dueDate === 'string' && dueDate.trim() !== '' ? dueDate.trim() : undefined,
     todos: Array.isArray(task.todos) ? task.todos : undefined,
     comments: Array.isArray(task.comments) ? task.comments : undefined,
   };
+}
+
+export interface TaskImportanceOptions {
+  keyResults?: Array<{ id: string; confidence?: 'on_track' | 'at_risk' | 'off_track' | 'not_set' }>;
+  nowDate?: Date;
+}
+
+export function computeTaskImportance(task: PomodoroTask, options: TaskImportanceOptions = {}): number {
+  const priorityWeightMap: Record<EisenhowerCategory, number> = {
+    do: 4,
+    decide: 3,
+    delegate: 2,
+    delete: 1,
+  };
+  const pWeight = task.category ? (priorityWeightMap[task.category] ?? 2) : 2;
+
+  let krMultiplier = 1.0;
+  if (task.keyResultId && options.keyResults) {
+    const kr = options.keyResults.find(k => k.id === task.keyResultId);
+    if (kr && kr.confidence) {
+      switch (kr.confidence) {
+        case 'off_track': krMultiplier = 1.5; break;
+        case 'at_risk': krMultiplier = 1.25; break;
+        case 'on_track': krMultiplier = 1.0; break;
+        default: krMultiplier = 1.0; break;
+      }
+    }
+  }
+
+  let dueMultiplier = 1.0;
+  if (task.dueDate) {
+    const now = options.nowDate ? new Date(options.nowDate) : new Date();
+    now.setHours(0, 0, 0, 0);
+    const due = new Date(task.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) {
+      dueMultiplier = 1.5;
+    } else if (diffDays <= 3) {
+      dueMultiplier = 1.3;
+    } else if (diffDays <= 7) {
+      dueMultiplier = 1.1;
+    }
+  }
+
+  let completionProximity = 0;
+  if (task.estimatedPomodoros > 0) {
+    const ratio = Math.min(1, Math.max(0, task.completedPomodoros / task.estimatedPomodoros));
+    completionProximity = ratio * 0.5;
+  }
+
+  const bucketMultiplierMap: Record<TaskBucket, number> = {
+    today: 1.3,
+    this_week: 1.0,
+    backlog: 0.7,
+  };
+  const bMultiplier = bucketMultiplierMap[task.bucket || 'backlog'] ?? 0.7;
+
+  return (pWeight * krMultiplier * dueMultiplier + completionProximity) * bMultiplier;
 }
 
 function normalizeSession(s: unknown): SessionRecord | null {

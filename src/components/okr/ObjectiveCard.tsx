@@ -36,7 +36,7 @@ export default function ObjectiveCard({
   objectives,
   cycles
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(objective.title);
   const [newKRTitle, setNewKRTitle] = useState('');

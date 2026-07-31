@@ -240,6 +240,19 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
 
       {/* Line 2: progress */}
       <div className="kr-row-bottom">
+        {(() => {
+          const linkedOpenTasksCount = tasks.filter(t => !t.isCompleted && t.keyResultId === kr.id).length;
+          return linkedOpenTasksCount === 0 ? (
+            <span className="kr-tasks-flag unserved" title="No active tasks currently serving this Key Result">
+              ⚠️ no tasks serving this KR
+            </span>
+          ) : (
+            <span className="kr-tasks-flag served">
+              🔗 {linkedOpenTasksCount} {linkedOpenTasksCount === 1 ? 'task' : 'tasks'} linked
+            </span>
+          );
+        })()}
+
         <div style={{ position: 'relative' }} ref={valueRef}>
           <div
             className="kr-progress-line"

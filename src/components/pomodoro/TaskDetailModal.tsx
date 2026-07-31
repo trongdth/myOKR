@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { Pencil, Timer, CheckCircle, X, SquareCheck, MessageSquare, Check } from 'lucide-react';
-import type { PomodoroTask, TodoItem, TaskComment } from '../../lib/pomodoro-storage';
+import { Pencil, CheckCircle, X, SquareCheck, MessageSquare, Play, RotateCcw } from 'lucide-react';
+import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
-import ConfirmModal from '../ConfirmModal';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
 
@@ -15,23 +14,10 @@ interface Props {
   onUpdate: (updated: PomodoroTask) => void;
   onClose: () => void;
   keyResults?: KeyResult[];
+  onStartFocus?: (task: PomodoroTask) => void;
 }
 
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
-
-export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [] }: Props) {
+export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [], onStartFocus }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [newTodoText, setNewTodoText] = useState('');
@@ -39,29 +25,19 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleText, setEditingTitleText] = useState(task.title);
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editingCommentText, setEditingCommentText] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'todo' | 'comment', id: string, text?: string } | null>(null);
-  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
-  const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
-  const [dragOverTodoId, setDragOverTodoId] = useState<string | null>(null);
+
   const descRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const commentInputRef = useRef<HTMLInputElement>(null);
 
   const todos: TodoItem[] = task.todos || [];
   const comments: TaskComment[] = task.comments || [];
 
   useModalEffects(onClose);
 
-  // Sync title text if task prop changes externally
   useEffect(() => {
     setEditingTitleText(task.title);
   }, [task.title]);
 
-  // Focus title input on edit start
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
@@ -69,466 +45,350 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
     }
   }, [isEditingTitle]);
 
-  // --- Title ---
-  const startEditTitle = () => {
-    setEditingTitleText(task.title);
-    setIsEditingTitle(true);
-  };
-
   const saveTitle = () => {
     const trimmed = editingTitleText.trim();
     if (trimmed && trimmed !== task.title) {
       onUpdate({ ...task, title: trimmed });
-    } else {
-      setEditingTitleText(task.title);
     }
     setIsEditingTitle(false);
   };
 
-  const cancelEditTitle = () => {
-    setEditingTitleText(task.title);
-    setIsEditingTitle(false);
+  // Property update helpers
+  const handleUpdateCategory = (cat: EisenhowerCategory) => {
+    onUpdate({ ...task, category: cat });
   };
 
-  // Auto-focus description textarea when entering edit mode
-  useEffect(() => {
-    if (isEditingDesc && descRef.current) {
-      descRef.current.focus();
-      descRef.current.selectionStart = descRef.current.value.length;
-    }
-  }, [isEditingDesc]);
-
-  // --- Description ---
-  const saveDescription = () => {
-    const trimmed = description.trim();
-    onUpdate({ ...task, description: trimmed || undefined });
-    setIsEditingDesc(false);
+  const handleUpdateBucket = (b: TaskBucket) => {
+    onUpdate({ ...task, bucket: b });
   };
 
-  // --- Todos ---
+  const handleUpdateDueDate = (d: string) => {
+    onUpdate({ ...task, dueDate: d || undefined });
+  };
+
+  const handleUpdateKR = (krId: string) => {
+    onUpdate({ ...task, keyResultId: krId || undefined });
+  };
+
+  const handleUpdateEstPomos = (est: number) => {
+    onUpdate({ ...task, estimatedPomodoros: Math.max(1, est) });
+  };
+
+  const handleToggleComplete = () => {
+    const isComp = !task.isCompleted;
+    onUpdate({
+      ...task,
+      isCompleted: isComp,
+      completedAt: isComp ? new Date().toISOString() : undefined,
+    });
+  };
+
+  // Todos CRUD
   const addTodo = () => {
-    const text = newTodoText.trim();
-    if (!text) return;
-    const item: TodoItem = {
+    if (!newTodoText.trim()) return;
+    const newTodo: TodoItem = {
       id: generateId(),
-      text,
+      text: newTodoText.trim(),
       completed: false,
       createdAt: new Date().toISOString(),
     };
-    onUpdate({ ...task, todos: [...todos, item] });
+    onUpdate({ ...task, todos: [...todos, newTodo] });
     setNewTodoText('');
   };
 
   const toggleTodo = (id: string) => {
-    onUpdate({
-      ...task,
-      todos: todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t),
-    });
+    const updated = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+    onUpdate({ ...task, todos: updated });
   };
 
-  const deleteTodoRequest = (id: string) => {
-    const todo = todos.find(t => t.id === id);
-    setDeleteTarget({ type: 'todo', id, text: todo?.text });
-  };
-
-  const executeDeleteTodo = (id: string) => {
+  const deleteTodo = (id: string) => {
     onUpdate({ ...task, todos: todos.filter(t => t.id !== id) });
   };
 
-  const startEditTodo = (todo: TodoItem) => {
-    setEditingTodoId(todo.id);
-    setEditingText(todo.text);
-  };
-
-  const commitEditTodo = () => {
-    if (!editingTodoId) return;
-    const trimmed = editingText.trim();
-    if (trimmed) {
-      onUpdate({
-        ...task,
-        todos: todos.map(t => t.id === editingTodoId ? { ...t, text: trimmed } : t),
-      });
-    }
-    setEditingTodoId(null);
-  };
-
-  const cancelEditTodo = () => setEditingTodoId(null);
-
-  const reorderTodos = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return;
-    const next = [...todos];
-    const from = next.findIndex(t => t.id === sourceId);
-    const to = next.findIndex(t => t.id === targetId);
-    if (from < 0 || to < 0) return;
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    onUpdate({ ...task, todos: next });
-  };
-
-  const handleDragPointerDown = (e: React.PointerEvent, todoId: string) => {
-    if (editingTodoId) return;
-    e.preventDefault();
-    setDraggedTodoId(todoId);
-
-    let targetId: string | null = null;
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      if (!listRef.current) return;
-      const items = listRef.current.querySelectorAll('[data-todo-id]');
-      let found: string | null = null;
-      for (const item of items) {
-        const rect = (item as HTMLElement).getBoundingClientRect();
-        if (moveEvent.clientY >= rect.top && moveEvent.clientY <= rect.bottom) {
-          found = (item as HTMLElement).dataset.todoId!;
-          break;
-        }
-      }
-      targetId = found;
-      setDragOverTodoId(found);
-    };
-
-    const handleUp = () => {
-      document.removeEventListener('pointermove', handleMove);
-      document.removeEventListener('pointerup', handleUp);
-      if (targetId && todoId !== targetId) {
-        reorderTodos(todoId, targetId);
-      }
-      setDraggedTodoId(null);
-      setDragOverTodoId(null);
-    };
-
-    document.addEventListener('pointermove', handleMove);
-    document.addEventListener('pointerup', handleUp);
-  };
-
-  // --- Comments ---
+  // Comments CRUD
   const addComment = () => {
-    const text = newComment.trim();
-    if (!text) return;
+    if (!newComment.trim()) return;
     const comment: TaskComment = {
       id: generateId(),
-      text,
+      text: newComment.trim(),
       createdAt: new Date().toISOString(),
     };
-    onUpdate({ ...task, comments: [comment, ...comments] });
+    onUpdate({ ...task, comments: [...comments, comment] });
     setNewComment('');
   };
 
-  const deleteCommentRequest = (id: string) => {
-    const comment = comments.find(c => c.id === id);
-    // Truncate comment text for modal
-    const text = comment?.text.length && comment.text.length > 50 ? comment.text.slice(0, 50) + '...' : comment?.text;
-    setDeleteTarget({ type: 'comment', id, text });
-  };
-
-  const executeDeleteComment = (id: string) => {
+  const deleteComment = (id: string) => {
     onUpdate({ ...task, comments: comments.filter(c => c.id !== id) });
   };
 
-  const startEditComment = (comment: TaskComment) => {
-    setEditingCommentId(comment.id);
-    setEditingCommentText(comment.text);
-  };
-
-  const commitEditComment = () => {
-    if (!editingCommentId) return;
-    const trimmed = editingCommentText.trim();
-    if (trimmed) {
-      onUpdate({
-        ...task,
-        comments: comments.map(c => c.id === editingCommentId ? { ...c, text: trimmed } : c),
-      });
-    } else {
-      // Clearing the text removes the comment instead of silently keeping the old text.
-      onUpdate({ ...task, comments: comments.filter(c => c.id !== editingCommentId) });
-    }
-    setEditingCommentId(null);
-  };
-
-  const cancelEditComment = () => setEditingCommentId(null);
-
-  const meta = EISENHOWER_META[task.category || 'do'];
-  const completedTodos = todos.filter(t => t.completed).length;
-
   return (
-    <div className="prioritize-overlay" onClick={onClose}>
-      <div className="prioritize-modal task-detail-modal" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="task-detail-header">
-          <div className="task-detail-title-row">
-            <span className="category-dot" style={{ background: meta.color, width: 12, height: 12 }} />
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
+        {/* Panel Header */}
+        <div className="detail-panel-header">
+          <div className="detail-title-block">
             {isEditingTitle ? (
               <input
                 ref={titleInputRef}
-                className="task-detail-title-input"
+                type="text"
+                className="detail-title-input"
                 value={editingTitleText}
                 onChange={e => setEditingTitleText(e.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={e => {
                   if (e.key === 'Enter') saveTitle();
-                  if (e.key === 'Escape') cancelEditTitle();
+                  if (e.key === 'Escape') setIsEditingTitle(false);
                 }}
               />
             ) : (
-              <>
-                <h3 className="task-detail-title" onClick={startEditTitle} title="Click to edit title">
-                  {task.title}
-                </h3>
-                <button className="task-detail-edit-btn" onClick={startEditTitle} title="Edit title">
-                  <Pencil size={14} />
-                </button>
-              </>
+              <h3 className="detail-title" onClick={() => setIsEditingTitle(true)}>
+                {task.title}
+                <Pencil size={14} className="edit-icon" />
+              </h3>
             )}
           </div>
-          <div className="task-detail-meta">
-            <span className="task-detail-badge" style={{ borderColor: meta.color, color: meta.color }}>
-              <span className="confidence-dot" style={{ background: meta.color, verticalAlign: 'middle' }} /> {meta.label}
-            </span>
-            <span className="task-detail-badge">
-              <Timer size={12} className="icon-inline" /> {task.completedPomodoros}/{task.estimatedPomodoros}
-            </span>
-            {task.isCompleted && (
-              <span className="task-detail-badge task-detail-badge-done"><CheckCircle size={12} className="icon-inline" /> Done</span>
-            )}
-            {keyResults.length > 0 && (
-              <select
-                className="task-detail-kr-select"
-                value={task.keyResultId || ''}
-                onChange={e => onUpdate({ ...task, keyResultId: e.target.value || undefined })}
+
+          <div className="detail-header-actions">
+            {!task.isCompleted && onStartFocus && (
+              <button
+                className="detail-action-btn start-focus-btn"
+                onClick={() => {
+                  onStartFocus(task);
+                  onClose();
+                }}
               >
-                <option value="">No KR</option>
-                {keyResults.map(kr => (
-                  <option key={kr.id} value={kr.id}>{kr.title}</option>
-                ))}
-              </select>
+                <Play size={14} />
+                <span>Start focus</span>
+              </button>
             )}
+
+            <button
+              className={`detail-action-btn complete-btn${task.isCompleted ? ' completed' : ''}`}
+              onClick={handleToggleComplete}
+            >
+              {task.isCompleted ? <RotateCcw size={14} /> : <CheckCircle size={14} />}
+              <span>{task.isCompleted ? 'Reopen' : 'Complete'}</span>
+            </button>
+
+            <button className="modal-close-btn" onClick={onClose} aria-label="Close panel">
+              <X size={18} />
+            </button>
           </div>
-          <button className="prioritize-close" onClick={onClose}><X size={16} /></button>
         </div>
 
-        {/* Description */}
-        <div className="task-detail-description">
-          <div className="task-detail-section-label">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            Description
+        {/* Unified Top Properties Strip (P4) */}
+        <div className="detail-properties-bar">
+          {/* Priority Pill */}
+          <div className="prop-group">
+            <span className="prop-label">PRIORITY</span>
+            <select
+              className="prop-select"
+              value={task.category || 'do'}
+              onChange={e => handleUpdateCategory(e.target.value as EisenhowerCategory)}
+            >
+              {Object.entries(EISENHOWER_META).map(([c, m]) => (
+                <option key={c} value={c}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Bucket Pill */}
+          <div className="prop-group">
+            <span className="prop-label">BUCKET</span>
+            <select
+              className="prop-select"
+              value={task.bucket || 'backlog'}
+              onChange={e => handleUpdateBucket(e.target.value as TaskBucket)}
+            >
+              <option value="today">Today</option>
+              <option value="this_week">This week</option>
+              <option value="backlog">Backlog</option>
+            </select>
+          </div>
+
+          {/* Due Date Pill */}
+          <div className="prop-group">
+            <span className="prop-label">DUE</span>
+            <input
+              type="date"
+              className="prop-date-input"
+              value={task.dueDate || ''}
+              onChange={e => handleUpdateDueDate(e.target.value)}
+            />
+          </div>
+
+          {/* Key Result Pill */}
+          <div className="prop-group">
+            <span className="prop-label">KEY RESULT</span>
+            <select
+              className="prop-select kr-prop-select"
+              value={task.keyResultId || ''}
+              onChange={e => handleUpdateKR(e.target.value)}
+            >
+              <option value="">No Key Result</option>
+              {keyResults.map(kr => (
+                <option key={kr.id} value={kr.id}>{kr.title}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Pomodoros Planned Pill */}
+          <div className="prop-group">
+            <span className="prop-label">POMODOROS</span>
+            <div className="prop-pomo-input-wrapper">
+              <span>🍅 {task.completedPomodoros} / </span>
+              <input
+                type="number"
+                min="1"
+                max="99"
+                className="prop-pomo-input"
+                value={task.estimatedPomodoros || 1}
+                onChange={e => handleUpdateEstPomos(parseInt(e.target.value, 10) || 1)}
+              />
+              <span>planned</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Body: Notes & Links */}
+        <div className="detail-body-section">
+          <div className="notes-header">
+            <span className="section-title">NOTES & LINKS</span>
             {!isEditingDesc && (
-              <button className="task-detail-edit-btn" onClick={() => setIsEditingDesc(true)}>
-                <Pencil size={14} />
+              <button className="text-btn" onClick={() => setIsEditingDesc(true)}>
+                <Pencil size={13} />
+                <span>Edit notes</span>
               </button>
             )}
           </div>
+
           {isEditingDesc ? (
-            <div className="task-detail-desc-edit">
+            <div className="notes-edit-block">
               <textarea
                 ref={descRef}
-                className="task-detail-textarea"
+                className="notes-textarea"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Add a description for this task..."
-                rows={4}
+                placeholder="Add notes, context, or links (Markdown supported)..."
+                rows={5}
               />
-              <div className="task-detail-desc-actions">
-                <button className="btn-sm" onClick={() => { setDescription(task.description || ''); setIsEditingDesc(false); }}>Cancel</button>
-                <button className="btn task-detail-save-btn" onClick={saveDescription}>Save</button>
+              <div className="notes-edit-actions">
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setDescription(task.description || '');
+                    setIsEditingDesc(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    onUpdate({ ...task, description: description.trim() || undefined });
+                    setIsEditingDesc(false);
+                  }}
+                >
+                  Save
+                </button>
               </div>
             </div>
           ) : (
-            <div className={`task-detail-desc-text${!description ? ' empty' : ''}`}>
-              {description ? (
-<Suspense fallback={<span className="loading-text">Loading...</span>}>
-                  <Markdown>{description}</Markdown>
+            <div className="notes-content-view">
+              {task.description ? (
+                <Suspense fallback={<div>Loading notes...</div>}>
+                  <Markdown>{task.description}</Markdown>
                 </Suspense>
               ) : (
-                'No description yet — click to add one.'
+                <p className="empty-notes-hint">Click &quot;Edit notes&quot; to add links or notes.</p>
               )}
             </div>
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="task-detail-tabs">
-          <button
-            className={`task-detail-tab${activeTab === 'todos' ? ' active' : ''}`}
-            onClick={() => setActiveTab('todos')}
-          >
-            <SquareCheck size={14} className="icon-inline" /> Todo list
-            {todos.length > 0 && (
-              <span className="task-detail-tab-count">{completedTodos}/{todos.length}</span>
-            )}
-          </button>
-          <button
-            className={`task-detail-tab${activeTab === 'comments' ? ' active' : ''}`}
-            onClick={() => setActiveTab('comments')}
-          >
-            <MessageSquare size={14} className="icon-inline" /> Comments
-            {comments.length > 0 && (
-              <span className="task-detail-tab-count">{comments.length}</span>
-            )}
-          </button>
-        </div>
+        {/* Equal-Weight Sub-tasks & Comments Tabs (P4) */}
+        <div className="detail-tabs-section">
+          <div className="detail-tab-headers">
+            <button
+              className={`detail-tab-btn${activeTab === 'todos' ? ' active' : ''}`}
+              onClick={() => setActiveTab('todos')}
+            >
+              <SquareCheck size={16} />
+              <span>Sub-tasks ({todos.filter(t => t.completed).length}/{todos.length})</span>
+            </button>
 
-        {/* Tab Content */}
-        <div className="task-detail-tab-content">
-          {activeTab === 'todos' && (
-            <div className="task-detail-todos">
-              {/* Add todo input */}
-              <div className="task-detail-todo-input-row">
-                <input
-                  type="text"
-                  placeholder="Add a sub-task..."
-                  value={newTodoText}
-                  onChange={e => setNewTodoText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addTodo()}
-                />
-                <button className="btn task-detail-add-btn" onClick={addTodo}>+</button>
-              </div>
+            <button
+              className={`detail-tab-btn${activeTab === 'comments' ? ' active' : ''}`}
+              onClick={() => setActiveTab('comments')}
+            >
+              <MessageSquare size={16} />
+              <span>Comments ({comments.length})</span>
+            </button>
+          </div>
 
-              {/* Progress bar */}
-              {todos.length > 0 && (
-                <div className="task-detail-todo-progress">
-                  <div className="task-detail-todo-progress-bar">
-                    <div
-                      className="task-detail-todo-progress-fill"
-                      style={{ width: `${(completedTodos / todos.length) * 100}%` }}
-                    />
-                  </div>
-                  <span className="task-detail-todo-progress-text">
-                    {completedTodos}/{todos.length}
-                  </span>
+          <div className="detail-tab-content">
+            {activeTab === 'todos' ? (
+              <div className="todos-tab-body">
+                <div className="add-todo-row">
+                  <input
+                    type="text"
+                    className="add-todo-input"
+                    placeholder="Add a sub-task..."
+                    value={newTodoText}
+                    onChange={e => setNewTodoText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addTodo()}
+                  />
+                  <button className="add-todo-btn" onClick={addTodo}>Add</button>
                 </div>
-              )}
 
-              {/* Todo items */}
-              <div className="task-detail-todo-list" ref={listRef}>
-                {todos.length === 0 && (
-                  <div className="task-detail-empty">No sub-tasks yet. Add one above!</div>
-                )}
-                {todos.map(todo => (
-                  <div
-                    key={todo.id}
-                    data-todo-id={todo.id}
-                    className={`task-detail-todo-item${todo.completed ? ' completed' : ''}${dragOverTodoId === todo.id ? ' drag-over' : ''}${draggedTodoId === todo.id ? ' dragging' : ''}`}
-                  >
-                    <span
-                      className="task-detail-todo-drag"
-                      aria-label="Drag to reorder"
-                      onPointerDown={e => handleDragPointerDown(e, todo.id)}
-                    >≡</span>
-                    <button
-                      className={`task-checkbox${todo.completed ? ' checked' : ''}`}
-                      onClick={() => toggleTodo(todo.id)}
-                    ><Check size={16} /></button>
-                    {editingTodoId === todo.id ? (
+                <div className="todos-list">
+                  {todos.map(todo => (
+                    <div key={todo.id} className={`todo-item-row${todo.completed ? ' completed' : ''}`}>
                       <input
-                        className="task-detail-todo-edit-input"
-                        autoFocus
-                        value={editingText}
-                        onChange={e => setEditingText(e.target.value)}
-                        onBlur={commitEditTodo}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') commitEditTodo();
-                          if (e.key === 'Escape') cancelEditTodo();
-                        }}
+                        type="checkbox"
+                        checked={todo.completed}
+                        onChange={() => toggleTodo(todo.id)}
                       />
-                    ) : (
-                      <span className="task-detail-todo-text" onClick={() => startEditTodo(todo)}>{todo.text}</span>
-                    )}
-                    <button className="task-action-btn" onClick={() => deleteTodoRequest(todo.id)} title="Delete"><X size={14} /></button>
-                  </div>
-                ))}
+                      <span className="todo-text">{todo.text}</span>
+                      <button className="delete-sub-btn" onClick={() => deleteTodo(todo.id)}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="comments-tab-body">
+                <div className="add-comment-row">
+                  <input
+                    type="text"
+                    className="add-comment-input"
+                    placeholder="Add a comment..."
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addComment()}
+                  />
+                  <button className="add-comment-btn" onClick={addComment}>Comment</button>
+                </div>
 
-          {activeTab === 'comments' && (
-            <div className="task-detail-comments">
-              {/* Add comment input */}
-              <div className="task-detail-comment-input-row">
-                <input
-                  ref={commentInputRef}
-                  type="text"
-                  placeholder="Write a comment..."
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addComment()}
-                />
-                <button className="btn task-detail-add-btn" onClick={addComment}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Comments list */}
-              <div className="task-detail-comment-list">
-                {comments.length === 0 && (
-                  <div className="task-detail-empty">No comments yet. Add one above!</div>
-                )}
-                {comments.map(comment => (
-                  <div key={comment.id} className="task-detail-comment-item">
-                    <div className="task-detail-comment-header">
-                      <span className="task-detail-comment-time">{formatRelativeTime(comment.createdAt)}</span>
-                      <div className="task-detail-comment-actions">
-                        <button className="task-action-btn task-detail-comment-edit" onClick={() => startEditComment(comment)} title="Edit comment">
-                          <Pencil size={14} />
-                        </button>
-                        <button className="task-action-btn task-detail-comment-delete" onClick={() => deleteCommentRequest(comment.id)} title="Delete comment">
+                <div className="comments-list">
+                  {comments.map(c => (
+                    <div key={c.id} className="comment-item-card">
+                      <p className="comment-text">{c.text}</p>
+                      <div className="comment-footer">
+                        <span className="comment-time">{new Date(c.createdAt).toLocaleString()}</span>
+                        <button className="delete-sub-btn" onClick={() => deleteComment(c.id)}>
                           <X size={14} />
                         </button>
                       </div>
                     </div>
-                    {editingCommentId === comment.id ? (
-                      <div className="task-detail-comment-edit-box">
-                        <textarea
-                          className="task-detail-comment-edit-input"
-                          value={editingCommentText}
-                          onChange={e => setEditingCommentText(e.target.value)}
-                          autoFocus
-                          rows={2}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              commitEditComment();
-                            }
-                            if (e.key === 'Escape') cancelEditComment();
-                          }}
-                        />
-                        <div className="task-detail-comment-edit-actions">
-                          <button className="btn-sm" onClick={cancelEditComment}>Cancel</button>
-                          <button className="btn task-detail-save-btn" onClick={commitEditComment}>Save</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="task-detail-comment-body">{comment.text}</div>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget?.type === 'todo') executeDeleteTodo(deleteTarget.id);
-          else if (deleteTarget?.type === 'comment') executeDeleteComment(deleteTarget.id);
-        }}
-        title={deleteTarget?.type === 'todo' ? 'Delete Sub-task?' : 'Delete Comment?'}
-        message={
-          deleteTarget?.type === 'todo'
-            ? `Are you sure you want to delete "${deleteTarget?.text}"?`
-            : `Are you sure you want to delete this comment: "${deleteTarget?.text}"?`
-        }
-        confirmText="Delete"
-      />
     </div>
   );
 }
