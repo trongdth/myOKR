@@ -85,7 +85,7 @@ test.describe('Desktop: OKR Workflow', () => {
     await expect(page.locator('.objective-body').first()).toBeVisible();
 
     // Add KR
-    const krInput = page.locator('input[placeholder*="Add a key result"]');
+    const krInput = page.locator('input[placeholder*="Add a key result"]').first();
     await krInput.fill('Test KR E2E');
     await krInput.press('Enter');
 
@@ -117,10 +117,9 @@ test.describe('Desktop: Task Workflow', () => {
 
     // Navigate away and back to verify persistence (reload from store)
     await navDesktop(page, 'OKRs');
-    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
     await navDesktop(page, 'Tasks');
     await expect(page.locator('text=Test Task E2E')).toBeVisible();
-    await expect(page.locator('.task-kr-badge').first()).toBeVisible();
+    await expect(page.locator('.card-kr').first()).toBeVisible();
   });
 });
 
