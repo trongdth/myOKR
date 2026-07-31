@@ -33,19 +33,29 @@ test.describe('Visual regression (1a redesign)', () => {
 
   // [snapshot id, nav title]
   const screens: [string, string][] = [
-    ['today', 'Today'],
-    ['timer', 'Timer'],
+    ['today', 'Day plan'],
+    ['timer', 'Session'],
     ['tasks', 'Tasks'],
     ['analytics', 'Analytics'],
-    ['okrs', 'OKRs'],
+    ['okrs', 'Objectives'],
     ['habits', 'Habits'],
-    ['review', 'Review'],
-    ['sync', 'Cloud Sync'],
+    ['review', 'Weekly review'],
+    ['sync', 'Settings'],
   ];
 
   for (const [id, label] of screens) {
     test(`${id} @1280`, async ({ page }) => {
-      await page.locator(`[title="${label}"]`).first().click();
+      const btn = page.locator(`[title="${label}"]`).first();
+      if (!await btn.isVisible()) {
+        if (['Tasks', 'Objectives', 'Done'].includes(label)) {
+          await page.locator('[title="Plan"]').first().click();
+        } else if (['Analytics', 'Weekly review'].includes(label)) {
+          await page.locator('[title="Progress"]').first().click();
+        } else if (['Day plan', 'Session', 'Habits'].includes(label)) {
+          await page.locator('[title="Focus"]').first().click();
+        }
+      }
+      await btn.click();
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot(`${id}.png`, {
         fullPage: true,
@@ -57,7 +67,7 @@ test.describe('Visual regression (1a redesign)', () => {
 
   test('collapsed icon-rail @1024', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 720 });
-    await page.locator('[title="Today"]').first().click();
+    await page.locator('[title="Focus"]').first().click();
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot('rail-1024.png', {
       fullPage: true,

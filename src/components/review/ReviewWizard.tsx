@@ -136,7 +136,7 @@ export default function ReviewWizard({
       {/* Header */}
       <div className="review-wizard-header">
         <span className="review-wizard-title">
-          <ClipboardList size={16} className="icon-inline" /> Weekly Review — Week of {weekStart}
+          <ClipboardList size={16} className="icon-inline" /> Weekly review — Week of {weekStart}
         </span>
         <span className="review-wizard-step-info">
           Step {currentStep + 1} of {totalSteps}

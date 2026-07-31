@@ -29,7 +29,7 @@ test.describe('Today layout fit (≥1100px)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
-    await page.locator('[title="Today"]').first().click();
+    await page.locator('[title="Day plan"], [title="Today"]').first().click();
     await page.waitForTimeout(500);
   });
 

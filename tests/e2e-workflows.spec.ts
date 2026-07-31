@@ -10,14 +10,45 @@ async function waitForApp(page: Page) {
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
 }
 
+function resolveLabel(label: string): string {
+  if (label === 'OKRs') return 'Objectives';
+  if (label === 'Timer') return 'Session';
+  if (label === 'Today') return 'Day plan';
+  if (label === 'Review') return 'Weekly review';
+  if (label === 'Cloud Sync') return 'Sync';
+  return label;
+}
+
 async function navDesktop(page: Page, label: string) {
-  await page.locator(`button.sidebar-nav-item:has-text("${label}")`).first().click();
+  const target = resolveLabel(label);
+  const btn = page.locator(`button.sidebar-nav-item:has-text("${target}"), button[title="${target}"]`).first();
+  if (!await btn.isVisible()) {
+    if (['Tasks', 'Objectives', 'Done'].includes(target)) {
+      await page.locator('button[title="Plan"]').first().click();
+    } else if (['Analytics', 'Weekly review'].includes(target)) {
+      await page.locator('button[title="Progress"]').first().click();
+    } else if (['Day plan', 'Session', 'Habits'].includes(target)) {
+      await page.locator('button[title="Focus"]').first().click();
+    }
+  }
+  await btn.click();
 }
 
 async function navMobile(page: Page, label: string) {
+  const target = resolveLabel(label);
   await page.locator('button[aria-label="Toggle navigation"]').click();
   await expect(page.locator('.sidebar-overlay')).toBeVisible();
-  await page.locator(`button.sidebar-nav-item:has-text("${label}")`).first().click();
+  const itemBtn = page.locator(`button.sidebar-nav-item:has-text("${target}"), button[title="${target}"]`).first();
+  if (!await itemBtn.isVisible()) {
+    if (['Tasks', 'Objectives', 'Done'].includes(target)) {
+      await page.locator('button[title="Plan"]').first().click();
+    } else if (['Analytics', 'Weekly review'].includes(target)) {
+      await page.locator('button[title="Progress"]').first().click();
+    } else if (['Day plan', 'Session', 'Habits'].includes(target)) {
+      await page.locator('button[title="Focus"]').first().click();
+    }
+  }
+  await itemBtn.dispatchEvent('click');
   await expect(page.locator('.sidebar-overlay')).toHaveCount(0, { timeout: 5000 });
 }
 
@@ -94,7 +125,7 @@ test.describe('Desktop: Pomodoro Workflow', () => {
 
   test('adjust pomodoro config', async ({ page }) => {
     // Open settings
-    await page.locator('button[title="Settings"]').click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
     await expect(page.locator('.settings-panel')).toBeVisible();
 
     // Change focus duration to 30 min

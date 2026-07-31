@@ -8,57 +8,113 @@ import TodayApp from './components/TodayApp';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 import { flushAutomergeQueue } from './lib/automerge-storage';
-import { Clock, Timer, SquareCheck, BarChart3, Target, CalendarCheck, FileText, Upload, BookOpen } from 'lucide-react';
+import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown } from 'lucide-react';
 import { LogoMark } from './components/shared/LogoMark';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
 const ReviewApp = lazy(() => import('./components/ReviewApp'));
-const SyncApp = lazy(() => import('./components/SyncApp'));
+const SettingsApp = lazy(() => import('./components/SettingsApp'));
+const HelpApp = lazy(() => import('./components/HelpApp'));
 const Walkthrough = lazy(() => import('./components/Walkthrough'));
 const HabitsApp = lazy(() => import('./components/HabitsApp'));
 
-type Section = 'today' | 'pomodoro-timer' | 'pomodoro-tasks' | 'pomodoro-analytics' | 'okrs' | 'review' | 'sync' | 'habits';
+export type Section =
+  | 'day-plan'
+  | 'session'
+  | 'habits'
+  | 'tasks'
+  | 'objectives'
+  | 'done'
+  | 'analytics'
+  | 'weekly-review'
+  | 'settings'
+  | 'help';
 
-const HELP_BLOG_URL = 'https://code4food.work/blog/effective-okrs-with-myokr';
-
-const NAV_ITEMS: { id: Section | 'pomodoro-header'; label: string; icon: React.ReactNode; isHeader?: boolean; isSubItem?: boolean }[] = [
-  { id: 'today', label: 'Today', icon: <Clock size={18} /> },
-  { id: 'pomodoro-header', label: 'Pomodoro', isHeader: true, icon: <Timer size={18} /> },
-  { id: 'pomodoro-timer', label: 'Timer', isSubItem: true, icon: <Timer size={16} /> },
-  { id: 'pomodoro-tasks', label: 'Tasks', isSubItem: true, icon: <SquareCheck size={16} /> },
-  { id: 'pomodoro-analytics', label: 'Analytics', isSubItem: true, icon: <BarChart3 size={16} /> },
-  { id: 'okrs', label: 'OKRs', icon: <Target size={18} /> },
-  { id: 'habits', label: 'Habits', icon: <CalendarCheck size={18} /> },
-  { id: 'review', label: 'Review', icon: <FileText size={18} /> },
-  { id: 'sync', label: 'Cloud Sync', icon: <Upload size={18} /> },
-];
-
-// Group nav items so the Pomodoro header owns its sub-items. In the collapsed
-// icon-rail (Turn-2/2a) the sub-items move into a hover flyout off the header.
-type NavItem = (typeof NAV_ITEMS)[number];
-const navGroups: { header?: NavItem; items: NavItem[]; single?: NavItem }[] = [];
-for (const item of NAV_ITEMS) {
-  if (item.isHeader) {
-    navGroups.push({ header: item, items: [] });
-  } else if (item.isSubItem && navGroups.length && navGroups[navGroups.length - 1].header) {
-    navGroups[navGroups.length - 1].items.push(item);
-  } else {
-    navGroups.push({ single: item, items: [] });
+export function migrateSection(legacy: string | null): Section {
+  if (!legacy) return 'day-plan';
+  switch (legacy) {
+    case 'today': return 'day-plan';
+    case 'pomodoro-timer': return 'session';
+    case 'habits': return 'habits';
+    case 'pomodoro-tasks': return 'tasks';
+    case 'okrs': return 'objectives';
+    case 'pomodoro-analytics': return 'analytics';
+    case 'review': return 'weekly-review';
+    case 'sync': return 'settings';
+    case 'cloud sync': return 'settings';
+    case 'session-defaults': return 'settings';
+    case 'settings': return 'settings';
+    case 'help': return 'help';
+    default:
+      if (['day-plan', 'session', 'habits', 'tasks', 'objectives', 'done', 'analytics', 'weekly-review', 'settings', 'help'].includes(legacy)) {
+        return legacy as Section;
+      }
+      return 'day-plan';
   }
 }
 
+export interface NavSubItem {
+  id: Section;
+  label: string;
+}
+
+export interface NavGroup {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  defaultTab: Section;
+  items: NavSubItem[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    id: 'focus',
+    label: 'Focus',
+    icon: <Target size={18} />,
+    defaultTab: 'day-plan',
+    items: [
+      { id: 'day-plan', label: 'Day plan' },
+      { id: 'session', label: 'Session' },
+      { id: 'habits', label: 'Habits' },
+    ],
+  },
+  {
+    id: 'plan',
+    label: 'Plan',
+    icon: <Target size={18} />,
+    defaultTab: 'tasks',
+    items: [
+      { id: 'tasks', label: 'Tasks' },
+      { id: 'objectives', label: 'Objectives' },
+      { id: 'done', label: 'Done' },
+    ],
+  },
+  {
+    id: 'progress',
+    label: 'Progress',
+    icon: <BarChart2 size={18} />,
+    defaultTab: 'analytics',
+    items: [
+      { id: 'analytics', label: 'Analytics' },
+      { id: 'weekly-review', label: 'Weekly review' },
+    ],
+  },
+];
+
 export default function App() {
   const [activeSection, setActiveSection] = useState<Section>(() => {
-    return (localStorage.getItem('myokr_active_section') as Section) || 'today';
+    const stored = localStorage.getItem('myokr_active_section');
+    return migrateSection(stored);
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Start false so the app shell paints immediately; the walkthrough (if any)
-  // is shown as an overlay once loadWalkthroughState() resolves. This avoids
-  // blocking first paint on the Automerge doc load (the doc is lazy-loaded by
-  // the section components, which render their own loading states).
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null);
   const [todayKey, setTodayKey] = useState(0);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
+    focus: false,
+    plan: true,
+    progress: true,
+  });
   const [isSyncConnected, setIsSyncConnected] = useState(() =>
     !!(localStorage.getItem('dropbox_client_id') && localStorage.getItem('dropbox_refresh_token'))
   );
@@ -71,7 +127,6 @@ export default function App() {
     return () => window.removeEventListener('myokr-sync-status-changed', handleStatusChange);
   }, []);
 
-  // Handle Tauri window close request by flushing the Automerge queue before hiding the window
   useEffect(() => {
     let cancelled = false;
     let unlisten: (() => void) | null = null;
@@ -121,7 +176,7 @@ export default function App() {
 
   useEffect(() => {
     const handleNavigate = (e: Event) => {
-      const section = (e as CustomEvent).detail as Section;
+      const section = migrateSection((e as CustomEvent).detail);
       if (section) {
         handleNavClick(section);
       }
@@ -155,9 +210,7 @@ export default function App() {
       }).catch(handleSyncError);
     };
 
-    // Run once on load/connect after a short delay
     const timeoutId = setTimeout(performSync, 5000);
-
     const intervalId = window.setInterval(performSync, 15 * 60 * 1000);
 
     return () => {
@@ -176,14 +229,29 @@ export default function App() {
     setActiveSection(id);
     localStorage.setItem('myokr_active_section', id);
     setSidebarOpen(false);
-    if (id !== 'pomodoro-timer') setRequestedTaskId(null);
-    if (id === 'today') setTodayKey(k => k + 1);
+    if (id !== 'session') setRequestedTaskId(null);
+    if (id === 'day-plan') setTodayKey(k => k + 1);
+
+    const parentGroup = NAV_GROUPS.find(g => g.items.some(item => item.id === id));
+    if (parentGroup) {
+      setCollapsedGroups(prev => ({ ...prev, [parentGroup.id]: false }));
+    }
+  };
+
+  const toggleGroup = (groupId: string, defaultTab: Section, isGroupActive: boolean) => {
+    setCollapsedGroups(prev => {
+      const willBeCollapsed = !prev[groupId];
+      if (!willBeCollapsed && !isGroupActive) {
+        handleNavClick(defaultTab);
+      }
+      return { ...prev, [groupId]: willBeCollapsed };
+    });
   };
 
   const handleStartFromToday = (taskId: string) => {
     setRequestedTaskId(taskId);
-    setActiveSection('pomodoro-timer');
-    localStorage.setItem('myokr_active_section', 'pomodoro-timer');
+    setActiveSection('session');
+    localStorage.setItem('myokr_active_section', 'session');
     setSidebarOpen(false);
   };
 
@@ -206,60 +274,66 @@ export default function App() {
           <span className="app-sidebar-logo-text">myOKR</span>
         </div>
         <nav className="app-sidebar-nav">
-          {navGroups.map(g => {
-            if (g.single) {
-              const item = g.single;
-              return (
-                <button
-                  key={item.id}
-                  title={item.label}
-                  className={`sidebar-nav-item${activeSection === item.id ? ' active' : ''}`}
-                  onClick={() => handleNavClick(item.id as Section)}
-                >
-                  <span className="sidebar-nav-icon">{item.icon}</span>
-                  <span className="sidebar-nav-label">{item.label}</span>
-                </button>
-              );
-            }
-            const header = g.header!;
-            const headerActive = activeSection.startsWith('pomodoro-');
+          {NAV_GROUPS.map(g => {
+            const isGroupActive = g.items.some(item => item.id === activeSection);
+            const isExpanded = !collapsedGroups[g.id];
+
             return (
-              <div key={header.id} className={`nav-group${headerActive ? ' has-active' : ''}`}>
-                <div className="sidebar-nav-header" title={header.label} tabIndex={0}>
-                  <span className="sidebar-nav-icon">{header.icon}</span>
-                  <span className="sidebar-nav-label">{header.label}</span>
-                </div>
-                <div className="nav-group-items">
-                  {g.items.map(item => (
-                    <button
-                      key={item.id}
-                      title={item.label}
-                      className={`sidebar-nav-item sub-item${activeSection === item.id ? ' active' : ''}`}
-                      onClick={() => handleNavClick(item.id as Section)}
-                    >
-                      <span className="sidebar-nav-icon">{item.icon}</span>
-                      <span className="sidebar-nav-label">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
+              <div key={g.id} className={`nav-group${isGroupActive ? ' has-active' : ''}`}>
+                <button
+                  type="button"
+                  className={`sidebar-nav-header${isGroupActive ? ' active' : ''}`}
+                  title={g.label}
+                  onClick={() => toggleGroup(g.id, g.defaultTab, isGroupActive)}
+                >
+                  <span className="sidebar-nav-icon">{g.icon}</span>
+                  <span className="sidebar-nav-label">{g.label}</span>
+                  <span className="group-chevron">
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="nav-group-items">
+                    {g.items.map(item => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        title={item.label}
+                        className={`sidebar-nav-item sub-item${activeSection === item.id ? ' active' : ''}`}
+                        onClick={() => handleNavClick(item.id)}
+                      >
+                        <span className="sidebar-nav-label">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-version">v{__APP_VERSION__}</div>
-          <div className="sidebar-footer-author">
-            Author: <a href="#" onClick={(e) => {
-              e.preventDefault();
-              invoke('open_external', { url: 'https://mail.google.com/mail/?view=cm&to=trongdth@gmail.com' });
-            }}>Trong Dinh</a>
-          </div>
-          <div className="sidebar-footer-help">
-            <a href="#" onClick={(e) => {
-              e.preventDefault();
-              invoke('open_external', { url: HELP_BLOG_URL });
-            }}><BookOpen size={14} className="icon-inline" /> Effective OKR guide</a>
-          </div>
+
+        <div className="sidebar-bottom-section">
+          <button
+            type="button"
+            className={`sidebar-nav-item bottom-item${activeSection === 'settings' ? ' active' : ''}`}
+            title="Settings"
+            onClick={() => handleNavClick('settings')}
+          >
+            <span className="sidebar-nav-icon"><SettingsIcon size={18} /></span>
+            <span className="sidebar-nav-label">Settings</span>
+            <span className={`sync-status-dot ${isSyncConnected ? 'connected' : 'disconnected'}`} title={isSyncConnected ? 'Sync connected' : 'Not connected'} />
+          </button>
+
+          <button
+            type="button"
+            className={`sidebar-nav-item bottom-item help-item${activeSection === 'help' ? ' active' : ''}`}
+            title="Help & tour"
+            onClick={() => handleNavClick('help')}
+          >
+            <span className="sidebar-nav-label">Help & tour</span>
+          </button>
+
+          <div className="sidebar-version-tag">v0.3.0</div>
         </div>
       </aside>
 
@@ -280,28 +354,36 @@ export default function App() {
           <span className="mobile-topbar-logo"><LogoMark size={20} /> <strong>myOKR</strong></span>
         </div>
 
-        <div style={{ display: activeSection.startsWith('pomodoro-') ? 'contents' : 'none' }}>
+        {['session', 'tasks', 'done', 'analytics'].includes(activeSection) && (
           <ErrorBoundary mode="section">
-            <PomodoroApp key="pomodoro" tab={(activeSection.startsWith('pomodoro-') ? activeSection.replace('pomodoro-', '') : 'timer') as 'timer' | 'tasks' | 'analytics'} requestedTaskId={requestedTaskId} onRequestedTaskConsumed={() => setRequestedTaskId(null)} />
+            <PomodoroApp
+              key={`pomodoro-${activeSection}`}
+              tab={activeSection === 'session' ? 'timer' : activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
+              requestedTaskId={requestedTaskId}
+              onRequestedTaskConsumed={() => setRequestedTaskId(null)}
+            />
           </ErrorBoundary>
-        </div>
-        {activeSection === 'today' && (
+        )}
+        {activeSection === 'day-plan' && (
           <ErrorBoundary mode="section">
-            <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('pomodoro-tasks')} />
+            <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('tasks')} />
           </ErrorBoundary>
         )}
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
-          {activeSection === 'okrs' && (
+          {activeSection === 'objectives' && (
             <ErrorBoundary mode="section"><OKRApp key="okrs" /></ErrorBoundary>
           )}
           {activeSection === 'habits' && (
             <ErrorBoundary mode="section"><HabitsApp key="habits" /></ErrorBoundary>
           )}
-          {activeSection === 'review' && (
+          {activeSection === 'weekly-review' && (
             <ErrorBoundary mode="section"><ReviewApp key="review" /></ErrorBoundary>
           )}
-          {activeSection === 'sync' && (
-            <ErrorBoundary mode="section"><SyncApp /></ErrorBoundary>
+          {activeSection === 'settings' && (
+            <ErrorBoundary mode="section"><SettingsApp key="settings" /></ErrorBoundary>
+          )}
+          {activeSection === 'help' && (
+            <ErrorBoundary mode="section"><HelpApp key="help" /></ErrorBoundary>
           )}
         </Suspense>
       </main>

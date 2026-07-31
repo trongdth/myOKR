@@ -11,7 +11,7 @@ async function waitForApp(page: Page) {
   await page.waitForLoadState('networkidle');
   await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
   // Land on Timer (also confirms the sidebar nav is usable).
-  await page.locator('button.sidebar-nav-item:has-text("Timer")').first().click();
+  await page.locator('button[title="Session"]').first().click();
 }
 
 // Inject a poisoned Automerge doc via the test hook, then trigger the same
@@ -55,18 +55,22 @@ test.describe('Resilience to poisoned synced/imported state', () => {
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
     await expect(page.locator('.pomodoro-container')).toBeVisible();
 
-    // OKRs tab: KeyResultRow reads the poisoned KR. Without normalization,
+    // Objectives tab: KeyResultRow reads the poisoned KR. Without normalization,
     // CONFIDENCE_META['MALICIOUS'].label throws.
-    await page.locator('button.sidebar-nav-item:has-text("OKRs")').first().click();
+    await page.locator('button[title="Plan"]').first().click();
+    await page.locator('button[title="Objectives"]').first().click();
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
-    // The poisoned KR (id kr1) was normalized and reached the UI — it appears as
-    // an option in a KR <select>. Assert it's in the DOM (options read as "hidden"
-    // by Playwright, so check attached rather than visible).
+
+    // Tasks tab: TaskList renders the task-kr-select <select> with keyResults.
+    await page.locator('button[title="Tasks"]').first().click();
     await expect(page.locator('option[value="kr1"]')).toBeAttached();
 
-    // Today tab: FocusCard renders the KR for the linked task. Without normalization
-    // this throws too, and (pre-fix) the whole-app ErrorBoundary removed the sidebar.
-    await page.locator('button.sidebar-nav-item:has-text("Today")').first().click();
+    // Day plan tab: FocusCard renders the KR for the linked task.
+    const dayPlanBtn = page.locator('button[title="Day plan"]').first();
+    if (!await dayPlanBtn.isVisible()) {
+      await page.locator('button[title="Focus"]').first().click();
+    }
+    await dayPlanBtn.click();
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
     // Sidebar nav must remain usable in every view.
     await expect(page.locator('button.sidebar-nav-item').first()).toBeVisible();

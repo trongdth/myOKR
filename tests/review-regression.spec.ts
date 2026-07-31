@@ -11,7 +11,8 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
     await waitForApp(page);
 
     // Go to Review section
-    await page.locator('nav >> text=Review').click();
+    await page.locator('button[title="Progress"]').click();
+    await page.locator('button[title="Weekly review"]').click();
     await expect(page.locator('.review-header-title')).toBeVisible();
 
     // 1. Seed two cycles: May 2026 (month=4, year=2026) and June 2026 (month=5, year=2026)

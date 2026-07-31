@@ -37,6 +37,7 @@ interface Props {
   onSetActive: (id: string | null) => void;
   keyResults?: KeyResult[];
   hideCompleted?: boolean;
+  showOnlyCompleted?: boolean;
 }
 
 function CategoryBadge({ category, onChange }: { category: EisenhowerCategory; onChange: (c: EisenhowerCategory) => void }) {
@@ -223,7 +224,7 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
   );
 }
 
-function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults = [], hideCompleted = false }: Props) {
+function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults = [], hideCompleted = false, showOnlyCompleted = false }: Props) {
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<EisenhowerCategory>('do');
   const [newKeyResultId, setNewKeyResultId] = useState<string>('');
@@ -332,6 +333,92 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
 
   const activeTasks = filteredTasks.filter(t => !t.isCompleted);
   const completedTasks = filteredTasks.filter(t => t.isCompleted);
+
+  if (showOnlyCompleted) {
+    return (
+      <div className="task-section">
+        <div className="task-section-header">
+          <h3><Check size={18} className="icon-inline" /> Done Tasks</h3>
+          <span className="task-count">
+            {completedTasks.length} completed
+          </span>
+        </div>
+
+        {tasks.length > 0 && (
+          <div className="task-search-row">
+            <svg className="task-search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search completed tasks…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <span className="task-search-count">{completedTasks.length} found</span>
+            )}
+            {searchQuery && (
+              <button className="task-search-clear" onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}><X size={14} /></button>
+            )}
+            {!searchQuery && (
+              <kbd className="task-search-shortcut">⌘K</kbd>
+            )}
+          </div>
+        )}
+
+        <div className="task-list">
+          {completedTasks.length === 0 && (
+            <div className="task-empty">No completed tasks yet.</div>
+          )}
+          {completedTasks.map(task => (
+            <div key={task.id} className="task-item completed-task">
+              <button className="task-delete-btn" onClick={() => deleteTask(task.id)} title="Delete"><X size={14} /></button>
+              <button
+                className="task-checkbox checked"
+                onClick={() => toggleComplete(task.id)}
+              ><Check size={16} /></button>
+              <span className="task-name">{task.title}</span>
+              <CategoryBadge
+                category={task.category || 'do'}
+                onChange={c => updateCategory(task.id, c)}
+              />
+              <div className="task-controls">
+                <div className="task-pomodoros">
+                  <span className="task-pomo-icon main-icon"><Timer size={14} /></span>
+                  <span className="task-pomo-count">
+                    {task.completedPomodoros}/{task.estimatedPomodoros}
+                  </span>
+                </div>
+              </div>
+              <DescriptionPreview task={task} onExpand={() => setDetailTask(task)} />
+            </div>
+          ))}
+        </div>
+
+        <ConfirmModal
+          isOpen={!!taskToDelete}
+          onClose={() => setTaskToDelete(null)}
+          onConfirm={confirmDelete}
+          title="Delete Task?"
+          message={
+            <>Are you sure you want to delete "<strong>{taskToDelete?.title}</strong>"? This action cannot be undone.</>
+          }
+          confirmText="Delete"
+        />
+
+        {detailTask && (
+          <TaskDetailModal
+            task={detailTask}
+            onUpdate={handleDetailUpdate}
+            onClose={() => setDetailTask(null)}
+            keyResults={keyResults}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="task-section">

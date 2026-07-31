@@ -32,7 +32,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture today view', async ({ page }) => {
-    await page.locator('button:has-text("Today")').click();
+    await page.locator('button:has-text("Day plan")').click();
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -41,8 +41,22 @@ test.describe('App Screenshots', () => {
     });
   });
 
+async function navTo(page: Page, title: string) {
+  const btn = page.locator(`button[title="${title}"], button:has-text("${title}")`).first();
+  if (!await btn.isVisible()) {
+    if (['Tasks', 'Objectives', 'Done'].includes(title)) {
+      await page.locator('button[title="Plan"]').first().click();
+    } else if (['Analytics', 'Weekly review'].includes(title)) {
+      await page.locator('button[title="Progress"]').first().click();
+    } else if (['Day plan', 'Session', 'Habits'].includes(title)) {
+      await page.locator('button[title="Focus"]').first().click();
+    }
+  }
+  await btn.click();
+}
+
   test('capture timer view', async ({ page }) => {
-    await page.locator('button:has-text("Timer")').click();
+    await navTo(page, 'Session');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -52,7 +66,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture tasks view', async ({ page }) => {
-    await page.locator('button:has-text("Tasks")').click();
+    await navTo(page, 'Tasks');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -62,7 +76,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture analytics view', async ({ page }) => {
-    await page.locator('button:has-text("Analytics")').click();
+    await navTo(page, 'Analytics');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -72,7 +86,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture okrs view', async ({ page }) => {
-    await page.locator('button:has-text("OKRs")').click();
+    await navTo(page, 'Objectives');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -82,7 +96,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture habits view', async ({ page }) => {
-    await page.locator('button:has-text("Habits")').click();
+    await navTo(page, 'Habits');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -92,7 +106,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture review view', async ({ page }) => {
-    await page.locator('button:has-text("Review")').click();
+    await navTo(page, 'Weekly review');
     await page.waitForTimeout(500);
 
     await page.screenshot({
@@ -102,7 +116,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture sync view', async ({ page }) => {
-    await page.locator('button:has-text("Cloud Sync")').click();
+    await navTo(page, 'Settings');
     await page.waitForTimeout(500);
 
     await page.screenshot({

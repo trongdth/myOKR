@@ -1,5 +1,19 @@
 import { test, expect } from '@playwright/test';
 
+async function navTo(page: any, title: string) {
+  const btn = page.locator(`button[title="${title}"], button.sidebar-nav-item:has-text("${title}")`).first();
+  if (!await btn.isVisible()) {
+    if (['Tasks', 'Objectives', 'Done'].includes(title)) {
+      await page.locator('button[title="Plan"]').first().click();
+    } else if (['Analytics', 'Weekly review'].includes(title)) {
+      await page.locator('button[title="Progress"]').first().click();
+    } else if (['Day plan', 'Session', 'Habits'].includes(title)) {
+      await page.locator('button[title="Focus"]').first().click();
+    }
+  }
+  await btn.click();
+}
+
 test.describe('Habit KR Linking & Progress Workflow', () => {
   test.beforeEach(async ({ page }) => {
     // Set localStorage to bypass walkthrough and open directly
@@ -35,7 +49,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     });
 
     // 1. Go to Habits tab and create a habit
-    await page.locator('nav >> text=Habits').click();
+    await navTo(page, 'Habits');
     await expect(page.locator('.habits-title')).toHaveText('Habits');
 
     const habitInput = page.locator('.add-habit-input');
@@ -44,7 +58,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(page.locator('.habit-name')).toHaveText('Forming E2E Habit');
 
     // 2. Go to OKRs tab and create objective + KR
-    await page.locator('nav >> text=OKRs').click();
+    await navTo(page, 'Objectives');
     await expect(page.locator('.okr-header-title')).toBeVisible();
 
     const objInput = page.locator('.okr-add-objective >> input');
@@ -69,7 +83,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await linkSelect.selectOption({ label: 'Forming E2E Habit' });
 
     // 3. Go to Today tab, check off the habit today
-    await page.locator('nav >> text=Today').click();
+    await navTo(page, 'Day plan');
     await expect(page.locator('h1:has-text("Today\'s Focus")')).toBeVisible();
 
     // Toggle today's habit tick
@@ -81,7 +95,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(todayHabitBtn.locator('.lucide-check')).toBeVisible();
 
     // 4. Go back to OKRs and check progress
-    await page.locator('nav >> text=OKRs').click();
+    await navTo(page, 'Objectives');
     
     // Expand the objective again to make the KR row visible
     const objHeader2 = page.locator('.objective-header:has-text("Habit E2E Objective")');
@@ -96,7 +110,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(krRow.locator('.kr-progress-percent')).toContainText('10.0%');
 
     // 5. Clean up habit (which also tests KR unlink fallback to manual mode)
-    await page.locator('nav >> text=Habits').click();
+    await navTo(page, 'Habits');
     await page.locator('.habit-delete-btn').click();
     
     // Expect ConfirmModal warning about linked KR
@@ -105,7 +119,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(page.locator('.habit-name')).toHaveCount(0);
 
     // Verify KR fell back to manual completion mode with preserved progress value
-    await page.locator('nav >> text=OKRs').click();
+    await navTo(page, 'Objectives');
 
     const objHeader3 = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader3).toBeVisible();
@@ -142,7 +156,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     });
 
     // Go to OKRs tab and create objective + KR
-    await page.locator('nav >> text=OKRs').click();
+    await navTo(page, 'Objectives');
     await expect(page.locator('.okr-header-title')).toBeVisible();
 
     const objInput = page.locator('.okr-add-objective >> input');

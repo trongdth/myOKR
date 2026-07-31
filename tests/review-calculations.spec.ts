@@ -11,7 +11,8 @@ test.describe('Weekly Review Calculations & Repair', () => {
     await waitForApp(page);
 
     // Go to Review section
-    await page.locator('nav >> text=Review').click();
+    await page.locator('button[title="Progress"]').click();
+    await page.locator('button[title="Weekly review"]').click();
     await expect(page.locator('.review-header-title')).toBeVisible();
 
     // Seed mock cycle, objective, KR, task, and history into Automerge doc
