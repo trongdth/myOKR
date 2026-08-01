@@ -540,3 +540,46 @@ export function computeWeekTaskPomos(
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
+
+/**
+ * ADR-0012 — presentational cycle rollover.
+ *
+ * A task's cycle membership is derived, never stored: a task belongs to the
+ * cycle of its key result (`keyResultId → objective → cycle`); an unlinked
+ * task belongs to no cycle. Cycle-scoped views count a task as "in this
+ * cycle" when its KR cycle is the active cycle or any already-ended cycle —
+ * the rollover is presentational, no document migration ever runs.
+ */
+export function isTaskInCycle(
+  task: PomodoroTask,
+  krCycle: { month: number; year: number } | undefined,
+  activeCycle: { month: number; year: number } | null,
+): boolean {
+  if (!task.keyResultId) return true; // unlinked tasks have no cycle → always in
+  if (!activeCycle) return true; // no active cycle → nothing to filter by
+  if (!krCycle) return true; // KR's cycle unknown → never hide the task
+  const krKey = krCycle.year * 12 + krCycle.month;
+  const activeKey = activeCycle.year * 12 + activeCycle.month;
+  return krKey <= activeKey;
+}
+
+/**
+ * Build a `keyResultId → OKRCycle` map from the loaded OKR data, resolving
+ * through objective linkage. KRs whose objective or cycle is missing are
+ * omitted from the map (their tasks stay visible everywhere).
+ */
+export function buildKrCycleMap(
+  keyResults: Array<{ id: string; objectiveId: string }>,
+  objectives: Array<{ id: string; cycleId: string }>,
+  cycles: Array<{ id: string; month: number; year: number }>,
+): Map<string, { month: number; year: number }> {
+  const objByKr = new Map(keyResults.map(kr => [kr.id, kr.objectiveId]));
+  const cycleByObj = new Map(objectives.map(o => [o.id, o.cycleId]));
+  const cycleById = new Map(cycles.map(c => [c.id, c]));
+  const map = new Map<string, { month: number; year: number }>();
+  for (const kr of keyResults) {
+    const cycle = cycleById.get(cycleByObj.get(objByKr.get(kr.id)!) ?? '');
+    if (cycle) map.set(kr.id, { month: cycle.month, year: cycle.year });
+  }
+  return map;
+}

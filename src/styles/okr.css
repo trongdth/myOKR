@@ -1282,3 +1282,58 @@
     padding: 0.7em 0.9em;
   }
 }
+
+/* --- P7: cycle countdown + New objective button + header right --- */
+.okr-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.okr-cycle-countdown {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+.okr-new-objective-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 34px;
+  padding: 0 0.9rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #04222a;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.okr-new-objective-btn:hover { filter: brightness(1.08); }
+
+/* --- P7: KR confidence pill (replaces bare dot) --- */
+.kr-confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* --- P7: KR recency line ("updated 2 days ago · N tasks linked") --- */
+.kr-flag-line {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.kr-flag-line .kr-recency {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

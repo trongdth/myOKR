@@ -3285,14 +3285,510 @@
   border-bottom-color: var(--accent-primary);
 }
 
-/* 1024px Responsive Breakpoint (P2) */
-@media (max-width: 1024px) {
+
+
+
+/* ==========================================================================
+   Plan Group redesign (P1–P7) — design-system.md per-screen rules
+   ========================================================================== */
+
+/* --- P1 header: PLAN + cycle pill + New task --- */
+.cycle-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--color-primary);
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+}
+
+.new-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 34px;
+  padding: 0 0.9rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #04222a;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.new-task-btn:hover { filter: brightness(1.08); }
+
+/* --- P1 tab strip --- */
+.plan-tab-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.plan-tabs {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+.plan-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0 11px;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+}
+.plan-tab.active {
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--color-primary);
+}
+.plan-tab-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 0.05rem 0.4rem;
+  border-radius: 5px;
+}
+.plan-tab.active .plan-tab-count { color: var(--color-primary); }
+.plan-cycle-week {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding-bottom: 11px;
+  white-space: nowrap;
+}
+
+/* --- P1 SERVING strip: objectives with progress --- */
+.serving-kr-strip {
+  flex-wrap: wrap;
+}
+.serving-kr-list {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow-x: auto;
+}
+.serving-obj-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+.serving-obj-title {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.serving-obj-bar {
+  width: 64px;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  flex: none;
+}
+.serving-obj-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--color-objective);
+}
+.serving-obj-fill.empty { background: var(--color-risk); }
+.serving-obj-progress {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.serving-obj-progress.empty { color: var(--color-risk); }
+.serving-open-objectives {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --- P1 bucket headers: pomo counts --- */
+.column-pomos {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1rem 0.45rem;
+  border-radius: 5px;
+}
+
+/* --- P1 board card anatomy (flagship: mockup-exact) --- */
+.board-task-card {
+  background: #141922;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 var(--task-accent, #6b7280);
+}
+.card-top-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.card-tick {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  background: transparent;
+  flex: none;
+  margin-top: 1px;
+  cursor: pointer;
+  padding: 0;
+}
+.card-tick:hover { border-color: var(--color-primary); }
+.card-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.card-pomos {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  flex: none;
+}
+.card-kr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding-left: 1.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding-left: 1.7rem;
+  flex-wrap: wrap;
+}
+.card-category {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.card-due {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.card-due.overdue { color: var(--color-risk); }
+.card-move-wrapper { margin-left: auto; position: relative; }
+.card-move-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.card-move-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+/* --- P1 completed-today strip (inside Backlog column) --- */
+.completed-today-strip {
+  margin-top: auto;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.completed-today-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  color: #6ee7b7;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+.completed-today-toggle .toggle-label { color: var(--text-muted); font-weight: 400; }
+.completed-today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.completed-today-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+}
+.completed-today-item .done-icon { color: #6ee7b7; flex: none; }
+.completed-today-item .item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.undo-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.undo-btn:hover { color: var(--color-primary); }
+
+/* --- P2: Backlog collapses to a bar ≤1100px (click-and-place, no drag-drop) --- */
+.backlog-bar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  cursor: default;
+}
+.backlog-bar-hint {
+  display: none;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.backlog-expanded-panel { display: none; }
+
+@media (max-width: 1100px) {
   .board-view-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .column-backlog {
     grid-column: 1 / -1;
     min-height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.7rem 1rem;
+  }
+  .column-backlog .column-cards { display: none; }
+  .column-backlog .completed-today-strip {
+    margin-top: 0;
+    margin-left: auto;
+    border-top: none;
+    padding-top: 0;
+    flex: none;
+  }
+  .backlog-bar-toggle { cursor: pointer; }
+  .backlog-bar-hint { display: inline; flex: 1; }
+  .backlog-expanded-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  .backlog-expanded-empty {
+    grid-column: 1 / -1;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding: 0.6rem 0;
   }
 }
 
+/* --- P3 List toolbar + group headers --- */
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.list-toolbar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+}
+.list-toolbar-label { color: var(--text-muted); }
+.list-toolbar-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+.list-new-task { margin-left: auto; }
+.list-group { margin-bottom: 1.25rem; }
+.list-group-header {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 0.5rem 0 0.4rem;
+}
+
+/* --- P5 Done view: filters + summary + table --- */
+.done-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.8rem 0;
+}
+.done-filter-chip {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.done-filter-chip.active {
+  color: var(--color-primary);
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.1);
+}
+.done-filter-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  padding: 0.35rem 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+.done-view-summary {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.done-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.done-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+.done-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+.done-table-row { cursor: pointer; }
+.done-table-row:hover { background: rgba(255, 255, 255, 0.03); }
+.done-th-pomos, .done-th-finished, .done-th-undo { text-align: right; }
+.done-td-pomos, .done-td-finished, .done-td-undo {
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.done-task-title { font-weight: 500; }
+.done-task-kr { font-size: 0.75rem; color: var(--text-muted); }
+.done-reopen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.done-reopen-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* --- P4 Task detail: eyebrow hint + mono readout --- */
+.detail-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  display: block;
+}
+.pomo-mono {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+}
+
+/* --- P4 notes: wrapped links with copy button --- */
+.md-link-row { display: inline; }
+.md-link-row.has-copy { display: inline-flex; align-items: center; gap: 0.35rem; }
+.md-link-row a { overflow-wrap: anywhere; }
+.md-link-copy {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  padding: 0.05rem 0.4rem;
+  cursor: pointer;
+  flex: none;
+}
+.md-link-copy:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* --- P6 ⌘K: grouped results --- */
+.command-k-group { padding-bottom: 0.5rem; }
+.command-k-group + .command-k-group { border-top: 1px solid var(--border-color); }
+.command-k-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 0.55rem 0.9rem 0.35rem;
+}
+.command-k-group-count {
+  background: var(--bg-tertiary);
+  border-radius: 5px;
+  padding: 0.05rem 0.4rem;
+}
+.command-k-item-meta .meta-kr { color: var(--text-muted); }

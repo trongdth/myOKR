@@ -60,7 +60,7 @@ test.describe('Desktop: OKR Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
     await navDesktop(page, 'OKRs');
-    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
   });
 
   test('Help & tour button in sidebar renders a question mark icon', async ({ page }) => {
@@ -231,7 +231,7 @@ test.describe('Mobile: Core Workflows', () => {
 
   test('navigate and create objective', async ({ page }) => {
     await navMobile(page, 'OKRs');
-    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     const input = page.locator('input[placeholder*="Add a new objective"]');
     await input.fill('Mobile Objective');
@@ -246,7 +246,10 @@ test.describe('Mobile: Core Workflows', () => {
     const input = page.locator('input[placeholder*="What are you working on?"]');
     await input.fill('Mobile Task');
     await page.locator('button.quick-add-btn').click();
-    await expect(page.locator('text=Mobile Task')).toBeVisible();
+    // New tasks land in Backlog; at narrow widths the Backlog column is
+    // collapsed to a bar (P2) — expand it to reveal the card.
+    await page.locator('.backlog-bar-toggle').click();
+    await expect(page.locator('.backlog-expanded-panel span.card-title', { hasText: 'Mobile Task' })).toBeVisible();
   });
 
   test('start and pause pomodoro', async ({ page }) => {

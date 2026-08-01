@@ -60,7 +60,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // 2. Go to OKRs tab and create objective + KR
     await navTo(page, 'Objectives');
-    await expect(page.locator('.okr-header-title')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     const objInput = page.locator('.okr-add-objective >> input');
     await objInput.fill('Habit E2E Objective');
@@ -152,7 +152,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // Go to OKRs tab and create objective + KR
     await navTo(page, 'Objectives');
-    await expect(page.locator('.okr-header-title')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     const objInput = page.locator('.okr-add-objective >> input');
     await objInput.fill('Habit Link Navigation Objective');

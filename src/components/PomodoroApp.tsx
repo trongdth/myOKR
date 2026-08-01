@@ -28,6 +28,7 @@ import {
 import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
 import LoadingState from './shared/LoadingState';
+import { loadHabits, type Habit } from '../lib/habit-storage';
 
 // Tauri injects __TAURI_INTERNALS__ at runtime; no type definitions exist for it.
 const IS_TAURI = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
@@ -57,6 +58,8 @@ export default function PomodoroApp({
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [history, setHistory] = useState<DailyRecord[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
+  const [objectives, setObjectives] = useState<Objective[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
   const [selectedDetailTask, setSelectedDetailTask] = useState<PomodoroTask | null>(null);
@@ -141,7 +144,8 @@ export default function PomodoroApp({
 
       setTasks(await loadTasks());
       setHistory(await loadHistory());
-      
+      setHabits(await loadHabits());
+
       const loadedCycles = await loadCycles();
       setCycles(loadedCycles);
       const currCycle = await getActiveCycle();
@@ -150,6 +154,7 @@ export default function PomodoroApp({
       if (currCycle) {
         const krs = await loadKeyResults();
         const objs = await loadObjectives();
+        setObjectives(objs);
         const activeObjs = new Set(objs.filter(o => o.cycleId === currCycle.id).map(o => o.id));
         setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
       }
@@ -188,6 +193,7 @@ export default function PomodoroApp({
         if (activeCycle) {
           const krs = await loadKeyResults();
           const objs = await loadObjectives();
+          setObjectives(objs);
           const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
           setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
         }
@@ -813,13 +819,12 @@ export default function PomodoroApp({
           onTasksChange={handleTasksChange}
           onSetActive={handleSetActiveTask}
           onSelectTask={(t) => setSelectedDetailTask(t)}
-          onStartFocusTask={(t) => {
-            handleSetActiveTask(t.id);
-            window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
-          }}
           keyResults={keyResults}
           cycles={cycles}
           activeCycle={activeCycle}
+          objectives={objectives}
+          habits={habits}
+          focusDurationMinutes={settings.focusDuration}
           onOpenSearch={() => setIsSearchOpen(true)}
         />
       )}
@@ -829,6 +834,10 @@ export default function PomodoroApp({
         <DoneView
           tasks={tasks}
           keyResults={keyResults}
+          objectives={objectives}
+          cycles={cycles}
+          activeCycle={activeCycle}
+          onOpenSearch={() => setIsSearchOpen(true)}
           onReopenTask={(task) => {
             const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
             handleTasksChange(updated);
@@ -849,6 +858,7 @@ export default function PomodoroApp({
           onClose={() => setIsSearchOpen(false)}
           tasks={tasks}
           keyResults={keyResults}
+          objectives={objectives}
           cycles={cycles}
           activeCycleId={activeCycle?.id}
           onSelectTask={(t) => setSelectedDetailTask(t)}

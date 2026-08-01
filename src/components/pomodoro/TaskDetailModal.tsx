@@ -126,6 +126,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
       <div className="modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
         {/* Panel Header */}
         <div className="detail-panel-header">
+          <span className="detail-eyebrow">TASK · click any field to edit</span>
           <div className="detail-title-block">
             {isEditingTitle ? (
               <input
@@ -232,11 +233,11 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             </select>
           </div>
 
-          {/* Pomodoros Planned Pill */}
+          {/* Pomodoros Planned Pill — mono readout, estimate stays click-to-edit */}
           <div className="prop-group">
             <span className="prop-label">POMODOROS</span>
             <div className="prop-pomo-input-wrapper">
-              <span>🍅 {task.completedPomodoros} / </span>
+              <span className="pomo-mono">{task.completedPomodoros} / </span>
               <input
                 type="number"
                 min="1"
@@ -245,7 +246,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                 value={task.estimatedPomodoros || 1}
                 onChange={e => handleUpdateEstPomos(parseInt(e.target.value, 10) || 1)}
               />
-              <span>planned</span>
+              <span className="pomo-mono"> planned</span>
             </div>
           </div>
         </div>
@@ -297,7 +298,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             <div className="notes-content-view">
               {task.description ? (
                 <Suspense fallback={<div>Loading notes...</div>}>
-                  <Markdown>{task.description}</Markdown>
+                  <Markdown showLinkCopy>{task.description}</Markdown>
                 </Suspense>
               ) : (
                 <p className="empty-notes-hint">Click &quot;Edit notes&quot; to add links or notes.</p>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Target } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Target, Plus, Search } from 'lucide-react';
 import '../styles/okr.css';
 import {
   ensureCyclesExist, saveCycles,
@@ -9,11 +9,14 @@ import {
   cloneCycleStructure, resolveCurrentCycle,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
-import { generateId, loadSettings } from '../lib/pomodoro-storage';
-import { loadTasks, type PomodoroTask } from '../lib/pomodoro-storage';
+import { generateId, loadSettings, saveTasks, isTaskInCycle, buildKrCycleMap, type PomodoroTask } from '../lib/pomodoro-storage';
+import { loadTasks } from '../lib/pomodoro-storage';
 import { loadHabits, type Habit } from '../lib/habit-storage';
 import CycleSelector from './okr/CycleSelector';
 import ObjectiveCard from './okr/ObjectiveCard';
+import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './pomodoro/PlanTabStrip';
+import CommandKModal from './pomodoro/CommandKModal';
+import TaskDetailModal from './pomodoro/TaskDetailModal';
 import ConfirmModal from './ConfirmModal';
 import LoadingState from './shared/LoadingState';
 
@@ -28,6 +31,9 @@ export default function OKRApp() {
   const [focusDuration, setFocusDuration] = useState(25);
   const [newObjTitle, setNewObjTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'objective' | 'kr' | 'cycle', id: string, title?: string } | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedDetailTask, setSelectedDetailTask] = useState<PomodoroTask | null>(null);
+  const addObjectiveRef = useRef<HTMLDivElement>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -94,6 +100,27 @@ export default function OKRApp() {
       .filter(c => !objectives.some(o => o.cycleId === c.id))
       .map(c => c.id),
   );
+
+  // P7: cycle countdown line, counts, tab-strip numbers
+  const krCountInCycle = keyResults.filter(kr => cycleObjectives.some(o => o.id === kr.objectiveId)).length;
+  const isCurrentCycle = !!activeCycle && activeCycle.month === now.getMonth() && activeCycle.year === now.getFullYear();
+  const daysLeftInCycle = activeCycle ? new Date(activeCycle.year, activeCycle.month + 1, 0).getDate() - now.getDate() : 0;
+  const krCycleMap = buildKrCycleMap(keyResults, objectives, cycles);
+  const inCycle = (t: PomodoroTask) => isTaskInCycle(t, krCycleMap.get(t.keyResultId || ''), activeCycle ?? null);
+  const openInCycleCount = tasks.filter(t => !t.isCompleted && inCycle(t)).length;
+  const completedInCycleCount = tasks.filter(t => t.isCompleted && inCycle(t)).length;
+
+  const focusAddObjective = () => {
+    addObjectiveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    addObjectiveRef.current?.querySelector('input')?.focus();
+  };
+
+  const updateTask = (updated: PomodoroTask) => {
+    const next = tasks.map(t => t.id === updated.id ? updated : t);
+    setTasks(next);
+    saveTasks(next);
+    setSelectedDetailTask(updated);
+  };
 
   // ----- Cycle handlers -----
   const handleSelectCycle = (id: string) => {
@@ -245,10 +272,34 @@ export default function OKRApp() {
 
   return (
     <div className="okr-container">
-      {/* Header */}
+      {/* Header (P7): PLAN + cycle pill + progress + New objective + Search ⌘K */}
+      <PlanHeader
+        activeCycle={activeCycle}
+        right={
+          <>
+            <div className="okr-overall-progress">
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Overall</span>
+              <div className="okr-overall-bar">
+                <div className="okr-overall-fill" style={{ width: `${overallProgress}%` }} />
+              </div>
+              <span className="okr-overall-text">{overallProgress}%</span>
+            </div>
+            <button className="okr-new-objective-btn" onClick={focusAddObjective}>
+              <Plus size={15} />
+              <span>New objective</span>
+            </button>
+            <button className="search-trigger-btn" onClick={() => setIsSearchOpen(true)}>
+              <Search size={15} />
+              <span>Search</span>
+              <kbd className="cmd-k-badge">⌘K</kbd>
+            </button>
+          </>
+        }
+      />
+
+      {/* Cycle selector + countdown line (P7) */}
       <div className="okr-header">
         <div className="okr-header-left">
-          <h2 className="okr-header-title"><Target size={18} className="icon-inline" /> Objectives & Key Results</h2>
           <CycleSelector
             cycles={cycles}
             activeCycleId={activeCycleId}
@@ -258,15 +309,22 @@ export default function OKRApp() {
             deletableCycleIds={deletableCycleIds}
             onDeleteCycle={deleteCycleRequest}
           />
-        </div>
-        <div className="okr-overall-progress">
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Overall</span>
-          <div className="okr-overall-bar">
-            <div className="okr-overall-fill" style={{ width: `${overallProgress}%` }} />
-          </div>
-          <span className="okr-overall-text">{overallProgress}%</span>
+          {isCurrentCycle && activeCycle && (
+            <span className="okr-cycle-countdown">
+              {daysLeftInCycle} days left in cycle · {cycleObjectives.length} objectives · {krCountInCycle} key results
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Tab strip with counts (P7) */}
+      <PlanTabStrip
+        active="objectives"
+        tasksCount={openInCycleCount}
+        objectivesCount={cycleObjectives.length}
+        doneCount={completedInCycleCount}
+        cycleLabel={cycleWeekLabel(activeCycle)}
+      />
 
       {/* Objectives */}
       {cycleObjectives.length === 0 && (
@@ -296,7 +354,7 @@ export default function OKRApp() {
       ))}
 
       {/* Add Objective */}
-      <div className="okr-add-objective">
+      <div className="okr-add-objective" ref={addObjectiveRef}>
         <input
           type="text"
           placeholder="Add a new objective... (e.g. 'Ship myOKR v1.0')"
@@ -306,6 +364,42 @@ export default function OKRApp() {
         />
         <button className="okr-add-btn" onClick={addObjective}>+ Add Objective</button>
       </div>
+
+      {/* Global ⌘K search + task detail (P6/P4) — same modal as the Tasks screen */}
+      {isSearchOpen && (
+        <CommandKModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          tasks={tasks}
+          keyResults={keyResults}
+          objectives={objectives}
+          cycles={cycles}
+          activeCycleId={activeCycleId || null}
+          onSelectTask={(t) => setSelectedDetailTask(t)}
+          onStartFocusTask={() => {
+            window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
+            setIsSearchOpen(false);
+          }}
+          onReopenTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+            setTasks(updated);
+            saveTasks(updated);
+          }}
+        />
+      )}
+
+      {selectedDetailTask && (
+        <TaskDetailModal
+          task={selectedDetailTask}
+          onUpdate={updateTask}
+          onClose={() => setSelectedDetailTask(null)}
+          keyResults={keyResults}
+          onStartFocus={() => {
+            window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
+            setSelectedDetailTask(null);
+          }}
+        />
+      )}
 
       <ConfirmModal
         isOpen={!!deleteTarget}

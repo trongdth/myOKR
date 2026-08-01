@@ -17,7 +17,7 @@ test.describe('Objective Rewards system', () => {
     // Go to Objectives tab
     await page.locator('button[title="Plan"]').click();
     await page.locator('button[title="Objectives"]').click();
-    await expect(page.locator('.okr-header-title')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     // Seed mock cycle, objective, and KR
     await page.evaluate(async () => {

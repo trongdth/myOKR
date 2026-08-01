@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, X, Play, RotateCcw, CheckCircle2, Circle } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
-import type { KeyResult, OKRCycle } from '../../lib/okr-storage';
+import { buildKrCycleMap } from '../../lib/pomodoro-storage';
+import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 
 export type SearchScope = 'everything' | 'open' | 'completed' | 'subtasks' | 'notes';
@@ -11,6 +12,7 @@ interface Props {
   onClose: () => void;
   tasks: PomodoroTask[];
   keyResults?: KeyResult[];
+  objectives?: Objective[];
   cycles?: OKRCycle[];
   activeCycleId?: string | null;
   onSelectTask: (task: PomodoroTask) => void;
@@ -18,11 +20,24 @@ interface Props {
   onReopenTask?: (task: PomodoroTask) => void;
 }
 
+interface MatchInfo {
+  title: boolean;
+  subtask: boolean;
+  body: boolean;
+}
+
+interface GroupedResults {
+  open: PomodoroTask[];
+  completed: PomodoroTask[];
+  insideTasks: PomodoroTask[];
+}
+
 export default function CommandKModal({
   isOpen,
   onClose,
   tasks,
   keyResults = [],
+  objectives = [],
   cycles = [],
   activeCycleId,
   onSelectTask,
@@ -42,42 +57,70 @@ export default function CommandKModal({
     }
   }, [isOpen]);
 
-  const filteredResults = useMemo(() => {
+  const krCycleMap = useMemo(
+    () => buildKrCycleMap(keyResults, objectives, cycles),
+    [keyResults, objectives, cycles],
+  );
+
+  const grouped = useMemo<GroupedResults>(() => {
     const q = query.trim().toLowerCase();
+    const selectedCycle = cycles.find(c => c.id === selectedCycleId);
 
-    // Map KRs to Cycle IDs
-    const krCycleMap = new Map<string, string>();
-    keyResults.forEach(kr => {
-      krCycleMap.set(kr.id, kr.objectiveId);
-    });
-
-    return tasks.filter(task => {
-      // Cycle Filter
-      if (selectedCycleId !== 'all' && task.keyResultId) {
-        // If keyResult is linked, match cycle
-        const kr = keyResults.find(k => k.id === task.keyResultId);
-        if (kr && activeCycleId && krCycleMap.has(kr.id)) {
-          // Keep if cycle matches selected
-        }
+    const inSelectedCycle = (task: PomodoroTask): boolean => {
+      if (selectedCycleId === 'all' || !selectedCycle) return true;
+      const krCycle = krCycleMap.get(task.keyResultId || '');
+      if (!task.keyResultId) {
+        // Unlinked tasks belong to no cycle: they surface in the active-cycle
+        // scope (presentational rollover) and in "All Cycles" only.
+        return activeCycleId === selectedCycleId;
       }
+      if (!krCycle) return true; // unknown KR cycle → never hide the task
+      const krKey = krCycle.year * 12 + krCycle.month;
+      const selectedKey = selectedCycle.year * 12 + selectedCycle.month;
+      if (krKey === selectedKey) return true;
+      // In the active-cycle scope, already-ended cycles roll over (ADR-0012);
+      // in a history-cycle scope membership is strict.
+      if (activeCycleId === selectedCycleId) return krKey < selectedKey;
+      return false;
+    };
 
-      // Scope Filter
-      if (scope === 'open' && task.isCompleted) return false;
-      if (scope === 'completed' && !task.isCompleted) return false;
+    const match = (task: PomodoroTask): MatchInfo | null => {
+      if (!q) return { title: true, subtask: true, body: true };
+      const title = task.title.toLowerCase().includes(q);
+      const subtask = (task.todos || []).some(t => t.text.toLowerCase().includes(q));
+      const body = (task.description || '').toLowerCase().includes(q)
+        || (task.comments || []).some(c => c.text.toLowerCase().includes(q));
 
-      if (!q) return true;
+      if (scope === 'open') return title || subtask || body ? { title, subtask, body } : null;
+      if (scope === 'completed') return title || subtask || body ? { title, subtask, body } : null;
+      if (scope === 'subtasks') return subtask ? { title, subtask, body } : null;
+      if (scope === 'notes') return body ? { title, subtask, body } : null;
+      return title || subtask || body ? { title, subtask, body } : null;
+    };
 
-      const titleMatch = task.title.toLowerCase().includes(q);
-      const descMatch = (task.description || '').toLowerCase().includes(q);
-      const subtaskMatch = (task.todos || []).some(t => t.text.toLowerCase().includes(q));
-      const commentMatch = (task.comments || []).some(c => c.text.toLowerCase().includes(q));
+    const groups: GroupedResults = { open: [], completed: [], insideTasks: [] };
 
-      if (scope === 'subtasks') return subtaskMatch;
-      if (scope === 'notes') return descMatch || commentMatch;
+    tasks.forEach(task => {
+      if (!inSelectedCycle(task)) return;
+      if (scope === 'open' && task.isCompleted) return;
+      if (scope === 'completed' && !task.isCompleted) return;
 
-      return titleMatch || descMatch || subtaskMatch || commentMatch;
+      const m = match(task);
+      if (!m) return;
+
+      if (task.isCompleted) {
+        groups.completed.push(task);
+      } else if (m.title) {
+        groups.open.push(task);
+      } else {
+        groups.insideTasks.push(task); // sub-task or note match inside an open task
+      }
     });
-  }, [tasks, query, scope, selectedCycleId, keyResults, activeCycleId]);
+
+    return groups;
+  }, [tasks, query, scope, selectedCycleId, cycles, activeCycleId, krCycleMap]);
+
+  const total = grouped.open.length + grouped.completed.length + grouped.insideTasks.length;
 
   if (!isOpen) return null;
 
@@ -132,78 +175,142 @@ export default function CommandKModal({
           )}
         </div>
 
-        {/* Results List */}
+        {/* Results List — grouped OPEN / COMPLETED / INSIDE TASKS (P6) */}
         <div className="command-k-results">
-          {filteredResults.length === 0 ? (
+          {total === 0 ? (
             <div className="command-k-empty">
               No matching tasks found for &quot;{query}&quot;
             </div>
           ) : (
-            filteredResults.map(task => {
-              const linkedKr = keyResults.find(k => k.id === task.keyResultId);
-              return (
-                <div
-                  key={task.id}
-                  className={`command-k-item${task.isCompleted ? ' completed' : ''}`}
-                  onClick={() => {
-                    onSelectTask(task);
-                    onClose();
-                  }}
-                >
-                  <div className="command-k-item-main">
-                    <div className="command-k-item-title-row">
-                      {task.isCompleted ? (
-                        <CheckCircle2 size={16} className="status-icon completed" />
-                      ) : (
-                        <Circle size={16} className="status-icon open" />
-                      )}
-                      <span className="command-k-item-title">{task.title}</span>
-                      {task.bucket && (
-                        <span className={`bucket-pill bucket-${task.bucket}`}>
-                          {task.bucket.replace('_', ' ')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="command-k-item-meta">
-                      {linkedKr && <span className="meta-kr">🎯 {linkedKr.title}</span>}
-                      {task.dueDate && <span className="meta-due">📅 {task.dueDate}</span>}
-                      <span className="meta-pomos">
-                        🍅 {task.completedPomodoros}/{task.estimatedPomodoros || 1}
-                      </span>
-                    </div>
+            <>
+              {grouped.open.length > 0 && (
+                <div className="command-k-group">
+                  <div className="command-k-group-header">
+                    <span>OPEN</span>
+                    <span className="command-k-group-count">{grouped.open.length}</span>
                   </div>
-
-                  <div className="command-k-item-actions" onClick={e => e.stopPropagation()}>
-                    {!task.isCompleted && onStartFocusTask && (
-                      <button
-                        className="command-k-act-btn focus-btn"
-                        onClick={() => {
-                          onStartFocusTask(task);
-                          onClose();
-                        }}
-                        title="Start focus timer with this task"
-                      >
-                        <Play size={13} />
-                        <span>Start</span>
-                      </button>
-                    )}
-                    {task.isCompleted && onReopenTask && (
-                      <button
-                        className="command-k-act-btn reopen-btn"
-                        onClick={() => onReopenTask(task)}
-                        title="Reopen task"
-                      >
-                        <RotateCcw size={13} />
-                        <span>Reopen</span>
-                      </button>
-                    )}
-                  </div>
+                  {grouped.open.map(task => (
+                    <CommandKRow
+                      key={task.id}
+                      task={task}
+                      keyResults={keyResults}
+                      onSelect={() => { onSelectTask(task); onClose(); }}
+                      onStartFocus={onStartFocusTask ? () => { onStartFocusTask(task); onClose(); } : undefined}
+                      onReopen={onReopenTask ? () => onReopenTask(task) : undefined}
+                    />
+                  ))}
                 </div>
-              );
-            })
+              )}
+
+              {grouped.completed.length > 0 && (
+                <div className="command-k-group">
+                  <div className="command-k-group-header">
+                    <span>COMPLETED</span>
+                    <span className="command-k-group-count">{grouped.completed.length}</span>
+                  </div>
+                  {grouped.completed.map(task => (
+                    <CommandKRow
+                      key={task.id}
+                      task={task}
+                      keyResults={keyResults}
+                      onSelect={() => { onSelectTask(task); onClose(); }}
+                      onStartFocus={undefined}
+                      onReopen={onReopenTask ? () => onReopenTask(task) : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {grouped.insideTasks.length > 0 && (
+                <div className="command-k-group">
+                  <div className="command-k-group-header">
+                    <span>INSIDE TASKS</span>
+                    <span className="command-k-group-count">{grouped.insideTasks.length}</span>
+                  </div>
+                  {grouped.insideTasks.map(task => (
+                    <CommandKRow
+                      key={task.id}
+                      task={task}
+                      keyResults={keyResults}
+                      onSelect={() => { onSelectTask(task); onClose(); }}
+                      onStartFocus={onStartFocusTask ? () => { onStartFocusTask(task); onClose(); } : undefined}
+                      onReopen={undefined}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CommandKRow({
+  task,
+  keyResults,
+  onSelect,
+  onStartFocus,
+  onReopen,
+}: {
+  task: PomodoroTask;
+  keyResults: KeyResult[];
+  onSelect: () => void;
+  onStartFocus?: () => void;
+  onReopen?: () => void;
+}) {
+  const linkedKr = keyResults.find(k => k.id === task.keyResultId);
+  return (
+    <div
+      className={`command-k-item${task.isCompleted ? ' completed' : ''}`}
+      onClick={onSelect}
+    >
+      <div className="command-k-item-main">
+        <div className="command-k-item-title-row">
+          {task.isCompleted ? (
+            <CheckCircle2 size={16} className="status-icon completed" />
+          ) : (
+            <Circle size={16} className="status-icon open" />
+          )}
+          <span className="command-k-item-title">{task.title}</span>
+          {task.bucket && (
+            <span className={`bucket-pill bucket-${task.bucket}`}>
+              {task.bucket.replace('_', ' ')}
+            </span>
+          )}
+        </div>
+
+        <div className="command-k-item-meta">
+          <span className="meta-kr">{linkedKr ? linkedKr.title : 'no key result'}</span>
+          {task.dueDate && <span className="meta-due">{task.dueDate}</span>}
+          <span className="meta-pomos">
+            {task.completedPomodoros}/{task.estimatedPomodoros || 1}
+          </span>
+        </div>
+      </div>
+
+      <div className="command-k-item-actions" onClick={e => e.stopPropagation()}>
+        {onStartFocus && (
+          <button
+            className="command-k-act-btn focus-btn"
+            onClick={onStartFocus}
+            title="Start focus timer with this task"
+          >
+            <Play size={13} />
+            <span>Start</span>
+          </button>
+        )}
+        {onReopen && task.isCompleted && (
+          <button
+            className="command-k-act-btn reopen-btn"
+            onClick={onReopen}
+            title="Reopen task"
+          >
+            <RotateCcw size={13} />
+            <span>Reopen</span>
+          </button>
+        )}
       </div>
     </div>
   );

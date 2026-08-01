@@ -1,5 +1,5 @@
 import { useState, useRef, type ReactNode } from 'react';
-import { X, Pencil, Clock, Timer, CheckCheck, TrendingUp } from 'lucide-react';
+import { X, Pencil, Clock, Timer, CheckCheck, TrendingUp, Link2, AlertTriangle } from 'lucide-react';
 import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from '../../lib/okr-storage';
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
@@ -124,15 +124,17 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
 
   return (
     <div className="kr-row">
-      {/* Line 1: confidence + title + mode badge + delete */}
+      {/* Line 1: confidence pill + title + mode badge + delete (P7) */}
       <div className="kr-row-top">
         <div style={{ position: 'relative' }} ref={confidenceRef}>
           <span
-            className="kr-confidence"
+            className={`kr-confidence-pill${kr.confidence === 'not_set' ? ' not-set' : ''}`}
+            style={{ background: meta.bgColor, color: meta.color, borderColor: meta.color }}
             onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); setShowValuePopover(false); }}
             title={`${meta.label} — Click to change`}
           >
-            <span className="confidence-dot confidence-dot--lg" style={{ background: meta.color }} />
+            <span className="confidence-dot" style={{ background: meta.color }} />
+            {meta.label}
           </span>
           {showConfidencePopup && (
             <div className="confidence-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>
@@ -238,17 +240,30 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
         </div>
       )}
 
-      {/* Line 2: progress */}
+      {/* Line 2: progress + task linkage + recency (P7) */}
       <div className="kr-row-bottom">
         {(() => {
           const linkedOpenTasksCount = tasks.filter(t => !t.isCompleted && t.keyResultId === kr.id).length;
-          return linkedOpenTasksCount === 0 ? (
+          const daysAgo = kr.updatedAt
+            ? Math.max(0, Math.floor((Date.now() - new Date(kr.updatedAt).getTime()) / 86400000))
+            : null;
+          const recencyLabel = daysAgo === null ? null
+            : daysAgo === 0 ? 'updated today'
+            : daysAgo === 1 ? 'updated yesterday'
+            : `updated ${daysAgo} days ago`;
+          const flag = linkedOpenTasksCount === 0 ? (
             <span className="kr-tasks-flag unserved" title="No active tasks currently serving this Key Result">
-              ⚠️ no tasks serving this KR
+              <AlertTriangle size={12} /> no tasks serving this KR
             </span>
           ) : (
             <span className="kr-tasks-flag served">
-              🔗 {linkedOpenTasksCount} {linkedOpenTasksCount === 1 ? 'task' : 'tasks'} linked
+              <Link2 size={12} /> {linkedOpenTasksCount} {linkedOpenTasksCount === 1 ? 'task' : 'tasks'} linked
+            </span>
+          );
+          return (
+            <span className="kr-flag-line">
+              {flag}
+              {recencyLabel && <span className="kr-recency">· {recencyLabel}</span>}
             </span>
           );
         })()}
