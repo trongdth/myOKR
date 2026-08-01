@@ -17,6 +17,7 @@ async function navTo(page: any, title: string) {
 test.describe('Habit KR Linking & Progress Workflow', () => {
   test.beforeEach(async ({ page }) => {
     // Set localStorage to bypass walkthrough and open directly
+    await page.clock.setFixedTime(new Date('2026-07-15T12:00:00.000Z'));
     await page.addInitScript(() => {
       window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
     });
