@@ -81,17 +81,15 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(linkSelect).toBeVisible();
     await linkSelect.selectOption({ label: 'Forming E2E Habit' });
 
-    // 3. Go to Today tab, check off the habit today
-    await navTo(page, 'Day plan');
-    await expect(page.locator('h1:has-text("Today\'s Focus")')).toBeVisible();
+    // 3. Go to Habits tab, check off the habit today
+    await navTo(page, 'Habits');
+    await expect(page.locator('.habits-title')).toHaveText('Habits');
 
-    // Toggle today's habit tick
-    const todayHabitBtn = page.locator('button:has-text("Forming E2E Habit")');
-    await expect(todayHabitBtn).toBeVisible();
-    await todayHabitBtn.click();
-    
-    // Check it displays ticked (contains visual indicator)
-    await expect(todayHabitBtn.locator('.lucide-check')).toBeVisible();
+    // Toggle today's habit tick cell in the calendar grid
+    const todayCell = page.locator('.habit-card:has-text("Forming E2E Habit") .calendar-day.today');
+    await expect(todayCell).toBeVisible();
+    await todayCell.click();
+    await expect(todayCell).toHaveClass(/ticked/);
 
     // 4. Go back to OKRs and check progress
     await navTo(page, 'Objectives');
