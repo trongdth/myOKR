@@ -3313,7 +3313,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color-primary);
-  color: #04222a;
+  color: var(--color-on-primary);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -3792,3 +3792,51 @@
   padding: 0.05rem 0.4rem;
 }
 .command-k-item-meta .meta-kr { color: var(--text-muted); }
+
+/* --- P4: POMODOROS THIS WEEK block --- */
+.weekly-plan-block {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+.weekly-plan-readonly,
+.weekly-plan-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.weekly-plan-readout {
+  font-size: 0.85rem;
+}
+.weekly-plan-edit-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.weekly-plan-edit-btn:hover { text-decoration: underline; }
+.weekly-plan-input {
+  width: 3.5rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+.weekly-plan-save-btn {
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  color: var(--color-on-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+}

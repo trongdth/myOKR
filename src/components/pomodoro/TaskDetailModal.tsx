@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Pencil, CheckCircle, X, SquareCheck, MessageSquare, Play, RotateCcw } from 'lucide-react';
-import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
-import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
+import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket, DailyRecord } from '../../lib/pomodoro-storage';
+import { generateId, EISENHOWER_META, weeklyPlanProgress, getLocalDateString } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 
@@ -15,9 +15,11 @@ interface Props {
   onClose: () => void;
   keyResults?: KeyResult[];
   onStartFocus?: (task: PomodoroTask) => void;
+  /** Session history — powers the POMODOROS THIS WEEK readout (P4). */
+  history?: DailyRecord[];
 }
 
-export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [], onStartFocus }: Props) {
+export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [], onStartFocus, history = [] }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [newTodoText, setNewTodoText] = useState('');
@@ -25,12 +27,41 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleText, setEditingTitleText] = useState(task.title);
+  const [editingWeeklyPlan, setEditingWeeklyPlan] = useState(false);
+  const [weeklyPlanDraft, setWeeklyPlanDraft] = useState('');
 
   const descRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const todos: TodoItem[] = task.todos || [];
   const comments: TaskComment[] = task.comments || [];
+
+  // P4: POMODOROS THIS WEEK — current calendar week (Monday start), numerator
+  // from the session history, denominator = weekly plan ?? estimate.
+  // History dates are LOCAL (getLocalDateString) — never UTC-slice, or the
+  // window shifts a day in UTC+X timezones (see mobile mirror).
+  const weekRange = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return {
+      start: getLocalDateString(monday),
+      end: getLocalDateString(sunday),
+    };
+  }, []);
+  const weekly = weeklyPlanProgress(task, history, weekRange.start, weekRange.end);
+
+  const saveWeeklyPlan = () => {
+    const value = parseInt(weeklyPlanDraft, 10);
+    if (Number.isFinite(value)) {
+      onUpdate({ ...task, weeklyPomodoroPlan: Math.max(0, Math.min(99, value)) });
+    }
+    setEditingWeeklyPlan(false);
+  };
 
   useModalEffects(onClose);
 
@@ -249,6 +280,45 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
               <span className="pomo-mono"> planned</span>
             </div>
           </div>
+        </div>
+
+        {/* P4: POMODOROS THIS WEEK — completed-this-week / planned + Change weekly plan */}
+        <div className="weekly-plan-block">
+          <span className="prop-label">POMODOROS THIS WEEK</span>
+          {editingWeeklyPlan ? (
+            <div className="weekly-plan-editor">
+              <span className="pomo-mono">{weekly.completed} / </span>
+              <input
+                type="number"
+                min="0"
+                max="99"
+                className="weekly-plan-input"
+                value={weeklyPlanDraft}
+                autoFocus
+                onChange={e => setWeeklyPlanDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveWeeklyPlan();
+                  if (e.key === 'Escape') setEditingWeeklyPlan(false);
+                }}
+              />
+              <span className="pomo-mono"> planned</span>
+              <button className="weekly-plan-save-btn" onClick={saveWeeklyPlan}>Save</button>
+              <button className="text-btn" onClick={() => setEditingWeeklyPlan(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div className="weekly-plan-readonly">
+              <span className="weekly-plan-readout pomo-mono">{weekly.completed} / {weekly.planned} planned</span>
+              <button
+                className="weekly-plan-edit-btn"
+                onClick={() => {
+                  setWeeklyPlanDraft(String(task.weeklyPomodoroPlan ?? weekly.planned));
+                  setEditingWeeklyPlan(true);
+                }}
+              >
+                Change weekly plan
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Main Body: Notes & Links */}

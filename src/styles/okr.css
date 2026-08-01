@@ -1304,7 +1304,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color-primary);
-  color: #04222a;
+  color: var(--color-on-primary);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;

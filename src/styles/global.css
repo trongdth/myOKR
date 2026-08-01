@@ -22,6 +22,7 @@
      Color carries meaning, never decoration. One hue may serve more than one
      role when the meaning aligns (cyan = primary action = focus). */
   --color-primary: #22d3ee;   /* THE single primary action per screen */
+  --color-on-primary: #04222a; /* text/icon color on primary-action surfaces */
   --color-focus: var(--color-primary); /* focus-session / timer semantics */
   --color-objective: #a855f7; /* OKR Objectives (violet) */
   --color-streak: #f59e0b;    /* streaks — amber means streak, nothing else */

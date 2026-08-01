@@ -240,10 +240,14 @@ presentational-rollover rule — see [ADR-0012](./adr/0012-presentational-cycle-
 - Properties row across the top: PRIORITY · BUCKET · DUE · KEY RESULT
   (existing selects, restyled) + "click any field to edit" hint. Header:
   `Start focus` + `Complete` buttons.
-- **POMODOROS THIS WEEK — `X / Y planned` + `Change weekly plan` is deferred**
-  (needs a new `weeklyPomodoroPlan` field on the shared task schema; desktop +
-  mobile migration — separate ticket). Until then the existing POMODOROS
-  readout is restyled to mono `X / Y`.
+- **POMODOROS THIS WEEK — `X / Y planned` + `Change weekly plan`** (implemented
+  2026-08-01). `weeklyPomodoroPlan?: number` (0–99, absent-stays-absent) on the
+  shared task schema (desktop + mobile normalizers agree: valid finite 0–99
+  preserved, invalid dropped, runaway clamped to 99, explicit 0 respected).
+  `X` = completed focus sessions on the task in the current **local** calendar
+  week (Monday start — never UTC-sliced); `Y` = `weeklyPomodoroPlan ??
+  estimatedPomodoros` (the estimate fallback keeps the line always rendering).
+  Saving the plan writes the field; absent never gets the estimate injected.
 - Notes render Markdown links wrapped with a copy button (presentation only).
 - Sub-tasks / comments as equal-weight tabs **only where the model has the
   data** (comments exist on the task type; an empty tab shows the empty state,
