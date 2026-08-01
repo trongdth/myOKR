@@ -119,7 +119,6 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     const objHeader3 = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader3).toBeVisible();
-    await objHeader3.click();
 
     const krRowAfter = page.locator('.kr-row:has-text("E2E Ticking KR")');
     await expect(krRowAfter).toBeVisible();
