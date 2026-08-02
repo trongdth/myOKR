@@ -128,7 +128,7 @@
 }
 
 .today-now-rank-pill {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -226,7 +226,7 @@
 }
 
 .today-now-pomo-count {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-left: 0.4rem;
@@ -328,7 +328,7 @@
 }
 
 .today-pomo-ring-content .today-stat-value {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 1.85rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -347,7 +347,7 @@
 }
 
 .today-streak-value {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 2.35rem;
   font-weight: 500;
   color: var(--color-streak);
@@ -383,7 +383,7 @@
 }
 
 .today-stat-label {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
   letter-spacing: 0.14em;
   color: var(--text-muted);
@@ -444,7 +444,7 @@
 }
 
 .today-panel-title {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   color: var(--text-muted);
@@ -558,7 +558,7 @@
 }
 
 .today-upnext-rank {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 600;
@@ -592,7 +592,7 @@
 }
 
 .today-upnext-count {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.78rem;
   color: var(--text-secondary);
   flex-shrink: 0;
@@ -670,7 +670,7 @@
 }
 
 .today-habit-streak-pill {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-streak);
@@ -707,7 +707,7 @@
 }
 
 .today-okr-pct {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem;
   color: var(--text-secondary);
   font-weight: 600;

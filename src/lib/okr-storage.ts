@@ -110,9 +110,10 @@ export function resolveCurrentCycle(cycles: OKRCycle[]): OKRCycle | null {
   const year = now.getFullYear();
   const current = cycles.find(c => c.month === month && c.year === year);
   if (current) return current;
-  // Fallback to active, then latest by date
-  const active = cycles.find(c => c.isActive);
-  if (active) return active;
+  // No cycle for the current calendar month: default to the NEWEST cycle by
+  // date. We deliberately do NOT fall back to the `isActive` flag here — it
+  // goes stale when cycles are cloned or months pass, which left the Plan
+  // group pinned to an old cycle instead of the newest (bug #3).
   return cycles.reduce((latest, c) => (c.year * 12 + c.month) > (latest.year * 12 + latest.month) ? c : latest);
 }
 

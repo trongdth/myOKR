@@ -1379,6 +1379,33 @@
 }
 
 /* ===== PRIORITIZE MODAL ===== */
+/* ===== GENERIC MODAL SHELL (TaskDetailModal, CommandKModal) =====
+   Shared full-screen backdrop + centered panel. The specific panels
+   (.task-detail-panel, .command-k-modal) supply their own width / padding /
+   look; this rule only provides the overlay and centers the panel. Bug #2:
+   these classes previously had no CSS at all, so the panel rendered in normal
+   document flow at the top-left instead of centered on screen. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 200ms ease;
+  padding: 1em;
+}
+
+/* The centered panel itself: cap height so tall content scrolls inside the
+   viewport instead of overflowing the centered overlay. */
+.modal-content {
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
 .prioritize-overlay {
   position: fixed;
   inset: 0;
