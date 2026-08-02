@@ -683,7 +683,7 @@ export default function PomodoroApp({
   }
 
   return (
-    <div className="pomodoro-container">
+    <div className={`pomodoro-container${tab === 'tasks' || tab === 'done' ? ' plan-group-shell' : ''}`}>
 
       {/* Timer Tab */}
       {tab === 'timer' && (

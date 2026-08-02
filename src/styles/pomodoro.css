@@ -10,6 +10,15 @@
   padding: 1em 0 3em;
 }
 
+/* Plan-group tabs (Tasks/Done) share Objectives' flagship 1280px content width
+   — don't clamp them to the 900px timer/analytics shell. The inner
+   .tasks-view-container / .done-view-container already carry the matching
+   1.25rem horizontal padding (same as .okr-container), so this only widens the
+   max-width; horizontal padding stays 0 here to avoid double-padding. */
+.pomodoro-container.plan-group-shell {
+  max-width: 1280px;
+}
+
 /* ===== TAB NAVIGATION ===== */
 .pomo-tab-nav {
   display: flex;
@@ -136,7 +145,7 @@
 }
 
 .timer-digits {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 6rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -286,7 +295,7 @@
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.95rem;
   text-align: center;
 }
@@ -360,7 +369,7 @@
 .task-count {
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .task-input-row {
@@ -428,7 +437,7 @@
   right: 2.2em;
   font-size: 0.7rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: rgba(255, 255, 255, 0.06);
   padding: 0.15em 0.5em;
   border-radius: 4px;
@@ -458,7 +467,7 @@
   right: 0.6em;
   font-size: 0.65rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.1em 0.4em;
@@ -585,7 +594,7 @@
 }
 
 .task-pomo-count {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -619,7 +628,7 @@
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   text-align: center;
   box-sizing: border-box;
@@ -711,7 +720,7 @@
 }
 
 .stat-value {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -735,7 +744,7 @@
   background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(239, 68, 68, 0.15));
   border: 1px solid rgba(251, 146, 60, 0.3);
   border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   color: #fb923c;
 }
@@ -791,13 +800,13 @@
 .bar-label {
   font-size: 0.7rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .bar-value {
   font-size: 0.7rem;
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Heatmap */
@@ -820,7 +829,7 @@
   color: var(--text-muted);
   text-align: center;
   padding-bottom: 0.25em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .heatmap-cell {
@@ -1063,7 +1072,7 @@
 }
 
 .pomo-counter-value {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -1596,7 +1605,7 @@
   margin-left: auto;
   font-size: 0.7rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: var(--bg-primary);
   padding: 0.15em 0.5em;
   border-radius: 4px;
@@ -1670,7 +1679,7 @@
 .chip-pomo {
   font-size: 0.7rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   flex-shrink: 0;
 }
 
@@ -1859,7 +1868,7 @@
   border: 1px solid var(--border-color);
   padding: 0.15em 0.5em;
   border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -1979,7 +1988,7 @@
   border-radius: 6px;
   font-size: 0.78rem;
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .task-detail-badge-done {
@@ -2076,7 +2085,7 @@
 .task-detail-desc-text li { margin: 0.6em 0; }
 
 .task-detail-desc-text code {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.88em;
   background: var(--bg-tertiary);
   padding: 0.15em 0.4em;
@@ -2215,7 +2224,7 @@
 
 .task-detail-tab-count {
   font-size: 0.72rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: var(--bg-tertiary);
   padding: 0.15em 0.5em;
   border-radius: 4px;
@@ -2302,7 +2311,7 @@
 .task-detail-todo-progress-text {
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   flex-shrink: 0;
 }
 
@@ -2446,7 +2455,7 @@
 .task-detail-comment-time {
   font-size: 0.72rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .task-detail-comment-actions {
@@ -2634,7 +2643,7 @@
 }
 
 .tasks-badge {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   padding: 0.2rem 0.6rem;
   background: var(--bg-tertiary);
@@ -2644,7 +2653,7 @@
 }
 
 .cycle-header-pill {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   padding: 0.25rem 0.75rem;
   background: rgba(6, 182, 212, 0.1);
@@ -2709,7 +2718,7 @@
 }
 
 .cmd-k-badge {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   padding: 0.1rem 0.35rem;
   background: var(--bg-tertiary);
@@ -2730,7 +2739,7 @@
 }
 
 .serving-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2858,7 +2867,7 @@
 .backlog-dot { background: #6b7280; }
 
 .column-count {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--text-muted);
   background: var(--bg-tertiary);
@@ -3044,7 +3053,7 @@
 
 .list-table th {
   background: var(--bg-tertiary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
 }
@@ -3250,6 +3259,108 @@
   gap: 1rem;
 }
 
+/* --- P4 detail header: eyebrow on its own line, title left + actions right --- */
+.detail-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-title-block {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+  cursor: text;
+}
+
+.detail-title .edit-icon {
+  opacity: 0;
+  color: var(--text-muted);
+  transition: opacity 0.15s ease;
+}
+.detail-title:hover .edit-icon { opacity: 1; }
+
+.detail-title-input {
+  width: 100%;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  outline: none;
+}
+
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.detail-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, filter 0.15s ease;
+}
+.detail-action-btn:hover { border-color: var(--color-primary); }
+
+/* Start focus is THE single primary action on this screen (design-system.md). */
+.start-focus-btn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.start-focus-btn:hover {
+  border-color: var(--color-primary);
+  filter: brightness(1.08);
+}
+
+.complete-btn.completed {
+  color: var(--text-secondary);
+}
+
+/* Close button — scoped to the detail panel so the CommandK modal is untouched. */
+.task-detail-panel .modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.task-detail-panel .modal-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
 .detail-properties-bar {
   display: flex;
   align-items: center;
@@ -3268,7 +3379,7 @@
 }
 
 .prop-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-muted);
 }
@@ -3280,6 +3391,7 @@
   border-radius: 4px;
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
+  width: 100%;
 }
 
 .detail-tabs-section {
@@ -3321,7 +3433,7 @@
 
 /* --- P1 header: PLAN + cycle pill + New task --- */
 .cycle-pill {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   color: var(--color-primary);
@@ -3378,7 +3490,7 @@
   box-shadow: inset 0 -2px 0 var(--color-primary);
 }
 .plan-tab-count {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
   background: var(--bg-tertiary);
@@ -3387,7 +3499,7 @@
 }
 .plan-tab.active .plan-tab-count { color: var(--color-primary); }
 .plan-cycle-week {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
   padding-bottom: 11px;
@@ -3434,7 +3546,7 @@
 }
 .serving-obj-fill.empty { background: var(--color-risk); }
 .serving-obj-progress {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
 }
@@ -3454,7 +3566,7 @@
 
 /* --- P1 bucket headers: pomo counts --- */
 .column-pomos {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.06);
@@ -3495,13 +3607,13 @@
   line-height: 1.35;
 }
 .card-pomos {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
   flex: none;
 }
 .card-kr {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-secondary);
   padding-left: 1.7rem;
@@ -3517,12 +3629,12 @@
   flex-wrap: wrap;
 }
 .card-category {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
 }
 .card-due {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
 }
@@ -3683,7 +3795,7 @@
 .list-new-task { margin-left: auto; }
 .list-group { margin-bottom: 1.25rem; }
 .list-group-header {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -3731,7 +3843,7 @@
   font-size: 0.82rem;
 }
 .done-table th {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -3749,7 +3861,7 @@
 .done-table-row:hover { background: rgba(255, 255, 255, 0.03); }
 .done-th-pomos, .done-th-finished, .done-th-undo { text-align: right; }
 .done-td-pomos, .done-td-finished, .done-td-undo {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   text-align: right;
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -3772,15 +3884,15 @@
 
 /* --- P4 Task detail: eyebrow hint + mono readout --- */
 .detail-eyebrow {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  margin-bottom: 0.3rem;
-  display: block;
+  /* Full-width flex item: sits on its own line above the title/actions row. */
+  flex: 1 1 100%;
 }
 .pomo-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-secondary);
 }
 
@@ -3807,7 +3919,7 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   color: var(--text-muted);
@@ -3866,4 +3978,203 @@
   font-weight: 600;
   padding: 0.3rem 0.8rem;
   cursor: pointer;
+}
+
+/* ==========================================================================
+   P4 Task detail — fidelity polish (progress bars, notes, sub-tasks, props)
+   ========================================================================== */
+
+/* Properties row: equal-width columns. Selects keep their native affordance —
+   a custom chevron needs a raw-hex data-URI glyph, which breaks the no-raw-hex
+   rule (see docs/design-system.md). width:100% on the controls (above) makes
+   each fill its column. */
+.detail-properties-bar .prop-group {
+  flex: 1 1 0;
+  min-width: 7rem;
+}
+
+/* POMODOROS THIS WEEK — readout + cyan progress bar */
+.weekly-plan-readonly {
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.weekly-plan-readout-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+  min-width: 8rem;
+}
+.weekly-plan-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.weekly-plan-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+/* Notes section */
+.notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.notes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.notes-format-hint {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+.text-btn:hover { color: var(--color-primary); }
+.notes-content-view { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+.empty-notes-hint { color: var(--text-muted); font-size: 0.82rem; margin: 0; }
+
+/* Sub-tasks / Comments — progress bar + add row + list */
+.detail-tab-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.detail-tab-progress-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.detail-tab-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+.detail-tab-progress-text {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.add-todo-row,
+.add-comment-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.add-todo-input,
+.add-comment-input {
+  flex: 1 1 auto;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+.add-todo-input:focus,
+.add-comment-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+.add-todo-btn {
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  color: var(--color-on-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+.add-comment-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+.todos-list,
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.todo-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.2rem;
+  border-radius: 6px;
+}
+.todo-item-row input[type='checkbox'] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+}
+.todo-text {
+  flex: 1 1 auto;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.todo-item-row.completed .todo-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.delete-sub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.15rem;
+  border-radius: 4px;
+}
+.delete-sub-btn:hover { color: var(--color-risk); }
+.comment-item-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.comment-text { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--text-primary); }
+.comment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.comment-time {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
 }

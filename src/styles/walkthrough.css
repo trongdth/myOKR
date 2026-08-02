@@ -82,6 +82,11 @@
   width: 100%;
   height: 100%;
 }
+/* SVG presentation attributes can't use var(), so set the font once here and
+   let <text> inherit it (font-family is inherited). Mirrors --font-sans. */
+.walkthrough-svg text {
+  font-family: var(--font-sans);
+}
 
 /* ===== TEXT ===== */
 .walkthrough-title {

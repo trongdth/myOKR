@@ -18,6 +18,13 @@
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
 
+  /* Typography — the only two font families, loaded by the @import at the top
+     of this file. --font-mono is for numbers / code / mono labels; everything
+     else inherits --font-sans via `body`. Reference these tokens instead of
+     hardcoding a family stack (see docs/design-system.md). */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
   /* Semantic color roles — the canonical tokens (see docs/design-system.md).
      Color carries meaning, never decoration. One hue may serve more than one
      role when the meaning aligns (cyan = primary action = focus). */
@@ -90,12 +97,7 @@ html {
 }
 
 body {
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0;
   background: var(--bg-primary);

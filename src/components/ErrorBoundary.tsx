@@ -14,7 +14,7 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode; mode?:
     if (this.state.error) {
       const contained = this.props.mode === 'section';
       return (
-        <div style={{ padding: '2em', color: '#e4e4e7', background: '#0a0a0f', minHeight: contained ? 'auto' : '100vh', fontFamily: 'sans-serif', textAlign: 'center' }}>
+        <div style={{ padding: '2em', color: '#e4e4e7', background: '#0a0a0f', minHeight: contained ? 'auto' : '100vh', fontFamily: 'var(--font-sans)', textAlign: 'center' }}>
           <h2 style={{ color: '#ef4444' }}>Something went wrong</h2>
           <pre style={{ background: '#1a1a25', padding: '1em', borderRadius: 8, overflow: 'auto', fontSize: '0.85rem', color: '#a1a1aa', textAlign: 'left' }}>
             {this.state.error.message}

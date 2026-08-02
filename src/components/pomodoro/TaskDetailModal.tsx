@@ -9,6 +9,10 @@ const Markdown = lazy(() => import('../shared/Markdown'));
 
 type DetailTab = 'todos' | 'comments';
 
+/** Progress percentage 0–100, divide-by-zero safe (weekly + sub-task bars). */
+const pct = (done: number, total: number) =>
+  total > 0 ? Math.min(100, (done / total) * 100) : 0;
+
 interface Props {
   task: PomodoroTask;
   onUpdate: (updated: PomodoroTask) => void;
@@ -54,6 +58,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
     };
   }, []);
   const weekly = weeklyPlanProgress(task, history, weekRange.start, weekRange.end);
+  const doneCount = todos.filter(t => t.completed).length;
 
   const saveWeeklyPlan = () => {
     const value = parseInt(weeklyPlanDraft, 10);
@@ -307,7 +312,14 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
             </div>
           ) : (
             <div className="weekly-plan-readonly">
-              <span className="weekly-plan-readout pomo-mono">{weekly.completed} / {weekly.planned} planned</span>
+              <div className="weekly-plan-readout-group">
+                <span className="weekly-plan-readout pomo-mono">{weekly.completed} / {weekly.planned} planned</span>
+                <div className="weekly-plan-bar" role="progressbar"
+                  aria-valuenow={weekly.completed} aria-valuemin={0} aria-valuemax={weekly.planned}>
+                  <div className="weekly-plan-fill"
+                    style={{ width: `${pct(weekly.completed, weekly.planned)}%` }} />
+                </div>
+              </div>
               <button
                 className="weekly-plan-edit-btn"
                 onClick={() => {
@@ -325,12 +337,15 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
         <div className="detail-body-section">
           <div className="notes-header">
             <span className="section-title">NOTES & LINKS</span>
-            {!isEditingDesc && (
-              <button className="text-btn" onClick={() => setIsEditingDesc(true)}>
-                <Pencil size={13} />
-                <span>Edit notes</span>
-              </button>
-            )}
+            <div className="notes-header-actions">
+              <span className="notes-format-hint">Markdown</span>
+              {!isEditingDesc && (
+                <button className="text-btn" onClick={() => setIsEditingDesc(true)}>
+                  <Pencil size={13} />
+                  <span>Edit notes</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {isEditingDesc ? (
@@ -400,6 +415,17 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
           <div className="detail-tab-content">
             {activeTab === 'todos' ? (
               <div className="todos-tab-body">
+                {todos.length > 0 && (
+                  <div className="detail-tab-progress">
+                    <div className="detail-tab-progress-bar">
+                      <div className="detail-tab-progress-fill"
+                        style={{ width: `${pct(doneCount, todos.length)}%` }} />
+                    </div>
+                    <span className="detail-tab-progress-text">
+                      {doneCount} of {todos.length} done
+                    </span>
+                  </div>
+                )}
                 <div className="add-todo-row">
                   <input
                     type="text"

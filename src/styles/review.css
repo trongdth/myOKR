@@ -102,7 +102,7 @@
 .review-wizard-step-info {
   font-size: 0.82rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Step indicator dots */
@@ -170,7 +170,7 @@
 }
 
 .review-stat-value {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -240,7 +240,7 @@
   align-items: center;
   justify-content: center;
   height: 42px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -272,7 +272,7 @@
   border: 1px solid var(--accent-cyan);
   border-radius: 8px;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   text-align: center;
@@ -290,7 +290,7 @@
   align-items: center;
   gap: 0.4em;
   height: 42px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -308,7 +308,7 @@
 }
 
 .review-kr-target {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   color: var(--text-muted);
 }
@@ -434,7 +434,7 @@
 }
 
 .review-linked-task-pomos {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -587,7 +587,7 @@
   gap: 1.5em;
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Expanded review details */
@@ -617,7 +617,7 @@
 }
 
 .review-history-entry-change {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--text-muted);
 }
@@ -760,7 +760,7 @@
 .review-history-edit-unit {
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .review-history-edit-readonly {
@@ -768,7 +768,7 @@
   align-items: center;
   gap: 0.5em;
   flex: 1;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
@@ -872,7 +872,7 @@
 .progress-chart-label {
   font-size: 10px;
   fill: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .progress-chart-legend {

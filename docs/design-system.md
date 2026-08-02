@@ -63,6 +63,23 @@ the gradient on buttons, chart bars, or page titles — that is the P03 regressi
 
 `4 · 8 · 12 · 16 · 24 · 32 · 48px` (exposed as tokens). Page gutters use **32px**.
 
+## Typography
+
+Two font families only — both loaded by the `@import` at the top of
+`src/styles/global.css` and exposed as tokens on `:root`. Reference the tokens;
+never hardcode a family stack.
+
+| Token | Stack | Role |
+|---|---|---|
+| `--font-sans` | `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` | all UI text — set on `body`, inherited everywhere |
+| `--font-mono` | `"JetBrains Mono", monospace` | numbers / code / mono labels (pomodoros, dates, counts) |
+
+JetBrains Mono stands in for the mockup's IBM Plex Mono — no IBM Plex is loaded.
+Form controls use `font-family: inherit` so they pick up `--font-sans` instead of
+the browser default. (SVG `<text>` can't use `var()` in attributes, so the
+Walkthrough sets the font once via `.walkthrough-svg text` and lets `<text>`
+inherit it.)
+
 ## Page shell
 
 A `.page-shell` container inside `.app-main`:
@@ -190,6 +207,11 @@ Decided in the Plan-group grilling session (2026-08-01); all rules below apply
 to the desktop app. Cycle-scoped filters on these screens follow the
 presentational-rollover rule — see [ADR-0012](./adr/0012-presentational-cycle-rollover.md).
 
+> **Shared content width (2026-08-02):** Tasks and Done are no longer clamped
+> by the 900px `.pomodoro-container` timer/analytics shell — a `.plan-group-shell`
+> modifier widens that wrapper to `.okr-container`'s 1280px on the `tasks`/`done`
+> tabs only, so all three Plan-group tabs share identical left/right insets.
+
 ### Tasks board (P1/P2, flagship — mockup-exact values)
 
 - **Header block**: title `PLAN` + cycle pill (`May cycle`) · Board/List
@@ -252,6 +274,15 @@ presentational-rollover rule — see [ADR-0012](./adr/0012-presentational-cycle-
 - Sub-tasks / comments as equal-weight tabs **only where the model has the
   data** (comments exist on the task type; an empty tab shows the empty state,
   never a dead end).
+
+> **Shipped 2026-08-02:** the header is one row — the `TASK · click any field
+> to edit` eyebrow on its own line, then the title (left) and `Start focus`
+> (cyan `--color-primary`, the screen's single primary action) + `Complete` +
+> close (right) with a separator. The weekly line and the sub-tasks tab each
+> carry a cyan progress bar (`X / Y planned`, `X of Y done`); the sub-task Add
+> button is cyan primary. **Open:** the mockup draws 4 property columns
+> (Priority · Bucket · Due · Key Result) but the shipped strip keeps a 5th
+> POMODOROS column (the estimate editor) — reconciling is pending.
 
 ### Done (P5, flagship)
 

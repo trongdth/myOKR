@@ -67,15 +67,15 @@ function ObjectiveIllustration() {
       {/* KR badges */}
       <g className="wt-float-1">
         <rect x="195" y="55" width="60" height="26" rx="13" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" strokeWidth="1.2" />
-        <text x="225" y="72" fill="#06b6d4" fontSize="11" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="600">KR 1</text>
+        <text x="225" y="72" fill="#06b6d4" fontSize="11" textAnchor="middle" fontWeight="600">KR 1</text>
       </g>
       <g className="wt-float-2">
         <rect x="200" y="150" width="60" height="26" rx="13" fill="rgba(168,85,247,0.12)" stroke="#a855f7" strokeWidth="1.2" />
-        <text x="230" y="167" fill="#a855f7" fontSize="11" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="600">KR 2</text>
+        <text x="230" y="167" fill="#a855f7" fontSize="11" textAnchor="middle" fontWeight="600">KR 2</text>
       </g>
       <g className="wt-float-3">
         <rect x="30" y="90" width="60" height="26" rx="13" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" strokeWidth="1.2" />
-        <text x="60" y="107" fill="#06b6d4" fontSize="11" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="600">KR 3</text>
+        <text x="60" y="107" fill="#06b6d4" fontSize="11" textAnchor="middle" fontWeight="600">KR 3</text>
       </g>
 
       {/* Dotted connection lines from KRs to target */}
@@ -103,15 +103,15 @@ function TasksIllustration() {
 
       {/* Central KR badge */}
       <rect x="105" y="95" width="70" height="50" rx="12" fill="rgba(6,182,212,0.1)" stroke="url(#wt-tgrad)" strokeWidth="2" />
-      <text x="140" y="117" fill="#06b6d4" fontSize="11" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="600">Key Result</text>
-      <text x="140" y="134" fill="#a855f7" fontSize="10" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="500">75%</text>
+      <text x="140" y="117" fill="#06b6d4" fontSize="11" textAnchor="middle" fontWeight="600">Key Result</text>
+      <text x="140" y="134" fill="#a855f7" fontSize="10" textAnchor="middle" fontWeight="500">75%</text>
 
       {/* Task 1 - completed */}
       <g className="wt-float-1">
         <rect x="15" y="35" width="90" height="36" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" strokeWidth="1.2" />
         <circle cx="33" cy="53" r="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth="1.2" />
         <polyline points="29,53 32,56 38,50" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <text x="50" y="57" fill="#e4e4e7" fontSize="10" fontFamily="Inter, sans-serif">Task A</text>
+        <text x="50" y="57" fill="#e4e4e7" fontSize="10">Task A</text>
       </g>
 
       {/* Task 2 - in progress */}
@@ -119,15 +119,15 @@ function TasksIllustration() {
         <rect x="175" y="35" width="90" height="36" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" strokeWidth="1.2" />
         {/* Pomodoro icon */}
         <circle cx="193" cy="53" r="8" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" strokeWidth="1.2" />
-        <text x="193" y="56" fill="#06b6d4" fontSize="8" textAnchor="middle" fontFamily="Inter, sans-serif">🍅</text>
-        <text x="210" y="57" fill="#e4e4e7" fontSize="10" fontFamily="Inter, sans-serif">Task B</text>
+        <text x="193" y="56" fill="#06b6d4" fontSize="8" textAnchor="middle">🍅</text>
+        <text x="210" y="57" fill="#e4e4e7" fontSize="10">Task B</text>
       </g>
 
       {/* Task 3 - pending */}
       <g className="wt-float-3">
         <rect x="15" y="175" width="90" height="36" rx="8" fill="rgba(168,85,247,0.08)" stroke="#a855f7" strokeWidth="1.2" />
         <circle cx="33" cy="193" r="8" fill="rgba(168,85,247,0.15)" stroke="#a855f7" strokeWidth="1.2" />
-        <text x="50" y="197" fill="#e4e4e7" fontSize="10" fontFamily="Inter, sans-serif">Task C</text>
+        <text x="50" y="197" fill="#e4e4e7" fontSize="10">Task C</text>
       </g>
 
       {/* Task 4 - completed */}
@@ -135,7 +135,7 @@ function TasksIllustration() {
         <rect x="175" y="175" width="90" height="36" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" strokeWidth="1.2" />
         <circle cx="193" cy="193" r="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth="1.2" />
         <polyline points="189,193 192,196 198,190" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <text x="210" y="197" fill="#e4e4e7" fontSize="10" fontFamily="Inter, sans-serif">Task D</text>
+        <text x="210" y="197" fill="#e4e4e7" fontSize="10">Task D</text>
       </g>
 
       {/* Connection lines from tasks to KR */}
@@ -172,29 +172,29 @@ function ReviewIllustration() {
       {/* Calendar header */}
       <rect x="50" y="30" width="180" height="40" rx="16" fill="rgba(6,182,212,0.08)" />
       <rect x="50" y="55" width="180" height="15" fill="rgba(6,182,212,0.08)" />
-      <text x="140" y="57" fill="#06b6d4" fontSize="13" textAnchor="middle" fontFamily="Inter, sans-serif" fontWeight="600">Weekly Review</text>
+      <text x="140" y="57" fill="#06b6d4" fontSize="13" textAnchor="middle" fontWeight="600">Weekly Review</text>
 
       {/* Progress bars */}
       {/* Bar 1 - high */}
       <rect x="75" y="90" width="130" height="8" rx="4" fill="rgba(255,255,255,0.05)" />
       <rect x="75" y="90" width="110" height="8" rx="4" fill="url(#wt-rgrad)" opacity="0.8" />
-      <text x="67" y="98" fill="#22c55e" fontSize="9" textAnchor="end" fontFamily="Inter, sans-serif">🟢</text>
+      <text x="67" y="98" fill="#22c55e" fontSize="9" textAnchor="end">🟢</text>
 
       {/* Bar 2 - medium */}
       <rect x="75" y="110" width="130" height="8" rx="4" fill="rgba(255,255,255,0.05)" />
       <rect x="75" y="110" width="75" height="8" rx="4" fill="url(#wt-rgrad)" opacity="0.6" />
-      <text x="67" y="118" fill="#eab308" fontSize="9" textAnchor="end" fontFamily="Inter, sans-serif">🟡</text>
+      <text x="67" y="118" fill="#eab308" fontSize="9" textAnchor="end">🟡</text>
 
       {/* Bar 3 - high */}
       <rect x="75" y="130" width="130" height="8" rx="4" fill="rgba(255,255,255,0.05)" />
       <rect x="75" y="130" width="95" height="8" rx="4" fill="url(#wt-rgrad)" opacity="0.7" />
-      <text x="67" y="138" fill="#22c55e" fontSize="9" textAnchor="end" fontFamily="Inter, sans-serif">🟢</text>
+      <text x="67" y="138" fill="#22c55e" fontSize="9" textAnchor="end">🟢</text>
 
       {/* Separator */}
       <line x1="75" y1="155" x2="205" y2="155" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
 
       {/* Reflection section */}
-      <text x="75" y="175" fill="var(--text-muted)" fontSize="9" fontFamily="Inter, sans-serif">Reflections</text>
+      <text x="75" y="175" fill="var(--text-muted)" fontSize="9">Reflections</text>
       <rect x="75" y="182" width="130" height="6" rx="3" fill="rgba(255,255,255,0.05)" />
       <rect x="75" y="193" width="100" height="6" rx="3" fill="rgba(255,255,255,0.05)" />
 
