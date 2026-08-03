@@ -358,7 +358,6 @@ export default function App() {
         {['session', 'tasks', 'done', 'analytics'].includes(activeSection) && (
           <ErrorBoundary mode="section">
             <PomodoroApp
-              key={`pomodoro-${activeSection}`}
               tab={activeSection === 'session' ? 'timer' : activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
               requestedTaskId={requestedTaskId}
               onRequestedTaskConsumed={() => setRequestedTaskId(null)}
