@@ -500,7 +500,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const updateSetting = <K extends keyof PomodoroSettings>(key: K, value: PomodoroSettings[K]) => {
     const next = { ...settings, [key]: value };
     setSettings(next);
-    saveSettings(next);
+    saveSettings(next).catch(console.error); // rule 3: act first, persist non-blocking
     if (key === 'focusDuration' && sessionType === 'focus') setTimeLeft((value as number) * 60);
     if (key === 'shortBreakDuration' && sessionType === 'shortBreak') setTimeLeft((value as number) * 60);
     if (key === 'longBreakDuration' && sessionType === 'longBreak') setTimeLeft((value as number) * 60);
@@ -510,7 +510,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // timer tick — these only reference stable setters / refs / scalar state.
   const handleTasksChange = useCallback((t: PomodoroTask[]) => {
     setTasks(t);
-    saveTasks(t);
+    saveTasks(t).catch(console.error); // rule 3: act (setState) first, persist non-blocking
   }, []);
 
   // Guarded active-task setter: switching task during a running focus confirms.
@@ -529,7 +529,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Analytics: clear history + reset timer
   const clearSessionData = useCallback(async () => {
-    setHistory([]); saveHistory([]);
+    setHistory([]); saveHistory([]).catch(console.error);
     setCompletedPomos(0);
     await clearTimerState();
     resetTimer();
@@ -539,11 +539,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const importSessionData = useCallback(async (data: { settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[] }) => {
     const s = data.settings;
     setSettings(s);
-    saveSettings(s);
+    saveSettings(s).catch(console.error);
     setTasks(data.tasks);
-    saveTasks(data.tasks);
+    saveTasks(data.tasks).catch(console.error);
     setHistory(data.history);
-    saveHistory(data.history);
+    saveHistory(data.history).catch(console.error);
     setCompletedPomos(0);
     setSessionType('focus');
     setTimeLeft(s.focusDuration * 60);

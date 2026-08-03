@@ -16,7 +16,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--bg-tertiary);
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-card);
   color: var(--text-primary);
   font-family: var(--font-sans);
   animation: sw-pop 160ms ease-out;
