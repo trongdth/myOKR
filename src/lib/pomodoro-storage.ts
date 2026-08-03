@@ -93,6 +93,23 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
 }
 
 /**
+ * "pomo N of M" position semantics — decision A (see docs/design-system.md,
+ * "Pomo count display"). N is the pomodoro you are ON, not the count finished:
+ * while a focus is running on this task, the displayed count is
+ * `completedPomodoros + 1` (clamped to the estimate); otherwise it is the
+ * completed count unchanged. `completedPomodoros` itself is never mutated —
+ * this is a pure display derivation.
+ */
+export function displayedPomoCount(
+  completedPomodoros: number,
+  estimatedPomodoros: number,
+  focusInProgress: boolean,
+): number {
+  const est = estimatedPomodoros || 1;
+  return focusInProgress ? Math.min(completedPomodoros + 1, est) : completedPomodoros;
+}
+
+/**
  * Safely complete a pomodoro for a single active task in the Automerge document.
  * Modifies the task element in-place inside currentDoc.tasks rather than
  * overwriting d.tasks with a potentially stale React state array.
@@ -113,6 +130,37 @@ export async function completePomodoroForTask(taskId: string, now: string): Prom
     updatedTasks = d.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null);
   });
   return updatedTasks;
+}
+
+/**
+ * Record a completed session into today's DailyRecord, mutating the record
+ * IN-PLACE inside updateAutomergeDoc (rule 11) — never overwriting d.history
+ * with a snapshot. A focus session also bumps completedPomodoros and
+ * totalFocusMinutes; a break does not. Replaces the old load-modify-save in
+ * handleSessionComplete, which could lose history written between the load and
+ * the save (PR #37 review).
+ */
+export async function recordSessionInHistory(session: SessionRecord, focusMinutes: number): Promise<DailyRecord[]> {
+  await updateAutomergeDoc('Record session', (d) => {
+    if (!Array.isArray(d.history)) d.history = [];
+    const key = todayKey();
+    let idx = d.history.findIndex((r: unknown) => r != null && typeof r === 'object' && (r as DailyRecord).date === key);
+    if (idx === -1) {
+      d.history.push(sanitizeForAutomerge({
+        date: key, completedPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, sessions: [] as SessionRecord[],
+      }));
+      idx = d.history.length - 1;
+    }
+    const rec = d.history[idx] as DailyRecord;
+    if (!rec) return;
+    if (!Array.isArray(rec.sessions)) rec.sessions = [];
+    rec.sessions.push(sanitizeForAutomerge(session));
+    if (session.type === 'focus') {
+      rec.completedPomodoros = (typeof rec.completedPomodoros === 'number' ? rec.completedPomodoros : 0) + 1;
+      rec.totalFocusMinutes = (typeof rec.totalFocusMinutes === 'number' ? rec.totalFocusMinutes : 0) + focusMinutes;
+    }
+  });
+  return loadHistory();
 }
 
 export interface SessionRecord {
@@ -147,7 +195,10 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   shortBreakDuration: 5,
   longBreakDuration: 15,
   pomosBeforeLongBreak: 4,
-  autoStartBreaks: false,
+  // Posture ii (docs/design-system.md "Session posture"): a focus ending
+  // auto-starts the break (rest is the point); a break ending stages focus and
+  // waits for a tap — the global session widget's resume job.
+  autoStartBreaks: true,
   autoStartFocus: false,
   focusMusicEnabled: false,
 };
@@ -175,9 +226,11 @@ function normalizeSettings(raw: unknown): PomodoroSettings {
     shortBreakDuration: finiteNumber(src.shortBreakDuration, DEFAULT_SETTINGS.shortBreakDuration, 1, 60),
     longBreakDuration: finiteNumber(src.longBreakDuration, DEFAULT_SETTINGS.longBreakDuration, 1, 120),
     pomosBeforeLongBreak: finiteNumber(src.pomosBeforeLongBreak, DEFAULT_SETTINGS.pomosBeforeLongBreak, 1, 10),
-    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : false,
-    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : false,
-    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : false,
+    // Falls back to DEFAULT_SETTINGS (posture ii) when the field is absent —
+    // existing docs that stored an explicit value keep it (the migration wrinkle).
+    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : DEFAULT_SETTINGS.autoStartBreaks,
+    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : DEFAULT_SETTINGS.autoStartFocus,
+    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : DEFAULT_SETTINGS.focusMusicEnabled,
   };
 }
 
@@ -291,6 +344,16 @@ function normalizeDailyRecord(r: unknown): DailyRecord | null {
 }
 
 // ===== SETTINGS =====
+// Notify the app that the synced doc changed so live views reload. Mirrors the
+// myokr-data-synced dispatch other writers (e.g. HabitsApp) use; covering direct
+// local saves here means the always-mounted SessionProvider (ADR-0013) picks up
+// writes it didn't initiate — tests that seed after mount, and any future code.
+function notifyDataChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  }
+}
+
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
     const doc = await getAutomergeDoc();
@@ -304,6 +367,7 @@ export async function saveSettings(settings: PomodoroSettings): Promise<void> {
   await updateAutomergeDoc('Update settings', (d) => {
     d.settings = sanitizeForAutomerge(settings);
   });
+  notifyDataChanged();
 }
 
 // ===== TASKS =====
@@ -321,6 +385,7 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
   await updateAutomergeDoc('Update tasks', (d) => {
     d.tasks = sanitizeForAutomerge(tasks);
   });
+  notifyDataChanged();
 }
 
 // ===== HISTORY =====
@@ -338,6 +403,7 @@ export async function saveHistory(h: DailyRecord[]): Promise<void> {
   await updateAutomergeDoc('Update history', (d) => {
     d.history = sanitizeForAutomerge(h);
   });
+  notifyDataChanged();
 }
 
 // ===== TIMER STATE =====

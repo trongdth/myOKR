@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, type CSSProperties } from 'react';
 import { LayoutGrid, List, Plus, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
-import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
+import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
 import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { navigateToSection, cycleWeekLabel, PlanHeader } from './PlanTabStrip';
@@ -24,6 +24,8 @@ interface Props {
   habits?: Habit[];
   focusDurationMinutes?: number;
   onOpenSearch: () => void;
+  /** Task currently being focused (running), for "pomo N of M" position display (decision A). */
+  activeFocusTaskId?: string | null;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -52,6 +54,7 @@ export default function TasksView({
   habits = [],
   focusDurationMinutes = 25,
   onOpenSearch,
+  activeFocusTaskId = null,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('board');
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -460,6 +463,7 @@ export default function TasksView({
                   key={task.id}
                   task={task}
                   keyResults={keyResults}
+                  activeFocusTaskId={activeFocusTaskId}
                   isSelectedForMove={selectedForMoveId === task.id}
                   onSelect={() => onSelectTask(task)}
                   onComplete={handleComplete}
@@ -487,6 +491,7 @@ export default function TasksView({
                   key={task.id}
                   task={task}
                   keyResults={keyResults}
+                  activeFocusTaskId={activeFocusTaskId}
                   isSelectedForMove={selectedForMoveId === task.id}
                   onSelect={() => onSelectTask(task)}
                   onComplete={handleComplete}
@@ -532,6 +537,7 @@ export default function TasksView({
                   key={task.id}
                   task={task}
                   keyResults={keyResults}
+                  activeFocusTaskId={activeFocusTaskId}
                   isSelectedForMove={selectedForMoveId === task.id}
                   onSelect={() => onSelectTask(task)}
                   onComplete={handleComplete}
@@ -579,6 +585,7 @@ export default function TasksView({
                 key={task.id}
                 task={task}
                 keyResults={keyResults}
+                activeFocusTaskId={activeFocusTaskId}
                 isSelectedForMove={selectedForMoveId === task.id}
                 onSelect={() => onSelectTask(task)}
                 onComplete={handleComplete}
@@ -751,7 +758,7 @@ export default function TasksView({
                           />
                         </td>
                         <td className="td-pomos">
-                          {task.completedPomodoros}/{task.estimatedPomodoros || 1}
+                          {displayedPomoCount(task.completedPomodoros, task.estimatedPomodoros, task.id === activeFocusTaskId)}/{task.estimatedPomodoros || 1}
                         </td>
                         <td className="td-subtasks">
                           {(task.todos || []).length > 0 ? `${doneSubtasks}/${(task.todos || []).length}` : '—'}
@@ -785,9 +792,11 @@ function BoardTaskCard({
   onComplete,
   onToggleMove,
   onMoveBucket,
+  activeFocusTaskId,
 }: {
   task: PomodoroTask;
   keyResults: KeyResult[];
+  activeFocusTaskId: string | null;
   isSelectedForMove: boolean;
   onSelect: () => void;
   onComplete: (task: PomodoroTask) => void;
@@ -816,7 +825,7 @@ function BoardTaskCard({
         />
         <span className="card-title">{task.title}</span>
         <span className="card-pomos">
-          {task.completedPomodoros}/{task.estimatedPomodoros || 1}
+          {displayedPomoCount(task.completedPomodoros, task.estimatedPomodoros, task.id === activeFocusTaskId)}/{task.estimatedPomodoros || 1}
         </span>
       </div>
 

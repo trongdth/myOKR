@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Pencil, CheckCircle, X, SquareCheck, MessageSquare, Play, RotateCcw } from 'lucide-react';
 import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket, DailyRecord } from '../../lib/pomodoro-storage';
-import { generateId, EISENHOWER_META, weeklyPlanProgress, getLocalDateString } from '../../lib/pomodoro-storage';
+import { generateId, EISENHOWER_META, weeklyPlanProgress, getLocalDateString, displayedPomoCount } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 
@@ -21,9 +21,11 @@ interface Props {
   onStartFocus?: (task: PomodoroTask) => void;
   /** Session history — powers the POMODOROS THIS WEEK readout (P4). */
   history?: DailyRecord[];
+  /** Task currently being focused (running), for "pomo N of M" position display (decision A). */
+  activeFocusTaskId?: string | null;
 }
 
-export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [], onStartFocus, history = [] }: Props) {
+export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = [], onStartFocus, history = [], activeFocusTaskId = null }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [newTodoText, setNewTodoText] = useState('');
@@ -273,7 +275,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
           <div className="prop-group">
             <span className="prop-label">POMODOROS</span>
             <div className="prop-pomo-input-wrapper">
-              <span className="pomo-mono">{task.completedPomodoros} / </span>
+              <span className="pomo-mono">{displayedPomoCount(task.completedPomodoros, task.estimatedPomodoros, task.id === activeFocusTaskId)} / </span>
               <input
                 type="number"
                 min="1"

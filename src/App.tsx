@@ -5,6 +5,7 @@ import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
 import TodayApp from './components/TodayApp';
+import SessionWidget from './components/session/SessionWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 import { flushAutomergeQueue } from './lib/automerge-storage';
@@ -358,7 +359,6 @@ export default function App() {
         {['session', 'tasks', 'done', 'analytics'].includes(activeSection) && (
           <ErrorBoundary mode="section">
             <PomodoroApp
-              key={`pomodoro-${activeSection}`}
               tab={activeSection === 'session' ? 'timer' : activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
               requestedTaskId={requestedTaskId}
               onRequestedTaskConsumed={() => setRequestedTaskId(null)}
@@ -389,6 +389,7 @@ export default function App() {
         </Suspense>
       </main>
     </div>
+    <SessionWidget activeSection={activeSection} onOpen={() => setActiveSection('session')} />
     {showWalkthrough && (
       <Suspense fallback={null}>
         <Walkthrough onComplete={handleWalkthroughComplete} />

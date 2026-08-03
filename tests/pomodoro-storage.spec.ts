@@ -128,3 +128,62 @@ test.describe('completePomodoroForTask', () => {
   });
 });
 
+test.describe('recordSessionInHistory (rule 11 — in-place, no root-array overwrite)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('appends a focus session to today in-place, preserving other days', async ({ page }) => {
+    const result = await page.evaluate(async ({ now }) => {
+      const pomoStorage = await import('/src/lib/pomodoro-storage.ts');
+      const today = pomoStorage.getTodayRecord([]);
+      const otherDay = {
+        date: '2026-05-10', completedPomodoros: 5, totalFocusMinutes: 125, tasksCompleted: 1,
+        sessions: [{ startedAt: now, endedAt: now, type: 'focus', completed: true }],
+      };
+      await pomoStorage.saveHistory([today, otherDay]);
+      // Record a focus session — must mutate today in-place, never overwrite d.history.
+      const updated = await pomoStorage.recordSessionInHistory(
+        { startedAt: now, endedAt: now, type: 'focus', taskId: 't1', completed: true },
+        25,
+      );
+      return { updated, todayDate: today.date };
+    }, { now: FIXED });
+
+    const today = result.updated.find(r => r.date === result.todayDate)!;
+    expect(today.sessions).toHaveLength(1);
+    expect(today.sessions[0].type).toBe('focus');
+    expect(today.completedPomodoros).toBe(1);
+    expect(today.totalFocusMinutes).toBe(25);
+
+    const other = result.updated.find(r => r.date === '2026-05-10');
+    expect(other?.completedPomodoros).toBe(5); // preserved — not blown away
+  });
+
+  test('records a break session without bumping focus counts', async ({ page }) => {
+    const result = await page.evaluate(async ({ now }) => {
+      const pomoStorage = await import('/src/lib/pomodoro-storage.ts');
+      const today = pomoStorage.getTodayRecord([]);
+      today.completedPomodoros = 1;
+      today.totalFocusMinutes = 25;
+      today.sessions = [{ startedAt: now, endedAt: now, type: 'focus', taskId: 't1', completed: true }];
+      await pomoStorage.saveHistory([today]);
+      const updated = await pomoStorage.recordSessionInHistory(
+        { startedAt: now, endedAt: now, type: 'shortBreak', completed: true },
+        0,
+      );
+      return { updated, todayDate: today.date };
+    }, { now: FIXED });
+
+    const today = result.updated.find(r => r.date === result.todayDate)!;
+    expect(today.sessions).toHaveLength(2);
+    expect(today.completedPomodoros).toBe(1); // a break doesn't bump focus counts
+    expect(today.totalFocusMinutes).toBe(25); // a break doesn't add focus minutes
+  });
+});
+

@@ -1,15 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import '../styles/pomodoro.css';
-import {
-  loadSettings, saveSettings, loadTasks, saveTasks, loadHistory, saveHistory,
-  loadTimerState, saveTimerState, clearTimerState,
-  getTodayRecord, upsertTodayRecord, playCompletionSound, sendNotification,
-  requestNotificationPermission, DEFAULT_SETTINGS,
-  completePomodoroForTask,
-  type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
+import type {
+  PomodoroSettings, PomodoroTask, DailyRecord,
 } from '../lib/pomodoro-storage';
-import { startFocusMusic, stopFocusMusic } from '../lib/focus-music';
 import TaskList from './pomodoro/TaskList';
 import TasksView from './pomodoro/TasksView';
 import DoneView from './pomodoro/DoneView';
@@ -17,8 +11,6 @@ import CommandKModal from './pomodoro/CommandKModal';
 import TaskDetailModal from './pomodoro/TaskDetailModal';
 import Analytics from './pomodoro/Analytics';
 import PrioritizeModal from './pomodoro/PrioritizeModal';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import {
   loadKeyResults, saveKeyResults, getActiveCycle,
   loadCycles, saveCycles, loadObjectives, saveObjectives,
@@ -29,14 +21,7 @@ import ConfirmModal from './ConfirmModal';
 import NumberInput from './NumberInput';
 import LoadingState from './shared/LoadingState';
 import { loadHabits, type Habit } from '../lib/habit-storage';
-
-// Tauri injects __TAURI_INTERNALS__ at runtime; no type definitions exist for it.
-const IS_TAURI = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
-
-// Structural equality for the background-sync refresh path. Sync runs every
-// ~5 min, so the cost is negligible — and it lets us skip setState (and the
-// resulting re-render) when a merge produced no actual data change.
-const jsonEqual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+import { useSession } from './session/SessionProvider';
 
 export default function PomodoroApp({
   tab,
@@ -47,105 +32,38 @@ export default function PomodoroApp({
   requestedTaskId?: string | null;
   onRequestedTaskConsumed?: () => void;
 }) {
-  // ----- State -----
-  const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
-  const [showSettings, setShowSettings] = useState(false);
-  const [sessionType, setSessionType] = useState<SessionType>('focus');
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [completedPomos, setCompletedPomos] = useState(0);
-  const [tasks, setTasks] = useState<PomodoroTask[]>([]);
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [history, setHistory] = useState<DailyRecord[]>([]);
+  const session = useSession();
+  const {
+    settings, tasks, history,
+    sessionType, isRunning, completedPomos, activeTaskId, activeTask, activeFocusTaskId,
+    isLoading, pulse, progress, minutes, seconds,
+    toggleTimer, resetTimer, switchSession, setActiveTask, updateSetting, handleTasksChange,
+    clearSessionData, importSessionData,
+  } = session;
+
+  // ----- OKR view data (cycle-scoped) — not session runtime -----
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
+
+  // ----- View-local state -----
   const [selectedDetailTask, setSelectedDetailTask] = useState<PomodoroTask | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [pulse, setPulse] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showPrioritizeModal, setShowPrioritizeModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
-  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
-  const [isConfirmNoTaskOpen, setIsConfirmNoTaskOpen] = useState(false);
-  const [isConfirmSwitchTaskOpen, setIsConfirmSwitchTaskOpen] = useState(false);
-  const [isConfirmTaskChangedOpen, setIsConfirmTaskChangedOpen] = useState(false);
   const [importData, setImportData] = useState<{
     settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
     cycles?: OKRCycle[]; objectives?: Objective[]; keyResults?: KeyResult[]; reviews?: WeeklyReview[];
   } | null>(null);
 
-  const sessionStartRef = useRef<string | null>(null);
-  const autoStartTimeoutRef = useRef<number | null>(null);
-  const lastFocusTaskId = useRef<string | null>(null);
-  const pendingAutoStart = useRef<(() => void) | null>(null);
-  const pendingSwitchTaskId = useRef<string | null>(null);
-  // Guards against a session completion being handled more than once. Completion
-  // can be signalled from up to three places (timer-complete event, window-focus
-  // sync, and the timeLeft===0 effect); without this, a double signal would
-  // double-count pomodoros, history records, and notifications.
-  const completionHandledRef = useRef(false);
-
-  // ----- Load from Tauri Store on mount -----
+  // ----- Load OKR view data on mount -----
   useEffect(() => {
-    async function init() {
-      const s = await loadSettings();
-      setSettings(s);
-
-      // Restore timer state
-      const saved = await loadTimerState();
-
-      let timerStateSynced = false;
-      if (IS_TAURI) {
-        try {
-          const res = await invoke<[number, boolean, string]>('get_timer_state');
-          if (res) {
-            const [secs, running, type] = res;
-            if (running) {
-              setTimeLeft(secs);
-              setIsRunning(true);
-              setSessionType(type as SessionType);
-              timerStateSynced = true;
-              if (saved) {
-                setActiveTaskId(saved.activeTaskId);
-                setCompletedPomos(saved.completedPomos);
-                sessionStartRef.current = saved.sessionStartedAt;
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Failed to sync initial timer state from Rust', e);
-        }
-      }
-
-      if (!timerStateSynced && saved) {
-        setSessionType(saved.sessionType);
-        setActiveTaskId(saved.activeTaskId);
-        setCompletedPomos(saved.completedPomos);
-        sessionStartRef.current = saved.sessionStartedAt;
-
-        if (saved.isRunning && saved.sessionStartedAt) {
-          const now = new Date().getTime();
-          const lastUpdated = new Date(saved.lastUpdated).getTime();
-          const elapsedSeconds = Math.floor((now - lastUpdated) / 1000);
-          const newTimeLeft = Math.max(0, saved.timeLeft - elapsedSeconds);
-          setTimeLeft(newTimeLeft);
-          setIsRunning(true);
-        } else {
-          setTimeLeft(saved.timeLeft);
-          setIsRunning(false);
-        }
-      } else if (!timerStateSynced) {
-        setTimeLeft(s.focusDuration * 60);
-      }
-
-      setTasks(await loadTasks());
-      setHistory(await loadHistory());
-      setHabits(await loadHabits());
-
+    async function initOkr() {
       const loadedCycles = await loadCycles();
       setCycles(loadedCycles);
       const currCycle = await getActiveCycle();
@@ -159,10 +77,9 @@ export default function PomodoroApp({
         setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
       }
 
-      requestNotificationPermission();
-      setIsLoading(false);
+      setHabits(await loadHabits());
     }
-    init();
+    initOkr();
   }, []);
 
   // Global ⌘K Search shortcut
@@ -180,10 +97,10 @@ export default function PomodoroApp({
   // Consume requestedTaskId from Today view
   useEffect(() => {
     if (requestedTaskId && !isLoading) {
-      setActiveTaskId(requestedTaskId);
+      setActiveTask(requestedTaskId);
       onRequestedTaskConsumed?.();
     }
-  }, [requestedTaskId, isLoading, onRequestedTaskConsumed]);
+  }, [requestedTaskId, isLoading, onRequestedTaskConsumed, setActiveTask]);
 
   // Reload keyResults when switching tabs (KR titles may have changed on OKR page)
   useEffect(() => {
@@ -201,386 +118,31 @@ export default function PomodoroApp({
     }
   }, [tab]);
 
-  // Keep sessionTypeRef in sync so background sync callbacks don't capture stale state
-  const sessionTypeRef = useRef(sessionType);
+  // Background sync: reload OKR view data (settings/tasks/history are the provider's job)
   useEffect(() => {
-    sessionTypeRef.current = sessionType;
-  }, [sessionType]);
-
-  // Listen to background sync and reload data dynamically
-  useEffect(() => {
-    async function refreshData() {
-      const s = await loadSettings();
-      setSettings(prev => (jsonEqual(prev, s) ? prev : s));
-      
-      if (!isRunning) {
-        const curType = sessionTypeRef.current;
-        const dur = curType === 'focus' ? s.focusDuration
-          : curType === 'shortBreak' ? s.shortBreakDuration
-          : s.longBreakDuration;
-        const oldDur = curType === 'focus' ? settings.focusDuration
-          : curType === 'shortBreak' ? settings.shortBreakDuration
-          : settings.longBreakDuration;
-        if (timeLeftRef.current === oldDur * 60) {
-          setTimeLeft(dur * 60);
-        }
-      }
-
-      const loadedTasks = await loadTasks();
-      setTasks(prev => (jsonEqual(prev, loadedTasks) ? prev : loadedTasks));
-      const loadedHistory = await loadHistory();
-      setHistory(prev => (jsonEqual(prev, loadedHistory) ? prev : loadedHistory));
-
-      const activeCycle = await getActiveCycle();
-      if (activeCycle) {
-        const krs = await loadKeyResults();
-        const objs = await loadObjectives();
-        const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
-        const loadedKrs = krs.filter(kr => activeObjs.has(kr.objectiveId));
-        setKeyResults(prev => (jsonEqual(prev, loadedKrs) ? prev : loadedKrs));
-      }
-    }
-
     const handleSync = () => {
-      refreshData();
+      (async () => {
+        const currCycle = await getActiveCycle();
+        if (currCycle) {
+          const krs = await loadKeyResults();
+          const objs = await loadObjectives();
+          setObjectives(objs);
+          const activeObjs = new Set(objs.filter(o => o.cycleId === currCycle.id).map(o => o.id));
+          setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
+        }
+      })();
     };
-
     window.addEventListener('myokr-data-synced', handleSync);
     return () => window.removeEventListener('myokr-data-synced', handleSync);
-  }, [isRunning]);
-
-  // ----- Persist timer state to Tauri Store -----
-  useEffect(() => {
-    if (isLoading) return;
-    saveTimerState({
-      sessionType,
-      timeLeft,
-      isRunning,
-      lastUpdated: new Date().toISOString(),
-      activeTaskId,
-      completedPomos,
-      sessionStartedAt: sessionStartRef.current,
-    });
-    // Intentionally omitting timeLeft to avoid writing to disk every second.
-    // Timer recovery correctly uses lastUpdated to deduce elapsed time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionType, isRunning, activeTaskId, completedPomos, isLoading, sessionStartRef.current]);
-
-  // ----- Derived values -----
-  const activeTask = useMemo(
-    () => (activeTaskId ? tasks.find(t => t.id === activeTaskId && !t.isCompleted) ?? null : null),
-    [activeTaskId, tasks]
-  );
-
-  const totalSeconds = sessionType === 'focus'
-    ? settings.focusDuration * 60
-    : sessionType === 'shortBreak'
-      ? settings.shortBreakDuration * 60
-      : settings.longBreakDuration * 60;
-
-  const progress = totalSeconds > 0 ? (totalSeconds - timeLeft) / totalSeconds : 0;
-  const circumference = 2 * Math.PI * 120;
-  const dashOffset = circumference * (1 - progress);
-
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
-
-  // ----- Handle timer reaching zero -----
-  const handleSessionComplete = useCallback(() => {
-    // Idempotency guard: only the first completion signal per session is honored.
-    // The guard is reset when a new session starts (isRunning goes true again).
-    if (completionHandledRef.current) return;
-    completionHandledRef.current = true;
-
-    setIsRunning(false);
-    playCompletionSound();
-    setPulse(true);
-    setTimeout(() => setPulse(false), 2000);
-
-    const now = new Date().toISOString();
-    const session = {
-      startedAt: sessionStartRef.current || now,
-      endedAt: now,
-      type: sessionType,
-      taskId: activeTaskId || undefined,
-      completed: true,
-    };
-    sessionStartRef.current = null;
-
-    if (sessionType === 'focus') {
-      const newCompleted = completedPomos + 1;
-      setCompletedPomos(newCompleted);
-
-      lastFocusTaskId.current = activeTaskId;
-
-      // Update active task in Automerge doc in-place so newly created tasks are not wiped.
-      if (activeTaskId) {
-        const completedTaskId = activeTaskId;
-        completePomodoroForTask(completedTaskId, now)
-          .then(updatedTasks => {
-            setTasks(updatedTasks);
-            const completedTask = updatedTasks.find(t => t.id === completedTaskId);
-            if (completedTask?.isCompleted) {
-              setActiveTaskId(prev => (prev === completedTaskId ? null : prev));
-            }
-          })
-          .catch(err => {
-            console.error('Failed to complete pomodoro for task:', err);
-          });
-      }
-
-      sendNotification('Pomodoro Complete!', 'Great work! Time for a break.');
-
-      // Auto-transition to break
-      const isLongBreak = newCompleted % settings.pomosBeforeLongBreak === 0;
-      const nextType: SessionType = isLongBreak ? 'longBreak' : 'shortBreak';
-      setSessionType(nextType);
-      setTimeLeft(isLongBreak ? settings.longBreakDuration * 60 : settings.shortBreakDuration * 60);
-      if (settings.autoStartBreaks) {
-        if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
-        autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
-      }
-
-      // Update history (async, after state transition is applied)
-      loadHistory().then(h => {
-        const todayRec = getTodayRecord(h);
-        todayRec.completedPomodoros += 1;
-        todayRec.totalFocusMinutes += settings.focusDuration;
-        todayRec.sessions.push(session);
-        const newHistory = upsertTodayRecord(h, todayRec);
-        setHistory(newHistory);
-        saveHistory(newHistory).catch(console.error);
-      }).catch(console.error);
-    } else {
-      // Break completed
-      sendNotification('Break Over!', 'Ready to focus again?');
-
-      // Auto-transition to focus
-      setSessionType('focus');
-      setTimeLeft(settings.focusDuration * 60);
-      if (settings.autoStartFocus) {
-        const prevId = lastFocusTaskId.current;
-        const prevTask = prevId ? tasks.find(t => t.id === prevId) : null;
-
-        if (activeTaskId && prevId && activeTaskId !== prevId && prevTask && !prevTask.isCompleted) {
-          pendingAutoStart.current = () => {
-            if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-            setIsRunning(true);
-          };
-          setIsConfirmTaskChangedOpen(true);
-        } else if (!activeTask) {
-          setIsConfirmNoTaskOpen(true);
-        } else {
-          if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
-          autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
-        }
-      }
-
-      // Record break session
-      loadHistory().then(h => {
-        const todayRec = getTodayRecord(h);
-        todayRec.sessions.push(session);
-        const newHistory = upsertTodayRecord(h, todayRec);
-        setHistory(newHistory);
-        saveHistory(newHistory).catch(console.error);
-      }).catch(console.error);
-    }
-  }, [sessionType, completedPomos, activeTaskId, tasks, settings]);
-
-  // ----- Timer tick (Tauri Rust / Browser Fallback) -----
-  useEffect(() => {
-    if (!IS_TAURI) {
-      // Browser fallback (e.g. Playwright tests)
-      if (!isRunning) return;
-      if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-
-      const id = window.setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(id);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(id);
-    }
-
-    // Tauri Rust Backend implementation
-    // `cancelled` guards the async `listen()` registration: if the effect re-runs
-    // (or unmounts) before the listen() promises resolve, the unlisten functions
-    // would still be null and the handlers would leak — firing duplicate ticks.
-    let cancelled = false;
-    let unlistenTick: (() => void) | null = null;
-    let unlistenComplete: (() => void) | null = null;
-
-    listen<number>('timer-tick', (event) => {
-      setTimeLeft(event.payload);
-    }).then(fn => {
-      if (cancelled) fn();
-      else unlistenTick = fn;
-    }).catch(console.error);
-
-    listen('timer-complete', () => {
-      handleSessionComplete();
-    }).then(fn => {
-      if (cancelled) fn();
-      else unlistenComplete = fn;
-    }).catch(console.error);
-
-    return () => {
-      cancelled = true;
-      if (unlistenTick) unlistenTick();
-      if (unlistenComplete) unlistenComplete();
-    };
-  }, [isRunning, handleSessionComplete]);
-
-  // Sync state on window focus
-  useEffect(() => {
-    if (!IS_TAURI) return;
-
-    const handleFocus = () => {
-      invoke<[number, boolean, string]>('get_timer_state').then((res) => {
-        if (!res) return;
-        const [secs, running, type] = res;
-        
-        // If frontend was running, but backend is not, it means the timer completed in the background
-        if (isRunning && !running && secs === 0) {
-          setTimeLeft(0);
-          handleSessionComplete();
-        } else if (running) {
-          setTimeLeft(secs);
-          setIsRunning(true);
-          setSessionType(type as SessionType);
-        } else {
-          setIsRunning(false);
-        }
-      }).catch(console.error);
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isRunning, handleSessionComplete]);
-
-  const timeLeftRef = useRef(timeLeft);
-  useEffect(() => {
-    timeLeftRef.current = timeLeft;
-  }, [timeLeft]);
-
-  // Control Rust timer state
-  useEffect(() => {
-    if (!IS_TAURI || isLoading) return;
-
-    if (isRunning) {
-      if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-      invoke('start_timer', { secs: timeLeftRef.current, sessionType }).catch(console.error);
-    } else {
-      invoke('pause_timer').catch(console.error);
-    }
-  }, [isRunning, sessionType, isLoading]);
-
-  useEffect(() => {
-    if (timeLeft === 0 && !isRunning) return;
-    if (timeLeft === 0) handleSessionComplete();
-  }, [timeLeft, isRunning, handleSessionComplete]);
-
-  // A new session begins whenever isRunning goes true (manual start, auto-start
-  // after a break, or the switch-task confirm flow) — clear the completion guard
-  // so the next completion is honored.
-  useEffect(() => {
-    if (isRunning) completionHandledRef.current = false;
-  }, [isRunning]);
-
-  // ----- Focus music -----
-  // Plays looping ambient audio while a focus session is actively running and
-  // the user has enabled it. Stops on pause, on session end/break, or when the
-  // setting is toggled off. One effect covers every start path (manual Start,
-  // post-confirm start, auto-start, restore-on-load) since all funnel through
-  // isRunning + sessionType.
-  useEffect(() => {
-    if (isRunning && sessionType === 'focus' && settings.focusMusicEnabled) {
-      startFocusMusic();
-    } else {
-      stopFocusMusic();
-    }
-    return () => stopFocusMusic();
-  }, [isRunning, sessionType, settings.focusMusicEnabled]);
-
-  // ----- Controls -----
-  const toggleTimer = () => {
-    if (!isRunning && sessionType === 'focus' && !activeTask) {
-      setIsConfirmNoTaskOpen(true);
-      return;
-    }
-    if (!isRunning && !sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-    setIsRunning(!isRunning);
-  };
-
-  const startTimer = () => {
-    if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-    setIsRunning(true);
-  };
-
-  const resetTimer = () => {
-    setIsRunning(false);
-    sessionStartRef.current = null;
-    if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
-    setTimeLeft(totalSeconds);
-    if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
-  };
-
-  const switchSession = (type: SessionType) => {
-    setIsRunning(false);
-    sessionStartRef.current = null;
-    if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
-    setSessionType(type);
-    const dur = type === 'focus' ? settings.focusDuration
-      : type === 'shortBreak' ? settings.shortBreakDuration
-      : settings.longBreakDuration;
-    setTimeLeft(dur * 60);
-    if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
-  };
-
-  // ----- Settings handlers -----
-  const updateSetting = <K extends keyof PomodoroSettings>(key: K, value: PomodoroSettings[K]) => {
-    const next = { ...settings, [key]: value };
-    setSettings(next);
-    saveSettings(next);
-    if (key === 'focusDuration' && sessionType === 'focus') setTimeLeft((value as number) * 60);
-    if (key === 'shortBreakDuration' && sessionType === 'shortBreak') setTimeLeft((value as number) * 60);
-    if (key === 'longBreakDuration' && sessionType === 'longBreak') setTimeLeft((value as number) * 60);
-  };
-
-  // ----- Task handlers -----
-  // useCallback so TaskList (React.memo) doesn't re-render on every 1-second
-  // timer tick — these only reference stable setters / refs / scalar state that
-  // doesn't change on a tick.
-  const handleTasksChange = useCallback((t: PomodoroTask[]) => {
-    setTasks(t);
-    saveTasks(t);
   }, []);
-
-  const handleSetActiveTask = useCallback((id: string | null) => {
-    if (isRunning && sessionType === 'focus' && id !== activeTaskId && id !== null && activeTaskId !== null) {
-      pendingSwitchTaskId.current = id;
-      setIsRunning(false);
-      setIsConfirmSwitchTaskOpen(true);
-      return;
-    }
-    if (isRunning && sessionType === 'focus' && id === null) {
-      setIsRunning(false);
-    }
-    setActiveTaskId(id);
-  }, [isRunning, sessionType, activeTaskId]);
 
   // ----- Analytics handlers -----
   const handleExport = async () => {
     try {
-      const [cycles, objectives, krs, reviews] = await Promise.all([
+      const [expCycles, expObjectives, krs, reviews] = await Promise.all([
         loadCycles(), loadObjectives(), loadKeyResults(), loadReviews(),
       ]);
-      const data = { settings, tasks, history, cycles, objectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
+      const data = { settings, tasks, history, cycles: expCycles, objectives: expObjectives, keyResults: krs, reviews, exportedAt: new Date().toISOString() };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -621,24 +183,12 @@ export default function PomodoroApp({
 
   const executeImport = async () => {
     if (!importData) return;
-    const s = importData.settings;
-    setSettings(s);
-    saveSettings(s);
-    setTasks(importData.tasks);
-    saveTasks(importData.tasks);
-    setHistory(importData.history);
-    saveHistory(importData.history);
-    if (importData.cycles) { saveCycles(importData.cycles); }
-    if (importData.objectives) { saveObjectives(importData.objectives); }
+    await importSessionData({ settings: importData.settings, tasks: importData.tasks, history: importData.history });
+    if (importData.cycles) { saveCycles(importData.cycles); setCycles(importData.cycles); }
+    if (importData.objectives) { saveObjectives(importData.objectives); setObjectives(importData.objectives); }
     if (importData.keyResults) { saveKeyResults(importData.keyResults); setKeyResults(importData.keyResults); }
     if (importData.reviews) { saveReviews(importData.reviews); }
     setImportData(null);
-    setCompletedPomos(0);
-    setSessionType('focus');
-    setTimeLeft(s.focusDuration * 60);
-    setIsRunning(false);
-    sessionStartRef.current = null;
-    await clearTimerState();
   };
 
   const handleClearRequest = () => {
@@ -646,36 +196,12 @@ export default function PomodoroApp({
   };
 
   const executeClear = async () => {
-    setHistory([]); saveHistory([]);
-    setCompletedPomos(0);
-    await clearTimerState();
-    resetTimer();
+    await clearSessionData();
   };
 
-  // ----- Update window title + system tray -----
-  useEffect(() => {
-    const timerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    const sessionLabel = sessionType === 'focus' ? 'Focus' : 'Break';
-
-    if (isRunning) {
-      document.title = `${timerText} — ${sessionLabel}`;
-    } else {
-      document.title = 'myOKR — Pomodoro Timer';
-      // Only update tray title when not running (Rust timer updates it natively when running)
-      if (IS_TAURI) {
-        invoke('update_tray_title', {
-          title: timerText,
-          tooltip: `Ready to ${sessionLabel} (${timerText})`
-        }).catch(() => {});
-      }
-    }
-
-    return () => {
-      document.title = 'myOKR — Pomodoro Timer';
-      if (IS_TAURI) invoke('reset_tray').catch(() => {});
-    };
-  }, [isRunning, minutes, seconds, sessionType]);
-
+  // ----- Timer ring geometry (pure derivation) -----
+  const circumference = 2 * Math.PI * 120;
+  const dashOffset = circumference * (1 - progress);
   const isBreak = sessionType !== 'focus';
 
   if (isLoading) {
@@ -797,7 +323,7 @@ export default function PomodoroApp({
               Prioritize
             </button>
           </div>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted={true} />
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={setActiveTask} keyResults={keyResults} hideCompleted={true} activeFocusTaskId={activeFocusTaskId} />
 
           {/* Prioritize Modal */}
           {showPrioritizeModal && (
@@ -817,7 +343,7 @@ export default function PomodoroApp({
           tasks={tasks}
           activeTaskId={activeTaskId}
           onTasksChange={handleTasksChange}
-          onSetActive={handleSetActiveTask}
+          onSetActive={setActiveTask}
           onSelectTask={(t) => setSelectedDetailTask(t)}
           keyResults={keyResults}
           cycles={cycles}
@@ -826,6 +352,7 @@ export default function PomodoroApp({
           habits={habits}
           focusDurationMinutes={settings.focusDuration}
           onOpenSearch={() => setIsSearchOpen(true)}
+          activeFocusTaskId={activeFocusTaskId}
         />
       )}
 
@@ -863,7 +390,7 @@ export default function PomodoroApp({
           activeCycleId={activeCycle?.id}
           onSelectTask={(t) => setSelectedDetailTask(t)}
           onStartFocusTask={(t) => {
-            handleSetActiveTask(t.id);
+            setActiveTask(t.id);
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
           }}
           onReopenTask={(task) => {
@@ -885,8 +412,9 @@ export default function PomodoroApp({
           onClose={() => setSelectedDetailTask(null)}
           keyResults={keyResults}
           history={history}
+          activeFocusTaskId={activeFocusTaskId}
           onStartFocus={(t) => {
-            handleSetActiveTask(t.id);
+            setActiveTask(t.id);
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
           }}
         />
@@ -899,37 +427,6 @@ export default function PomodoroApp({
         title="Reset Timer"
         message="Reset the current timer session? Progress will be lost."
         confirmText="Reset"
-      />
-      <ConfirmModal
-        isOpen={isConfirmNoTaskOpen}
-        onClose={() => setIsConfirmNoTaskOpen(false)}
-        onConfirm={startTimer}
-        title="No Task Selected"
-        message="You haven't selected a task for this focus session. Start anyway?"
-        confirmText="Start Anyway"
-        danger={false}
-      />
-      <ConfirmModal
-        isOpen={isConfirmSwitchTaskOpen}
-        onClose={() => { setIsConfirmSwitchTaskOpen(false); pendingSwitchTaskId.current = null; startTimer(); }}
-        onConfirm={() => { setActiveTaskId(pendingSwitchTaskId.current); pendingSwitchTaskId.current = null; startTimer(); }}
-        title="Switch Task?"
-        message="The timer is running. Do you want to switch to a different task?"
-        confirmText="Switch"
-        danger={false}
-      />
-      <ConfirmModal
-        isOpen={isConfirmTaskChangedOpen}
-        onClose={() => { setIsConfirmTaskChangedOpen(false); pendingAutoStart.current = null; }}
-        onConfirm={() => {
-          const fn = pendingAutoStart.current;
-          pendingAutoStart.current = null;
-          fn?.();
-        }}
-        title="Task Changed"
-        message="The active task changed during your break. Continue with the new task?"
-        confirmText="Continue"
-        danger={false}
       />
       <ConfirmModal
         isOpen={isConfirmClearOpen}

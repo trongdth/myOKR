@@ -212,6 +212,52 @@ presentational-rollover rule — see [ADR-0012](./adr/0012-presentational-cycle-
 > modifier widens that wrapper to `.okr-container`'s 1280px on the `tasks`/`done`
 > tabs only, so all three Plan-group tabs share identical left/right insets.
 
+### Pomo count display — position, not completed (2026-08-03)
+
+"pomo N of M" is the pomodoro you are **on**, not the count you have
+**finished** — N advances when a focus *starts*, not when it ends. Decided in
+the session-widget grilling; it resolves the "count jumps during the break"
+report. Root cause of the report: focus-completion and the focus→break
+transition fire in one handler (`handleSessionComplete`,
+`src/components/PomodoroApp.tsx`), so a *completed*-count display ticks up at
+the exact instant the break begins — reading as "increased during the break."
+
+- **Persisted truth unchanged.** `task.completedPomodoros` still advances on
+  focus completion only (`applyPomodoroCompletion`,
+  `src/lib/pomodoro-storage.ts`); the focus-branch increment is untouched. The
+  long break uses the same branch, so it inherits this for free — no separate
+  long-break case.
+- **Displayed N is derived:** `min(completedPomodoros + (focusRunning ? 1 : 0),
+  estimatedPomodoros)`. M is `estimatedPomodoros` (per-task), **not**
+  `pomosBeforeLongBreak` — the timer-screen dot row is the *cycle* position and
+  is a separate control.
+- **Applies everywhere the count shows:** Tasks card `4/6`, list-view POMOS
+  cell, Task-detail weekly line, and the forthcoming global session widget.
+  Mobile should mirror the derivation for parity.
+
+### Session posture — auto-break, manual-focus (2026-08-03)
+
+Decided in the session-widget grilling (posture **ii**). Resolves the "focus
+doesn't auto-start after short break" report: that is the *intended* default,
+not a bug — confirmed green by `tests/pomodoro-confirmations.spec.ts` ("Default
+(auto-start off)" describe, short *and* long break). Long break behaves
+identically; there is no separate long-break case.
+
+- **`autoStartBreaks` default → `true`; `autoStartFocus` stays `false`.** Focus
+  ending auto-starts the break; a break ending *stages* focus (full duration,
+  paused) and waits for a deliberate tap — the global session widget's resume
+  job. Concretely a one-field change in `DEFAULT_SETTINGS`
+  (`src/lib/pomodoro-storage.ts`).
+- **Existing-user wrinkle.** Settings persist per-doc; a user who already has
+  `autoStartBreaks: false` stored won't inherit the new default. For the app
+  owner it's a one-toggle change; a one-time migration is deferred (low-stakes,
+  single-user-via-Dropbox). Revisit if the app ships beyond personal use.
+- **Tests.** `pomodoro-confirmations.spec.ts` "Posture ii — auto-break,
+  manual-focus" sets autoStartBreaks on / autoStartFocus off and asserts the
+  break auto-starts (reaching Focus with no manual break click) while focus
+  stays staged. The mock seed still stores `autoStartBreaks: false`
+  (existing-user state), so posture ii is toggled on explicitly per test.
+
 ### Tasks board (P1/P2, flagship — mockup-exact values)
 
 - **Header block**: title `PLAN` + cycle pill (`May cycle`) · Board/List
@@ -230,7 +276,8 @@ presentational-rollover rule — see [ADR-0012](./adr/0012-presentational-cycle-
   result] [Add]` — **no bucket select, no due date**. New tasks land in
   **Backlog** (matches the storage default; schema rule in CONTEXT.md).
 - **Card anatomy**: `[✓ tick]` (tick = complete; same-session undo via the
-  completed strip) · title · mono `4/6` (completed/estimated) · KR line ·
+  completed strip) · title · mono `4/6` (current-position / estimated — see
+  *Pomo count display* above) · KR line ·
   mono category · due chip (`Thu`, mono) · **dashed "Add to <bucket>" button**
   = the move-to-bucket menu. 3px left accent stripe in the task's Eisenhower
   category color (`EISENHOWER_META`, via `--today-accent`-style CSS var).

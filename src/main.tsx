@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { SessionProvider } from "./components/session/SessionProvider";
 import { initAndMigrateData, getAutomergeDoc, updateAutomergeDoc, flushAutomergeQueue, getQueueInfoForTesting, mergeExternalBinary } from "./lib/automerge-storage";
 import { getEffectiveCurrentValue, getEffectiveCurrentValueAsOf, isTickInCycleMonth } from "./lib/okr-storage";
 
@@ -24,7 +25,9 @@ if (import.meta.env.DEV) {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <SessionProvider>
+        <App />
+      </SessionProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );
