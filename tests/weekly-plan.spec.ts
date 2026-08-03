@@ -243,4 +243,15 @@ test.describe('Weekly pomodoro plan — task detail modal (Seam C)', () => {
     await page.locator('.board-task-card').first().click();
     await expect(page.locator('.weekly-plan-readout')).toHaveText('2 / 7 planned');
   });
+
+  // Regression: clearing the input used to yield parseInt('',10) = NaN, so the
+  // update was silently skipped and the edit closed with no visible change.
+  test('clearing the weekly plan and saving sets it to 0 (not silently skipped)', async ({ page }) => {
+    await page.locator('.weekly-plan-edit-btn').click();
+    await page.locator('.weekly-plan-input').fill('');
+    await page.locator('.weekly-plan-save-btn').click();
+    // Empty input must take effect: the plan becomes 0 (no estimate fallback),
+    // and the readout reflects it — proving the save wasn't dropped.
+    await expect(page.locator('.weekly-plan-readout')).toHaveText('2 / 0 planned');
+  });
 });

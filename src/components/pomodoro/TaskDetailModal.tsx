@@ -4,6 +4,7 @@ import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucke
 import { generateId, EISENHOWER_META, weeklyPlanProgress, getLocalDateString, displayedPomoCount } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
+import ConfirmModal from '../ConfirmModal';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
 
@@ -35,6 +36,9 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const [editingTitleText, setEditingTitleText] = useState(task.title);
   const [editingWeeklyPlan, setEditingWeeklyPlan] = useState(false);
   const [weeklyPlanDraft, setWeeklyPlanDraft] = useState('');
+  // Sub-task deletion is permanent, so the X button stages a delete and the
+  // ConfirmModal commits it (matches TaskList's task-delete confirm).
+  const [pendingDeleteTodoId, setPendingDeleteTodoId] = useState<string | null>(null);
 
   const descRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +67,12 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const doneCount = todos.filter(t => t.completed).length;
 
   const saveWeeklyPlan = () => {
-    const value = parseInt(weeklyPlanDraft, 10);
+    // Empty input must not be silently dropped: parseInt('', 10) is NaN, which
+    // used to skip the update and close the editor with no visible change.
+    // Treat empty as an explicit plan of 0 (consistent with the 0-plan rule:
+    // no fallback to the estimate).
+    const raw = weeklyPlanDraft.trim();
+    const value = raw === '' ? 0 : parseInt(raw, 10);
     if (Number.isFinite(value)) {
       onUpdate({ ...task, weeklyPomodoroPlan: Math.max(0, Math.min(99, value)) });
     }
@@ -142,6 +151,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   const deleteTodo = (id: string) => {
     onUpdate({ ...task, todos: todos.filter(t => t.id !== id) });
   };
+  const requestDeleteTodo = (id: string) => setPendingDeleteTodoId(id);
 
   // Comments CRUD
   const addComment = () => {
@@ -449,7 +459,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
                         onChange={() => toggleTodo(todo.id)}
                       />
                       <span className="todo-text">{todo.text}</span>
-                      <button className="delete-sub-btn" onClick={() => deleteTodo(todo.id)}>
+                      <button className="delete-sub-btn" onClick={() => requestDeleteTodo(todo.id)}>
                         <X size={14} />
                       </button>
                     </div>
@@ -488,6 +498,14 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={pendingDeleteTodoId !== null}
+        onClose={() => setPendingDeleteTodoId(null)}
+        onConfirm={() => { if (pendingDeleteTodoId) deleteTodo(pendingDeleteTodoId); }}
+        title="Delete sub-task"
+        message="Delete this sub-task? This cannot be undone."
+        confirmText="Delete"
+      />
     </div>
   );
 }

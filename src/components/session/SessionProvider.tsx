@@ -23,7 +23,12 @@ const jsonEqual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSO
 
 /** Minutes for a session phase — the single focus/short/long lookup (PR #37 review #9). */
 function durationMinutes(s: PomodoroSettings, type: SessionType): number {
-  return type === 'focus' ? s.focusDuration : type === 'shortBreak' ? s.shortBreakDuration : s.longBreakDuration;
+  const minutes: Record<SessionType, number> = {
+    focus: s.focusDuration,
+    shortBreak: s.shortBreakDuration,
+    longBreak: s.longBreakDuration,
+  };
+  return minutes[type];
 }
 
 export interface SessionContextValue {
@@ -86,6 +91,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // sync, and the timeLeft===0 effect); without this, a double signal would
   // double-count pomodoros, history records, and notifications.
   const completionHandledRef = useRef(false);
+  // resetTimer is recreated each render (it closes over the current
+  // totalSeconds). clearSessionData is memoized with [], so it must read the
+  // latest resetTimer through this ref — otherwise it captures the first
+  // render's resetTimer and resets the timer to the default 25-min focus even
+  // after the user has customized the duration.
+  const resetTimerRef = useRef<() => void>(() => {});
 
   // ----- Load on mount -----
   useEffect(() => {
@@ -471,6 +482,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setTimeLeft(totalSeconds);
     if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
   };
+  resetTimerRef.current = resetTimer;
 
   const switchSession = (type: SessionType) => {
     setIsRunning(false);
@@ -517,7 +529,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setHistory([]); saveHistory([]).catch(console.error);
     setCompletedPomos(0);
     await clearTimerState();
-    resetTimer();
+    resetTimerRef.current();
   }, []);
 
   // Analytics: import replaces settings/tasks/history and resets the timer

@@ -184,7 +184,14 @@ export default function PomodoroApp({
   const executeImport = async () => {
     if (!importData) return;
     await importSessionData({ settings: importData.settings, tasks: importData.tasks, history: importData.history });
-    if (importData.cycles) { saveCycles(importData.cycles); setCycles(importData.cycles); }
+    if (importData.cycles) {
+      // Await so getActiveCycle reads the just-saved cycles, then refresh the
+      // active-cycle state — otherwise the pill, PlanTabStrip, and cycle-scoped
+      // filtering keep the pre-import cycle until a reload.
+      await saveCycles(importData.cycles);
+      setCycles(importData.cycles);
+      setActiveCycle(await getActiveCycle());
+    }
     if (importData.objectives) { saveObjectives(importData.objectives); setObjectives(importData.objectives); }
     if (importData.keyResults) { saveKeyResults(importData.keyResults); setKeyResults(importData.keyResults); }
     if (importData.reviews) { saveReviews(importData.reviews); }

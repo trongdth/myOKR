@@ -130,3 +130,66 @@ test.describe('Plan Group — Task detail header (P4)', () => {
     expect(btnBg, 'Start focus background equals --color-primary').toBe(primary);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Sub-task (todo) deletion is permanent and undoable, so it must be guarded by
+// a confirmation — matching TaskList's ConfirmModal for task deletion. The 1a
+// redesign had the X button delete immediately with no confirm.
+// ---------------------------------------------------------------------------
+test.describe('Task detail — sub-task delete confirmation', () => {
+  const FIXED = '2026-05-24T12:00:00.000Z'; // Sunday — deterministic cycle/week
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveTasks([
+        {
+          id: 'sub1',
+          title: 'Task with sub-tasks',
+          estimatedPomodoros: 2,
+          completedPomodoros: 0,
+          isCompleted: false,
+          createdAt: '2026-05-18T10:00:00Z',
+          todos: [
+            { id: 'st1', text: 'Sub-task to delete', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+            { id: 'st2', text: 'Keeper sub-task', completed: true, createdAt: '2026-05-19T10:00:00Z' },
+          ],
+        },
+      ]);
+    });
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await page.locator('.board-task-card').first().click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+  });
+
+  test('asks for confirmation before deleting a sub-task, then removes only it on confirm', async ({ page }) => {
+    const doomed = page.locator('.todo-text', { hasText: 'Sub-task to delete' });
+    await expect(doomed).toBeVisible();
+
+    // Click the X — a confirm modal must appear; deletion is not immediate.
+    await page.locator('.delete-sub-btn').first().click();
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await expect(doomed, 'sub-task still present while unconfirmed').toBeVisible();
+
+    // Confirm — the doomed sub-task goes, the sibling stays.
+    await page.locator('.confirm-modal button:has-text("Delete")').click();
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(doomed).toHaveCount(0);
+    await expect(page.locator('.todo-text', { hasText: 'Keeper sub-task' })).toBeVisible();
+  });
+
+  test('cancel on the delete confirmation keeps the sub-task', async ({ page }) => {
+    const doomed = page.locator('.todo-text', { hasText: 'Sub-task to delete' });
+    await page.locator('.delete-sub-btn').first().click();
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await page.locator('.confirm-modal button:has-text("Cancel")').click();
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(doomed).toBeVisible();
+  });
+});
