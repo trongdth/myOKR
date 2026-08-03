@@ -313,6 +313,16 @@ function normalizeDailyRecord(r: unknown): DailyRecord | null {
 }
 
 // ===== SETTINGS =====
+// Notify the app that the synced doc changed so live views reload. Mirrors the
+// myokr-data-synced dispatch other writers (e.g. HabitsApp) use; covering direct
+// local saves here means the always-mounted SessionProvider (ADR-0013) picks up
+// writes it didn't initiate — tests that seed after mount, and any future code.
+function notifyDataChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  }
+}
+
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
     const doc = await getAutomergeDoc();
@@ -326,6 +336,7 @@ export async function saveSettings(settings: PomodoroSettings): Promise<void> {
   await updateAutomergeDoc('Update settings', (d) => {
     d.settings = sanitizeForAutomerge(settings);
   });
+  notifyDataChanged();
 }
 
 // ===== TASKS =====
@@ -343,6 +354,7 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
   await updateAutomergeDoc('Update tasks', (d) => {
     d.tasks = sanitizeForAutomerge(tasks);
   });
+  notifyDataChanged();
 }
 
 // ===== HISTORY =====
@@ -360,6 +372,7 @@ export async function saveHistory(h: DailyRecord[]): Promise<void> {
   await updateAutomergeDoc('Update history', (d) => {
     d.history = sanitizeForAutomerge(h);
   });
+  notifyDataChanged();
 }
 
 // ===== TIMER STATE =====
