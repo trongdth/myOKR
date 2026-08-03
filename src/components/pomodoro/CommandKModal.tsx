@@ -91,11 +91,10 @@ export default function CommandKModal({
       const body = (task.description || '').toLowerCase().includes(q)
         || (task.comments || []).some(c => c.text.toLowerCase().includes(q));
 
-      if (scope === 'open') return title || subtask || body ? { title, subtask, body } : null;
-      if (scope === 'completed') return title || subtask || body ? { title, subtask, body } : null;
+      const matched = title || subtask || body;
       if (scope === 'subtasks') return subtask ? { title, subtask, body } : null;
       if (scope === 'notes') return body ? { title, subtask, body } : null;
-      return title || subtask || body ? { title, subtask, body } : null;
+      return matched ? { title, subtask, body } : null;
     };
 
     const groups: GroupedResults = { open: [], completed: [], insideTasks: [] };

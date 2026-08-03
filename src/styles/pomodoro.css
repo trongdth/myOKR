@@ -2656,12 +2656,9 @@
   letter-spacing: -0.02em;
 }
 
-.tasks-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.02em;
-}
+/* Note: `.tasks-title` only ever appears alongside `.plan-header-eyebrow`
+   (PlanTabStrip PLAN eyebrow), whose `font-size: 0.65rem !important` always
+   won — so a standalone large-title rule here was dead and misleading. */
 
 .tasks-badge {
   font-family: var(--font-mono);
@@ -3728,7 +3725,7 @@
 
 /* --- P1 board card anatomy (flagship: mockup-exact) --- */
 .board-task-card {
-  background: #141922;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   box-shadow: inset 3px 0 0 var(--task-accent, #6b7280);
