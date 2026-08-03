@@ -124,8 +124,8 @@ export default function CommandKModal({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay search-modal-overlay" onClick={onClose}>
-      <div className="modal-content command-k-modal" onClick={e => e.stopPropagation()}>
+    <div className="app-modal-overlay search-modal-overlay" onClick={onClose}>
+      <div className="app-modal-content command-k-modal" onClick={e => e.stopPropagation()}>
         {/* Search Input Bar */}
         <div className="command-k-header">
           <Search size={18} className="search-icon" />

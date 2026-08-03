@@ -170,8 +170,8 @@ export default function TaskDetailModal({ task, onUpdate, onClose, keyResults = 
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
+    <div className="app-modal-overlay" onClick={onClose}>
+      <div className="app-modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
         {/* Panel Header */}
         <div className="detail-panel-header">
           <span className="detail-eyebrow">TASK · click any field to edit</span>

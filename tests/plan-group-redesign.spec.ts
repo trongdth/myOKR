@@ -145,7 +145,7 @@ test.describe('Plan Group Redesign — task detail opens centered (bug #2)', () 
 
   test('overlay covers the whole viewport', async ({ page }) => {
     const vp = page.viewportSize()!;
-    const box = await page.locator('.modal-overlay').boundingBox();
+    const box = await page.locator('.app-modal-overlay').boundingBox();
 
     expect(box).not.toBeNull();
     // A real modal backdrop is fixed and fills the screen.

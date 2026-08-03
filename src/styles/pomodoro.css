@@ -1394,7 +1394,10 @@
    look; this rule only provides the overlay and centers the panel. Bug #2:
    these classes previously had no CSS at all, so the panel rendered in normal
    document flow at the top-left instead of centered on screen. */
-.modal-overlay {
+/* Shared full-screen overlay base for the app's modal dialogs (TaskDetail,
+   Command-K). Namespaced so the generic name can't leak onto unrelated
+   elements — components opt in by using this class. */
+.app-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -1409,7 +1412,7 @@
 
 /* The centered panel itself: cap height so tall content scrolls inside the
    viewport instead of overflowing the centered overlay. */
-.modal-content {
+.app-modal-content {
   max-height: 90vh;
   overflow-y: auto;
   box-sizing: border-box;
