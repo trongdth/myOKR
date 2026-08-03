@@ -5,6 +5,8 @@ on:
     branches: [develop]
   pull_request:
     branches: [develop]
+  # Manual trigger for the update-snapshots job below.
+  workflow_dispatch:
 
 jobs:
   e2e:
@@ -38,3 +40,43 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  # Regenerate the Linux visual-regression baselines. CI runs on Linux and reads
+  # the `*-linux.png` snapshots, so baselines MUST be generated in this same
+  # environment — generating them on macOS produces `-darwin.png` files CI never
+  # uses, and pixel/font rendering differs across platforms. This job updates
+  # the Linux baselines in place and uploads them; download the artifact, drop
+  # the `*-linux.png` files into tests/visual-regression.spec.ts-snapshots/,
+  # eyeball the diffs against the old baselines, then commit.
+  #
+  # Local macOS baselines (`*-darwin.png`) are regenerated separately on a Mac
+  # with: npx playwright test visual-regression --update-snapshots
+  update-snapshots:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Update Linux baselines
+        run: npx playwright test visual-regression --update-snapshots
+
+      - name: Upload regenerated Linux baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-linux-baselines
+          path: tests/visual-regression.spec.ts-snapshots/*-linux.png
+          retention-days: 14

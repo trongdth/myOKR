@@ -17,6 +17,7 @@ async function navTo(page: any, title: string) {
 test.describe('Habit KR Linking & Progress Workflow', () => {
   test.beforeEach(async ({ page }) => {
     // Set localStorage to bypass walkthrough and open directly
+    await page.clock.setFixedTime(new Date('2026-07-15T12:00:00.000Z'));
     await page.addInitScript(() => {
       window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
     });
@@ -59,16 +60,15 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // 2. Go to OKRs tab and create objective + KR
     await navTo(page, 'Objectives');
-    await expect(page.locator('.okr-header-title')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     const objInput = page.locator('.okr-add-objective >> input');
     await objInput.fill('Habit E2E Objective');
     await page.locator('button:has-text("+ Add Objective")').click();
 
-    // Find and expand the objective card
+    // Find the objective card (expanded by default)
     const objHeader = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader).toBeVisible();
-    await objHeader.click();
 
     // Create a Habit KR
     const krInput = page.locator('.kr-add-row >> input');
@@ -82,25 +82,21 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(linkSelect).toBeVisible();
     await linkSelect.selectOption({ label: 'Forming E2E Habit' });
 
-    // 3. Go to Today tab, check off the habit today
-    await navTo(page, 'Day plan');
-    await expect(page.locator('h1:has-text("Today\'s Focus")')).toBeVisible();
+    // 3. Go to Habits tab, check off the habit today
+    await navTo(page, 'Habits');
+    await expect(page.locator('.habits-title')).toHaveText('Habits');
 
-    // Toggle today's habit tick
-    const todayHabitBtn = page.locator('button:has-text("Forming E2E Habit")');
-    await expect(todayHabitBtn).toBeVisible();
-    await todayHabitBtn.click();
-    
-    // Check it displays ticked (contains visual indicator)
-    await expect(todayHabitBtn.locator('.lucide-check')).toBeVisible();
+    // Toggle today's habit tick cell in the calendar grid
+    const todayCell = page.locator('.habit-card:has-text("Forming E2E Habit") .calendar-day.today');
+    await expect(todayCell).toBeVisible();
+    await todayCell.click();
+    await expect(todayCell).toHaveClass(/ticked/);
 
     // 4. Go back to OKRs and check progress
     await navTo(page, 'Objectives');
     
-    // Expand the objective again to make the KR row visible
     const objHeader2 = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader2).toBeVisible();
-    await objHeader2.click();
 
     const krRow = page.locator('.kr-row:has-text("E2E Ticking KR")');
     await expect(krRow).toBeVisible();
@@ -123,7 +119,6 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     const objHeader3 = page.locator('.objective-header:has-text("Habit E2E Objective")');
     await expect(objHeader3).toBeVisible();
-    await objHeader3.click();
 
     const krRowAfter = page.locator('.kr-row:has-text("E2E Ticking KR")');
     await expect(krRowAfter).toBeVisible();
@@ -157,16 +152,14 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // Go to OKRs tab and create objective + KR
     await navTo(page, 'Objectives');
-    await expect(page.locator('.okr-header-title')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     const objInput = page.locator('.okr-add-objective >> input');
     await objInput.fill('Habit Link Navigation Objective');
     await page.locator('button:has-text("+ Add Objective")').click();
 
-    // Find and expand the objective card
     const objHeader = page.locator('.objective-header:has-text("Habit Link Navigation Objective")');
     await expect(objHeader).toBeVisible();
-    await objHeader.click();
 
     // Create a Habit KR
     const krInput = page.locator('.kr-add-row >> input');

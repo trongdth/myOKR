@@ -60,7 +60,7 @@ test.describe('Desktop: OKR Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
     await navDesktop(page, 'OKRs');
-    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
   });
 
   test('Help & tour button in sidebar renders a question mark icon', async ({ page }) => {
@@ -80,13 +80,12 @@ test.describe('Desktop: OKR Workflow', () => {
   });
 
   test('create KR for objective', async ({ page }) => {
-    // Wait for objectives to render, then expand first one
+    // Objectives are expanded by default
     await expect(page.locator('.objective-card').first()).toBeVisible({ timeout: 10000 });
-    await page.locator('.objective-header').first().click();
     await expect(page.locator('.objective-body').first()).toBeVisible();
 
     // Add KR
-    const krInput = page.locator('input[placeholder*="Add a key result"]');
+    const krInput = page.locator('input[placeholder*="Add a key result"]').first();
     await krInput.fill('Test KR E2E');
     await krInput.press('Enter');
 
@@ -98,7 +97,7 @@ test.describe('Desktop: Task Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
     await navDesktop(page, 'Tasks');
-    await expect(page.locator('.task-section')).toBeVisible();
+    await expect(page.locator('.tasks-view-container')).toBeVisible();
   });
 
   test('create task linked to KR', async ({ page }) => {
@@ -106,22 +105,21 @@ test.describe('Desktop: Task Workflow', () => {
     await input.fill('Test Task E2E');
 
     // Wait for KR dropdown to populate (async keyResults load)
-    const krSelect = page.locator('select.task-kr-select');
+    const krSelect = page.locator('select.kr-select');
     await expect(krSelect).toBeVisible({ timeout: 10000 });
     await krSelect.selectOption({ index: 1 });
 
-    await page.locator('button.add-task-btn').click();
+    await page.locator('button.quick-add-btn').click();
     await expect(page.locator('text=Test Task E2E')).toBeVisible();
 
     // Verify KR badge is shown on the task
-    await expect(page.locator('.task-kr-badge').first()).toBeVisible();
+    await expect(page.locator('.card-kr').first()).toBeVisible();
 
     // Navigate away and back to verify persistence (reload from store)
     await navDesktop(page, 'OKRs');
-    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
     await navDesktop(page, 'Tasks');
     await expect(page.locator('text=Test Task E2E')).toBeVisible();
-    await expect(page.locator('.task-kr-badge').first()).toBeVisible();
+    await expect(page.locator('.card-kr').first()).toBeVisible();
   });
 });
 
@@ -233,7 +231,7 @@ test.describe('Mobile: Core Workflows', () => {
 
   test('navigate and create objective', async ({ page }) => {
     await navMobile(page, 'OKRs');
-    await expect(page.locator('text=Objectives & Key Results')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     const input = page.locator('input[placeholder*="Add a new objective"]');
     await input.fill('Mobile Objective');
@@ -243,12 +241,17 @@ test.describe('Mobile: Core Workflows', () => {
 
   test('navigate and create task', async ({ page }) => {
     await navMobile(page, 'Tasks');
-    await expect(page.locator('.task-section')).toBeVisible();
+    await expect(page.locator('.tasks-view-container')).toBeVisible();
 
     const input = page.locator('input[placeholder*="What are you working on?"]');
     await input.fill('Mobile Task');
-    await page.locator('button.add-task-btn').click();
-    await expect(page.locator('text=Mobile Task')).toBeVisible();
+    // The 1a redesign removed the bucket chooser from the quick-add bar — new
+    // tasks always land in Backlog (TasksView.tsx `bucket: 'backlog'`), so
+    // there's nothing to select here. Promote to Today/This week via the card.
+    await page.locator('button.quick-add-btn').click();
+    // At narrow widths the Backlog column is collapsed to a bar (P2) — expand it to reveal the card.
+    await page.locator('.backlog-bar-toggle').click();
+    await expect(page.locator('.backlog-expanded-panel span.card-title', { hasText: 'Mobile Task' })).toBeVisible();
   });
 
   test('start and pause pomodoro', async ({ page }) => {

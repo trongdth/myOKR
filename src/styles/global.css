@@ -18,10 +18,18 @@
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
 
+  /* Typography — the only two font families, loaded by the @import at the top
+     of this file. --font-mono is for numbers / code / mono labels; everything
+     else inherits --font-sans via `body`. Reference these tokens instead of
+     hardcoding a family stack (see docs/design-system.md). */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
   /* Semantic color roles — the canonical tokens (see docs/design-system.md).
      Color carries meaning, never decoration. One hue may serve more than one
      role when the meaning aligns (cyan = primary action = focus). */
   --color-primary: #22d3ee;   /* THE single primary action per screen */
+  --color-on-primary: #04222a; /* text/icon color on primary-action surfaces */
   --color-focus: var(--color-primary); /* focus-session / timer semantics */
   --color-objective: #a855f7; /* OKR Objectives (violet) */
   --color-streak: #f59e0b;    /* streaks — amber means streak, nothing else */
@@ -89,12 +97,7 @@ html {
 }
 
 body {
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0;
   background: var(--bg-primary);

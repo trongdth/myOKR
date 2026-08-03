@@ -154,15 +154,15 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
         <div className="chart-title">Summary</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1em', textAlign: 'center' }}>
           <div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalFocusHours}h</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalFocusHours}h</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Focus</div>
           </div>
           <div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalPomodoros}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalPomodoros}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pomodoros</div>
           </div>
           <div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalTasksDone}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalTasksDone}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tasks Done</div>
           </div>
         </div>
@@ -188,8 +188,8 @@ export default function Analytics({ history, tasks, onExport, onImport, onClear 
                   <tr key={task.id}>
                     <td style={{ color: 'var(--text-primary)' }}>{task.title}</td>
                     <td>{task.isCompleted ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><CheckCircle size={14} /> Done</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><Clock size={14} /> Active</span>}</td>
-                    <td style={{ fontFamily: "'JetBrains Mono', monospace" }}>{task.completedPomodoros}/{task.estimatedPomodoros}</td>
-                    <td style={{ fontFamily: "'JetBrains Mono', monospace" }}>{pct}%</td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{task.completedPomodoros}/{task.estimatedPomodoros}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{pct}%</td>
                   </tr>
                 );
               })}

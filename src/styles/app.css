@@ -729,7 +729,7 @@
   min-height: 100vh;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 .app-loading .spinner {
   width: 40px;

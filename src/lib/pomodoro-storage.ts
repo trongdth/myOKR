@@ -46,6 +46,9 @@ export interface TaskComment {
   createdAt: string;
 }
 
+export type TaskBucket = 'today' | 'this_week' | 'backlog';
+export const TASK_BUCKETS: TaskBucket[] = ['today', 'this_week', 'backlog'];
+
 export interface PomodoroTask {
   id: string;
   title: string;
@@ -58,6 +61,11 @@ export interface PomodoroTask {
   createdAt: string;
   completedAt?: string;
   category?: EisenhowerCategory;
+  bucket?: TaskBucket;
+  dueDate?: string;
+  /** Weekly pomodoro plan (P4): how many pomodoros the user plans to spend on
+   *  this task this week. Absent → the estimate is the fallback readout. */
+  weeklyPomodoroPlan?: number;
   keyResultId?: string;
 }
 
@@ -85,6 +93,23 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
 }
 
 /**
+ * "pomo N of M" position semantics — decision A (see docs/design-system.md,
+ * "Pomo count display"). N is the pomodoro you are ON, not the count finished:
+ * while a focus is running on this task, the displayed count is
+ * `completedPomodoros + 1` (clamped to the estimate); otherwise it is the
+ * completed count unchanged. `completedPomodoros` itself is never mutated —
+ * this is a pure display derivation.
+ */
+export function displayedPomoCount(
+  completedPomodoros: number,
+  estimatedPomodoros: number,
+  focusInProgress: boolean,
+): number {
+  const est = estimatedPomodoros || 1;
+  return focusInProgress ? Math.min(completedPomodoros + 1, est) : completedPomodoros;
+}
+
+/**
  * Safely complete a pomodoro for a single active task in the Automerge document.
  * Modifies the task element in-place inside currentDoc.tasks rather than
  * overwriting d.tasks with a potentially stale React state array.
@@ -105,6 +130,37 @@ export async function completePomodoroForTask(taskId: string, now: string): Prom
     updatedTasks = d.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null);
   });
   return updatedTasks;
+}
+
+/**
+ * Record a completed session into today's DailyRecord, mutating the record
+ * IN-PLACE inside updateAutomergeDoc (rule 11) — never overwriting d.history
+ * with a snapshot. A focus session also bumps completedPomodoros and
+ * totalFocusMinutes; a break does not. Replaces the old load-modify-save in
+ * handleSessionComplete, which could lose history written between the load and
+ * the save (PR #37 review).
+ */
+export async function recordSessionInHistory(session: SessionRecord, focusMinutes: number): Promise<DailyRecord[]> {
+  await updateAutomergeDoc('Record session', (d) => {
+    if (!Array.isArray(d.history)) d.history = [];
+    const key = todayKey();
+    let idx = d.history.findIndex((r: unknown) => r != null && typeof r === 'object' && (r as DailyRecord).date === key);
+    if (idx === -1) {
+      d.history.push(sanitizeForAutomerge({
+        date: key, completedPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, sessions: [] as SessionRecord[],
+      }));
+      idx = d.history.length - 1;
+    }
+    const rec = d.history[idx] as DailyRecord;
+    if (!rec) return;
+    if (!Array.isArray(rec.sessions)) rec.sessions = [];
+    rec.sessions.push(sanitizeForAutomerge(session));
+    if (session.type === 'focus') {
+      rec.completedPomodoros = (typeof rec.completedPomodoros === 'number' ? rec.completedPomodoros : 0) + 1;
+      rec.totalFocusMinutes = (typeof rec.totalFocusMinutes === 'number' ? rec.totalFocusMinutes : 0) + focusMinutes;
+    }
+  });
+  return loadHistory();
 }
 
 export interface SessionRecord {
@@ -139,7 +195,10 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   shortBreakDuration: 5,
   longBreakDuration: 15,
   pomosBeforeLongBreak: 4,
-  autoStartBreaks: false,
+  // Posture ii (docs/design-system.md "Session posture"): a focus ending
+  // auto-starts the break (rest is the point); a break ending stages focus and
+  // waits for a tap — the global session widget's resume job.
+  autoStartBreaks: true,
   autoStartFocus: false,
   focusMusicEnabled: false,
 };
@@ -153,7 +212,9 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
 // metadata map with a non-enum, or calling .filter on a non-array).
 const EISENHOWER_CATEGORIES: readonly EisenhowerCategory[] = ['do', 'decide', 'delegate', 'delete'];
 
-function finiteNumber(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
+function finiteNumber(v: unknown, fallback: number, min?: number, max?: number): number;
+function finiteNumber(v: unknown, fallback: undefined, min?: number, max?: number): number | undefined;
+function finiteNumber(v: unknown, fallback: number | undefined, min = -Infinity, max = Infinity): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? Math.min(Math.max(v, min), max) : fallback;
 }
 
@@ -165,9 +226,11 @@ function normalizeSettings(raw: unknown): PomodoroSettings {
     shortBreakDuration: finiteNumber(src.shortBreakDuration, DEFAULT_SETTINGS.shortBreakDuration, 1, 60),
     longBreakDuration: finiteNumber(src.longBreakDuration, DEFAULT_SETTINGS.longBreakDuration, 1, 120),
     pomosBeforeLongBreak: finiteNumber(src.pomosBeforeLongBreak, DEFAULT_SETTINGS.pomosBeforeLongBreak, 1, 10),
-    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : false,
-    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : false,
-    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : false,
+    // Falls back to DEFAULT_SETTINGS (posture ii) when the field is absent —
+    // existing docs that stored an explicit value keep it (the migration wrinkle).
+    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : DEFAULT_SETTINGS.autoStartBreaks,
+    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : DEFAULT_SETTINGS.autoStartFocus,
+    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : DEFAULT_SETTINGS.focusMusicEnabled,
   };
 }
 
@@ -176,6 +239,8 @@ function normalizeTask(t: unknown): PomodoroTask | null {
   const plainT = JSON.parse(JSON.stringify(t));
   const task = plainT as Record<string, unknown>;
   const category = task.category as unknown;
+  const bucket = task.bucket as unknown;
+  const dueDate = task.dueDate as unknown;
   return {
     ...(task as unknown as PomodoroTask),
     title: typeof task.title === 'string' ? task.title : '',
@@ -183,9 +248,71 @@ function normalizeTask(t: unknown): PomodoroTask | null {
     completedPomodoros: finiteNumber(task.completedPomodoros, 0),
     isCompleted: typeof task.isCompleted === 'boolean' ? task.isCompleted : false,
     category: EISENHOWER_CATEGORIES.includes(category as EisenhowerCategory) ? (category as EisenhowerCategory) : undefined,
+    bucket: TASK_BUCKETS.includes(bucket as TaskBucket) ? (bucket as TaskBucket) : 'backlog',
+    dueDate: typeof dueDate === 'string' && dueDate.trim() !== '' ? dueDate.trim() : undefined,
+    weeklyPomodoroPlan: finiteNumber(task.weeklyPomodoroPlan, undefined, 0, 99),
     todos: Array.isArray(task.todos) ? task.todos : undefined,
     comments: Array.isArray(task.comments) ? task.comments : undefined,
   };
+}
+
+export interface TaskImportanceOptions {
+  keyResults?: Array<{ id: string; confidence?: 'on_track' | 'at_risk' | 'off_track' | 'not_set' }>;
+  nowDate?: Date;
+}
+
+export function computeTaskImportance(task: PomodoroTask, options: TaskImportanceOptions = {}): number {
+  const priorityWeightMap: Record<EisenhowerCategory, number> = {
+    do: 4,
+    decide: 3,
+    delegate: 2,
+    delete: 1,
+  };
+  const pWeight = task.category ? (priorityWeightMap[task.category] ?? 2) : 2;
+
+  let krMultiplier = 1.0;
+  if (task.keyResultId && options.keyResults) {
+    const kr = options.keyResults.find(k => k.id === task.keyResultId);
+    if (kr && kr.confidence) {
+      switch (kr.confidence) {
+        case 'off_track': krMultiplier = 1.5; break;
+        case 'at_risk': krMultiplier = 1.25; break;
+        case 'on_track': krMultiplier = 1.0; break;
+        default: krMultiplier = 1.0; break;
+      }
+    }
+  }
+
+  let dueMultiplier = 1.0;
+  if (task.dueDate) {
+    const now = options.nowDate ? new Date(options.nowDate) : new Date();
+    now.setHours(0, 0, 0, 0);
+    const due = new Date(task.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) {
+      dueMultiplier = 1.5;
+    } else if (diffDays <= 3) {
+      dueMultiplier = 1.3;
+    } else if (diffDays <= 7) {
+      dueMultiplier = 1.1;
+    }
+  }
+
+  let completionProximity = 0;
+  if (task.estimatedPomodoros > 0) {
+    const ratio = Math.min(1, Math.max(0, task.completedPomodoros / task.estimatedPomodoros));
+    completionProximity = ratio * 0.5;
+  }
+
+  const bucketMultiplierMap: Record<TaskBucket, number> = {
+    today: 1.3,
+    this_week: 1.0,
+    backlog: 0.7,
+  };
+  const bMultiplier = bucketMultiplierMap[task.bucket || 'backlog'] ?? 0.7;
+
+  return (pWeight * krMultiplier * dueMultiplier + completionProximity) * bMultiplier;
 }
 
 function normalizeSession(s: unknown): SessionRecord | null {
@@ -217,6 +344,16 @@ function normalizeDailyRecord(r: unknown): DailyRecord | null {
 }
 
 // ===== SETTINGS =====
+// Notify the app that the synced doc changed so live views reload. Mirrors the
+// myokr-data-synced dispatch other writers (e.g. HabitsApp) use; covering direct
+// local saves here means the always-mounted SessionProvider (ADR-0013) picks up
+// writes it didn't initiate — tests that seed after mount, and any future code.
+function notifyDataChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  }
+}
+
 export async function loadSettings(): Promise<PomodoroSettings> {
   try {
     const doc = await getAutomergeDoc();
@@ -230,6 +367,7 @@ export async function saveSettings(settings: PomodoroSettings): Promise<void> {
   await updateAutomergeDoc('Update settings', (d) => {
     d.settings = sanitizeForAutomerge(settings);
   });
+  notifyDataChanged();
 }
 
 // ===== TASKS =====
@@ -247,6 +385,7 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
   await updateAutomergeDoc('Update tasks', (d) => {
     d.tasks = sanitizeForAutomerge(tasks);
   });
+  notifyDataChanged();
 }
 
 // ===== HISTORY =====
@@ -264,6 +403,7 @@ export async function saveHistory(h: DailyRecord[]): Promise<void> {
   await updateAutomergeDoc('Update history', (d) => {
     d.history = sanitizeForAutomerge(h);
   });
+  notifyDataChanged();
 }
 
 // ===== TIMER STATE =====
@@ -471,4 +611,64 @@ export function computeWeekTaskPomos(
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/**
+ * ADR-0012 — presentational cycle rollover.
+ *
+ * A task's cycle membership is derived, never stored: a task belongs to the
+ * cycle of its key result (`keyResultId → objective → cycle`); an unlinked
+ * task belongs to no cycle. Cycle-scoped views count a task as "in this
+ * cycle" when its KR cycle is the active cycle or any already-ended cycle —
+ * the rollover is presentational, no document migration ever runs.
+ */
+export function isTaskInCycle(
+  task: PomodoroTask,
+  krCycle: { month: number; year: number } | undefined,
+  activeCycle: { month: number; year: number } | null,
+): boolean {
+  if (!task.keyResultId) return true; // unlinked tasks have no cycle → always in
+  if (!activeCycle) return true; // no active cycle → nothing to filter by
+  if (!krCycle) return true; // KR's cycle unknown → never hide the task
+  const krKey = krCycle.year * 12 + krCycle.month;
+  const activeKey = activeCycle.year * 12 + activeCycle.month;
+  return krKey <= activeKey;
+}
+
+/**
+ * Build a `keyResultId → OKRCycle` map from the loaded OKR data, resolving
+ * through objective linkage. KRs whose objective or cycle is missing are
+ * omitted from the map (their tasks stay visible everywhere).
+ */
+export function buildKrCycleMap(
+  keyResults: Array<{ id: string; objectiveId: string }>,
+  objectives: Array<{ id: string; cycleId: string }>,
+  cycles: Array<{ id: string; month: number; year: number }>,
+): Map<string, { month: number; year: number }> {
+  const objByKr = new Map(keyResults.map(kr => [kr.id, kr.objectiveId]));
+  const cycleByObj = new Map(objectives.map(o => [o.id, o.cycleId]));
+  const cycleById = new Map(cycles.map(c => [c.id, c]));
+  const map = new Map<string, { month: number; year: number }>();
+  for (const kr of keyResults) {
+    const cycle = cycleById.get(cycleByObj.get(objByKr.get(kr.id)!) ?? '');
+    if (cycle) map.set(kr.id, { month: cycle.month, year: cycle.year });
+  }
+  return map;
+}
+
+/**
+ * Weekly pomodoro plan progress (P4): `completed` = completed focus sessions
+ * for the task within [weekStart, weekEnd]; `planned` = the explicit weekly
+ * plan when set, otherwise the task estimate (the readout always renders
+ * "X / Y planned"). An explicit plan of 0 is respected — no fallback.
+ */
+export function weeklyPlanProgress(
+  task: PomodoroTask,
+  history: DailyRecord[],
+  weekStart: string,
+  weekEnd: string,
+): { completed: number; planned: number } {
+  const completed = computeWeekTaskPomos(history, weekStart, weekEnd).get(task.id) ?? 0;
+  const planned = task.weeklyPomodoroPlan ?? task.estimatedPomodoros ?? 1;
+  return { completed, planned };
 }

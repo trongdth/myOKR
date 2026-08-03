@@ -7,7 +7,25 @@ domain glossary): color roles, spacing, and grid live **here**, not in
 [ADR-0010](./adr/0010-desktop-ui-design-system.md).
 
 Source of the redesign: `~/Downloads/myOKR Redesign - Standalone.html`
-("MYOKR DESKTOP v0.2.0 — UI REVIEW & PROPOSED FIX").
+("MYOKR DESKTOP v0.2.0 — UI REVIEW & PROPOSED FIX"). The Plan-group
+sections P1–P7 live in `~/Downloads/myOKR Redesign.html`.
+
+## Fidelity policy (Plan Group)
+
+**Hybrid fidelity** (decided in the Plan-group grilling session): structural
+and behavioral parity with the design's *intent* everywhere, using tokens;
+**mockup-exact values** (its hexes and paddings; JetBrains Mono stands in for
+the mockup's IBM Plex Mono — no font loading added) on the **flagship screens
+only**: Tasks board (P1), Objectives (P7), Done (P5), Task detail (P4).
+Raw mockup hexes are illustrative elsewhere — never copied verbatim (no-raw-hex
+rule). Two standing constraints:
+
+- **Sidebar is frozen** — the left nav (logo, Focus/Day plan/Session/Habits,
+  Plan/Tasks/Objectives/Done, Progress, Settings, Help & tour, v0.3.0) is
+  excluded from the redesign. No ⌘K chip next to the logo, no nav restructuring.
+- **No keyboard shortcuts** — ⌘1/⌘2/⌘3 navigation, ⌘↵ start-focus, ⌘⇧ reopen,
+  and shortcut legends are deferred (see ADR-0011). The existing Meta+K opening
+  of the search modal is kept (it predates this policy); no new keybindings.
 
 ## Color roles (semantic tokens)
 
@@ -44,6 +62,23 @@ the gradient on buttons, chart bars, or page titles — that is the P03 regressi
 ## Spacing scale
 
 `4 · 8 · 12 · 16 · 24 · 32 · 48px` (exposed as tokens). Page gutters use **32px**.
+
+## Typography
+
+Two font families only — both loaded by the `@import` at the top of
+`src/styles/global.css` and exposed as tokens on `:root`. Reference the tokens;
+never hardcode a family stack.
+
+| Token | Stack | Role |
+|---|---|---|
+| `--font-sans` | `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` | all UI text — set on `body`, inherited everywhere |
+| `--font-mono` | `"JetBrains Mono", monospace` | numbers / code / mono labels (pomodoros, dates, counts) |
+
+JetBrains Mono stands in for the mockup's IBM Plex Mono — no IBM Plex is loaded.
+Form controls use `font-family: inherit` so they pick up `--font-sans` instead of
+the browser default. (SVG `<text>` can't use `var()` in attributes, so the
+Walkthrough sets the font once via `.walkthrough-svg text` and lets `<text>`
+inherit it.)
 
 ## Page shell
 
@@ -165,3 +200,162 @@ Screenshot tests in `tests/screenshots.spec.ts` carry `toHaveScreenshot()`
 assertions at **1280×800** for all nine screens, plus a **1024×720** snapshot
 covering the collapsed icon-rail state. Baselines regenerated once when 1a lands;
 after that, unintended visual drift fails CI.
+
+## Plan group screens (P1–P7) — per-screen rules
+
+Decided in the Plan-group grilling session (2026-08-01); all rules below apply
+to the desktop app. Cycle-scoped filters on these screens follow the
+presentational-rollover rule — see [ADR-0012](./adr/0012-presentational-cycle-rollover.md).
+
+> **Shared content width (2026-08-02):** Tasks and Done are no longer clamped
+> by the 900px `.pomodoro-container` timer/analytics shell — a `.plan-group-shell`
+> modifier widens that wrapper to `.okr-container`'s 1280px on the `tasks`/`done`
+> tabs only, so all three Plan-group tabs share identical left/right insets.
+
+### Pomo count display — position, not completed (2026-08-03)
+
+"pomo N of M" is the pomodoro you are **on**, not the count you have
+**finished** — N advances when a focus *starts*, not when it ends. Decided in
+the session-widget grilling; it resolves the "count jumps during the break"
+report. Root cause of the report: focus-completion and the focus→break
+transition fire in one handler (`handleSessionComplete`,
+`src/components/PomodoroApp.tsx`), so a *completed*-count display ticks up at
+the exact instant the break begins — reading as "increased during the break."
+
+- **Persisted truth unchanged.** `task.completedPomodoros` still advances on
+  focus completion only (`applyPomodoroCompletion`,
+  `src/lib/pomodoro-storage.ts`); the focus-branch increment is untouched. The
+  long break uses the same branch, so it inherits this for free — no separate
+  long-break case.
+- **Displayed N is derived:** `min(completedPomodoros + (focusRunning ? 1 : 0),
+  estimatedPomodoros)`. M is `estimatedPomodoros` (per-task), **not**
+  `pomosBeforeLongBreak` — the timer-screen dot row is the *cycle* position and
+  is a separate control.
+- **Applies everywhere the count shows:** Tasks card `4/6`, list-view POMOS
+  cell, Task-detail weekly line, and the forthcoming global session widget.
+  Mobile should mirror the derivation for parity.
+
+### Session posture — auto-break, manual-focus (2026-08-03)
+
+Decided in the session-widget grilling (posture **ii**). Resolves the "focus
+doesn't auto-start after short break" report: that is the *intended* default,
+not a bug — confirmed green by `tests/pomodoro-confirmations.spec.ts` ("Default
+(auto-start off)" describe, short *and* long break). Long break behaves
+identically; there is no separate long-break case.
+
+- **`autoStartBreaks` default → `true`; `autoStartFocus` stays `false`.** Focus
+  ending auto-starts the break; a break ending *stages* focus (full duration,
+  paused) and waits for a deliberate tap — the global session widget's resume
+  job. Concretely a one-field change in `DEFAULT_SETTINGS`
+  (`src/lib/pomodoro-storage.ts`).
+- **Existing-user wrinkle.** Settings persist per-doc; a user who already has
+  `autoStartBreaks: false` stored won't inherit the new default. For the app
+  owner it's a one-toggle change; a one-time migration is deferred (low-stakes,
+  single-user-via-Dropbox). Revisit if the app ships beyond personal use.
+- **Tests.** `pomodoro-confirmations.spec.ts` "Posture ii — auto-break,
+  manual-focus" sets autoStartBreaks on / autoStartFocus off and asserts the
+  break auto-starts (reaching Focus with no manual break click) while focus
+  stays staged. The mock seed still stores `autoStartBreaks: false`
+  (existing-user state), so posture ii is toggled on explicitly per test.
+
+### Tasks board (P1/P2, flagship — mockup-exact values)
+
+- **Header block**: title `PLAN` + cycle pill (`May cycle`) · Board/List
+  segmented switch · **"New task"** button (focuses the add-row). **No Search
+  button on the board** (search stays reachable via Meta+K; "Search ⌘K" appears
+  on List, Done, Objectives per P3/P5/P7).
+- **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
+  Done N` with the count badge styling, and `May cycle · week 4 of 5` on the
+  right. N = open tasks / objectives / completed tasks **in this cycle**
+  (ADR-0012 rule; unlinked tasks always count).
+- **SERVING strip**: the active cycle's *objectives* with progress bars (violet
+  `--color-objective` at >0%, rose `--color-risk` at 0%) and a `0% · no tasks`
+  warning when no open task in this cycle serves any of the objective's KRs,
+  plus an `Open Objectives →` action that switches to the Objectives tab.
+- **Add-row**: `[type, then ↵ to set priority and key result] [category] [key
+  result] [Add]` — **no bucket select, no due date**. New tasks land in
+  **Backlog** (matches the storage default; schema rule in CONTEXT.md).
+- **Card anatomy**: `[✓ tick]` (tick = complete; same-session undo via the
+  completed strip) · title · mono `4/6` (current-position / estimated — see
+  *Pomo count display* above) · KR line ·
+  mono category · due chip (`Thu`, mono) · **dashed "Add to <bucket>" button**
+  = the move-to-bucket menu. 3px left accent stripe in the task's Eisenhower
+  category color (`EISENHOWER_META`, via `--today-accent`-style CSS var).
+  **No focus button on cards** — focus starts from the detail modal's `Start
+  focus` or ⌘K `Start`. No emoji (🎯🍅📅 → mono text / Lucide).
+- **Bucket headers**: `Today · N · X pomos` (mono count pill + planned-pomo
+  sum; mockup numbers are illustrative).
+- **Completed strip**: `N completed today · Show` collapsed **at the foot of
+  the Backlog column** (not below the grid). Filtered to tasks completed today
+  *in this cycle* (ADR-0012).
+- **Responsive ≤1100px (P2)**: Today + This week stay open; **Backlog collapses
+  to a slim bar** (`Backlog · N · X pomos`, "drop a card here to defer it")
+  that expands to a mini-list on click. No HTML5 drag-drop anywhere (ADR-0010);
+  moving/deferring and re-ordering use click-select → click-target, matching
+  UP NEXT in Day Plan.
+
+### List view (P3, structural parity)
+
+- Toolbar: **Group by** (bucket / key result / priority) + **Sort**
+  (priority / due / pomos) dropdowns, **"New task"** button, and the bulk bar
+  `N selected · Move to` (existing). Group headers carry the planning line
+  (`TODAY — 3 tasks · 9 pomodoros planned`).
+- Columns already match the mockup (`TASK | PRIORITY | KEY RESULT | BUCKET |
+  DUE | POMOS | SUBTASKS`); bucket/priority/KR stay inline-editable cells
+  (the design's "re-schedule without dragging").
+
+### Task detail (P4, flagship)
+
+- Properties row across the top: PRIORITY · BUCKET · DUE · KEY RESULT
+  (existing selects, restyled) + "click any field to edit" hint. Header:
+  `Start focus` + `Complete` buttons.
+- **POMODOROS THIS WEEK — `X / Y planned` + `Change weekly plan`** (implemented
+  2026-08-01). `weeklyPomodoroPlan?: number` (0–99, absent-stays-absent) on the
+  shared task schema (desktop + mobile normalizers agree: valid finite 0–99
+  preserved, invalid dropped, runaway clamped to 99, explicit 0 respected).
+  `X` = completed focus sessions on the task in the current **local** calendar
+  week (Monday start — never UTC-sliced); `Y` = `weeklyPomodoroPlan ??
+  estimatedPomodoros` (the estimate fallback keeps the line always rendering).
+  Saving the plan writes the field; absent never gets the estimate injected.
+- Notes render Markdown links wrapped with a copy button (presentation only).
+- Sub-tasks / comments as equal-weight tabs **only where the model has the
+  data** (comments exist on the task type; an empty tab shows the empty state,
+  never a dead end).
+
+> **Shipped 2026-08-02:** the header is one row — the `TASK · click any field
+> to edit` eyebrow on its own line, then the title (left) and `Start focus`
+> (cyan `--color-primary`, the screen's single primary action) + `Complete` +
+> close (right) with a separator. The weekly line and the sub-tasks tab each
+> carry a cyan progress bar (`X / Y planned`, `X of Y done`); the sub-task Add
+> button is cyan primary. **Open:** the mockup draws 4 property columns
+> (Priority · Bucket · Due · Key Result) but the shipped strip keeps a 5th
+> POMODOROS column (the estimate editor) — reconciling is pending.
+
+### Done (P5, flagship)
+
+- Header: filters `This week | All key results | All priorities` + summary
+  `N pomodoros spent · X.X average per task`, then a **table**
+  `TASK | KEY RESULT | POMODOROS | FINISHED | UNDO` (rows `4 / 4` · `14:20` ·
+  `Reopen`), grouped by day (`TODAY · MONDAY 25 MAY — 2 tasks · 7 pomodoros`,
+  `YESTERDAY · SUNDAY 24 MAY — …`). "This week" is a date-range filter;
+  "All key results" / "All priorities" are dropdowns defaulting to All.
+
+### Objectives (P7, flagship)
+
+- Header: `PLAN · May cycle` + `May 2026` + `6 days left in cycle · 3
+  objectives · 8 key results` countdown line; **"New objective"** button in
+  the top bar; `Cycle progress 38%` (existing).
+- Objectives **expanded by default** (existing). Each KR: typed mono
+  `11 / 15` current/target (existing NumberInput), a **confidence pill**
+  (`CONFIDENCE_META` colors — green/rose/red/grey), and a recency line
+  (`updated 2 days ago · 3 tasks linked`).
+- **Keep the explicit Save button** — the mockup's silent click-to-edit is
+  presentation shorthand; auto-writing the Automerge doc on every keystroke
+  violates the persistence rules (`docs/automerge-localstorage-rules.md`).
+
+### ⌘K search (P6, structural parity)
+
+- Results grouped into **OPEN · N / COMPLETED · N / INSIDE TASKS · N**
+  (sub-task & note matches) with per-section counts. Scope chips, cycle
+  selector, `Start`/`Reopen` row actions stay as implemented. **No** matched-term
+  highlighting, **no** footer shortcut legend (no-shortcuts policy).

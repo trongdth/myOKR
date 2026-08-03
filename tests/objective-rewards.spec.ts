@@ -17,7 +17,7 @@ test.describe('Objective Rewards system', () => {
     // Go to Objectives tab
     await page.locator('button[title="Plan"]').click();
     await page.locator('button[title="Objectives"]').click();
-    await expect(page.locator('.okr-header-title')).toBeVisible();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
     // Seed mock cycle, objective, and KR
     await page.evaluate(async () => {
@@ -69,8 +69,7 @@ test.describe('Objective Rewards system', () => {
     // Wait for the UI to show the newly seeded objective
     await expect(page.locator('text=Achieve Greatness')).toBeVisible({ timeout: 10000 });
 
-    // Expand the objective card
-    await page.locator('.objective-header').click();
+    // Objectives are expanded by default
     await expect(page.locator('.objective-body')).toBeVisible();
 
     // 1. Verify input is visible since no reward is initially set
