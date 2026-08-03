@@ -245,10 +245,9 @@ test.describe('Mobile: Core Workflows', () => {
 
     const input = page.locator('input[placeholder*="What are you working on?"]');
     await input.fill('Mobile Task');
-    const bucketSelect = page.locator('.quick-add-bar .quick-add-select').first();
-    if (await bucketSelect.isVisible()) {
-      await bucketSelect.selectOption('backlog');
-    }
+    // The 1a redesign removed the bucket chooser from the quick-add bar — new
+    // tasks always land in Backlog (TasksView.tsx `bucket: 'backlog'`), so
+    // there's nothing to select here. Promote to Today/This week via the card.
     await page.locator('button.quick-add-btn').click();
     // At narrow widths the Backlog column is collapsed to a bar (P2) — expand it to reveal the card.
     await page.locator('.backlog-bar-toggle').click();
