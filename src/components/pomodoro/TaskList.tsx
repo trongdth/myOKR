@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, memo } from 'react';
 import { Timer, SquareCheck, MessageSquare, ArrowUpRight, ClipboardList, X, Check, Target } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storage';
-import { generateId, EISENHOWER_META } from '../../lib/pomodoro-storage';
+import { generateId, EISENHOWER_META, displayedPomoCount } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useHoldRepeat } from '../../hooks/useHoldRepeat';
@@ -38,6 +38,8 @@ interface Props {
   keyResults?: KeyResult[];
   hideCompleted?: boolean;
   showOnlyCompleted?: boolean;
+  /** Task currently being focused (running), for "pomo N of M" position display (decision A). */
+  activeFocusTaskId?: string | null;
 }
 
 function CategoryBadge({ category, onChange }: { category: EisenhowerCategory; onChange: (c: EisenhowerCategory) => void }) {
@@ -224,7 +226,7 @@ function DescriptionPreview({ task, onExpand }: { task: PomodoroTask; onExpand: 
   );
 }
 
-function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults = [], hideCompleted = false, showOnlyCompleted = false }: Props) {
+function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults = [], hideCompleted = false, showOnlyCompleted = false, activeFocusTaskId = null }: Props) {
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<EisenhowerCategory>('do');
   const [newKeyResultId, setNewKeyResultId] = useState<string>('');
@@ -414,6 +416,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             onUpdate={handleDetailUpdate}
             onClose={() => setDetailTask(null)}
             keyResults={keyResults}
+            activeFocusTaskId={activeFocusTaskId}
           />
         )}
       </div>
@@ -535,7 +538,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             />
             <div className="task-controls">
               <PomoEstimatePopover
-                completed={task.completedPomodoros}
+                completed={displayedPomoCount(task.completedPomodoros, task.estimatedPomodoros, task.id === activeFocusTaskId)}
                 estimated={task.estimatedPomodoros}
                 onChange={val => updateEstimate(task.id, val)}
               />
@@ -614,6 +617,7 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
           onUpdate={handleDetailUpdate}
           onClose={() => setDetailTask(null)}
           keyResults={keyResults}
+          activeFocusTaskId={activeFocusTaskId}
         />
       )}
     </div>

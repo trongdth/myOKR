@@ -93,6 +93,23 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
 }
 
 /**
+ * "pomo N of M" position semantics — decision A (see docs/design-system.md,
+ * "Pomo count display"). N is the pomodoro you are ON, not the count finished:
+ * while a focus is running on this task, the displayed count is
+ * `completedPomodoros + 1` (clamped to the estimate); otherwise it is the
+ * completed count unchanged. `completedPomodoros` itself is never mutated —
+ * this is a pure display derivation.
+ */
+export function displayedPomoCount(
+  completedPomodoros: number,
+  estimatedPomodoros: number,
+  focusInProgress: boolean,
+): number {
+  const est = estimatedPomodoros || 1;
+  return focusInProgress ? Math.min(completedPomodoros + 1, est) : completedPomodoros;
+}
+
+/**
  * Safely complete a pomodoro for a single active task in the Automerge document.
  * Modifies the task element in-place inside currentDoc.tasks rather than
  * overwriting d.tasks with a potentially stale React state array.

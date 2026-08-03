@@ -272,6 +272,10 @@ export default function PomodoroApp({
     [activeTaskId, tasks]
   );
 
+  // Decision A — the task currently being focused (running). Drives the "pomo N
+  // of M" position display so the count reflects the pomo you're ON, not finished.
+  const activeFocusTaskId = isRunning && sessionType === 'focus' ? activeTaskId : null;
+
   const totalSeconds = sessionType === 'focus'
     ? settings.focusDuration * 60
     : sessionType === 'shortBreak'
@@ -797,7 +801,7 @@ export default function PomodoroApp({
               Prioritize
             </button>
           </div>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted={true} />
+          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={handleSetActiveTask} keyResults={keyResults} hideCompleted={true} activeFocusTaskId={activeFocusTaskId} />
 
           {/* Prioritize Modal */}
           {showPrioritizeModal && (
@@ -826,6 +830,7 @@ export default function PomodoroApp({
           habits={habits}
           focusDurationMinutes={settings.focusDuration}
           onOpenSearch={() => setIsSearchOpen(true)}
+          activeFocusTaskId={activeFocusTaskId}
         />
       )}
 
@@ -885,6 +890,7 @@ export default function PomodoroApp({
           onClose={() => setSelectedDetailTask(null)}
           keyResults={keyResults}
           history={history}
+          activeFocusTaskId={activeFocusTaskId}
           onStartFocus={(t) => {
             handleSetActiveTask(t.id);
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));

@@ -574,4 +574,97 @@ test.describe('Pomodoro: Long Break session completion', () => {
   });
 });
 
+// ==========================================
+// DEFAULT (auto-start OFF): pins item 2 — "focus doesn't auto-start after
+// short break" — as the INTENDED default, not a bug. Every other suite calls
+// enableAutoStart(); this one deliberately does not, so it exercises the path
+// the user actually hit. GREEN == item 2 is working-as-built; the fix is then
+// a posture decision (i/ii/iii), not a code defect.
+// ==========================================
+
+test.describe('Pomodoro: Default (auto-start off) — focus does not auto-start after a break', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    await speedUpTimers(page);
+  });
+
+  test('short break ends -> focus is staged but Start is visible (not auto-started)', async ({ page }) => {
+    // Default settings: autoStartBreaks=false, autoStartFocus=false.
+    await setDurations(page, 1, 1); // 1-min focus / 1-min break
+
+    await addTask(page, 'Default Short Task');
+    await bumpEstimateToTwo(page, 'Default Short Task'); // keep task alive past 1 pomo
+    await selectTask(page, 'Default Short Task');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Focus completes -> phase switch to Short Break is unconditional.
+    await waitForSessionTab(page, 'Short Break');
+    // autoStartBreaks OFF -> break staged, not running.
+    await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
+
+    // Manually run the break to completion.
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+    await waitForSessionTab(page, 'Focus');
+
+    // ITEM 2: autoStartFocus OFF -> focus staged at full duration, NOT running.
+    await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.timer-digits')).toHaveText('01:00');
+  });
+
+  test('long break ends -> focus is staged but Start is visible (not auto-started)', async ({ page }) => {
+    // Focus=1, Short=1, Long=1, pomosBeforeLongBreak=1 -> first focus goes to Long Break.
+    await openSettings(page);
+    const inputs = page.locator('.settings-grid input[type="number"]');
+    await inputs.nth(0).fill('1');
+    await inputs.nth(1).fill('1');
+    await inputs.nth(2).fill('1');
+    await inputs.nth(3).fill('1');
+    await page.locator('.timer-controls button[title="Settings"]').click();
+
+    await addTask(page, 'Default Long Task');
+    await bumpEstimateToTwo(page, 'Default Long Task');
+    await selectTask(page, 'Default Long Task');
+    await page.locator('button:has-text("Start")').click();
+
+    await waitForSessionTab(page, 'Long Break');
+    await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
+    await page.locator('button:has-text("Start")').click();
+    await waitForSessionTab(page, 'Focus');
+
+    // Same as short break: with autoStartFocus off, focus does not auto-start.
+    await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.timer-digits')).toHaveText('01:00');
+  });
+});
+
+// ==========================================
+// DECISION (A) regression: "pomo N of M" = current POSITION, so the badge
+// reads 1/2 WHILE the first focus runs — not 0/2 (completed). RED on today's
+// code (which renders completedPomodoros); GREEN once the derived position
+// display lands. No speedUp: the default 25-min focus stays running while read.
+// ==========================================
+
+test.describe('Pomodoro: pomo count = current position during a running focus (decision A)', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+  });
+
+  // Decision A regression: the badge reads the pomo you're ON (position), not
+  // finished. Was RED (0/2) before displayedPomoCount shipped; now green.
+  test('badge shows 1/2 while the first focus runs (not 0/2)', async ({ page }) => {
+    await addTask(page, 'Position Task');
+    await bumpEstimateToTwo(page, 'Position Task'); // badge reads 0/2
+    await selectTask(page, 'Position Task');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Focus running; completedPomodoros still 0. Position semantics (A) => 1/2.
+    // Today: badge renders completedPomodoros => 0/2 (RED until A ships).
+    const badge = page.locator('.task-item:has-text("Position Task") .task-pomo-count');
+    await expect(badge).toHaveText('1/2', { timeout: 5000 });
+  });
+});
+
 
