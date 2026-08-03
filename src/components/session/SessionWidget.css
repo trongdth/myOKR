@@ -1,0 +1,135 @@
+/* Global session widget — floating bottom-right control (decision α).
+ * Tokens only (docs/design-system.md): neutrals via --bg-*/--text-*, the ring
+ * uses --color-focus (focus) / --accent-emerald (break). z-index 900 sits below
+ * the modal overlays (1000–2000) so a confirm dialog covers it. */
+
+.session-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  max-width: 380px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  animation: sw-pop 160ms ease-out;
+}
+
+@keyframes sw-pop {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.session-widget-ring {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  /* Start the arc at 12 o'clock and sweep clockwise. */
+  transform: rotate(-90deg);
+}
+
+.sw-ring-bg {
+  fill: none;
+  stroke: var(--bg-tertiary);
+  stroke-width: 4;
+}
+
+.sw-ring-progress {
+  fill: none;
+  stroke: var(--color-focus);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.sw-ring-progress.break {
+  stroke: var(--accent-emerald);
+}
+
+.sw-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sw-time {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.sw-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.sw-dot {
+  color: var(--text-muted);
+}
+
+.sw-task {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.sw-pomo {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sw-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.sw-play {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  color: var(--color-focus);
+}
+
+.sw-play:hover {
+  border-color: var(--color-focus);
+}
+
+.sw-open {
+  padding: 6px 11px;
+  background: transparent;
+  border: 1px solid var(--bg-tertiary);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.sw-open:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
