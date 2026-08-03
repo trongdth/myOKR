@@ -575,45 +575,51 @@ test.describe('Pomodoro: Long Break session completion', () => {
 });
 
 // ==========================================
-// DEFAULT (auto-start OFF): pins item 2 — "focus doesn't auto-start after
-// short break" — as the INTENDED default, not a bug. Every other suite calls
-// enableAutoStart(); this one deliberately does not, so it exercises the path
-// the user actually hit. GREEN == item 2 is working-as-built; the fix is then
-// a posture decision (i/ii/iii), not a code defect.
+// POSTURE ii (docs/design-system.md "Session posture"): autoStartBreaks ON,
+// autoStartFocus OFF. A focus ending auto-starts the break (rest is the point);
+// a break ending STAGES focus and waits for a tap (the session widget's job).
+// The mock seed stores autoStartBreaks=false (existing-user state), so each
+// test toggles posture ii on explicitly. Reaching Focus WITHOUT a manual break
+// click is the proof that the break auto-started.
 // ==========================================
 
-test.describe('Pomodoro: Default (auto-start off) — focus does not auto-start after a break', () => {
+async function setPostureIi(page: Page) {
+  await openSettings(page);
+  const breakToggle = page.locator('.toggle-row:has-text("Auto-start breaks") .toggle-switch');
+  if (await breakToggle.evaluate(el => !el.classList.contains('on'))) await breakToggle.click();
+  const focusToggle = page.locator('.toggle-row:has-text("Auto-start focus") .toggle-switch');
+  if (await focusToggle.evaluate(el => el.classList.contains('on'))) await focusToggle.click();
+  await page.locator('.timer-controls button[title="Settings"]').click();
+}
+
+test.describe('Pomodoro: Posture ii — auto-break, manual-focus', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
     await speedUpTimers(page);
   });
 
-  test('short break ends -> focus is staged but Start is visible (not auto-started)', async ({ page }) => {
-    // Default settings: autoStartBreaks=false, autoStartFocus=false.
+  test('short break auto-starts after focus; focus stays manual after break', async ({ page }) => {
     await setDurations(page, 1, 1); // 1-min focus / 1-min break
+    await setPostureIi(page);
 
-    await addTask(page, 'Default Short Task');
-    await bumpEstimateToTwo(page, 'Default Short Task'); // keep task alive past 1 pomo
-    await selectTask(page, 'Default Short Task');
+    await addTask(page, 'PostureII Short');
+    await bumpEstimateToTwo(page, 'PostureII Short'); // keep task alive past 1 pomo
+    await selectTask(page, 'PostureII Short');
     await page.locator('button:has-text("Start")').click();
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
-    // Focus completes -> phase switch to Short Break is unconditional.
+    // Focus ends -> Short Break AUTO-starts (no manual Start click) => Pause.
     await waitForSessionTab(page, 'Short Break');
-    // autoStartBreaks OFF -> break staged, not running.
-    await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible({ timeout: 5000 });
 
-    // Manually run the break to completion.
-    await page.locator('button:has-text("Start")').click();
-    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+    // The break runs on its own and completes — reaching Focus proves auto-start.
     await waitForSessionTab(page, 'Focus');
-
-    // ITEM 2: autoStartFocus OFF -> focus staged at full duration, NOT running.
+    // autoStartFocus OFF -> focus staged at full duration, NOT running.
     await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('.timer-digits')).toHaveText('01:00');
   });
 
-  test('long break ends -> focus is staged but Start is visible (not auto-started)', async ({ page }) => {
+  test('long break auto-starts after focus; focus stays manual after break', async ({ page }) => {
     // Focus=1, Short=1, Long=1, pomosBeforeLongBreak=1 -> first focus goes to Long Break.
     await openSettings(page);
     const inputs = page.locator('.settings-grid input[type="number"]');
@@ -622,18 +628,18 @@ test.describe('Pomodoro: Default (auto-start off) — focus does not auto-start 
     await inputs.nth(2).fill('1');
     await inputs.nth(3).fill('1');
     await page.locator('.timer-controls button[title="Settings"]').click();
+    await setPostureIi(page);
 
-    await addTask(page, 'Default Long Task');
-    await bumpEstimateToTwo(page, 'Default Long Task');
-    await selectTask(page, 'Default Long Task');
+    await addTask(page, 'PostureII Long');
+    await bumpEstimateToTwo(page, 'PostureII Long');
+    await selectTask(page, 'PostureII Long');
     await page.locator('button:has-text("Start")').click();
 
+    // Focus ends -> Long Break AUTO-starts (no manual Start click).
     await waitForSessionTab(page, 'Long Break');
-    await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
-    await page.locator('button:has-text("Start")').click();
-    await waitForSessionTab(page, 'Focus');
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible({ timeout: 5000 });
 
-    // Same as short break: with autoStartFocus off, focus does not auto-start.
+    await waitForSessionTab(page, 'Focus');
     await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('.timer-digits')).toHaveText('01:00');
   });

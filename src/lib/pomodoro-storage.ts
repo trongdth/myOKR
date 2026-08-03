@@ -164,7 +164,10 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   shortBreakDuration: 5,
   longBreakDuration: 15,
   pomosBeforeLongBreak: 4,
-  autoStartBreaks: false,
+  // Posture ii (docs/design-system.md "Session posture"): a focus ending
+  // auto-starts the break (rest is the point); a break ending stages focus and
+  // waits for a tap — the global session widget's resume job.
+  autoStartBreaks: true,
   autoStartFocus: false,
   focusMusicEnabled: false,
 };
@@ -192,9 +195,11 @@ function normalizeSettings(raw: unknown): PomodoroSettings {
     shortBreakDuration: finiteNumber(src.shortBreakDuration, DEFAULT_SETTINGS.shortBreakDuration, 1, 60),
     longBreakDuration: finiteNumber(src.longBreakDuration, DEFAULT_SETTINGS.longBreakDuration, 1, 120),
     pomosBeforeLongBreak: finiteNumber(src.pomosBeforeLongBreak, DEFAULT_SETTINGS.pomosBeforeLongBreak, 1, 10),
-    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : false,
-    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : false,
-    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : false,
+    // Falls back to DEFAULT_SETTINGS (posture ii) when the field is absent —
+    // existing docs that stored an explicit value keep it (the migration wrinkle).
+    autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : DEFAULT_SETTINGS.autoStartBreaks,
+    autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : DEFAULT_SETTINGS.autoStartFocus,
+    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : DEFAULT_SETTINGS.focusMusicEnabled,
   };
 }
 

@@ -252,9 +252,11 @@ identically; there is no separate long-break case.
   `autoStartBreaks: false` stored won't inherit the new default. For the app
   owner it's a one-toggle change; a one-time migration is deferred (low-stakes,
   single-user-via-Dropbox). Revisit if the app ships beyond personal use.
-- **Tests.** The "Default (auto-start off)" characterization tests encode
-  *today's* both-off reality (green); they flip to assert break-auto-start when
-  the default change lands.
+- **Tests.** `pomodoro-confirmations.spec.ts` "Posture ii — auto-break,
+  manual-focus" sets autoStartBreaks on / autoStartFocus off and asserts the
+  break auto-starts (reaching Focus with no manual break click) while focus
+  stays staged. The mock seed still stores `autoStartBreaks: false`
+  (existing-user state), so posture ii is toggled on explicitly per test.
 
 ### Tasks board (P1/P2, flagship — mockup-exact values)
 
