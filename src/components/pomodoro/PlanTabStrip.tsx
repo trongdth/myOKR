@@ -1,8 +1,5 @@
-// Plan-group tab strip with counts (P1/P5/P7): Tasks / Objectives / Done +
-// the cycle-week line. Present on every Plan-group screen. The sidebar itself
-// is frozen (design-system.md fidelity policy); this strip is the content-area
-// counterpart that carries the counts.
 import type { ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 export function navigateToSection(section: string) {
   window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: section }));
@@ -11,33 +8,42 @@ export function navigateToSection(section: string) {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * Plan-group screen header (P1/P5/P7): "PLAN" + `<Month> cycle` pill on the
- * left, the screen's controls (Board/List switch, New task, Search ⌘K) on the
- * right — per-view composition is the caller's job.
+ * Plan-group screen header (P1/P5/P7): Eyebrow "PLAN" above the cycle name title
+ * on the left, controls on the right (matching redesign 08.53.52.png).
  */
 export function PlanHeader({
   activeCycle,
   right,
 }: {
-  activeCycle: { month: number; year: number } | null | undefined;
+  activeCycle?: { name?: string; month: number; year: number } | null;
   right?: ReactNode;
 }) {
+  const cycleTitle = activeCycle
+    ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`)
+    : 'PLAN';
+
   return (
     <div className="tasks-view-header">
       <div className="tasks-header-left">
-        <h2 className="tasks-title">PLAN</h2>
-        {activeCycle && <span className="cycle-pill">{MONTHS[activeCycle.month]} cycle</span>}
+        <h2 className="plan-header-eyebrow tasks-title">PLAN</h2>
+        <h1 className="plan-header-title">{cycleTitle}</h1>
       </div>
       {right && <div className="tasks-header-right">{right}</div>}
     </div>
   );
 }
 
-/**
- * Cycle label for the strip's right side: "May 2026 · week 4 of 5" when today
- * is inside the cycle, the bare cycle name otherwise. Computed at call time —
- * never memoized — so a changed clock/date can't leave a stale label behind.
- */
+export function getCycleWeeks(activeCycle: { month: number; year: number } | null | undefined) {
+  if (!activeCycle) return { currentWeek: 1, totalWeeks: 4, weeks: [1, 2, 3, 4] };
+  const now = new Date();
+  const sameMonth = now.getFullYear() === activeCycle.year && now.getMonth() === activeCycle.month;
+  const currentWeek = sameMonth ? Math.ceil(now.getDate() / 7) : 1;
+  const daysInMonth = new Date(activeCycle.year, activeCycle.month + 1, 0).getDate();
+  const totalWeeks = Math.ceil(daysInMonth / 7);
+  const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1);
+  return { currentWeek, totalWeeks, weeks };
+}
+
 export function cycleWeekLabel(activeCycle: { name: string; month: number; year: number } | null | undefined): string | null {
   if (!activeCycle) return null;
   const now = new Date();
@@ -53,10 +59,25 @@ interface Props {
   tasksCount: number;
   objectivesCount: number;
   doneCount: number;
-  cycleLabel: string | null;
+  cycleLabel?: string | null;
+  activeCycle?: { name?: string; month: number; year: number } | null;
+  selectedWeek?: number | 'all' | null;
+  onSelectWeek?: (week: number | 'all') => void;
 }
 
-export default function PlanTabStrip({ active, tasksCount, objectivesCount, doneCount, cycleLabel }: Props) {
+export default function PlanTabStrip({
+  active,
+  tasksCount,
+  objectivesCount,
+  doneCount,
+  cycleLabel,
+  activeCycle,
+  selectedWeek,
+  onSelectWeek,
+}: Props) {
+  const { currentWeek, totalWeeks, weeks } = getCycleWeeks(activeCycle);
+  const cycleName = activeCycle ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`) : '';
+
   return (
     <div className="plan-tab-strip">
       <div className="plan-tabs">
@@ -82,7 +103,29 @@ export default function PlanTabStrip({ active, tasksCount, objectivesCount, done
           <span className="plan-tab-count">{doneCount}</span>
         </button>
       </div>
-      {cycleLabel && <span className="plan-cycle-week">{cycleLabel}</span>}
+
+      {activeCycle && onSelectWeek ? (
+        <div className="plan-cycle-week-dropdown-wrapper">
+          <ChevronDown size={14} className="dropdown-chevron" />
+          <select
+            className="plan-cycle-week-select"
+            value={selectedWeek === 'all' ? 'all' : (selectedWeek ?? currentWeek)}
+            onChange={e => {
+              const val = e.target.value;
+              onSelectWeek(val === 'all' ? 'all' : Number(val));
+            }}
+          >
+            <option value="all">{cycleName} · All weeks</option>
+            {weeks.map(w => (
+              <option key={w} value={w}>
+                {cycleName} · week {w} of {totalWeeks}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (cycleLabel || activeCycle) ? (
+        <span className="plan-cycle-week">{cycleLabel || (activeCycle ? `${cycleName} · week ${currentWeek} of ${totalWeeks}` : '')}</span>
+      ) : null}
     </div>
   );
 }

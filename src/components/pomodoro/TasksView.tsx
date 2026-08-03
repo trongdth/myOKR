@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, type CSSProperties } from 'react';
-import { LayoutGrid, List, Plus, Search, CheckCircle2, RotateCcw, AlertTriangle, ArrowRight } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, CheckCircle2, RotateCcw, ArrowRight } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -65,11 +65,16 @@ export default function TasksView({
   // Responsive Backlog collapse (P2): expanded panel below the bar
   const [backlogOpen, setBacklogOpen] = useState(false);
 
-  // Quick Add Form (P1: no bucket select — new tasks land in Backlog)
+  // Quick Add Form (Redesign 09.00.16.png: Bucket, Priority, KR, Due)
   const [newTitle, setNewTitle] = useState('');
+  const [newBucket, setNewBucket] = useState<TaskBucket>('today');
   const [newCategory, setNewCategory] = useState<EisenhowerCategory>('do');
   const [newKrId, setNewKrId] = useState<string>('');
+  const [newDue, setNewDue] = useState<'none' | 'today' | 'tomorrow' | 'end_of_week'>('none');
   const quickAddRef = useRef<HTMLDivElement>(null);
+
+  // Week filter state ('all' or week number)
+  const [selectedWeek, setSelectedWeek] = useState<number | 'all' | null>('all');
 
   // List view controls (P3)
   const [groupBy, setGroupBy] = useState<GroupBy>('bucket');
@@ -77,6 +82,28 @@ export default function TasksView({
 
   // Active (uncompleted) tasks
   const openTasks = useMemo(() => tasks.filter(t => !t.isCompleted), [tasks]);
+
+  // Week-filtered open tasks
+  const filteredOpenTasks = useMemo(() => {
+    if (selectedWeek === 'all' || !selectedWeek || !activeCycle) return openTasks;
+    const year = activeCycle.year;
+    const month = activeCycle.month;
+    const startDay = (selectedWeek - 1) * 7 + 1;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDay = Math.min(selectedWeek * 7, daysInMonth);
+
+    return openTasks.filter(t => {
+      if (t.dueDate) {
+        const d = new Date(t.dueDate + 'T00:00:00');
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() >= startDay && d.getDate() <= endDay;
+      }
+      if (t.createdAt) {
+        const d = new Date(t.createdAt);
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() >= startDay && d.getDate() <= endDay;
+      }
+      return true;
+    });
+  }, [openTasks, selectedWeek, activeCycle]);
 
   // ADR-0012 — derived cycle membership for cycle-scoped counts/filters.
   const krCycleMap = useMemo(
@@ -134,12 +161,29 @@ export default function TasksView({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    let dueDate: string | undefined = undefined;
+    const today = new Date();
+    if (newDue === 'today') {
+      dueDate = today.toISOString().slice(0, 10);
+    } else if (newDue === 'tomorrow') {
+      const tmr = new Date(today);
+      tmr.setDate(tmr.getDate() + 1);
+      dueDate = tmr.toISOString().slice(0, 10);
+    } else if (newDue === 'end_of_week') {
+      const eow = new Date(today);
+      const day = eow.getDay();
+      const diff = day === 0 ? 0 : 7 - day;
+      eow.setDate(eow.getDate() + diff);
+      dueDate = eow.toISOString().slice(0, 10);
+    }
+
     const newTask: PomodoroTask = {
       id: generateId(),
       title: newTitle.trim(),
       category: newCategory,
-      bucket: 'backlog', // P1: no bucket select; storage default
+      bucket: newBucket,
       keyResultId: newKrId || undefined,
+      dueDate,
       estimatedPomodoros: 1,
       completedPomodoros: 0,
       isCompleted: false,
@@ -208,7 +252,7 @@ export default function TasksView({
       this_week: [],
       backlog: [],
     };
-    openTasks.forEach(t => {
+    filteredOpenTasks.forEach(t => {
       const b = t.bucket || 'backlog';
       if (map[b]) map[b].push(t);
       else map.backlog.push(t);
@@ -220,7 +264,7 @@ export default function TasksView({
     });
 
     return map;
-  }, [openTasks, keyResults]);
+  }, [filteredOpenTasks, keyResults]);
 
   const bucketPomos = useMemo(() => {
     const m = { today: 0, this_week: 0, backlog: 0 } as Record<TaskBucket, number>;
@@ -232,7 +276,7 @@ export default function TasksView({
 
   // ---- List view (P3): grouping + sorting ----
   const sortOpenTasks = useMemo(() => {
-    const list = [...openTasks];
+    const list = [...filteredOpenTasks];
     if (sortBy === 'priority') {
       list.sort((a, c) => computeTaskImportance(c, { keyResults }) - computeTaskImportance(a, { keyResults }));
     } else if (sortBy === 'due') {
@@ -246,7 +290,7 @@ export default function TasksView({
       list.sort((a, c) => (c.estimatedPomodoros || 1) - (a.estimatedPomodoros || 1));
     }
     return list;
-  }, [openTasks, sortBy, keyResults]);
+  }, [filteredOpenTasks, sortBy, keyResults]);
 
   const listGroups = useMemo(() => {
     const groups: { key: string; title: string; tasks: PomodoroTask[] }[] = [];
@@ -291,55 +335,41 @@ export default function TasksView({
 
   return (
     <div className="tasks-view-container">
-      {/* Top Header Controls Bar (P1: PLAN + cycle pill, no search on the board) */}
+      {/* Top Header Controls Bar (Redesign 08.53.52.png: Board/List switcher only, no header New task button) */}
       <PlanHeader
         activeCycle={activeCycle}
         right={
-          <>
-            {/* Board / List Switcher */}
-            <div className="segmented-view-switch">
-              <button
-                className={`view-switch-btn${viewMode === 'board' ? ' active' : ''}`}
-                onClick={() => setViewMode('board')}
-                title="Board view"
-              >
-                <LayoutGrid size={15} />
-                <span>Board</span>
-              </button>
-              <button
-                className={`view-switch-btn${viewMode === 'list' ? ' active' : ''}`}
-                onClick={() => setViewMode('list')}
-                title="List view"
-              >
-                <List size={15} />
-                <span>List</span>
-              </button>
-            </div>
-
-            {/* P1 board: "New task"; P3 list: "Search ⌘K" */}
-            {viewMode === 'board' ? (
-              <button className="new-task-btn" onClick={focusQuickAdd}>
-                <Plus size={15} />
-                <span>New task</span>
-              </button>
-            ) : (
-              <button className="search-trigger-btn" onClick={onOpenSearch}>
-                <Search size={15} />
-                <span>Search</span>
-                <kbd className="cmd-k-badge">⌘K</kbd>
-              </button>
-            )}
-          </>
+          <div className="segmented-view-switch">
+            <button
+              className={`view-switch-btn${viewMode === 'board' ? ' active' : ''}`}
+              onClick={() => setViewMode('board')}
+              title="Board view"
+            >
+              <LayoutGrid size={15} />
+              <span>Board</span>
+            </button>
+            <button
+              className={`view-switch-btn${viewMode === 'list' ? ' active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List view"
+            >
+              <List size={15} />
+              <span>List</span>
+            </button>
+          </div>
         }
       />
 
-      {/* Tab strip with counts (P1): Tasks / Objectives / Done + cycle week */}
+      {/* Tab strip with counts (P1): Tasks / Objectives / Done + cycle week dropdown */}
       <PlanTabStrip
         active="tasks"
         tasksCount={openInCycleCount}
         objectivesCount={objectiveCount}
         doneCount={completedInCycleCount}
         cycleLabel={cycleLabel}
+        activeCycle={activeCycle}
+        selectedWeek={selectedWeek}
+        onSelectWeek={setSelectedWeek}
       />
 
       {/* Serving Objectives Strip (P1) */}
@@ -347,21 +377,27 @@ export default function TasksView({
         <div className="serving-kr-strip">
           <span className="serving-label">SERVING</span>
           <div className="serving-kr-list">
-            {servingObjectives.map(({ obj, progress, servedOpenCount }) => (
-              <div key={obj.id} className="serving-obj-item">
-                <span className="serving-obj-title">{obj.title}</span>
-                <div className="serving-obj-bar">
-                  <div className={`serving-obj-fill${progress === 0 ? ' empty' : ''}`} style={{ width: `${progress}%` }} />
+            {servingObjectives.map(({ obj, progress, servedOpenCount }, idx) => {
+              const dotColor = progress <= 50 ? '#ef4444' : progress <= 70 ? '#a855f7' : '#22c55e';
+              return (
+                <div key={obj.id} className="serving-obj-wrapper">
+                  {idx > 0 && <span className="serving-obj-divider" />}
+                  <div className="serving-obj-item">
+                    <span className="serving-obj-dot" style={{ backgroundColor: dotColor }} />
+                    <span className="serving-obj-title">{obj.title}</span>
+                    <div className="serving-obj-bar">
+                      <div className="serving-obj-fill" style={{ width: `${progress}%`, backgroundColor: dotColor }} />
+                    </div>
+                    <span className="serving-obj-progress" style={{ color: dotColor }}>{progress}%</span>
+                    {servedOpenCount === 0 && (
+                      <span className="unserved-warning" title="No open tasks in this cycle serve this objective's key results">
+                        <span>no tasks</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span className={`serving-obj-progress${progress === 0 ? ' empty' : ''}`}>{progress}%</span>
-                {servedOpenCount === 0 && (
-                  <span className="unserved-warning" title="No open tasks in this cycle serve this objective's key results">
-                    <AlertTriangle size={12} />
-                    <span>no tasks</span>
-                  </span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
           <button className="serving-open-objectives" onClick={() => navigateToSection('objectives')}>
             Open Objectives <ArrowRight size={13} />
@@ -369,43 +405,79 @@ export default function TasksView({
         </div>
       )}
 
-      {/* Quick Add Bar (P1: no bucket select; new tasks land in Backlog) */}
+      {/* Quick Add Bar (Redesign 09.00.16.png: Bucket, Priority, KR, Due, Add button) */}
       <div ref={quickAddRef}>
         <form className="quick-add-bar" onSubmit={handleAddTask}>
+          <span className="quick-add-eyebrow">NEW TASK</span>
+
           <input
             type="text"
             className="quick-add-input"
-            placeholder="What are you working on? — type, then ↵ to set priority and key result"
+            placeholder="What are you working on?"
             value={newTitle}
             onChange={e => setNewTitle(e.target.value)}
           />
 
-          <select
-            className="quick-add-select"
-            value={newCategory}
-            onChange={e => setNewCategory(e.target.value as EisenhowerCategory)}
-          >
-            {Object.entries(EISENHOWER_META).map(([cat, meta]) => (
-              <option key={cat} value={cat}>{meta.label}</option>
-            ))}
-          </select>
+          <div className="quick-add-field">
+            <span className="quick-add-field-label">BUCKET</span>
+            <select
+              className="quick-add-select"
+              value={newBucket}
+              onChange={e => setNewBucket(e.target.value as TaskBucket)}
+            >
+              <option value="today">Today</option>
+              <option value="this_week">This week</option>
+              <option value="backlog">Backlog</option>
+            </select>
+          </div>
 
-          {keyResults.length > 0 && (
+          <div className="quick-add-field">
+            <span className="quick-add-field-label">PRIORITY</span>
+            <span
+              className="quick-add-priority-dot"
+              style={{ backgroundColor: EISENHOWER_META[newCategory].color }}
+            />
+            <select
+              className="quick-add-select"
+              value={newCategory}
+              onChange={e => setNewCategory(e.target.value as EisenhowerCategory)}
+            >
+              {Object.entries(EISENHOWER_META).map(([cat, meta]) => (
+                <option key={cat} value={cat}>{meta.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="quick-add-field">
+            <span className="quick-add-field-label">KEY RESULT</span>
             <select
               className="quick-add-select kr-select"
               value={newKrId}
               onChange={e => setNewKrId(e.target.value)}
             >
-              <option value="">No Key Result</option>
+              <option value="">None</option>
               {keyResults.map(kr => (
                 <option key={kr.id} value={kr.id}>{kr.title}</option>
               ))}
             </select>
-          )}
+          </div>
+
+          <div className="quick-add-field">
+            <span className="quick-add-field-label">DUE</span>
+            <select
+              className="quick-add-select"
+              value={newDue}
+              onChange={e => setNewDue(e.target.value as any)}
+            >
+              <option value="none">None</option>
+              <option value="today">Today</option>
+              <option value="tomorrow">Tomorrow</option>
+              <option value="end_of_week">End of week</option>
+            </select>
+          </div>
 
           <button type="submit" className="quick-add-btn">
-            <Plus size={16} />
-            <span>Add</span>
+            Add
           </button>
         </form>
       </div>
@@ -597,6 +669,12 @@ export default function TasksView({
             <button className="new-task-btn list-new-task" onClick={focusQuickAdd}>
               <Plus size={15} />
               <span>New task</span>
+            </button>
+
+            <button className="search-trigger-btn list-search-btn" onClick={onOpenSearch}>
+              <Search size={15} />
+              <span>Search</span>
+              <kbd className="cmd-k-badge">⌘K</kbd>
             </button>
           </div>
 

@@ -245,9 +245,12 @@ test.describe('Mobile: Core Workflows', () => {
 
     const input = page.locator('input[placeholder*="What are you working on?"]');
     await input.fill('Mobile Task');
+    const bucketSelect = page.locator('.quick-add-bar .quick-add-select').first();
+    if (await bucketSelect.isVisible()) {
+      await bucketSelect.selectOption('backlog');
+    }
     await page.locator('button.quick-add-btn').click();
-    // New tasks land in Backlog; at narrow widths the Backlog column is
-    // collapsed to a bar (P2) — expand it to reveal the card.
+    // At narrow widths the Backlog column is collapsed to a bar (P2) — expand it to reveal the card.
     await page.locator('.backlog-bar-toggle').click();
     await expect(page.locator('.backlog-expanded-panel span.card-title', { hasText: 'Mobile Task' })).toBeVisible();
   });
