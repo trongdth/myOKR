@@ -104,9 +104,15 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: var(--text-primary);
   font-family: var(--font-sans);
+}
+
+.sw-btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .sw-play {
@@ -132,4 +138,14 @@
 .sw-open:hover {
   color: var(--text-primary);
   border-color: var(--text-muted);
+}
+
+/* Narrow viewports: span the gutters instead of overflowing (PR #37 review). */
+@media (max-width: 480px) {
+  .session-widget {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
 }

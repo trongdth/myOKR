@@ -4,8 +4,8 @@ import {
 import {
   loadSettings, saveSettings, loadTasks, saveTasks, loadHistory, saveHistory,
   loadTimerState, saveTimerState, clearTimerState,
-  getTodayRecord, upsertTodayRecord, playCompletionSound, sendNotification,
-  requestNotificationPermission, DEFAULT_SETTINGS, completePomodoroForTask,
+  playCompletionSound, sendNotification,
+  requestNotificationPermission, DEFAULT_SETTINGS, completePomodoroForTask, recordSessionInHistory,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../../lib/pomodoro-storage';
 import { startFocusMusic, stopFocusMusic } from '../../lib/focus-music';
@@ -20,6 +20,11 @@ const IS_TAURI = typeof window !== 'undefined' && (window as any).__TAURI_INTERN
 // ~5 min, so the cost is negligible — and it lets us skip setState (and the
 // resulting re-render) when a merge produced no actual data change.
 const jsonEqual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/** Minutes for a session phase — the single focus/short/long lookup (PR #37 review #9). */
+function durationMinutes(s: PomodoroSettings, type: SessionType): number {
+  return type === 'focus' ? s.focusDuration : type === 'shortBreak' ? s.shortBreakDuration : s.longBreakDuration;
+}
 
 export interface SessionContextValue {
   // data
@@ -163,12 +168,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       if (!isRunning) {
         const curType = sessionTypeRef.current;
-        const dur = curType === 'focus' ? s.focusDuration
-          : curType === 'shortBreak' ? s.shortBreakDuration
-          : s.longBreakDuration;
-        const oldDur = curType === 'focus' ? settings.focusDuration
-          : curType === 'shortBreak' ? settings.shortBreakDuration
-          : settings.longBreakDuration;
+        const dur = durationMinutes(s, curType);
+        const oldDur = durationMinutes(settings, curType);
         if (timeLeftRef.current === oldDur * 60) {
           setTimeLeft(dur * 60);
         }
@@ -212,11 +213,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // of M" position display so the count reflects the pomo you're ON, not finished.
   const activeFocusTaskId = isRunning && sessionType === 'focus' ? activeTaskId : null;
 
-  const totalSeconds = sessionType === 'focus'
-    ? settings.focusDuration * 60
-    : sessionType === 'shortBreak'
-      ? settings.shortBreakDuration * 60
-      : settings.longBreakDuration * 60;
+  const totalSeconds = durationMinutes(settings, sessionType) * 60;
 
   const progress = totalSeconds > 0 ? (totalSeconds - timeLeft) / totalSeconds : 0;
   const minutes = Math.floor(timeLeft / 60);
@@ -279,16 +276,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
       }
 
-      // Update history (async, after state transition is applied)
-      loadHistory().then(h => {
-        const todayRec = getTodayRecord(h);
-        todayRec.completedPomodoros += 1;
-        todayRec.totalFocusMinutes += settings.focusDuration;
-        todayRec.sessions.push(session);
-        const newHistory = upsertTodayRecord(h, todayRec);
-        setHistory(newHistory);
-        saveHistory(newHistory).catch(console.error);
-      }).catch(console.error);
+      // Record the focus session in-place (rule 11) — no load-modify-save race.
+      recordSessionInHistory(session, settings.focusDuration)
+        .then(setHistory)
+        .catch(console.error);
     } else {
       // Break completed
       sendNotification('Break Over!', 'Ready to focus again?');
@@ -314,14 +305,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Record break session
-      loadHistory().then(h => {
-        const todayRec = getTodayRecord(h);
-        todayRec.sessions.push(session);
-        const newHistory = upsertTodayRecord(h, todayRec);
-        setHistory(newHistory);
-        saveHistory(newHistory).catch(console.error);
-      }).catch(console.error);
+      // Record the break session in-place (rule 11).
+      recordSessionInHistory(session, 0)
+        .then(setHistory)
+        .catch(console.error);
     }
   }, [sessionType, completedPomos, activeTaskId, activeTask, tasks, settings]);
 
@@ -490,9 +477,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionStartRef.current = null;
     if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setSessionType(type);
-    const dur = type === 'focus' ? settings.focusDuration
-      : type === 'shortBreak' ? settings.shortBreakDuration
-      : settings.longBreakDuration;
+    const dur = durationMinutes(settings, type);
     setTimeLeft(dur * 60);
     if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
   };

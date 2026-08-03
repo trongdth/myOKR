@@ -132,6 +132,37 @@ export async function completePomodoroForTask(taskId: string, now: string): Prom
   return updatedTasks;
 }
 
+/**
+ * Record a completed session into today's DailyRecord, mutating the record
+ * IN-PLACE inside updateAutomergeDoc (rule 11) — never overwriting d.history
+ * with a snapshot. A focus session also bumps completedPomodoros and
+ * totalFocusMinutes; a break does not. Replaces the old load-modify-save in
+ * handleSessionComplete, which could lose history written between the load and
+ * the save (PR #37 review).
+ */
+export async function recordSessionInHistory(session: SessionRecord, focusMinutes: number): Promise<DailyRecord[]> {
+  await updateAutomergeDoc('Record session', (d) => {
+    if (!Array.isArray(d.history)) d.history = [];
+    const key = todayKey();
+    let idx = d.history.findIndex((r: unknown) => r != null && typeof r === 'object' && (r as DailyRecord).date === key);
+    if (idx === -1) {
+      d.history.push(sanitizeForAutomerge({
+        date: key, completedPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, sessions: [] as SessionRecord[],
+      }));
+      idx = d.history.length - 1;
+    }
+    const rec = d.history[idx] as DailyRecord;
+    if (!rec) return;
+    if (!Array.isArray(rec.sessions)) rec.sessions = [];
+    rec.sessions.push(sanitizeForAutomerge(session));
+    if (session.type === 'focus') {
+      rec.completedPomodoros = (typeof rec.completedPomodoros === 'number' ? rec.completedPomodoros : 0) + 1;
+      rec.totalFocusMinutes = (typeof rec.totalFocusMinutes === 'number' ? rec.totalFocusMinutes : 0) + focusMinutes;
+    }
+  });
+  return loadHistory();
+}
+
 export interface SessionRecord {
   startedAt: string;
   endedAt: string;
