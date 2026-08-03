@@ -2937,7 +2937,11 @@
 /* Board View Grid & Responsive Collapse */
 .board-view-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* minmax(0,1fr), never bare 1fr: a bare 1fr track is minmax(auto,1fr), whose
+     auto minimum lets a long nowrap KR/objective line set the track's min-width
+     and blow one column (and the pane) past the viewport. See
+     docs/design-system.md minmax(0,…) callout. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -3728,6 +3732,9 @@
   border: 1px solid var(--border-color);
   border-radius: 10px;
   box-shadow: inset 3px 0 0 var(--task-accent, #6b7280);
+  /* min-width:0 so a nowrap KR/category line can ellipsize inside a bounded
+     grid track instead of forcing the column wider. */
+  min-width: 0;
 }
 .card-top-row {
   display: flex;
@@ -3760,33 +3767,78 @@
   color: var(--text-muted);
   flex: none;
 }
-.card-kr {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  padding-left: 1.7rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* --- P1 card meta pills (flagship: mockup-exact). Category = filled tint
+   pill with a colored dot; KR & due are pills, dashed when unset. --- */
 .card-meta-row {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  padding-left: 1.7rem;
   flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-left: 1.7rem; /* align under the title, past the tick */
 }
 .card-category {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  background: var(--cat-bg, transparent);
+  color: var(--cat-color, var(--text-secondary));
+  font-size: 0.69rem;
+  font-weight: 600;
+  flex: none;
+}
+.card-category-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--cat-color, var(--text-muted));
+  flex: none;
+}
+.card-kr {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.69rem;
+  /* truncate a long KR inside the bounded column track */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+}
+.card-kr.is-empty {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
   color: var(--text-muted);
+  font-weight: 400;
+  flex: none;
 }
 .card-due {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.69rem;
+  flex: none;
+}
+.card-due .card-due-icon { flex: none; }
+.card-due.is-empty {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
   color: var(--text-muted);
 }
-.card-due.overdue { color: var(--color-risk); }
+.card-due.overdue {
+  background: color-mix(in srgb, var(--color-risk) 16%, transparent);
+  color: var(--color-risk);
+}
 .card-move-wrapper { margin-left: auto; position: relative; }
 .card-move-btn {
   display: flex;

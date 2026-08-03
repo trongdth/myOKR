@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, type CSSProperties } from 'react';
-import { LayoutGrid, List, Plus, Search, CheckCircle2, RotateCcw, ArrowRight } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -65,12 +65,11 @@ export default function TasksView({
   // Responsive Backlog collapse (P2): expanded panel below the bar
   const [backlogOpen, setBacklogOpen] = useState(false);
 
-  // Quick Add Form (Redesign 09.00.16.png: Bucket, Priority, KR, Due)
+  // Quick Add Form (P1: only Priority + Key Result live in the row; new tasks
+  // land in Backlog — the storage default. No bucket select, no due date.)
   const [newTitle, setNewTitle] = useState('');
-  const [newBucket, setNewBucket] = useState<TaskBucket>('today');
   const [newCategory, setNewCategory] = useState<EisenhowerCategory>('do');
   const [newKrId, setNewKrId] = useState<string>('');
-  const [newDue, setNewDue] = useState<'none' | 'today' | 'tomorrow' | 'end_of_week'>('none');
   const quickAddRef = useRef<HTMLDivElement>(null);
 
   // Week filter state ('all' or week number)
@@ -161,29 +160,14 @@ export default function TasksView({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    let dueDate: string | undefined = undefined;
-    const today = new Date();
-    if (newDue === 'today') {
-      dueDate = today.toISOString().slice(0, 10);
-    } else if (newDue === 'tomorrow') {
-      const tmr = new Date(today);
-      tmr.setDate(tmr.getDate() + 1);
-      dueDate = tmr.toISOString().slice(0, 10);
-    } else if (newDue === 'end_of_week') {
-      const eow = new Date(today);
-      const day = eow.getDay();
-      const diff = day === 0 ? 0 : 7 - day;
-      eow.setDate(eow.getDate() + diff);
-      dueDate = eow.toISOString().slice(0, 10);
-    }
-
     const newTask: PomodoroTask = {
       id: generateId(),
       title: newTitle.trim(),
       category: newCategory,
-      bucket: newBucket,
+      // P1: new tasks land in Backlog (the storage default); promote them to
+      // Today / This week via the card's "Add to <bucket>" action.
+      bucket: 'backlog',
       keyResultId: newKrId || undefined,
-      dueDate,
       estimatedPomodoros: 1,
       completedPomodoros: 0,
       isCompleted: false,
@@ -405,7 +389,7 @@ export default function TasksView({
         </div>
       )}
 
-      {/* Quick Add Bar (Redesign 09.00.16.png: Bucket, Priority, KR, Due, Add button) */}
+      {/* Quick Add Bar (P1: Priority + Key Result only; new tasks land in Backlog) */}
       <div ref={quickAddRef}>
         <form className="quick-add-bar" onSubmit={handleAddTask}>
           <span className="quick-add-eyebrow">NEW TASK</span>
@@ -417,19 +401,6 @@ export default function TasksView({
             value={newTitle}
             onChange={e => setNewTitle(e.target.value)}
           />
-
-          <div className="quick-add-field">
-            <span className="quick-add-field-label">BUCKET</span>
-            <select
-              className="quick-add-select"
-              value={newBucket}
-              onChange={e => setNewBucket(e.target.value as TaskBucket)}
-            >
-              <option value="today">Today</option>
-              <option value="this_week">This week</option>
-              <option value="backlog">Backlog</option>
-            </select>
-          </div>
 
           <div className="quick-add-field">
             <span className="quick-add-field-label">PRIORITY</span>
@@ -459,20 +430,6 @@ export default function TasksView({
               {keyResults.map(kr => (
                 <option key={kr.id} value={kr.id}>{kr.title}</option>
               ))}
-            </select>
-          </div>
-
-          <div className="quick-add-field">
-            <span className="quick-add-field-label">DUE</span>
-            <select
-              className="quick-add-select"
-              value={newDue}
-              onChange={e => setNewDue(e.target.value as any)}
-            >
-              <option value="none">None</option>
-              <option value="today">Today</option>
-              <option value="tomorrow">Tomorrow</option>
-              <option value="end_of_week">End of week</option>
             </select>
           </div>
 
@@ -863,11 +820,28 @@ function BoardTaskCard({
         </span>
       </div>
 
-      {linkedKr && <div className="card-kr">{linkedKr.title}</div>}
-
       <div className="card-meta-row">
-        {meta && <span className="card-category">{meta.label}</span>}
-        {due && <span className={`card-due${due.overdue ? ' overdue' : ''}`}>{due.label}</span>}
+        {meta && (
+          <span
+            className="card-category"
+            style={{ '--cat-color': meta.color, '--cat-bg': meta.bgColor } as CSSProperties}
+          >
+            <span className="card-category-dot" />
+            {meta.label}
+          </span>
+        )}
+
+        {/* KR pill: the linked KR title, or a dashed "Link a key result" prompt
+            when none is linked (matches the mockup — never blank). */}
+        <span className={`card-kr${linkedKr ? '' : ' is-empty'}`}>
+          {linkedKr ? linkedKr.title : 'Link a key result'}
+        </span>
+
+        {/* Due pill: the due label, or a dashed calendar "No due date" prompt. */}
+        <span className={`card-due${due ? '' : ' is-empty'}${due?.overdue ? ' overdue' : ''}`}>
+          <Calendar size={11} className="card-due-icon" />
+          {due ? due.label : 'No due date'}
+        </span>
 
         {/* Click-to-Move Bucket Menu (ADR-0010) */}
         <div className="card-move-wrapper" onClick={e => e.stopPropagation()}>
