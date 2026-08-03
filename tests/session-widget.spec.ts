@@ -86,4 +86,25 @@ test.describe('Session Widget', () => {
     // Decision A: while the focus runs, the count is the pomo you're ON (1 of 1).
     await expect(widget).toContainText('pomo 1 of 1');
   });
+
+  test('is anchored to the bottom-right corner of the viewport', async ({ page }) => {
+    await addTask(page, 'Pos Task');
+    await selectTask(page, 'Pos Task');
+    await page.locator('button[title="Day plan"]').first().click();
+
+    const widget = page.locator('.session-widget');
+    await expect(widget).toBeVisible();
+
+    const vp = page.viewportSize()!;
+    const box = (await widget.boundingBox())!;
+
+    // Regression: a stray "*/" inside SessionWidget.css's header comment once
+    // closed the comment early, so .session-widget's position/max-width never
+    // applied and the widget rendered as a full-width static block at the page
+    // bottom instead of a fixed bottom-right pill.
+    expect(box.x, 'widget should sit on the right half').toBeGreaterThan(vp.width / 2);
+    expect(vp.width - (box.x + box.width), 'right gap should be ~24px').toBeLessThan(60);
+    expect(vp.height - (box.y + box.height), 'bottom gap should be ~24px').toBeLessThan(60);
+    expect(box.width, 'should be a compact pill, not a full-width bar').toBeLessThan(420);
+  });
 });

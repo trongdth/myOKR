@@ -1,7 +1,7 @@
 /* Global session widget — floating bottom-right control (decision α).
- * Tokens only (docs/design-system.md): neutrals via --bg-*/--text-*, the ring
- * uses --color-focus (focus) / --accent-emerald (break). z-index 900 sits below
- * the modal overlays (1000–2000) so a confirm dialog covers it. */
+ * Tokens only (docs/design-system.md): neutrals via the bg and text tokens,
+ * ring uses --color-focus (focus) and --accent-emerald (break). z-index 900
+ * sits below the modal overlays (1000–2000) so a confirm dialog covers it. */
 
 .session-widget {
   position: fixed;
