@@ -132,6 +132,51 @@ test.describe('Plan Group — Task detail header (P4)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// updatedAt (Task-detail footer "updated X ago") — stamped centrally in
+// handleTasksChange on every edit path. Regression test for the stamp: editing
+// a task must persist updatedAt (the clock is frozen at FIXED, so it == FIXED).
+// ---------------------------------------------------------------------------
+test.describe('Task detail — updatedAt stamp on edit', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveTasks([
+        { id: 'td1', title: 'Original', estimatedPomodoros: 2, completedPomodoros: 0, isCompleted: false, createdAt: '2026-05-18T10:00:00Z' },
+      ]);
+    });
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await page.locator('.board-task-card').first().click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+  });
+
+  test('editing the title stamps updatedAt and persists it', async ({ page }) => {
+    const before = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 'td1');
+    });
+    expect(before?.updatedAt).toBeUndefined();
+
+    await page.locator('.detail-title').click();
+    const input = page.locator('.detail-title-input');
+    await input.fill('Edited title');
+    await input.press('Enter');
+
+    const after = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 'td1');
+    });
+    expect(after?.title).toBe('Edited title');
+    expect(after?.updatedAt).toBe(FIXED); // clock frozen → stamp == FIXED
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Sub-task (todo) deletion is permanent and undoable, so it must be guarded by
 // a confirmation — matching TaskList's ConfirmModal for task deletion. The 1a
 // redesign had the X button delete immediately with no confirm.

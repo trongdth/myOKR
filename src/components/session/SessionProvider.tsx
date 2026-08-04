@@ -6,6 +6,7 @@ import {
   loadTimerState, saveTimerState, clearTimerState,
   playCompletionSound, sendNotification,
   requestNotificationPermission, DEFAULT_SETTINGS, completePomodoroForTask, recordSessionInHistory,
+  stampUpdatedAt,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../../lib/pomodoro-storage';
 import { startFocusMusic, stopFocusMusic } from '../../lib/focus-music';
@@ -170,6 +171,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
+
+  // Keep tasksRef in sync so handleTasksChange (a stable useCallback) can diff
+  // incoming tasks against the latest without a stale closure. Powers the
+  // updatedAt stamp on the Task-detail footer's "updated X ago" readout.
+  const tasksRef = useRef(tasks);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
 
   // Listen to background sync and reload the session data dynamically.
   useEffect(() => {
@@ -505,9 +514,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // useCallback so task views (React.memo) don't re-render on every 1-second
   // timer tick — these only reference stable setters / refs / scalar state.
-  const handleTasksChange = useCallback((t: PomodoroTask[]) => {
-    setTasks(t);
-    saveTasks(t).catch(console.error); // rule 3: act (setState) first, persist non-blocking
+  // Stamps `updatedAt` on any task whose object identity changed vs the last
+  // persisted array (callers preserve refs for unchanged tasks via `.map`, so
+  // reference inequality pinpoints the edited task — or a brand-new one). This
+  // is the single funnel for all task writes, so every edit path — detail modal,
+  // TaskList inline cells, task creation, pomodoro completion — gets stamped.
+  const handleTasksChange = useCallback((incoming: PomodoroTask[]) => {
+    const prev = tasksRef.current;
+    const now = new Date().toISOString();
+    const stamped = incoming.map(t => {
+      const p = prev.find(x => x.id === t.id);
+      return (!p || p !== t) ? stampUpdatedAt(t, now) : t;
+    });
+    setTasks(stamped);
+    saveTasks(stamped).catch(console.error); // rule 3: act (setState) first, persist non-blocking
   }, []);
 
   // Guarded active-task setter: switching task during a running focus confirms.

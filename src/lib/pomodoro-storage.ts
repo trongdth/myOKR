@@ -67,6 +67,11 @@ export interface PomodoroTask {
    *  this task this week. Absent → the estimate is the fallback readout. */
   weeklyPomodoroPlan?: number;
   keyResultId?: string;
+  /** Last time any field on this task changed. Stamped centrally in
+   *  handleTasksChange (SessionProvider) on every edit path, so the Task-detail
+   *  footer's "updated X ago" reflects real edits. Absent on legacy tasks → the
+   *  footer falls back to completedAt ?? createdAt. Mirrors KR/habit updatedAt. */
+  updatedAt?: string;
 }
 
 /**
@@ -107,6 +112,39 @@ export function displayedPomoCount(
 ): number {
   const est = estimatedPomodoros || 1;
   return focusInProgress ? Math.min(completedPomodoros + 1, est) : completedPomodoros;
+}
+
+/**
+ * Reorder sub-tasks without drag-and-drop (ADR-0010 — "no HTML5 drag-drop
+ * anywhere"; re-ordering is click-select → click-target). Lifts the sub-task
+ * `movingId` to sit immediately ABOVE `targetId` in the list. Pure / immutable:
+ * returns a new array, never mutates the input.
+ *
+ * No-op (returns the input array as-is) when movingId === targetId, when either
+ * id is absent, or when the item already sits directly above its target — so a
+ * stray click on the row that's already in place changes nothing.
+ */
+export function reorderTodoItems<T extends TodoItem>(todos: T[], movingId: string, targetId: string): T[] {
+  if (movingId === targetId) return todos;
+  const movingIdx = todos.findIndex(t => t.id === movingId);
+  if (movingIdx === -1) return todos;
+  const without = todos.filter(t => t.id !== movingId);
+  const insertIdx = without.findIndex(t => t.id === targetId);
+  if (insertIdx === -1) return todos; // target vanished — refuse to guess
+  const next = without.slice();
+  next.splice(insertIdx, 0, todos[movingIdx]);
+  return next;
+}
+
+/**
+ * Stamp `updatedAt` — the Task-detail footer's "updated X ago" source. Pure and
+ * shared between the two task-write seams: SessionProvider.handleTasksChange
+ * (the funnel for the Pomodoro/Tasks screens) and OKRApp.updateTask (which holds
+ * its own task state, decoupled from the session context). `now` is passed in so
+ * a single edit stamps every changed task at the same instant.
+ */
+export function stampUpdatedAt<T extends PomodoroTask>(task: T, now: string): T {
+  return { ...task, updatedAt: now };
 }
 
 /**

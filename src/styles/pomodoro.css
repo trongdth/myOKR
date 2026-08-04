@@ -3369,7 +3369,31 @@
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
+  gap: 0;
+  /* Pin header + properties; the .detail-scroll-body scrolls beneath (note #4).
+     Overrides .app-modal-content's overflow-y:auto so only the body scrolls. */
+  overflow: hidden;
+}
+
+/* Pinned region (header + properties) — never scrolls. */
+.detail-pinned {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Scrolling region: weekly line, notes, tabs, footer. min-height:0 is required
+   for a flex child to scroll instead of growing past the panel's 90vh cap. */
+.detail-scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
+  padding-top: 1rem;
+  padding-right: 0.25rem;
 }
 
 /* --- P4 detail header: eyebrow on its own line, title left + actions right --- */
@@ -4254,8 +4278,165 @@
   border-radius: 6px;
 }
 .text-btn:hover { color: var(--color-primary); }
-.notes-content-view { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+.notes-content-view { position: relative; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; cursor: text; }
+.notes-content-view.empty { cursor: pointer; }
+/* 220px cap (note #4) — keeps Sub-tasks/Comments tabs on screen. */
+.notes-content-view.collapsed { max-height: 220px; overflow: hidden; }
+.notes-fade {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2.75rem;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-primary), transparent), var(--bg-primary));
+  pointer-events: none;
+}
+.notes-count {
+  position: absolute;
+  right: 0.15rem; bottom: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.notes-expand-btn {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  background: none; border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.notes-expand-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.notes-textarea {
+  width: 100%;
+  min-height: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+  resize: vertical;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  font-family: inherit;
+}
+.notes-textarea:focus { outline: none; }
 .empty-notes-hint { color: var(--text-muted); font-size: 0.82rem; margin: 0; }
+
+/* Estimate editor folded into the weekly line (was the 5th properties column). */
+.estimate-inline { display: inline-flex; align-items: center; gap: 0.25rem; }
+.estimate-label { color: var(--text-muted); font-size: 0.72rem; }
+.estimate-edit-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 0.05rem 0.4rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.estimate-edit-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.estimate-input {
+  width: 3rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 0.05rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.estimate-input:focus { outline: none; }
+
+/* Tab count badges (4/8, 0). */
+.tab-badge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+}
+.detail-tab-btn.active .tab-badge { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* Footer: created / updated / logged + Delete task. */
+.detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+.detail-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); }
+.delete-task-btn {
+  background: none;
+  border: none;
+  color: var(--color-risk);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+.delete-task-btn:hover { text-decoration: underline; filter: brightness(1.1); }
+.empty-tab-hint { color: var(--text-muted); font-size: 0.8rem; margin: 0.5rem 0; }
+
+/* Sub-task click-select reorder (ADR-0010 — no drag-drop). */
+.todo-grip {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 0.1rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.todo-grip:hover { color: var(--text-secondary); background: var(--bg-tertiary); }
+.todo-item-row.reordering {
+  background: var(--bg-tertiary);
+  outline: 1px solid var(--color-primary);
+  outline-offset: -1px;
+}
+.todo-item-row.reorder-target { cursor: pointer; }
+.todo-item-row.reorder-target:hover { box-shadow: inset 0 2px 0 var(--color-primary); }
+.reorder-hint {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--color-primary);
+  background: var(--bg-tertiary);
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+}
+.todo-edit-input {
+  flex: 1 1 auto;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+.todo-edit-input:focus { outline: none; }
+.comment-edit-input {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  margin: 0 0 0.3rem;
+}
+.comment-edit-input:focus { outline: none; }
 
 /* Sub-tasks / Comments — progress bar + add row + list */
 .detail-tab-progress {
@@ -4344,6 +4525,7 @@
   flex: 1 1 auto;
   font-size: 0.82rem;
   color: var(--text-primary);
+  cursor: text;
 }
 .todo-item-row.completed .todo-text {
   color: var(--text-muted);
@@ -4367,7 +4549,7 @@
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
 }
-.comment-text { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--text-primary); }
+.comment-text { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--text-primary); cursor: text; }
 .comment-footer {
   display: flex;
   align-items: center;

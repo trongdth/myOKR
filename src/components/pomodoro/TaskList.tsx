@@ -333,6 +333,15 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
     setDetailTask(updated);
   };
 
+  // TaskDetailModal's Delete-task action. The modal already confirms via its own
+  // ConfirmModal, so this performs the removal directly (mirrors confirmDelete
+  // minus the second confirm) and closes the detail view.
+  const handleDetailDelete = (id: string) => {
+    if (activeTaskId === id) onSetActive(null);
+    onTasksChange(tasks.filter(t => t.id !== id));
+    setDetailTask(null);
+  };
+
   const activeTasks = filteredTasks.filter(t => !t.isCompleted);
   const completedTasks = filteredTasks.filter(t => t.isCompleted);
 
@@ -415,8 +424,8 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             task={detailTask}
             onUpdate={handleDetailUpdate}
             onClose={() => setDetailTask(null)}
+            onDelete={handleDetailDelete}
             keyResults={keyResults}
-            activeFocusTaskId={activeFocusTaskId}
           />
         )}
       </div>
@@ -615,9 +624,9 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
         <TaskDetailModal
           task={detailTask}
           onUpdate={handleDetailUpdate}
+          onDelete={handleDetailDelete}
           onClose={() => setDetailTask(null)}
           keyResults={keyResults}
-          activeFocusTaskId={activeFocusTaskId}
         />
       )}
     </div>

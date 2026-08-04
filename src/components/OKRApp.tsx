@@ -9,7 +9,7 @@ import {
   cloneCycleStructure, resolveCurrentCycle,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
-import { generateId, loadSettings, saveTasks, isTaskInCycle, buildKrCycleMap, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
+import { generateId, loadSettings, saveTasks, isTaskInCycle, buildKrCycleMap, stampUpdatedAt, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
 import { loadTasks, loadHistory } from '../lib/pomodoro-storage';
 import { loadHabits, type Habit } from '../lib/habit-storage';
 import CycleSelector from './okr/CycleSelector';
@@ -119,10 +119,21 @@ export default function OKRApp() {
   };
 
   const updateTask = (updated: PomodoroTask) => {
-    const next = tasks.map(t => t.id === updated.id ? updated : t);
+    // OKRApp holds its own task state (decoupled from SessionProvider's
+    // handleTasksChange), so stamp updatedAt here too — otherwise edits made
+    // from the Objectives screen wouldn't refresh the Task-detail "updated" line.
+    const stamped = stampUpdatedAt(updated, new Date().toISOString());
+    const next = tasks.map(t => t.id === stamped.id ? stamped : t);
     setTasks(next);
-    saveTasks(next);
-    setSelectedDetailTask(updated);
+    saveTasks(next).catch(console.error); // rule 3: act first, persist non-blocking
+    setSelectedDetailTask(stamped);
+  };
+
+  const deleteTask = (id: string) => {
+    const next = tasks.filter(t => t.id !== id);
+    setTasks(next);
+    saveTasks(next).catch(console.error); // rule 3: act first, persist non-blocking
+    setSelectedDetailTask(null);
   };
 
   // ----- Cycle handlers -----
@@ -395,6 +406,7 @@ export default function OKRApp() {
         <TaskDetailModal
           task={selectedDetailTask}
           onUpdate={updateTask}
+          onDelete={deleteTask}
           onClose={() => setSelectedDetailTask(null)}
           keyResults={keyResults}
           history={history}
