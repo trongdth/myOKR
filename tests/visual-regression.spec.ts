@@ -4,7 +4,10 @@ import { test, expect } from '@playwright/test';
  * Visual regression for the 1a UI redesign. Snapshots are deterministic:
  * `Date` is frozen so seed data + displayed dates don't drift, and the live
  * Pomodoro timer digits are masked. Baselines live in
- * `tests/visual-regression.spec.ts-snapshots/`; regenerate with --update-snapshots.
+ * `tests/visual-regression.spec.ts-snapshots/`. After a UI change, regenerate
+ * BOTH platform baselines together with `npm run snapshots:regen` (darwin
+ * locally + linux in a container) — CI reads the `*-linux.png` files, and a
+ * darwin-only regen is how the task-detail baseline went stale on CI.
  *
  * This is deliberately a separate file from screenshots.spec.ts (which captures
  * the README assets) so the two concerns don't collide.
