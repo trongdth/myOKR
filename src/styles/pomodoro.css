@@ -3397,38 +3397,36 @@
 }
 
 /* --- P4 detail header: eyebrow on its own line, title left + actions right --- */
+/* Two-row grid: eyebrow on its own line, then title (left, wraps to 2 lines
+   when long) + actions (right, top-aligned so Start focus/Complete/X stay pinned
+   top-right and never wrap below the title — point 1). */
 .detail-panel-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "eyebrow eyebrow" "title actions";
+  align-items: start;
   gap: 0.35rem 1rem;
   padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--border-color);
 }
+.detail-eyebrow { grid-area: eyebrow; }
 
 .detail-title-block {
-  flex: 1 1 auto;
+  grid-area: title;
   min-width: 0;
 }
 
 .detail-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
   line-height: 1.3;
   color: var(--text-primary);
   cursor: text;
+  /* word-break so a very long title wraps inside its grid cell instead of
+     forcing the actions to a new line. */
+  overflow-wrap: anywhere;
 }
-
-.detail-title .edit-icon {
-  opacity: 0;
-  color: var(--text-muted);
-  transition: opacity 0.15s ease;
-}
-.detail-title:hover .edit-icon { opacity: 1; }
 
 .detail-title-input {
   width: 100%;
@@ -3443,10 +3441,11 @@
 }
 
 .detail-header-actions {
+  grid-area: actions;
+  align-self: start;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-shrink: 0;
 }
 
 .detail-action-btn {
@@ -4229,8 +4228,12 @@
   flex: 1 1 auto;
   min-width: 8rem;
 }
+/* Thin, short, muted — a subtle weekly-progress hint, not a loud full-width
+   bar (point 2). The estimate is the focal point via the popover next to it. */
 .weekly-plan-bar {
-  height: 6px;
+  height: 4px;
+  width: 100%;
+  max-width: 160px;
   border-radius: 999px;
   background: var(--bg-tertiary);
   overflow: hidden;
@@ -4238,7 +4241,7 @@
 .weekly-plan-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary), transparent 35%);
   transition: width 0.3s ease;
 }
 
@@ -4329,30 +4332,6 @@
 .empty-notes-hint { color: var(--text-muted); font-size: 0.82rem; margin: 0; }
 
 /* Estimate editor folded into the weekly line (was the 5th properties column). */
-.estimate-inline { display: inline-flex; align-items: center; gap: 0.25rem; }
-.estimate-label { color: var(--text-muted); font-size: 0.72rem; }
-.estimate-edit-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-  padding: 0.05rem 0.4rem;
-  cursor: pointer;
-  font-size: 0.78rem;
-}
-.estimate-edit-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.estimate-input {
-  width: 3rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--color-primary);
-  border-radius: 4px;
-  color: var(--text-primary);
-  padding: 0.05rem 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-}
-.estimate-input:focus { outline: none; }
-
 /* Tab count badges (4/8, 0). */
 .tab-badge {
   font-family: var(--font-mono);
@@ -4400,22 +4379,10 @@
   flex-shrink: 0;
 }
 .todo-grip:hover { color: var(--text-secondary); background: var(--bg-tertiary); }
-.todo-item-row.reordering {
-  background: var(--bg-tertiary);
-  outline: 1px solid var(--color-primary);
-  outline-offset: -1px;
-}
-.todo-item-row.reorder-target { cursor: pointer; }
-.todo-item-row.reorder-target:hover { box-shadow: inset 0 2px 0 var(--color-primary); }
-.reorder-hint {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  color: var(--color-primary);
-  background: var(--bg-tertiary);
-  padding: 0.3rem 0.5rem;
-  border-radius: 6px;
-  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
-}
+.todo-grip:active { cursor: grabbing; }
+/* HTML5 drag-and-drop states (amends ADR-0010). */
+.todo-item-row.dragging { opacity: 0.4; }
+.todo-item-row.drag-over { box-shadow: inset 0 2px 0 var(--color-primary); }
 .todo-edit-input {
   flex: 1 1 auto;
   background: var(--bg-tertiary);

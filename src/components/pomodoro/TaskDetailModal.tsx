@@ -5,6 +5,7 @@ import { generateId, EISENHOWER_META, weeklyPlanProgress, getLocalDateString, re
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
+import PomoEstimatePopover from './PomoEstimatePopover';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
 
@@ -67,15 +68,15 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
   const [editingTitleText, setEditingTitleText] = useState(task.title);
   const [editingWeeklyPlan, setEditingWeeklyPlan] = useState(false);
   const [weeklyPlanDraft, setWeeklyPlanDraft] = useState('');
-  const [editingEstimate, setEditingEstimate] = useState(false);
-  const [estimateDraft, setEstimateDraft] = useState('');
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingTodoText, setEditingTodoText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-  /** Sub-task click-select reorder (ADR-0010). Non-null = an item is "picked up";
-   *  clicking any other row commits, Esc / re-click cancels. */
-  const [reorderMovingId, setReorderMovingId] = useState<string | null>(null);
+  /** Sub-task HTML5 drag-and-drop reorder (amends ADR-0010 to permit in-list
+   *  reordering; PrioritizeModal already uses HTML5 DnD as precedent). Drop a
+   *  row onto another → reorderTodoItems inserts it above the target. */
+  const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
+  const [dragOverTodoId, setDragOverTodoId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
 
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -122,15 +123,6 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
     setEditingWeeklyPlan(false);
   };
 
-  const saveEstimate = () => {
-    const raw = estimateDraft.trim();
-    const value = raw === '' ? 1 : parseInt(raw, 10);
-    if (Number.isFinite(value)) {
-      onUpdate({ ...task, estimatedPomodoros: Math.max(1, Math.min(99, value)) });
-    }
-    setEditingEstimate(false);
-  };
-
   useModalEffects(onClose);
 
   useEffect(() => {
@@ -150,16 +142,6 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
       descRef.current.setSelectionRange(descRef.current.value.length, descRef.current.value.length);
     }
   }, [isEditingDesc]);
-
-  // Esc cancels an in-flight click-select reorder (no focused input to catch it).
-  useEffect(() => {
-    if (!reorderMovingId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setReorderMovingId(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [reorderMovingId]);
 
   const saveTitle = () => {
     const trimmed = editingTitleText.trim();
@@ -236,7 +218,6 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
 
   // Sub-task label inline edit (click-away / Enter autosaves; Esc reverts)
   const startEditTodo = (t: TodoItem) => {
-    if (reorderMovingId) return; // don't fight the reorder mode
     setEditingTodoId(t.id);
     setEditingTodoText(t.text);
   };
@@ -252,15 +233,19 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
     setEditingTodoId(null);
   };
 
-  // Click-select reorder (ADR-0010): grip click picks up; another row commits.
-  const togglePickup = (id: string) => {
-    setEditingTodoId(null);
-    setReorderMovingId(prev => (prev === id ? null : id));
+  // Sub-task drag-and-drop reorder (amends ADR-0010; see PrioritizeModal). The
+  // grip is the drag source; each row is a drop target. Dropping inserts above.
+  const handleTodoDragStart = (id: string) => setDraggedTodoId(id);
+  const handleTodoDragEnd = () => {
+    setDraggedTodoId(null);
+    setDragOverTodoId(null);
   };
-  const commitReorder = (targetId: string) => {
-    if (!reorderMovingId) return;
-    onUpdate({ ...task, todos: reorderTodoItems(todos, reorderMovingId, targetId) });
-    setReorderMovingId(null);
+  const handleTodoDrop = (targetId: string) => {
+    if (draggedTodoId && draggedTodoId !== targetId) {
+      onUpdate({ ...task, todos: reorderTodoItems(todos, draggedTodoId, targetId) });
+    }
+    setDraggedTodoId(null);
+    setDragOverTodoId(null);
   };
 
   // Comments CRUD
@@ -471,38 +456,14 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
                     <div className="weekly-plan-fill"
                       style={{ width: `${pct(weekly.completed, weekly.planned)}%` }} />
                   </div>
-                  {/* Estimate editor (was the 5th properties column). Mono `est. N`
-                      click-to-edit; Enter/blur saves, Esc cancels. */}
-                  <span className="estimate-inline">
-                    <span className="pomo-mono estimate-label">est.</span>
-                    {editingEstimate ? (
-                      <input
-                        type="number"
-                        min="1"
-                        max="99"
-                        className="estimate-input"
-                        value={estimateDraft}
-                        autoFocus
-                        onChange={e => setEstimateDraft(e.target.value)}
-                        onBlur={saveEstimate}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') saveEstimate();
-                          if (e.key === 'Escape') setEditingEstimate(false);
-                        }}
-                      />
-                    ) : (
-                      <button
-                        className="estimate-edit-btn pomo-mono"
-                        onClick={() => {
-                          setEstimateDraft(String(task.estimatedPomodoros || 1));
-                          setEditingEstimate(true);
-                        }}
-                        title="Edit estimated pomodoros"
-                      >
-                        {task.estimatedPomodoros || 1}
-                      </button>
-                    )}
-                  </span>
+                  {/* Estimate editor — reuses the shared Adjust Total Pomodoros
+                      popover (same component as the Tasks rows). Click the
+                      pomodoro count to open it. */}
+                  <PomoEstimatePopover
+                    completed={task.completedPomodoros}
+                    estimated={task.estimatedPomodoros || 1}
+                    onChange={n => onUpdate({ ...task, estimatedPomodoros: n })}
+                  />
                 </div>
                 <button
                   className="weekly-plan-edit-btn"
@@ -633,30 +594,38 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
                     <button className="add-todo-btn" onClick={addTodo}>Add</button>
                   </div>
 
-                  {reorderMovingId && (
-                    <div className="reorder-hint">
-                      Click a row to move “{todos.find(t => t.id === reorderMovingId)?.text}” above it · <button className="text-btn" onClick={() => setReorderMovingId(null)}>Cancel</button>
-                    </div>
-                  )}
-
                   {todos.length === 0 ? (
                     <p className="empty-tab-hint">No sub-tasks yet. Add one above.</p>
                   ) : (
                     <div className="todos-list">
                       {todos.map(todo => {
-                        const moving = reorderMovingId === todo.id;
-                        const targeting = reorderMovingId && !moving;
+                        const dragging = draggedTodoId === todo.id;
+                        const dragOver = !!draggedTodoId && !dragging && dragOverTodoId === todo.id;
                         return (
                           <div
                             key={todo.id}
-                            className={`todo-item-row${todo.completed ? ' completed' : ''}${moving ? ' reordering' : ''}${targeting ? ' reorder-target' : ''}`}
-                            onClick={targeting ? () => commitReorder(todo.id) : undefined}
+                            className={`todo-item-row${todo.completed ? ' completed' : ''}${dragging ? ' dragging' : ''}${dragOver ? ' drag-over' : ''}`}
+                            onDragOver={e => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (dragOverTodoId !== todo.id) setDragOverTodoId(todo.id);
+                            }}
+                            onDragLeave={() => {
+                              if (dragOverTodoId === todo.id) setDragOverTodoId(null);
+                            }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleTodoDrop(todo.id);
+                            }}
                           >
                             <button
                               className="todo-grip"
-                              onClick={e => { e.stopPropagation(); togglePickup(todo.id); }}
-                              title="Click, then click a row to move this above it"
-                              aria-label="Reorder sub-task"
+                              draggable
+                              onDragStart={() => handleTodoDragStart(todo.id)}
+                              onDragEnd={handleTodoDragEnd}
+                              title="Drag to reorder"
+                              aria-label="Drag to reorder sub-task"
                             >
                               <GripVertical size={14} />
                             </button>

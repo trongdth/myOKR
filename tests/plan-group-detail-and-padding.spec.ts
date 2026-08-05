@@ -150,6 +150,11 @@ test.describe('Task detail — updatedAt stamp on edit', () => {
         { id: 'td1', title: 'Original', estimatedPomodoros: 2, completedPomodoros: 0, isCompleted: false, createdAt: '2026-05-18T10:00:00Z' },
       ]);
     });
+    // The app reads tasks on mount; saveTasks above writes storage but doesn't
+    // re-render, so reload to mount fresh with the seeded task (otherwise a
+    // prior test's task stays on the board).
+    await page.reload();
+    await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
     await page.locator('.board-task-card').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
@@ -236,5 +241,51 @@ test.describe('Task detail — sub-task delete confirmation', () => {
     await page.locator('.confirm-modal button:has-text("Cancel")').click();
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
     await expect(doomed).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sub-task reorder via HTML5 drag-and-drop (amends ADR-0010 to permit in-list
+// reordering; PrioritizeModal already uses HTML5 DnD as precedent). Dropping a
+// row onto another inserts it ABOVE the target (reorderTodoItems semantics).
+// ---------------------------------------------------------------------------
+test.describe('Task detail — sub-task drag-and-drop reorder', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveTasks([{
+        id: 'td1', title: 'Reorder me', estimatedPomodoros: 2, completedPomodoros: 0, isCompleted: false,
+        createdAt: '2026-05-18T10:00:00Z',
+        todos: [
+          { id: 's1', text: 'Sub A', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+          { id: 's2', text: 'Sub B', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+          { id: 's3', text: 'Sub C', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+        ],
+      }]);
+    });
+    // Reload so the board shows the freshly-seeded task, not a prior test's.
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await page.locator('.board-task-card').first().click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+  });
+
+  test('dragging a sub-task onto another inserts it above the target', async ({ page }) => {
+    const texts = page.locator('.todos-list .todo-text');
+    await expect(texts).toHaveText(['Sub A', 'Sub B', 'Sub C']);
+
+    // Drag Sub C's grip onto Sub A's row → C inserts above A → [C, A, B].
+    const gripC = page.locator('.todos-list .todo-item-row').nth(2).locator('.todo-grip');
+    const rowA = page.locator('.todos-list .todo-item-row').nth(0);
+    await gripC.dragTo(rowA);
+
+    await expect(texts).toHaveText(['Sub C', 'Sub A', 'Sub B']);
   });
 });

@@ -290,9 +290,11 @@ identically; there is no separate long-break case.
   *in this cycle* (ADR-0012).
 - **Responsive ≤1100px (P2)**: Today + This week stay open; **Backlog collapses
   to a slim bar** (`Backlog · N · X pomos`, "drop a card here to defer it")
-  that expands to a mini-list on click. No HTML5 drag-drop anywhere (ADR-0010);
-  moving/deferring and re-ordering use click-select → click-target, matching
-  UP NEXT in Day Plan.
+  that expands to a mini-list on click. **Board bucket-moving/deferring uses
+  click-select → click-target, matching UP NEXT** — but **in-list reordering
+  (Task-detail sub-tasks) uses HTML5 drag-and-drop** (2026-08-05 amendment to
+  ADR-0010; `PrioritizeModal` already used HTML5 DnD for within-quadrant reorder
+  as precedent). The grip handle is the drag source; drop on a row inserts above.
 
 ### List view (P3, structural parity)
 
@@ -310,8 +312,9 @@ identically; there is no separate long-break case.
   (existing selects, restyled) + "click any field to edit" hint. Header:
   `Start focus` + `Complete` buttons. **Four columns only** (2026-08-04): the
   estimate editor that used to be a 5th POMODOROS column moved into the weekly
-  line below as an `est. N` control — both are "pomodoro intent," so they live
-  together.
+  line. **2026-08-05:** the inline `est. N` control was replaced by the shared
+  `PomoEstimatePopover` — click the `{completed}/{estimated}` count to open the
+  same "Adjust Total Pomodoros" popover the Tasks rows use.
 - **POMODOROS THIS WEEK — `X / Y planned` + `Change weekly plan`** (implemented
   2026-08-01). `weeklyPomodoroPlan?: number` (0–99, absent-stays-absent) on the
   shared task schema (desktop + mobile normalizers agree: valid finite 0–99
@@ -356,8 +359,9 @@ identically; there is no separate long-break case.
 > - **Sub-tasks.** Checkbox commits instantly (existing); click the label to
 >   edit in place (Enter/click-away autosaves, Esc reverts); `×` opens a
 >   `ConfirmModal` then deletes (no undo toast — considered and skipped).
->   **Reorder is click-select, not drag** (ADR-0010): click a row's ⋮⋮ grip to
->   pick it up, click another row to drop it *above* that row, Esc cancels.
+>   **Reorder is HTML5 drag-and-drop** (2026-08-05: reverses the earlier
+>   click-select choice; amends ADR-0010 — `PrioritizeModal` is the precedent).
+>   Drag a row's ⋮⋮ grip and drop on another row to insert it *above* that row.
 >   Show all sub-tasks (no collapse).
 > - **Comments.** Click the label to edit in place (Enter/click-away autosaves);
 >   `×` opens a `ConfirmModal` then deletes (comments previously deleted
@@ -372,6 +376,18 @@ identically; there is no separate long-break case.
 >   normalizer already preserves the field.
 > - **Title.** Click to edit in place (Enter/blur saves, Esc cancels); the
 >   pencil edit-icon was dropped — `cursor:text` + the eyebrow cover affordance.
+>
+> **Follow-up 2026-08-05 (task-detail feedback round 2):**
+> - **Header is a 2-row grid** (`eyebrow` row; `title | actions` row,
+>   `align-items: start`). A long title wraps to 2 lines inside its cell while
+>   `Start focus`/`Complete`/X stay pinned **top-right** — they never wrap below
+>   the title. (Replaces the old `flex-wrap` header, which dropped the buttons to
+>   a new row on long titles.)
+> - **Weekly bar is subtle.** The loud full-width bright-cyan bar became a thin
+>   (4px), short (≤160px), muted (`color-mix` of `--color-primary`) hint. The
+>   estimate is the focal point via the `PomoEstimatePopover` count beside it.
+> - **Sub-task reorder switched to HTML5 drag-and-drop** (see the Sub-tasks bullet
+>   above + the ADR-0010 amendment) — the earlier click-select felt messy.
 
 ### Done (P5, flagship)
 
