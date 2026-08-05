@@ -4,16 +4,24 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 
 /**
- * Clickable `{completed}/{estimated}` pomodoro count that opens a small
- * "Adjust Total Pomodoros" popover (− / value / + hold-to-repeat buttons,
- * Cancel / Confirm). Shared by the Tasks board/list rows and the Task-detail
- * weekly line so the estimate is edited the same way everywhere. `onChange`
- * fires on Confirm with the new `estimatedPomodoros` (1–20).
+ * Clickable pomodoro count that opens a small "Adjust Total Pomodoros"
+ * popover (− / value / + hold-to-repeat buttons, Cancel / Confirm). Shared by
+ * the Tasks board/list rows (`2/4` pill with ⏱ icon) and the Task-detail
+ * pomodoro line (plain `2 / 4 planned` readout, icon dropped) so the estimate
+ * is edited the same way everywhere. `onChange` fires on Confirm with the new
+ * `estimatedPomodoros` (1–20).
  */
-export default function PomoEstimatePopover({ completed, estimated, onChange }: {
+export default function PomoEstimatePopover({ completed, estimated, onChange, suffix, showIcon = true, plain = false }: {
   completed: number;
   estimated: number;
   onChange: (n: number) => void;
+  /** Appended after the count, e.g. "planned" → `2 / 4 planned` (task-detail
+   *  readout; spaced slash). Absent → compact `2/4` (Tasks rows). */
+  suffix?: string;
+  /** Tasks rows show the ⏱ icon; the task-detail readout drops it (compact). */
+  showIcon?: boolean;
+  /** Task-detail readout renders as plain mono text, not a bordered pill. */
+  plain?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [tempValue, setTempValue] = useState(estimated);
@@ -42,13 +50,15 @@ export default function PomoEstimatePopover({ completed, estimated, onChange }: 
   return (
     <div className="pomo-estimate-wrapper" ref={ref}>
       <div
-        className="task-pomodoros"
+        className={`task-pomodoros${plain ? ' plain' : ''}`}
         onClick={e => { e.stopPropagation(); handleOpen(); }}
         title="Click to set estimated pomodoros"
         style={{ cursor: 'pointer' }}
       >
-        <span className="task-pomo-icon main-icon"><Timer size={14} /></span>
-        <span className="task-pomo-count">{completed}/{estimated}</span>
+        {showIcon && <span className="task-pomo-icon main-icon"><Timer size={14} /></span>}
+        <span className="task-pomo-count">
+          {completed}{suffix ? ' / ' : '/'}{estimated}{suffix ? ` ${suffix}` : ''}
+        </span>
       </div>
       {open && (
         <div className="pomo-estimate-popover" onClick={e => e.stopPropagation()}>

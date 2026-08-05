@@ -4017,7 +4017,7 @@
 }
 .command-k-item-meta .meta-kr { color: var(--text-muted); }
 
-/* --- P4: POMODOROS THIS WEEK block --- */
+/* --- P4: POMODOROS block — one row: label · readout · bar --- */
 .weekly-plan-block {
   display: flex;
   align-items: center;
@@ -4025,44 +4025,25 @@
   padding: 0.6rem 0;
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
-  flex-wrap: wrap;
 }
-.weekly-plan-readonly,
-.weekly-plan-editor {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.weekly-plan-readout {
-  font-size: 0.85rem;
-}
-.weekly-plan-edit-btn {
+/* Task-detail readout: the shared estimate-popover trigger rendered as plain
+   mono text — no pill border/bg, matching the old "2 / 5 planned" readout.
+   Hover tints the count primary to signal it opens the popover. */
+.task-detail-panel .task-pomodoros.plain {
   background: none;
   border: none;
-  color: var(--color-primary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 0;
+  height: auto;
+  border-radius: 0;
+  flex-shrink: 1;
 }
-.weekly-plan-edit-btn:hover { text-decoration: underline; }
-.weekly-plan-input {
-  width: 3.5rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.3rem 0.5rem;
-  color: var(--text-primary);
+.task-detail-panel .task-pomodoros.plain .task-pomo-count {
   font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
-.weekly-plan-save-btn {
-  background: var(--color-primary);
-  border: none;
-  border-radius: 6px;
-  color: var(--color-on-primary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.3rem 0.8rem;
-  cursor: pointer;
+.task-detail-panel .task-pomodoros.plain:hover .task-pomo-count {
+  color: var(--color-primary);
 }
 
 /* ==========================================================================
@@ -4078,24 +4059,13 @@
   min-width: 7rem;
 }
 
-/* POMODOROS THIS WEEK — readout + cyan progress bar */
-.weekly-plan-readonly {
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-.weekly-plan-readout-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  flex: 1 1 auto;
-  min-width: 8rem;
-}
-/* Thin, short, muted — a subtle weekly-progress hint, not a loud full-width
-   bar (point 2). The estimate is the focal point via the popover next to it. */
+/* POMODOROS — readout + muted cyan progress bar. The bar flexes to fill the
+   remaining row width; thin (4px) and muted (color-mix) so the readout
+   stays the focal point. */
 .weekly-plan-bar {
+  flex: 1 1 auto;
+  min-width: 3rem;
   height: 4px;
-  width: 100%;
-  max-width: 160px;
   border-radius: 999px;
   background: var(--bg-tertiary);
   overflow: hidden;

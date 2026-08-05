@@ -63,9 +63,6 @@ export interface PomodoroTask {
   category?: EisenhowerCategory;
   bucket?: TaskBucket;
   dueDate?: string;
-  /** Weekly pomodoro plan (P4): how many pomodoros the user plans to spend on
-   *  this task this week. Absent → the estimate is the fallback readout. */
-  weeklyPomodoroPlan?: number;
   keyResultId?: string;
   /** Last time any field on this task changed. Stamped centrally in
    *  handleTasksChange (SessionProvider) on every edit path, so the Task-detail
@@ -279,8 +276,11 @@ function normalizeTask(t: unknown): PomodoroTask | null {
   const category = task.category as unknown;
   const bucket = task.bucket as unknown;
   const dueDate = task.dueDate as unknown;
+  // Destructure-drop the removed weeklyPomodoroPlan so legacy docs' orphaned
+  // key never leaks into the typed view (the spread below would carry it).
+  const { weeklyPomodoroPlan: _legacy, ...rest } = task;
   return {
-    ...(task as unknown as PomodoroTask),
+    ...(rest as unknown as PomodoroTask),
     title: typeof task.title === 'string' ? task.title : '',
     estimatedPomodoros: finiteNumber(task.estimatedPomodoros, 0),
     completedPomodoros: finiteNumber(task.completedPomodoros, 0),
@@ -288,7 +288,6 @@ function normalizeTask(t: unknown): PomodoroTask | null {
     category: EISENHOWER_CATEGORIES.includes(category as EisenhowerCategory) ? (category as EisenhowerCategory) : undefined,
     bucket: TASK_BUCKETS.includes(bucket as TaskBucket) ? (bucket as TaskBucket) : 'backlog',
     dueDate: typeof dueDate === 'string' && dueDate.trim() !== '' ? dueDate.trim() : undefined,
-    weeklyPomodoroPlan: finiteNumber(task.weeklyPomodoroPlan, undefined, 0, 99),
     todos: Array.isArray(task.todos) ? task.todos : undefined,
     comments: Array.isArray(task.comments) ? task.comments : undefined,
   };
@@ -694,19 +693,3 @@ export function buildKrCycleMap(
   return map;
 }
 
-/**
- * Weekly pomodoro plan progress (P4): `completed` = completed focus sessions
- * for the task within [weekStart, weekEnd]; `planned` = the explicit weekly
- * plan when set, otherwise the task estimate (the readout always renders
- * "X / Y planned"). An explicit plan of 0 is respected — no fallback.
- */
-export function weeklyPlanProgress(
-  task: PomodoroTask,
-  history: DailyRecord[],
-  weekStart: string,
-  weekEnd: string,
-): { completed: number; planned: number } {
-  const completed = computeWeekTaskPomos(history, weekStart, weekEnd).get(task.id) ?? 0;
-  const planned = task.weeklyPomodoroPlan ?? task.estimatedPomodoros ?? 1;
-  return { completed, planned };
-}

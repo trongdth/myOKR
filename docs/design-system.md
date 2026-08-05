@@ -312,18 +312,27 @@ identically; there is no separate long-break case.
 - Properties row across the top: PRIORITY · BUCKET · DUE · KEY RESULT
   (existing selects, restyled) + "click any field to edit" hint. Header:
   `Start focus` + `Complete` buttons. **Four columns only** (2026-08-04): the
-  estimate editor that used to be a 5th POMODOROS column moved into the weekly
-  line. **2026-08-05:** the inline `est. N` control was replaced by the shared
-  `PomoEstimatePopover` — click the `{completed}/{estimated}` count to open the
-  same "Adjust Total Pomodoros" popover the Tasks rows use.
-- **POMODOROS THIS WEEK — `X / Y planned` + `Change weekly plan`** (implemented
-  2026-08-01). `weeklyPomodoroPlan?: number` (0–99, absent-stays-absent) on the
-  shared task schema (desktop + mobile normalizers agree: valid finite 0–99
-  preserved, invalid dropped, runaway clamped to 99, explicit 0 respected).
-  `X` = completed focus sessions on the task in the current **local** calendar
-  week (Monday start — never UTC-sliced); `Y` = `weeklyPomodoroPlan ??
-  estimatedPomodoros` (the estimate fallback keeps the line always rendering).
-  Saving the plan writes the field; absent never gets the estimate injected.
+  estimate editor that used to be a 5th POMODOROS column moved into the
+  pomodoro line. **2026-08-05:** the inline `est. N` control was replaced by
+  the shared `PomoEstimatePopover` — the readout IS the editor (see below).
+- **POMODOROS — `X / Y planned` on one row** (2026-08-05; replaces the weekly
+  plan). **Lifetime** totals only: `X` = `completedPomodoros`, `Y` =
+  `estimatedPomodoros`. The readout is clickable — it opens the shared
+  "Adjust Total Pomodoros" popover (hold-to-repeat −/+, 1–20, same component
+  as the Tasks rows). A thin muted bar (4px, `color-mix` of `--color-primary`)
+  flexes to fill the rest of the row and mirrors the same ratio, capped at
+  100%. Label · readout · bar align on one row and fit the modal width.
+- **Weekly pomodoro plan — removed (2026-08-05).** The per-week plan
+  (`weeklyPomodoroPlan` + "Change weekly plan") is gone: a total *and* a
+  weekly counter per task duplicated the same intent with extra complexity,
+  and the Session/Timer inline detail silently showed `0 / N` (it never had
+  the history feed). The field is dropped from `PomodoroTask` and
+  `normalizeTask` (destructure-dropped so the orphaned key never leaks into
+  the typed view); legacy docs keep the key harmlessly in the CRDT
+  (regression: `tests/task-detail-pomodoro.spec.ts` Seam A).
+  `computeWeekTaskPomos` + the review flow are untouched. Desktop-only this
+  week — mobile still ships the weekly plan (ticket
+  `.scratch/pomodoro-weekly-plan-removal-mobile/`).
 - Notes render Markdown links wrapped with a copy button (presentation only).
   The whole block is one Markdown field (not per-line); clicking anywhere in the
   rendered view swaps it for the raw-markdown editor (links/copy still work).
@@ -334,16 +343,16 @@ identically; there is no separate long-break case.
 > **Shipped 2026-08-02:** the header is one row — the `TASK · click any field
 > to edit` eyebrow on its own line, then the title (left) and `Start focus`
 > (cyan `--color-primary`, the screen's single primary action) + `Complete` +
-> close (right) with a separator. The weekly line and the sub-tasks tab each
+> close (right) with a separator. The pomodoro line and the sub-tasks tab each
 > carry a cyan progress bar (`X / Y planned`, `X of Y done`); the sub-task Add
 > button is cyan primary. *(The old "Open: 4 vs 5 property columns" item is
 > resolved — see 2026-08-04 redesign below: four columns, estimate folded into
-> the weekly line.)*
+> the pomodoro line.)*
 
 > **Redesign 2026-08-04 (task-detail grilling session):**
 >
 > - **Pin / scroll.** The header + 4-column properties row are pinned; the body
->   (weekly line → notes → tabs → footer) scrolls beneath them. A long notes
+>   (pomodoro line → notes → tabs → footer) scrolls beneath them. A long notes
 >   block no longer shoves the Sub-tasks/Comments tabs off-screen.
 > - **Notes — autosave, not explicit Save.** This **overrides** the prior
 >   "explicit Save" posture (and the Objectives rule at line 352). Rationale:
@@ -390,9 +399,11 @@ identically; there is no separate long-break case.
 >   `Start focus`/`Complete`/X stay pinned **top-right** — they never wrap below
 >   the title. (Replaces the old `flex-wrap` header, which dropped the buttons to
 >   a new row on long titles.)
-> - **Weekly bar is subtle.** The loud full-width bright-cyan bar became a thin
->   (4px), short (≤160px), muted (`color-mix` of `--color-primary`) hint. The
->   estimate is the focal point via the `PomoEstimatePopover` count beside it.
+> - **Bar is subtle and fills the row.** The loud full-width bright-cyan bar
+>   became a thin (4px), muted (`color-mix` of `--color-primary`) bar that
+>   flexes to fill the row beside the readout. The estimate is the focal
+>   point — the `PomoEstimatePopover` readout IS the count (final state: the
+>   weekly plan was removed the same day, see the POMODOROS bullet above).
 > - **Sub-task reorder: click-select (final).** HTML5 drag-and-drop was adopted
 >   (this bullet's predecessor) and reverted the same day — WKWebView won't
 >   start a drag in a scroll region, so the packaged app never dragged.

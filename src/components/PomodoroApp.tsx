@@ -423,7 +423,6 @@ export default function PomodoroApp({
           }}
           onClose={() => setSelectedDetailTask(null)}
           keyResults={keyResults}
-          history={history}
           onStartFocus={(t) => {
             setActiveTask(t.id);
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));

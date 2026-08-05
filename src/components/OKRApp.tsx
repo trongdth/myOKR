@@ -9,8 +9,8 @@ import {
   cloneCycleStructure, resolveCurrentCycle,
   type OKRCycle, type Objective, type KeyResult,
 } from '../lib/okr-storage';
-import { generateId, loadSettings, saveTasks, isTaskInCycle, buildKrCycleMap, stampUpdatedAt, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
-import { loadTasks, loadHistory } from '../lib/pomodoro-storage';
+import { generateId, loadSettings, saveTasks, isTaskInCycle, buildKrCycleMap, stampUpdatedAt, type PomodoroTask } from '../lib/pomodoro-storage';
+import { loadTasks } from '../lib/pomodoro-storage';
 import { loadHabits, type Habit } from '../lib/habit-storage';
 import CycleSelector from './okr/CycleSelector';
 import ObjectiveCard from './okr/ObjectiveCard';
@@ -27,7 +27,6 @@ export default function OKRApp() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [tasks, setTasks] = useState<PomodoroTask[]>([]);
-  const [history, setHistory] = useState<DailyRecord[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
   const [newObjTitle, setNewObjTitle] = useState('');
@@ -47,7 +46,6 @@ export default function OKRApp() {
       setObjectives(await loadObjectives());
       setKeyResults(await loadKeyResults());
       setTasks(await loadTasks());
-      setHistory(await loadHistory());
       setHabits(await loadHabits());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
@@ -70,7 +68,6 @@ export default function OKRApp() {
       setObjectives(await loadObjectives());
       setKeyResults(await loadKeyResults());
       setTasks(await loadTasks());
-      setHistory(await loadHistory());
       setHabits(await loadHabits());
       const settings = await loadSettings();
       setFocusDuration(settings.focusDuration);
@@ -409,7 +406,6 @@ export default function OKRApp() {
           onDelete={deleteTask}
           onClose={() => setSelectedDetailTask(null)}
           keyResults={keyResults}
-          history={history}
           onStartFocus={() => {
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
             setSelectedDetailTask(null);

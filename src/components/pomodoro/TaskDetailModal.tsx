@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { CheckCircle, X, SquareCheck, MessageSquare, Play, RotateCcw, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
-import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket, DailyRecord } from '../../lib/pomodoro-storage';
-import { generateId, EISENHOWER_META, weeklyPlanProgress, getLocalDateString, reorderTodoItems } from '../../lib/pomodoro-storage';
+import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
+import { generateId, EISENHOWER_META, reorderTodoItems } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
@@ -12,7 +12,7 @@ const Markdown = lazy(() => import('../shared/Markdown'));
 type DetailTab = 'todos' | 'comments';
 type PendingDelete = { kind: 'todo' | 'comment' | 'task'; id: string } | null;
 
-/** Progress percentage 0–100, divide-by-zero safe (weekly + sub-task bars). */
+/** Progress percentage 0–100, divide-by-zero safe (pomodoro + sub-task bars). */
 const pct = (done: number, total: number) =>
   total > 0 ? Math.min(100, (done / total) * 100) : 0;
 
@@ -53,11 +53,9 @@ interface Props {
   onDelete: (id: string) => void;
   keyResults?: KeyResult[];
   onStartFocus?: (task: PomodoroTask) => void;
-  /** Session history — powers the POMODOROS THIS WEEK readout (P4). */
-  history?: DailyRecord[];
 }
 
-export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, keyResults = [], onStartFocus, history = [] }: Props) {
+export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, keyResults = [], onStartFocus }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -66,8 +64,6 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
   const [newComment, setNewComment] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleText, setEditingTitleText] = useState(task.title);
-  const [editingWeeklyPlan, setEditingWeeklyPlan] = useState(false);
-  const [weeklyPlanDraft, setWeeklyPlanDraft] = useState('');
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingTodoText, setEditingTodoText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -89,39 +85,8 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
   const todos: TodoItem[] = task.todos || [];
   const comments: TaskComment[] = task.comments || [];
 
-  // P4: POMODOROS THIS WEEK — current calendar week (Monday start), numerator
-  // from the session history, denominator = weekly plan ?? estimate.
-  // History dates are LOCAL (getLocalDateString) — never UTC-slice, or the
-  // window shifts a day in UTC+X timezones (see mobile mirror).
-  const weekRange = useMemo(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + mondayOffset);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return {
-      start: getLocalDateString(monday),
-      end: getLocalDateString(sunday),
-    };
-  }, []);
-  const weekly = weeklyPlanProgress(task, history, weekRange.start, weekRange.end);
   const doneCount = todos.filter(t => t.completed).length;
   const nowMs = Date.now();
-
-  const saveWeeklyPlan = () => {
-    // Empty input must not be silently dropped: parseInt('', 10) is NaN, which
-    // used to skip the update and close the editor with no visible change.
-    // Treat empty as an explicit plan of 0 (consistent with the 0-plan rule:
-    // no fallback to the estimate).
-    const raw = weeklyPlanDraft.trim();
-    const value = raw === '' ? 0 : parseInt(raw, 10);
-    if (Number.isFinite(value)) {
-      onUpdate({ ...task, weeklyPomodoroPlan: Math.max(0, Math.min(99, value)) });
-    }
-    setEditingWeeklyPlan(false);
-  };
 
   useModalEffects(onClose);
 
@@ -375,7 +340,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
           </div>
 
           {/* Properties strip — mockup's 4 columns (the 5th POMODOROS column was
-              folded into the weekly line below; see docs/design-system.md P4). */}
+              folded into the pomodoro line below; see docs/design-system.md P4). */}
           <div className="detail-properties-bar">
             <div className="prop-group">
               <span className="prop-label">PRIORITY</span>
@@ -429,61 +394,28 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
           </div>
         </div>
 
-        {/* Scrolling body: weekly line → notes → tabs → footer */}
+        {/* Scrolling body: pomodoro line → notes → tabs → footer */}
         <div className="detail-scroll-body">
-          {/* P4: POMODOROS THIS WEEK — completed-this-week / planned + Change weekly plan,
-              plus the estimate editor (est. N) folded in here from the old 5th column. */}
+          {/* P4: POMODOROS — total completed / estimated on one row. The readout
+              IS the estimate editor: click `2 / 4 planned` to open the shared
+              Adjust Total Pomodoros popover (same component as the Tasks rows).
+              The bar mirrors the same completed/estimated ratio. */}
           <div className="weekly-plan-block">
-            <span className="prop-label">POMODOROS THIS WEEK</span>
-            {editingWeeklyPlan ? (
-              <div className="weekly-plan-editor">
-                <span className="pomo-mono">{weekly.completed} / </span>
-                <input
-                  type="number"
-                  min="0"
-                  max="99"
-                  className="weekly-plan-input"
-                  value={weeklyPlanDraft}
-                  autoFocus
-                  onChange={e => setWeeklyPlanDraft(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') saveWeeklyPlan();
-                    if (e.key === 'Escape') setEditingWeeklyPlan(false);
-                  }}
-                />
-                <span className="pomo-mono"> planned</span>
-                <button className="weekly-plan-save-btn" onClick={saveWeeklyPlan}>Save</button>
-                <button className="text-btn" onClick={() => setEditingWeeklyPlan(false)}>Cancel</button>
-              </div>
-            ) : (
-              <div className="weekly-plan-readonly">
-                <div className="weekly-plan-readout-group">
-                  <span className="weekly-plan-readout pomo-mono">{weekly.completed} / {weekly.planned} planned</span>
-                  <div className="weekly-plan-bar" role="progressbar"
-                    aria-valuenow={weekly.completed} aria-valuemin={0} aria-valuemax={weekly.planned}>
-                    <div className="weekly-plan-fill"
-                      style={{ width: `${pct(weekly.completed, weekly.planned)}%` }} />
-                  </div>
-                  {/* Estimate editor — reuses the shared Adjust Total Pomodoros
-                      popover (same component as the Tasks rows). Click the
-                      pomodoro count to open it. */}
-                  <PomoEstimatePopover
-                    completed={task.completedPomodoros}
-                    estimated={task.estimatedPomodoros || 1}
-                    onChange={n => onUpdate({ ...task, estimatedPomodoros: n })}
-                  />
-                </div>
-                <button
-                  className="weekly-plan-edit-btn"
-                  onClick={() => {
-                    setWeeklyPlanDraft(String(task.weeklyPomodoroPlan ?? weekly.planned));
-                    setEditingWeeklyPlan(true);
-                  }}
-                >
-                  Change weekly plan
-                </button>
-              </div>
-            )}
+            <span className="prop-label">POMODOROS</span>
+            <PomoEstimatePopover
+              completed={task.completedPomodoros}
+              estimated={task.estimatedPomodoros || 1}
+              suffix="planned"
+              plain
+              showIcon={false}
+              onChange={n => onUpdate({ ...task, estimatedPomodoros: n })}
+            />
+            <div className="weekly-plan-bar" role="progressbar"
+              aria-valuenow={task.completedPomodoros} aria-valuemin={0}
+              aria-valuemax={task.estimatedPomodoros || 1}>
+              <div className="weekly-plan-fill"
+                style={{ width: `${pct(task.completedPomodoros, task.estimatedPomodoros || 1)}%` }} />
+            </div>
           </div>
 
           {/* Notes & Links — one markdown field; click anywhere to edit. */}
