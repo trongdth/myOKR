@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
-import TodayApp from './components/TodayApp';
+import FocusApp from './components/FocusApp';
 import SessionWidget from './components/session/SessionWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
@@ -17,7 +17,6 @@ const ReviewApp = lazy(() => import('./components/ReviewApp'));
 const SettingsApp = lazy(() => import('./components/SettingsApp'));
 const HelpApp = lazy(() => import('./components/HelpApp'));
 const Walkthrough = lazy(() => import('./components/Walkthrough'));
-const HabitsApp = lazy(() => import('./components/HabitsApp'));
 
 export type Section =
   | 'day-plan'
@@ -356,26 +355,28 @@ export default function App() {
           <span className="mobile-topbar-logo"><LogoMark size={20} /> <strong>myOKR</strong></span>
         </div>
 
-        {['session', 'tasks', 'done', 'analytics'].includes(activeSection) && (
+        {['tasks', 'done', 'analytics'].includes(activeSection) && (
           <ErrorBoundary mode="section">
             <PomodoroApp
-              tab={activeSection === 'session' ? 'timer' : activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
-              requestedTaskId={requestedTaskId}
-              onRequestedTaskConsumed={() => setRequestedTaskId(null)}
+              tab={activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
             />
           </ErrorBoundary>
         )}
-        {activeSection === 'day-plan' && (
+        {(activeSection === 'day-plan' || activeSection === 'session' || activeSection === 'habits') && (
           <ErrorBoundary mode="section">
-            <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('tasks')} />
+            <FocusApp
+              key={`focus-${activeSection}${activeSection === 'day-plan' ? `-${todayKey}` : ''}`}
+              tab={activeSection}
+              requestedTaskId={requestedTaskId}
+              onRequestedTaskConsumed={() => setRequestedTaskId(null)}
+              onStartTask={handleStartFromToday}
+              onGoToTasks={() => handleNavClick('tasks')}
+            />
           </ErrorBoundary>
         )}
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
           {activeSection === 'objectives' && (
             <ErrorBoundary mode="section"><OKRApp key="okrs" /></ErrorBoundary>
-          )}
-          {activeSection === 'habits' && (
-            <ErrorBoundary mode="section"><HabitsApp key="habits" /></ErrorBoundary>
           )}
           {activeSection === 'weekly-review' && (
             <ErrorBoundary mode="section"><ReviewApp key="review" /></ErrorBoundary>

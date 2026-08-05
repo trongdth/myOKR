@@ -184,11 +184,12 @@ test.describe('Habits Tab Layout and Title Styles', () => {
     const syncPaddingLeft = await syncContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(syncPaddingLeft, 10)).toBeGreaterThan(0);
 
-    // 4. Check Habits tab
+    // 4. Check Habits tab — embedded in the Focus shell, so its horizontal padding
+    //    comes from .focus-shell-inner (.habits-container's own is neutralised).
     await clickNav('Habits');
     const habitsContainer = page.locator('.habits-container');
     await expect(habitsContainer).toBeVisible();
-    const habitsPaddingLeft = await habitsContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
+    const habitsPaddingLeft = await page.locator('.focus-shell-inner').first().evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(habitsPaddingLeft, 10)).toBeGreaterThan(0);
   });
 });

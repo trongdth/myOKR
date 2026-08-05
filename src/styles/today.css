@@ -6,10 +6,10 @@
     - responsive 2a/2b tiers via a single .today-body grid-template-areas.
 */
 
+/* The Day plan dashboard body. Padding/max-width now live on the Focus shell
+   (.focus-shell / .focus-shell-inner) for parity with the Plan group — this just
+   lays out its children. */
 .today-dashboard {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;

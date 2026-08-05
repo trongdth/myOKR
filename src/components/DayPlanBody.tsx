@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, Check, ClipboardList, Plus, ChevronRight } from 'lucide-react';
+import { Check, ClipboardList, Plus, ChevronRight } from 'lucide-react';
 
 const RING_RADIUS = 52;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -36,12 +36,16 @@ import LoadingState from './shared/LoadingState';
 import { EmptyState } from './shared/EmptyState';
 import '../styles/today.css';
 
-interface TodayAppProps {
+interface DayPlanBodyProps {
+  /** Incremented by the Focus shell's "Plan day" button to trigger a replan. */
+  replanSignal: number;
   onStartTask: (taskId: string) => void;
   onGoToTasks: () => void;
 }
 
-export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
+/** The Day plan tab body — the daily dashboard. Rendered inside the Focus shell
+ *  (header + tab strip live in FocusApp); this owns the dashboard data + logic. */
+export default function DayPlanBody({ replanSignal, onStartTask, onGoToTasks }: DayPlanBodyProps) {
   const [displayed, setDisplayed] = useState<ScoredTask[]>([]);
   const [activeTaskCount, setActiveTaskCount] = useState(0);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
@@ -102,11 +106,22 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
 
   useEffect(() => {
     const handleSync = () => {
-      compute();
+      compute().catch(err => {
+        console.error('Failed to recompute today list on sync:', err);
+      });
     };
     window.addEventListener('myokr-data-synced', handleSync);
     return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, [compute]);
+
+  // "Plan day" (Focus shell header) triggers a full replan from scratch.
+  useEffect(() => {
+    if (replanSignal > 0) {
+      compute({ reset: true, shuffleTies: true }).catch(err => {
+        console.error('Failed to replan day:', err);
+      });
+    }
+  }, [replanSignal, compute]);
 
   const handleStart = (taskId: string) => {
     onStartTask(taskId);
@@ -122,10 +137,6 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
       });
     }
     compute();
-  };
-
-  const handleReplan = () => {
-    compute({ reset: true, shuffleTies: true });
   };
 
   const handlePromoteToNow = (promoteIdx: number) => {
@@ -283,38 +294,10 @@ export default function TodayApp({ onStartTask, onGoToTasks }: TodayAppProps) {
 
   const habitsTickedTodayCount = habits.filter(h => h.ticks.includes(todayStr)).length;
 
-  // Format date header string
-  const now = new Date();
-  const formattedDateStr = now.toLocaleDateString('en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-  });
-  const cycleWeekStr = activeCycle
-    ? `${formattedDateStr} · active cycle`
-    : formattedDateStr;
-
   const remainingBacklogCount = Math.max(0, activeTaskCount - displayed.length);
 
   return (
     <div className="today-dashboard">
-      {/* Header section */}
-      <header className="today-header">
-        <div className="today-title-group">
-          <h1 className="today-title">Today's Focus</h1>
-          <div className="today-date-subtitle">{cycleWeekStr}</div>
-        </div>
-
-        <button
-          onClick={handleReplan}
-          className="today-replan-btn"
-          title="Recompute today's plan from scratch"
-        >
-          <RefreshCw size={13} />
-          <span>Replan day</span>
-        </button>
-      </header>
-
       {/* Empty State fallback when no tasks exist */}
       {displayed.length === 0 ? (
         <div className="today-empty-wrap">

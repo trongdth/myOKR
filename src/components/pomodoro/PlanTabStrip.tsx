@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-
-export function navigateToSection(section: string) {
-  window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: section }));
-}
+import { navigateToSection } from '../../lib/navigation';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 

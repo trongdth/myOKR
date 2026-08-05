@@ -68,6 +68,47 @@ test.describe('Visual regression (1a redesign)', () => {
     });
   }
 
+  // Running-session variant of the timer (ticket 02): stage + start a focus so
+  // the Session tab's `live` badge shows. The ring + digits are masked — the
+  // timer ticks in real time (setInterval), so the deterministic running markers
+  // are the `live` badge and the Pause control, not the elapsed ring.
+  test('timer (running) @1280', async ({ page }) => {
+    await page.locator('[title="Session"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('input[placeholder*="What are you working on?"]').fill('Running Baseline Task');
+    await page.locator('button.add-task-btn').click();
+    await page.locator('.task-item:has-text("Running Baseline Task")').click();
+    await page.locator('.timer-section button:has-text("Start")').click();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveScreenshot('timer-running.png', {
+      fullPage: true,
+      maxDiffPixelRatio: 0.05,
+      mask: [page.locator('.timer-digits'), page.locator('.timer-ring-svg')],
+    });
+  });
+
+  // Habits tab with a seeded 2/3-completed set (ticket 03). The default 'habits'
+  // capture above is the empty (0-habits) seed; this is the populated variant.
+  test('habits (seeded 2/3) @1280', async ({ page }) => {
+    await page.evaluate(async () => {
+      const { saveHabits } = await import('/src/lib/habit-storage.ts');
+      const { getLocalDateString } = await import('/src/lib/pomodoro-storage.ts');
+      const today = getLocalDateString();
+      const ts = '2026-01-01T00:00:00Z';
+      await saveHabits([
+        { id: 'h1', name: 'Read 20 pages', status: 'in_progress', ticks: [today], order: 0, createdAt: ts, updatedAt: ts },
+        { id: 'h2', name: 'Morning workout', status: 'in_progress', ticks: [today], order: 1, createdAt: ts, updatedAt: ts },
+        { id: 'h3', name: 'No screens after 22:00', status: 'want_to_form', ticks: [], order: 2, createdAt: ts, updatedAt: ts },
+      ]);
+    });
+    await page.locator('[title="Habits"]').first().click();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveScreenshot('habits-seeded.png', {
+      fullPage: true,
+      maxDiffPixelRatio: 0.05,
+    });
+  });
+
   // P4 flagship: the Task detail modal — header (title + cyan Start focus +
   // actions on one row), properties strip, POMODOROS bar, notes, and
   // sub-tasks tabs. Seeded rich data: 8/20 completed/estimated so the

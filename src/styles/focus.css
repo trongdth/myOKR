@@ -1,0 +1,66 @@
+/*
+  Focus group shell — mirrors the Plan-group shell EXACTLY (design-system.md:
+  padding parity is a hard constraint; drift fails CI). The outer element carries
+  .pomodoro-container (same as .pomodoro-container.plan-group-shell) so it
+  inherits the base + responsive padding: 1em 0 3em; ≤932px → 1em 1em 3em;
+  ≤768px → 0.5em. .focus-shell only widens the max-width to 1280px, exactly like
+  .plan-group-shell. The inner mirrors .tasks-view-container (padding + rhythm).
+*/
+
+/* Outer — widen the pomodoro-container shell to 1280px (cf. .plan-group-shell).
+   Compound selector so it beats .pomodoro-container's 900px by specificity. */
+.pomodoro-container.focus-shell {
+  max-width: 1280px;
+}
+
+/* Inner — mirrors .tasks-view-container: 1.25rem padding + flex-column rhythm
+   between header / tab strip / body. */
+.focus-shell-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* "Plan day" is a SECONDARY (outlined) action so the NOW card's "Start focus"
+   stays the single primary CTA on the Day plan screen (design-system.md). */
+.focus-plan-day-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.focus-plan-day-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* HabitsApp ships its own .habits-container shell (900px, padding 1em 0 3em).
+   Inside the Focus shell it must not double-shell — neutralise it so the habit
+   tracker uses the Focus shell's padding/max-width. */
+.focus-shell-inner > .habits-container {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Responsive: hide the cycle label below 900px (the tab row stays). An exception
+   to "nothing hidden, only re-stacked" — a tab-row context label has nowhere
+   useful to re-stack to (ADR-0014 / design-system.md). */
+@media (max-width: 900px) {
+  .focus-shell .plan-tab-strip .plan-cycle-week {
+    display: none;
+  }
+}
