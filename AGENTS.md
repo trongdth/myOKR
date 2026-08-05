@@ -21,3 +21,17 @@ plus its own per-screen section in that doc.
   - Tech Stack: Flutter (Dart) + Rust (`flutter_rust_bridge`).
   - Tests: `cd mobile && flutter test` · Rust check: `cd mobile/rust && cargo check`
   - Directive: When modifying shared Automerge CRDT schemas, persistence rules, or domain logic, inspect and update `mobile/` alongside desktop code.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues via the `gh` CLI (remote is `github.com:trongdth/myOKR`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

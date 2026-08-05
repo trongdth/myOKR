@@ -36,3 +36,8 @@ CONTEXT.md
 
 # MCP
 .playwright-mcp/
+.docker-node_modules/
+
+# Playwright artifacts (CI uploads them on failure; never commit)
+test-results/
+playwright-report/

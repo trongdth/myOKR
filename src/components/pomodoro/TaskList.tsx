@@ -4,9 +4,9 @@ import type { PomodoroTask, EisenhowerCategory } from '../../lib/pomodoro-storag
 import { generateId, EISENHOWER_META, displayedPomoCount } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 import ConfirmModal from '../ConfirmModal';
 import TaskDetailModal from './TaskDetailModal';
+import PomoEstimatePopover from './PomoEstimatePopover';
 
 function truncateDescription(desc: string, maxWords: number = 10): { text: string; truncated: boolean } {
   const words = desc.trim().split(/\s+/);
@@ -116,60 +116,6 @@ function CategorySelector({ value, onChange }: { value: EisenhowerCategory; onCh
               </button>
             );
           })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PomoEstimatePopover({ completed, estimated, onChange }: { completed: number; estimated: number; onChange: (n: number) => void }) {
-  const [open, setOpen] = useState(false);
-  const [tempValue, setTempValue] = useState(estimated);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, open, () => setOpen(false));
-
-  const holdDec = useHoldRepeat(
-    () => setTempValue(p => Math.max(1, p - 1)),
-    () => tempValue > 1,
-  );
-  const holdInc = useHoldRepeat(
-    () => setTempValue(p => Math.min(20, p + 1)),
-    () => tempValue < 20,
-  );
-
-  const handleOpen = () => {
-    setTempValue(estimated);
-    setOpen(true);
-  };
-
-  const handleConfirm = () => {
-    onChange(tempValue);
-    setOpen(false);
-  };
-
-  return (
-    <div className="pomo-estimate-wrapper" ref={ref}>
-      <div
-        className="task-pomodoros"
-        onClick={e => { e.stopPropagation(); handleOpen(); }}
-        title="Click to set estimated pomodoros"
-        style={{ cursor: 'pointer' }}
-      >
-        <span className="task-pomo-icon main-icon"><Timer size={14} /></span>
-        <span className="task-pomo-count">{completed}/{estimated}</span>
-      </div>
-      {open && (
-        <div className="pomo-estimate-popover" onClick={e => e.stopPropagation()}>
-          <div className="pomo-popover-title">Adjust Total Pomodoros</div>
-          <div className="pomo-popover-counter">
-            <button className="pomo-counter-btn" {...holdDec}>−</button>
-            <span className="pomo-counter-value">{tempValue}</span>
-            <button className="pomo-counter-btn" {...holdInc}>+</button>
-          </div>
-          <div className="pomo-popover-actions">
-            <button className="pomo-popover-cancel" onClick={() => setOpen(false)}>Cancel</button>
-            <button className="pomo-popover-confirm" onClick={handleConfirm}>Confirm</button>
-          </div>
         </div>
       )}
     </div>
@@ -333,6 +279,15 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
     setDetailTask(updated);
   };
 
+  // TaskDetailModal's Delete-task action. The modal already confirms via its own
+  // ConfirmModal, so this performs the removal directly (mirrors confirmDelete
+  // minus the second confirm) and closes the detail view.
+  const handleDetailDelete = (id: string) => {
+    if (activeTaskId === id) onSetActive(null);
+    onTasksChange(tasks.filter(t => t.id !== id));
+    setDetailTask(null);
+  };
+
   const activeTasks = filteredTasks.filter(t => !t.isCompleted);
   const completedTasks = filteredTasks.filter(t => t.isCompleted);
 
@@ -415,8 +370,8 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
             task={detailTask}
             onUpdate={handleDetailUpdate}
             onClose={() => setDetailTask(null)}
+            onDelete={handleDetailDelete}
             keyResults={keyResults}
-            activeFocusTaskId={activeFocusTaskId}
           />
         )}
       </div>
@@ -615,9 +570,9 @@ function TaskList({ tasks, activeTaskId, onTasksChange, onSetActive, keyResults 
         <TaskDetailModal
           task={detailTask}
           onUpdate={handleDetailUpdate}
+          onDelete={handleDetailDelete}
           onClose={() => setDetailTask(null)}
           keyResults={keyResults}
-          activeFocusTaskId={activeFocusTaskId}
         />
       )}
     </div>

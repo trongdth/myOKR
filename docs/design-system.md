@@ -290,9 +290,12 @@ identically; there is no separate long-break case.
   *in this cycle* (ADR-0012).
 - **Responsive ≤1100px (P2)**: Today + This week stay open; **Backlog collapses
   to a slim bar** (`Backlog · N · X pomos`, "drop a card here to defer it")
-  that expands to a mini-list on click. No HTML5 drag-drop anywhere (ADR-0010);
-  moving/deferring and re-ordering use click-select → click-target, matching
-  UP NEXT in Day Plan.
+  that expands to a mini-list on click. **Board bucket-moving/deferring uses
+  click-select → click-target, matching UP NEXT** — and so does **in-list
+  reordering (Task-detail sub-tasks): click-select** (2026-08-05; HTML5
+  drag-and-drop was tried and is dead in the packaged app — see the P4
+  section).
+  as precedent). The grip handle is the drag source; drop on a row inserts above.
 
 ### List view (P3, structural parity)
 
@@ -308,16 +311,31 @@ identically; there is no separate long-break case.
 
 - Properties row across the top: PRIORITY · BUCKET · DUE · KEY RESULT
   (existing selects, restyled) + "click any field to edit" hint. Header:
-  `Start focus` + `Complete` buttons.
-- **POMODOROS THIS WEEK — `X / Y planned` + `Change weekly plan`** (implemented
-  2026-08-01). `weeklyPomodoroPlan?: number` (0–99, absent-stays-absent) on the
-  shared task schema (desktop + mobile normalizers agree: valid finite 0–99
-  preserved, invalid dropped, runaway clamped to 99, explicit 0 respected).
-  `X` = completed focus sessions on the task in the current **local** calendar
-  week (Monday start — never UTC-sliced); `Y` = `weeklyPomodoroPlan ??
-  estimatedPomodoros` (the estimate fallback keeps the line always rendering).
-  Saving the plan writes the field; absent never gets the estimate injected.
+  `Start focus` + `Complete` buttons. **Four columns only** (2026-08-04): the
+  estimate editor that used to be a 5th POMODOROS column moved into the
+  pomodoro line. **2026-08-05:** the inline `est. N` control was replaced by
+  the shared `PomoEstimatePopover` — the readout IS the editor (see below).
+- **POMODOROS — `X / Y planned` on one row** (2026-08-05; replaces the weekly
+  plan). **Lifetime** totals only: `X` = `completedPomodoros`, `Y` =
+  `estimatedPomodoros`. The readout is clickable — it opens the shared
+  "Adjust Total Pomodoros" popover (hold-to-repeat −/+, 1–20, same component
+  as the Tasks rows). A thin muted bar (4px, `color-mix` of `--color-primary`)
+  flexes to fill the rest of the row and mirrors the same ratio, capped at
+  100%. Label · readout · bar align on one row and fit the modal width.
+- **Weekly pomodoro plan — removed (2026-08-05).** The per-week plan
+  (`weeklyPomodoroPlan` + "Change weekly plan") is gone: a total *and* a
+  weekly counter per task duplicated the same intent with extra complexity,
+  and the Session/Timer inline detail silently showed `0 / N` (it never had
+  the history feed). The field is dropped from `PomodoroTask` and
+  `normalizeTask` (destructure-dropped so the orphaned key never leaks into
+  the typed view); legacy docs keep the key harmlessly in the CRDT
+  (regression: `tests/task-detail-pomodoro.spec.ts` Seam A).
+  `computeWeekTaskPomos` + the review flow are untouched. Desktop-only this
+  week — mobile still ships the weekly plan (ticket
+  `.scratch/pomodoro-weekly-plan-removal-mobile/`).
 - Notes render Markdown links wrapped with a copy button (presentation only).
+  The whole block is one Markdown field (not per-line); clicking anywhere in the
+  rendered view swaps it for the raw-markdown editor (links/copy still work).
 - Sub-tasks / comments as equal-weight tabs **only where the model has the
   data** (comments exist on the task type; an empty tab shows the empty state,
   never a dead end).
@@ -325,11 +343,71 @@ identically; there is no separate long-break case.
 > **Shipped 2026-08-02:** the header is one row — the `TASK · click any field
 > to edit` eyebrow on its own line, then the title (left) and `Start focus`
 > (cyan `--color-primary`, the screen's single primary action) + `Complete` +
-> close (right) with a separator. The weekly line and the sub-tasks tab each
+> close (right) with a separator. The pomodoro line and the sub-tasks tab each
 > carry a cyan progress bar (`X / Y planned`, `X of Y done`); the sub-task Add
-> button is cyan primary. **Open:** the mockup draws 4 property columns
-> (Priority · Bucket · Due · Key Result) but the shipped strip keeps a 5th
-> POMODOROS column (the estimate editor) — reconciling is pending.
+> button is cyan primary. *(The old "Open: 4 vs 5 property columns" item is
+> resolved — see 2026-08-04 redesign below: four columns, estimate folded into
+> the pomodoro line.)*
+
+> **Redesign 2026-08-04 (task-detail grilling session):**
+>
+> - **Pin / scroll.** The header + 4-column properties row are pinned; the body
+>   (pomodoro line → notes → tabs → footer) scrolls beneath them. A long notes
+>   block no longer shoves the Sub-tasks/Comments tabs off-screen.
+> - **Notes — autosave, not explicit Save.** This **overrides** the prior
+>   "explicit Save" posture (and the Objectives rule at line 352). Rationale:
+>   autosave-on-blur cannot lose a long note the way a forgotten explicit Save
+>   can, so it serves the original "losing a long note is unacceptable" goal
+>   better. **Blur-autosave / ⌘+Enter save / Esc revert** — never per-keystroke
+>   (the persistence-rules line still holds; a blur write is one `onUpdate`, not
+>   a keystroke write). Esc sets a guard ref so the imminent blur-save is skipped
+>   and the revert wins.
+> - **Notes cap + Expand.** Rendered notes cap at 220px with a bottom fade and a
+>   `N lines · M chars` count; a separate **Expand** chevron toggles a full
+>   read view (clicking the text still swaps to edit — two distinct click
+>   targets). The edit textarea is also capped ~220px with internal scroll.
+> - **Sub-tasks.** Checkbox commits instantly (existing); click the label to
+>   edit in place (Enter/click-away autosaves, Esc reverts); `×` opens a
+>   `ConfirmModal` then deletes (no undo toast — considered and skipped).
+>   **Reorder is click-select** — grip click picks the row up (it glows), a
+>   click on another row places it *above* that row, Esc / re-click cancels.
+>   HTML5 drag-and-drop was adopted on 2026-08-05 and **reverted the same day**:
+>   WKWebView (the packaged macOS app) never initiates a drag inside a scrollable
+>   region — an instrumented repro shows **zero drag events** when the list
+>   overflows, and the modal body always scrolls. (`PrioritizeModal`'s drag
+>   survives only because its grid never scrolls; the sub-task grip being a
+>   `<button>` was a red herring — a `<div draggable>` fails identically.)
+>   Click-select needs only plain clicks, so it works in every engine.
+>   Show all sub-tasks (no collapse).
+> - **Comments.** Click the label to edit in place (Enter/click-away autosaves);
+>   `×` opens a `ConfirmModal` then deletes (comments previously deleted
+>   silently — they now match the sub-task confirm). Chronological, not
+>   reorderable.
+> - **Footer.** `Created {date} · updated {rel} · {n} pomodoros logged` + a red
+>   `Delete task` (→ `ConfirmModal` → new `onDelete` prop). "updated" reads a
+>   new `updatedAt?: string` on `PomodoroTask` (falls back to `completedAt ??
+>   createdAt` for legacy tasks), stamped centrally in `handleTasksChange`
+>   (SessionProvider) on every edit path — and in `OKRApp.updateTask`, which
+>   holds its own task state. Mobile mirrors the stamp in `_saveTask`; its
+>   normalizer already preserves the field.
+> - **Title.** Click to edit in place (Enter/blur saves, Esc cancels); the
+>   pencil edit-icon was dropped — `cursor:text` + the eyebrow cover affordance.
+>
+> **Follow-up 2026-08-05 (task-detail feedback round 2):**
+> - **Header is a 2-row grid** (`eyebrow` row; `title | actions` row,
+>   `align-items: start`). A long title wraps to 2 lines inside its cell while
+>   `Start focus`/`Complete`/X stay pinned **top-right** — they never wrap below
+>   the title. (Replaces the old `flex-wrap` header, which dropped the buttons to
+>   a new row on long titles.)
+> - **Bar is subtle and fills the row.** The loud full-width bright-cyan bar
+>   became a thin (4px), muted (`color-mix` of `--color-primary`) bar that
+>   flexes to fill the row beside the readout. The estimate is the focal
+>   point — the `PomoEstimatePopover` readout IS the count (final state: the
+>   weekly plan was removed the same day, see the POMODOROS bullet above).
+> - **Sub-task reorder: click-select (final).** HTML5 drag-and-drop was adopted
+>   (this bullet's predecessor) and reverted the same day — WKWebView won't
+>   start a drag in a scroll region, so the packaged app never dragged.
+>   Click-select (grip pick-up → row place → Esc cancels) works everywhere.
 
 ### Done (P5, flagship)
 

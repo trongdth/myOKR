@@ -4,7 +4,10 @@ import { test, expect } from '@playwright/test';
  * Visual regression for the 1a UI redesign. Snapshots are deterministic:
  * `Date` is frozen so seed data + displayed dates don't drift, and the live
  * Pomodoro timer digits are masked. Baselines live in
- * `tests/visual-regression.spec.ts-snapshots/`; regenerate with --update-snapshots.
+ * `tests/visual-regression.spec.ts-snapshots/`. After a UI change, regenerate
+ * BOTH platform baselines together with `npm run snapshots:regen` (darwin
+ * locally + linux in a container) — CI reads the `*-linux.png` files, and a
+ * darwin-only regen is how the task-detail baseline went stale on CI.
  *
  * This is deliberately a separate file from screenshots.spec.ts (which captures
  * the README assets) so the two concerns don't collide.
@@ -107,9 +110,9 @@ test.describe('Visual regression (1a redesign)', () => {
   });
 
   // P4 flagship: the Task detail modal — header (title + cyan Start focus +
-  // actions on one row), properties strip, POMODOROS THIS WEEK bar, notes, and
-  // sub-tasks tabs. Seeded rich data incl. 4 completed focus sessions this week
-  // so the weekly bar renders ~80% filled.
+  // actions on one row), properties strip, POMODOROS bar, notes, and
+  // sub-tasks tabs. Seeded rich data: 8/20 completed/estimated so the
+  // POMODOROS bar renders 40% filled.
   test('task-detail @1280', async ({ page }) => {
     await page.evaluate(async () => {
       const storage = await import('/src/lib/pomodoro-storage.ts');
@@ -119,7 +122,7 @@ test.describe('Visual regression (1a redesign)', () => {
       await okr.saveKeyResults([{ id: 'k1', objectiveId: 'o1', title: 'Pass CCA certification', targetValue: 30, currentValue: 11, unit: 'pomodoros', confidence: 'on_track', completionMode: 'focus_pomodoros', order: 0, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-12T00:00:00Z' }]);
       await storage.saveTasks([{
         id: 'td1', title: '[CCA] Exam', category: 'decide', bucket: 'today', dueDate: '2026-01-31',
-        keyResultId: 'k1', estimatedPomodoros: 20, weeklyPomodoroPlan: 5, completedPomodoros: 8,
+        keyResultId: 'k1', estimatedPomodoros: 20, completedPomodoros: 8,
         isCompleted: false, createdAt: '2026-01-05T10:00:00Z',
         description: '1. Read the [CCA study guide](https://example.com/guide)\n2. Practice exams\n3. Review weak areas',
         todos: [
@@ -130,15 +133,6 @@ test.describe('Visual regression (1a redesign)', () => {
         ],
         comments: [],
       }]);
-      // FROZEN = 2026-01-15 (Thu); week = Mon 01-12 .. Sun 01-18.
-      const session = (day: string, h: number) => ({
-        startedAt: `${day}T0${h}:00:00Z`, endedAt: `${day}T0${h}:25:00Z`,
-        type: 'focus' as const, taskId: 'td1', completed: true,
-      });
-      await storage.saveHistory([
-        { date: '2026-01-13', completedPomodoros: 2, totalFocusMinutes: 50, tasksCompleted: 0, sessions: [session('2026-01-13', 9), session('2026-01-13', 10)] },
-        { date: '2026-01-14', completedPomodoros: 2, totalFocusMinutes: 50, tasksCompleted: 0, sessions: [session('2026-01-14', 9), session('2026-01-14', 10)] },
-      ]);
     });
 
     await page.locator('[title="Plan"]').first().click();
