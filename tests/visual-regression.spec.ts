@@ -84,6 +84,28 @@ test.describe('Visual regression (1a redesign)', () => {
     });
   });
 
+  // Habits tab with a seeded 2/3-completed set (ticket 03). The default 'habits'
+  // capture above is the empty (0-habits) seed; this is the populated variant.
+  test('habits (seeded 2/3) @1280', async ({ page }) => {
+    await page.evaluate(async () => {
+      const { saveHabits } = await import('/src/lib/habit-storage.ts');
+      const { getLocalDateString } = await import('/src/lib/pomodoro-storage.ts');
+      const today = getLocalDateString();
+      const ts = '2026-01-01T00:00:00Z';
+      await saveHabits([
+        { id: 'h1', name: 'Read 20 pages', status: 'in_progress', ticks: [today], order: 0, createdAt: ts, updatedAt: ts },
+        { id: 'h2', name: 'Morning workout', status: 'in_progress', ticks: [today], order: 1, createdAt: ts, updatedAt: ts },
+        { id: 'h3', name: 'No screens after 22:00', status: 'want_to_form', ticks: [], order: 2, createdAt: ts, updatedAt: ts },
+      ]);
+    });
+    await page.locator('[title="Habits"]').first().click();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveScreenshot('habits-seeded.png', {
+      fullPage: true,
+      maxDiffPixelRatio: 0.05,
+    });
+  });
+
   // P4 flagship: the Task detail modal — header (title + cyan Start focus +
   // actions on one row), properties strip, POMODOROS THIS WEEK bar, notes, and
   // sub-tasks tabs. Seeded rich data incl. 4 completed focus sessions this week

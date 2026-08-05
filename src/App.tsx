@@ -17,7 +17,6 @@ const ReviewApp = lazy(() => import('./components/ReviewApp'));
 const SettingsApp = lazy(() => import('./components/SettingsApp'));
 const HelpApp = lazy(() => import('./components/HelpApp'));
 const Walkthrough = lazy(() => import('./components/Walkthrough'));
-const HabitsApp = lazy(() => import('./components/HabitsApp'));
 
 export type Section =
   | 'day-plan'
@@ -363,10 +362,10 @@ export default function App() {
             />
           </ErrorBoundary>
         )}
-        {(activeSection === 'day-plan' || activeSection === 'session') && (
+        {(activeSection === 'day-plan' || activeSection === 'session' || activeSection === 'habits') && (
           <ErrorBoundary mode="section">
             <FocusApp
-              key={activeSection === 'day-plan' ? `focus-day-plan-${todayKey}` : 'focus-session'}
+              key={`focus-${activeSection}${activeSection === 'day-plan' ? `-${todayKey}` : ''}`}
               tab={activeSection}
               requestedTaskId={requestedTaskId}
               onRequestedTaskConsumed={() => setRequestedTaskId(null)}
@@ -378,9 +377,6 @@ export default function App() {
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
           {activeSection === 'objectives' && (
             <ErrorBoundary mode="section"><OKRApp key="okrs" /></ErrorBoundary>
-          )}
-          {activeSection === 'habits' && (
-            <ErrorBoundary mode="section"><HabitsApp key="habits" /></ErrorBoundary>
           )}
           {activeSection === 'weekly-review' && (
             <ErrorBoundary mode="section"><ReviewApp key="review" /></ErrorBoundary>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DayPlanBody from './DayPlanBody';
 import SessionView from './focus/SessionView';
+import HabitsApp from './HabitsApp';
 import FocusTabStrip, { FocusHeader, type FocusTab } from './focus/FocusTabStrip';
 import { cycleWeekLabel } from './pomodoro/PlanTabStrip';
 import { getActiveCycle, type OKRCycle } from '../lib/okr-storage';
@@ -51,7 +52,7 @@ export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed
         {tab === 'session' && (
           <SessionView requestedTaskId={requestedTaskId} onRequestedTaskConsumed={onRequestedTaskConsumed} />
         )}
-        {/* tab === 'habits' → ticket 03 */}
+        {tab === 'habits' && <HabitsApp />}
       </div>
     </div>
   );

@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { navigateToSection } from '../pomodoro/PlanTabStrip';
 import { useSession } from '../session/SessionProvider';
+import { loadHabits, type Habit } from '../../lib/habit-storage';
+import { getLocalDateString } from '../../lib/pomodoro-storage';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -61,6 +64,23 @@ function SessionLiveBadge() {
   return <span className="plan-tab-count focus-tab-live">live</span>;
 }
 
+/** Today's habit completion (e.g. 2/3) on the Habits tab; hidden when there are
+ *  no habits. Loads on mount + on `myokr-data-synced` (HabitsApp dispatches it
+ *  on every add/tick/untick/delete). */
+function HabitsBadge() {
+  const [habits, setHabits] = useState<Habit[]>([]);
+  useEffect(() => {
+    const load = () => { loadHabits().then(setHabits).catch(() => {}); };
+    load();
+    window.addEventListener('myokr-data-synced', load);
+    return () => window.removeEventListener('myokr-data-synced', load);
+  }, []);
+  if (habits.length === 0) return null;
+  const today = getLocalDateString();
+  const done = habits.filter(h => h.ticks.includes(today)).length;
+  return <span className="plan-tab-count focus-tab-habits">{done}/{habits.length}</span>;
+}
+
 export default function FocusTabStrip({ active, cycleLabel }: FocusTabStripProps) {
   return (
     <div className="plan-tab-strip focus-tabs">
@@ -86,6 +106,7 @@ export default function FocusTabStrip({ active, cycleLabel }: FocusTabStripProps
           onClick={() => navigateToSection('habits')}
         >
           <span>Habits</span>
+          <HabitsBadge />
         </button>
       </div>
       {cycleLabel && <span className="plan-cycle-week">{cycleLabel}</span>}

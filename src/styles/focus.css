@@ -47,6 +47,15 @@
   color: var(--text-primary);
 }
 
+/* HabitsApp ships its own .habits-container shell (900px, padding 1em 0 3em).
+   Inside the Focus shell it must not double-shell — neutralise it so the habit
+   tracker uses the Focus shell's padding/max-width. */
+.focus-shell-inner > .habits-container {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 /* Responsive: hide the cycle label below 900px (the tab row stays). An exception
    to "nothing hidden, only re-stacked" — a tab-row context label has nowhere
    useful to re-stack to (ADR-0014 / design-system.md). */
