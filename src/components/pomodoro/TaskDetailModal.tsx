@@ -267,11 +267,12 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
     setPendingDelete(null);
   };
 
-  const deleteModalProps = pendingDelete?.kind === 'comment'
-    ? { title: 'Delete comment', message: 'Delete this comment? This cannot be undone.' }
-    : pendingDelete?.kind === 'task'
-      ? { title: 'Delete task', message: `Delete “${task.title}”? This permanently removes the task, its sub-tasks, and comments. This cannot be undone.` }
-      : { title: 'Delete sub-task', message: 'Delete this sub-task? This cannot be undone.' };
+  let deleteModalProps = { title: 'Delete sub-task', message: 'Delete this sub-task? This cannot be undone.' };
+  if (pendingDelete?.kind === 'comment') {
+    deleteModalProps = { title: 'Delete comment', message: 'Delete this comment? This cannot be undone.' };
+  } else if (pendingDelete?.kind === 'task') {
+    deleteModalProps = { title: 'Delete task', message: `Delete “${task.title}”? This permanently removes the task, its sub-tasks, and comments. This cannot be undone.` };
+  }
 
   const notesLong = notesIsLong(task.description || '');
   const updatedIso = task.updatedAt ?? task.completedAt ?? task.createdAt;
