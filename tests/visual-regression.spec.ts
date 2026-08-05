@@ -65,6 +65,25 @@ test.describe('Visual regression (1a redesign)', () => {
     });
   }
 
+  // Running-session variant of the timer (ticket 02): stage + start a focus so
+  // the Session tab's `live` badge shows. The ring + digits are masked — the
+  // timer ticks in real time (setInterval), so the deterministic running markers
+  // are the `live` badge and the Pause control, not the elapsed ring.
+  test('timer (running) @1280', async ({ page }) => {
+    await page.locator('[title="Session"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('input[placeholder*="What are you working on?"]').fill('Running Baseline Task');
+    await page.locator('button.add-task-btn').click();
+    await page.locator('.task-item:has-text("Running Baseline Task")').click();
+    await page.locator('.timer-section button:has-text("Start")').click();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveScreenshot('timer-running.png', {
+      fullPage: true,
+      maxDiffPixelRatio: 0.05,
+      mask: [page.locator('.timer-digits'), page.locator('.timer-ring-svg')],
+    });
+  });
+
   // P4 flagship: the Task detail modal — header (title + cyan Start focus +
   // actions on one row), properties strip, POMODOROS THIS WEEK bar, notes, and
   // sub-tasks tabs. Seeded rich data incl. 4 completed focus sessions this week

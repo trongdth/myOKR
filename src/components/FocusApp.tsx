@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import DayPlanBody from './DayPlanBody';
+import SessionView from './focus/SessionView';
 import FocusTabStrip, { FocusHeader, type FocusTab } from './focus/FocusTabStrip';
 import { cycleWeekLabel } from './pomodoro/PlanTabStrip';
 import { getActiveCycle, type OKRCycle } from '../lib/okr-storage';
@@ -7,6 +8,9 @@ import '../styles/focus.css';
 
 interface FocusAppProps {
   tab: FocusTab;
+  /** Task staged by "Start focus" from the Day plan — consumed by the Session tab. */
+  requestedTaskId?: string | null;
+  onRequestedTaskConsumed?: () => void;
   onStartTask: (taskId: string) => void;
   onGoToTasks: () => void;
 }
@@ -17,7 +21,7 @@ interface FocusAppProps {
  * wrap the existing screen bodies. This ticket wires only the Day plan tab;
  * Session and Habits tabs land in tickets 02/03.
  */
-export default function FocusApp({ tab, onStartTask, onGoToTasks }: FocusAppProps) {
+export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed, onStartTask, onGoToTasks }: FocusAppProps) {
   const [replanSignal, setReplanSignal] = useState(0);
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
 
@@ -44,7 +48,10 @@ export default function FocusApp({ tab, onStartTask, onGoToTasks }: FocusAppProp
             onGoToTasks={onGoToTasks}
           />
         )}
-        {/* tab === 'session' → ticket 02 · tab === 'habits' → ticket 03 */}
+        {tab === 'session' && (
+          <SessionView requestedTaskId={requestedTaskId} onRequestedTaskConsumed={onRequestedTaskConsumed} />
+        )}
+        {/* tab === 'habits' → ticket 03 */}
       </div>
     </div>
   );

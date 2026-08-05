@@ -1,86 +1,48 @@
 import { useState, useEffect } from 'react';
-import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import '../styles/pomodoro.css';
 import type {
   PomodoroSettings, PomodoroTask, DailyRecord,
 } from '../lib/pomodoro-storage';
-import TaskList from './pomodoro/TaskList';
 import TasksView from './pomodoro/TasksView';
 import DoneView from './pomodoro/DoneView';
 import CommandKModal from './pomodoro/CommandKModal';
 import TaskDetailModal from './pomodoro/TaskDetailModal';
 import Analytics from './pomodoro/Analytics';
-import PrioritizeModal from './pomodoro/PrioritizeModal';
 import {
-  loadKeyResults, saveKeyResults, getActiveCycle,
-  loadCycles, saveCycles, loadObjectives, saveObjectives,
-  loadReviews, saveReviews,
+  saveKeyResults, saveCycles, saveObjectives, saveReviews,
+  loadCycles, loadObjectives, loadKeyResults, loadReviews,
   type KeyResult, type OKRCycle, type Objective, type WeeklyReview,
 } from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
-import NumberInput from './NumberInput';
 import LoadingState from './shared/LoadingState';
-import { loadHabits, type Habit } from '../lib/habit-storage';
 import { useSession } from './session/SessionProvider';
+import { useOkrViewData } from '../hooks/useOkrViewData';
 
 export default function PomodoroApp({
   tab,
-  requestedTaskId,
-  onRequestedTaskConsumed,
 }: {
-  tab: 'timer' | 'tasks' | 'analytics' | 'done';
-  requestedTaskId?: string | null;
-  onRequestedTaskConsumed?: () => void;
+  tab: 'tasks' | 'analytics' | 'done';
 }) {
-  const session = useSession();
   const {
     settings, tasks, history,
-    sessionType, isRunning, completedPomos, activeTaskId, activeTask, activeFocusTaskId,
-    isLoading, pulse, progress, minutes, seconds,
-    toggleTimer, resetTimer, switchSession, setActiveTask, updateSetting, handleTasksChange,
+    activeTaskId, activeFocusTaskId,
+    isLoading,
+    setActiveTask, handleTasksChange,
     clearSessionData, importSessionData,
-  } = session;
+  } = useSession();
 
-  // ----- OKR view data (cycle-scoped) — not session runtime -----
-  const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
-  const [objectives, setObjectives] = useState<Objective[]>([]);
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [cycles, setCycles] = useState<OKRCycle[]>([]);
-  const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
+  // ----- OKR view data (cycle-scoped) — shared hook (also used by SessionView) -----
+  const { cycles, activeCycle, keyResults, objectives, habits, reload } = useOkrViewData();
 
   // ----- View-local state -----
   const [selectedDetailTask, setSelectedDetailTask] = useState<PomodoroTask | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showPrioritizeModal, setShowPrioritizeModal] = useState(false);
-  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState(false);
   const [importData, setImportData] = useState<{
     settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[];
     cycles?: OKRCycle[]; objectives?: Objective[]; keyResults?: KeyResult[]; reviews?: WeeklyReview[];
   } | null>(null);
-
-  // ----- Load OKR view data on mount -----
-  useEffect(() => {
-    async function initOkr() {
-      const loadedCycles = await loadCycles();
-      setCycles(loadedCycles);
-      const currCycle = await getActiveCycle();
-      setActiveCycle(currCycle);
-
-      if (currCycle) {
-        const krs = await loadKeyResults();
-        const objs = await loadObjectives();
-        setObjectives(objs);
-        const activeObjs = new Set(objs.filter(o => o.cycleId === currCycle.id).map(o => o.id));
-        setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
-      }
-
-      setHabits(await loadHabits());
-    }
-    initOkr();
-  }, []);
 
   // Global ⌘K Search shortcut
   useEffect(() => {
@@ -94,47 +56,11 @@ export default function PomodoroApp({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Consume requestedTaskId from Today view
+  // Reload OKR view data on the Tasks tab (KR titles may have changed on the OKR
+  // page). Mount + background-sync reloads live in the useOkrViewData hook.
   useEffect(() => {
-    if (requestedTaskId && !isLoading) {
-      setActiveTask(requestedTaskId);
-      onRequestedTaskConsumed?.();
-    }
-  }, [requestedTaskId, isLoading, onRequestedTaskConsumed, setActiveTask]);
-
-  // Reload keyResults when switching tabs (KR titles may have changed on OKR page)
-  useEffect(() => {
-    if (tab === 'tasks' || tab === 'timer') {
-      (async () => {
-        const activeCycle = await getActiveCycle();
-        if (activeCycle) {
-          const krs = await loadKeyResults();
-          const objs = await loadObjectives();
-          setObjectives(objs);
-          const activeObjs = new Set(objs.filter(o => o.cycleId === activeCycle.id).map(o => o.id));
-          setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
-        }
-      })();
-    }
-  }, [tab]);
-
-  // Background sync: reload OKR view data (settings/tasks/history are the provider's job)
-  useEffect(() => {
-    const handleSync = () => {
-      (async () => {
-        const currCycle = await getActiveCycle();
-        if (currCycle) {
-          const krs = await loadKeyResults();
-          const objs = await loadObjectives();
-          setObjectives(objs);
-          const activeObjs = new Set(objs.filter(o => o.cycleId === currCycle.id).map(o => o.id));
-          setKeyResults(krs.filter(kr => activeObjs.has(kr.objectiveId)));
-        }
-      })();
-    };
-    window.addEventListener('myokr-data-synced', handleSync);
-    return () => window.removeEventListener('myokr-data-synced', handleSync);
-  }, []);
+    if (tab === 'tasks') reload();
+  }, [tab, reload]);
 
   // ----- Analytics handlers -----
   const handleExport = async () => {
@@ -184,17 +110,12 @@ export default function PomodoroApp({
   const executeImport = async () => {
     if (!importData) return;
     await importSessionData({ settings: importData.settings, tasks: importData.tasks, history: importData.history });
-    if (importData.cycles) {
-      // Await so getActiveCycle reads the just-saved cycles, then refresh the
-      // active-cycle state — otherwise the pill, PlanTabStrip, and cycle-scoped
-      // filtering keep the pre-import cycle until a reload.
-      await saveCycles(importData.cycles);
-      setCycles(importData.cycles);
-      setActiveCycle(await getActiveCycle());
-    }
-    if (importData.objectives) { saveObjectives(importData.objectives); setObjectives(importData.objectives); }
-    if (importData.keyResults) { saveKeyResults(importData.keyResults); setKeyResults(importData.keyResults); }
-    if (importData.reviews) { saveReviews(importData.reviews); }
+    if (importData.cycles) await saveCycles(importData.cycles);
+    if (importData.objectives) await saveObjectives(importData.objectives);
+    if (importData.keyResults) await saveKeyResults(importData.keyResults);
+    if (importData.reviews) await saveReviews(importData.reviews);
+    // Refresh cycle-scoped view data from storage (active cycle, KRs, objectives, …).
+    await reload();
     setImportData(null);
   };
 
@@ -206,143 +127,12 @@ export default function PomodoroApp({
     await clearSessionData();
   };
 
-  // ----- Timer ring geometry (pure derivation) -----
-  const circumference = 2 * Math.PI * 120;
-  const dashOffset = circumference * (1 - progress);
-  const isBreak = sessionType !== 'focus';
-
   if (isLoading) {
     return <LoadingState className="pomodoro-container" />;
   }
 
   return (
     <div className={`pomodoro-container${tab === 'tasks' || tab === 'done' ? ' plan-group-shell' : ''}`}>
-
-      {/* Timer Tab */}
-      {tab === 'timer' && (
-        <div className="timer-section">
-          {/* Session type tabs */}
-          <div className="session-tabs">
-            <button className={`session-tab${sessionType === 'focus' ? ' active' : ''}`} onClick={() => switchSession('focus')}>Focus</button>
-            <button className={`session-tab${sessionType === 'shortBreak' ? ' active break-tab' : ''}`} onClick={() => switchSession('shortBreak')}>Short Break</button>
-            <button className={`session-tab${sessionType === 'longBreak' ? ' active break-tab' : ''}`} onClick={() => switchSession('longBreak')}>Long Break</button>
-          </div>
-
-          {/* Timer ring */}
-          <div className={`timer-ring-container${pulse ? ' pulse' : ''}`}>
-            <svg className="timer-ring-svg" viewBox="0 0 260 260">
-              <defs>
-                <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#06b6d4" />
-                  <stop offset="100%" stopColor="#a855f7" />
-                </linearGradient>
-              </defs>
-              <circle className="timer-ring-bg" cx="130" cy="130" r="120" />
-              <circle
-                className={`timer-ring-progress${isBreak ? ' break-ring' : ''}`}
-                cx="130" cy="130" r="120"
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-              />
-            </svg>
-            <div className="timer-display">
-              <div className="timer-digits">{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</div>
-              <div className="timer-label">{sessionType === 'focus' ? 'Focus' : sessionType === 'shortBreak' ? 'Short Break' : 'Long Break'}</div>
-            </div>
-          </div>
-
-          {/* Pomodoro count dots */}
-          <div className="pomodoro-count">
-            {Array.from({ length: settings.pomosBeforeLongBreak }, (_, i) => (
-              <div key={i} className={`pomo-dot${i < (completedPomos % settings.pomosBeforeLongBreak) ? ' filled' : ''}`} />
-            ))}
-          </div>
-
-          {/* Controls */}
-          <div className="timer-controls">
-            <button className="btn-icon" onClick={() => setIsConfirmResetOpen(true)} title="Reset"><RotateCcw size={16} /></button>
-            <button className="btn" onClick={toggleTimer}>{isRunning ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Start</>}</button>
-            <button className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings"><Settings size={16} /></button>
-          </div>
-
-          {/* Active task indicator (fixed height to prevent layout shift) */}
-          <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', minHeight: '1.5em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {activeTask ? (
-              <span>Working on: <strong style={{ color: 'var(--accent-cyan)' }}>{activeTask.title}</strong></span>
-            ) : null}
-          </div>
-
-          {/* Settings panel */}
-          {showSettings && (
-            <div className="settings-panel">
-              <div className="settings-grid">
-                <div className="setting-item">
-                  <label className="setting-label">Focus (min)</label>
-                  <NumberInput className="setting-input" min={1} max={120} value={settings.focusDuration}
-                    onChange={val => updateSetting('focusDuration', Math.max(1, Math.min(120, val)))} />
-                </div>
-                <div className="setting-item">
-                  <label className="setting-label">Short Break (min)</label>
-                  <NumberInput className="setting-input" min={1} max={30} value={settings.shortBreakDuration}
-                    onChange={val => updateSetting('shortBreakDuration', Math.max(1, Math.min(30, val)))} />
-                </div>
-                <div className="setting-item">
-                  <label className="setting-label">Long Break (min)</label>
-                  <NumberInput className="setting-input" min={1} max={60} value={settings.longBreakDuration}
-                    onChange={val => updateSetting('longBreakDuration', Math.max(1, Math.min(60, val)))} />
-                </div>
-                <div className="setting-item">
-                  <label className="setting-label">Pomos before long break</label>
-                  <NumberInput className="setting-input" min={1} max={10} value={settings.pomosBeforeLongBreak}
-                    onChange={val => updateSetting('pomosBeforeLongBreak', Math.max(1, Math.min(10, val)))} />
-                </div>
-                <div className="setting-item full-width">
-                  <div className="toggle-row">
-                    <span className="setting-label">Auto-start breaks</span>
-                    <button className={`toggle-switch${settings.autoStartBreaks ? ' on' : ''}`}
-                      onClick={() => updateSetting('autoStartBreaks', !settings.autoStartBreaks)} />
-                  </div>
-                </div>
-                <div className="setting-item full-width">
-                  <div className="toggle-row">
-                    <span className="setting-label">Auto-start focus</span>
-                    <button className={`toggle-switch${settings.autoStartFocus ? ' on' : ''}`}
-                      onClick={() => updateSetting('autoStartFocus', !settings.autoStartFocus)} />
-                  </div>
-                </div>
-                <div className="setting-item full-width">
-                  <div className="toggle-row">
-                    <span className="setting-label">Focus music</span>
-                    <button className={`toggle-switch${settings.focusMusicEnabled ? ' on' : ''}`}
-                      onClick={() => updateSetting('focusMusicEnabled', !settings.focusMusicEnabled)} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Prioritize button + Quick task list on timer tab */}
-          <div className="timer-task-header">
-            <button className="prioritize-btn" onClick={() => setShowPrioritizeModal(true)} title="Prioritize tasks using Eisenhower Matrix">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              Prioritize
-            </button>
-          </div>
-          <TaskList tasks={tasks} activeTaskId={activeTaskId} onTasksChange={handleTasksChange} onSetActive={setActiveTask} keyResults={keyResults} hideCompleted={true} activeFocusTaskId={activeFocusTaskId} />
-
-          {/* Prioritize Modal */}
-          {showPrioritizeModal && (
-            <PrioritizeModal
-              tasks={tasks}
-              activeTaskId={activeTaskId}
-              onTasksChange={handleTasksChange}
-              onClose={() => setShowPrioritizeModal(false)}
-            />
-          )}
-        </div>
-      )}
 
       {/* Tasks Tab */}
       {tab === 'tasks' && (
@@ -427,14 +217,6 @@ export default function PomodoroApp({
         />
       )}
 
-      <ConfirmModal
-        isOpen={isConfirmResetOpen}
-        onClose={() => setIsConfirmResetOpen(false)}
-        onConfirm={resetTimer}
-        title="Reset Timer"
-        message="Reset the current timer session? Progress will be lost."
-        confirmText="Reset"
-      />
       <ConfirmModal
         isOpen={isConfirmClearOpen}
         onClose={() => setIsConfirmClearOpen(false)}

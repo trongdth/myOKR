@@ -1,5 +1,6 @@
 import { RefreshCw } from 'lucide-react';
 import { navigateToSection } from '../pomodoro/PlanTabStrip';
+import { useSession } from '../session/SessionProvider';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -52,6 +53,14 @@ interface FocusTabStripProps {
  * text (no dropdown: the Day plan is today-scoped, nothing to filter). Reuses
  * .plan-tab-strip / .plan-tab styles for parity with the Plan group.
  */
+/** `live` marker on the Session tab while a session runs (any phase). Consumes
+ *  the session provider directly so only this badge re-renders on timer ticks. */
+function SessionLiveBadge() {
+  const { isRunning } = useSession();
+  if (!isRunning) return null;
+  return <span className="plan-tab-count focus-tab-live">live</span>;
+}
+
 export default function FocusTabStrip({ active, cycleLabel }: FocusTabStripProps) {
   return (
     <div className="plan-tab-strip focus-tabs">
@@ -69,6 +78,7 @@ export default function FocusTabStrip({ active, cycleLabel }: FocusTabStripProps
           onClick={() => navigateToSection('session')}
         >
           <span>Session</span>
+          <SessionLiveBadge />
         </button>
         <button
           type="button"

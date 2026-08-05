@@ -356,18 +356,23 @@ export default function App() {
           <span className="mobile-topbar-logo"><LogoMark size={20} /> <strong>myOKR</strong></span>
         </div>
 
-        {['session', 'tasks', 'done', 'analytics'].includes(activeSection) && (
+        {['tasks', 'done', 'analytics'].includes(activeSection) && (
           <ErrorBoundary mode="section">
             <PomodoroApp
-              tab={activeSection === 'session' ? 'timer' : activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
-              requestedTaskId={requestedTaskId}
-              onRequestedTaskConsumed={() => setRequestedTaskId(null)}
+              tab={activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
             />
           </ErrorBoundary>
         )}
-        {activeSection === 'day-plan' && (
+        {(activeSection === 'day-plan' || activeSection === 'session') && (
           <ErrorBoundary mode="section">
-            <FocusApp key={todayKey} tab="day-plan" onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('tasks')} />
+            <FocusApp
+              key={activeSection === 'day-plan' ? `focus-day-plan-${todayKey}` : 'focus-session'}
+              tab={activeSection}
+              requestedTaskId={requestedTaskId}
+              onRequestedTaskConsumed={() => setRequestedTaskId(null)}
+              onStartTask={handleStartFromToday}
+              onGoToTasks={() => handleNavClick('tasks')}
+            />
           </ErrorBoundary>
         )}
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
