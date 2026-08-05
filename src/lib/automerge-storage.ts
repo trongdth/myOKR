@@ -151,17 +151,41 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
       if (!buffer || buffer.length === 0) {
         throw new Error('Local Automerge file is empty');
       }
+      // Dev/test-only: simulate one transient load failure so the retry path
+      // can be proven (see tests/data-corruption.spec.ts). Stripped from prod
+      // bundles with the rest of the DEV hooks. Never set outside tests.
+      if (import.meta.env.DEV && (window as any).__SIMULATE_TRANSIENT_LOAD_FAILURE) {
+        (window as any).__SIMULATE_TRANSIENT_LOAD_FAILURE = false;
+        throw new Error('Simulated transient load failure (test-only)');
+      }
       doc = timed('load', () => Automerge.load<AppState>(buffer));
     } catch (e) {
-      // Last-resort recovery: a truncated/corrupt main file may still have a
-      // valid pre-compaction backup. Surface it loudly, never silent.
-      console.error('Automerge load failed; attempting .bak recovery', e);
-      let backup: Uint8Array | null = null;
+      // A single load() throw is not proof of corruption: WASM init races,
+      // memory pressure, or a read racing an in-flight append write can fail
+      // transiently on a perfectly valid file. Discarding it would replace the
+      // current doc with the stale .bak — the 2026-08-05 incident, where one
+      // throw on a loadable file stashed it and wiped the day's sessions.
+      // Re-read and retry once; a genuinely corrupt file fails again and
+      // proceeds to the stash-and-recover path below.
+      console.error('Automerge load failed; re-reading and retrying once before .bak recovery', e);
       try {
-        backup = await readFile(BACKUP_FILE, { baseDir: BaseDirectory.AppData });
-      } catch {
-        backup = null;
-      }
+        // Let an in-flight appendIncremental write settle before re-reading.
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const retryBuffer = await readFile(AUTOMERGE_FILE, { baseDir: BaseDirectory.AppData });
+        if (!retryBuffer || retryBuffer.length === 0) {
+          throw new Error('Local Automerge file is empty (retry)');
+        }
+        doc = timed('load(retry)', () => Automerge.load<AppState>(retryBuffer));
+      } catch (retryErr) {
+        // Last-resort recovery: a truncated/corrupt main file may still have a
+        // valid pre-compaction backup. Surface it loudly, never silent.
+        console.error('Automerge load failed on retry; attempting .bak recovery', e, retryErr);
+        let backup: Uint8Array | null = null;
+        try {
+          backup = await readFile(BACKUP_FILE, { baseDir: BaseDirectory.AppData });
+        } catch {
+          backup = null;
+        }
       if (backup && backup.length > 0) {
         try {
           doc = Automerge.load<AppState>(backup);
@@ -192,9 +216,10 @@ export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>>
       } catch (writeErr) {
         console.error('Failed to write recovered Automerge file:', writeErr);
       }
-      persistedBuffer = snapshot;
-      currentDoc = doc;
-      return doc;
+        persistedBuffer = snapshot;
+        currentDoc = doc;
+        return doc;
+      }
     }
 
     // Compaction: history has bloated the file → rebuild from current state.
