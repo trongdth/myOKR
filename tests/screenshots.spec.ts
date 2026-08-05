@@ -32,7 +32,7 @@ test.describe('App Screenshots', () => {
   });
 
   test('capture today view', async ({ page }) => {
-    await page.locator('button:has-text("Day plan")').click();
+    await page.locator('button:has-text("Day plan")').first().click();
     await page.waitForTimeout(500);
 
     await page.screenshot({

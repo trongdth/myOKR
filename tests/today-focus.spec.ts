@@ -13,7 +13,7 @@ async function waitForApp(page: import('@playwright/test').Page) {
 test.describe('Today Focus', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
-    await expect(page.locator('text=Today\'s Focus')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.focus-header-title')).toBeVisible({ timeout: 10000 });
   });
 
   test('ranks strictly by Eisenhower category, then urgency, then KR confidence', async ({ page }) => {
@@ -133,7 +133,7 @@ test.describe('Today Focus', () => {
     // 4 tied tasks → P(unchanged per Replan) ≈ 1/24; loop so this is robust.
     let changed = false;
     for (let i = 0; i < 5; i++) {
-      await page.locator('.today-replan-btn').click();
+      await page.locator('.focus-plan-day-btn').click();
       await page.waitForTimeout(200);
       const next = await upNextTitles();
       if (JSON.stringify(next) !== JSON.stringify(initial)) { changed = true; break; }
@@ -195,7 +195,7 @@ test.describe('Today Focus', () => {
     await cards.nth(0).locator('button:has-text("Skip")').click();
     await expect(cards.nth(0)).toContainText('Design new dashboard layout');
 
-    await page.locator('button:has-text("Replan")').click();
+    await page.locator('.focus-plan-day-btn').click();
 
     // Skipped task-6 returns to the top
     await expect(cards.nth(0)).toContainText('Refactor auth module');
@@ -248,8 +248,8 @@ test.describe('Today Focus', () => {
     await expect(skip.locator('svg')).toHaveCount(0);
   });
 
-  test('header replan button reads "Replan day"', async ({ page }) => {
-    await expect(page.locator('.today-replan-btn')).toHaveText('Replan day');
+  test('header plan button reads "Plan day"', async ({ page }) => {
+    await expect(page.locator('.focus-plan-day-btn')).toContainText('Plan day');
   });
 
   test('NOW title wraps instead of clipping for long titles at wide widths', async ({ page }) => {

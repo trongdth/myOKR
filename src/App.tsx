@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
-import TodayApp from './components/TodayApp';
+import FocusApp from './components/FocusApp';
 import SessionWidget from './components/session/SessionWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
@@ -367,7 +367,7 @@ export default function App() {
         )}
         {activeSection === 'day-plan' && (
           <ErrorBoundary mode="section">
-            <TodayApp key={todayKey} onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('tasks')} />
+            <FocusApp key={todayKey} tab="day-plan" onStartTask={handleStartFromToday} onGoToTasks={() => handleNavClick('tasks')} />
           </ErrorBoundary>
         )}
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
