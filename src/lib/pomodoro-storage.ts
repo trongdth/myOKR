@@ -95,6 +95,29 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
 }
 
 /**
+ * The instant a completed session is recorded as ended. A focus that finished
+ * in the background — missed `timer-complete` event (suspended webview,
+ * listener re-registration gap) — is often only processed much later, when the
+ * user returns. Recording `now` then would inflate the session by the whole gap
+ * (observed in real data: 40-min focuses recorded as 178m, 626m, even 3824m).
+ * The frontend tracks the timer's true end (`estimateEndMs`, derived from the
+ * start time plus the remaining seconds of the last tick); when the completion
+ * is processed more than `lateThresholdMs` after that, the estimate is the
+ * honest end. An on-time completion (delivered within ~a second of the end)
+ * uses `now` as before.
+ */
+export function resolveSessionEndedAt(
+  estimateEndMs: number | null,
+  nowMs: number,
+  lateThresholdMs: number,
+): string {
+  if (estimateEndMs !== null && nowMs - estimateEndMs > lateThresholdMs) {
+    return new Date(estimateEndMs).toISOString();
+  }
+  return new Date(nowMs).toISOString();
+}
+
+/**
  * "pomo N of M" position semantics — decision A (see docs/design-system.md,
  * "Pomo count display"). N is the pomodoro you are ON, not the count finished:
  * while a focus is running on this task, the displayed count is

@@ -233,3 +233,52 @@ test.describe('reorderTodoItems', () => {
   });
 });
 
+
+test.describe('resolveSessionEndedAt', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  const THRESHOLD = 30_000;
+
+  async function endedAt(
+    page: import('@playwright/test').Page,
+    estimateEndMs: number | null,
+    nowMs: number,
+  ): Promise<string> {
+    return page.evaluate(async ({ estimateEndMs, nowMs, THRESHOLD }) => {
+      const mod = await import('/src/lib/pomodoro-storage.ts') as {
+        resolveSessionEndedAt: (e: number | null, n: number, t: number) => string;
+      };
+      return mod.resolveSessionEndedAt(estimateEndMs, nowMs, THRESHOLD);
+    }, { estimateEndMs, nowMs, THRESHOLD });
+  }
+
+  test('on-time completion (delivered ~1s after the end) uses now', async ({ page }) => {
+    const now = new Date(FIXED).getTime();
+    // The tick placed the true end 1s ago; the completion arrives on schedule.
+    expect(await endedAt(page, now - 1000, now)).toBe(new Date(now).toISOString());
+  });
+
+  test('late completion (missed event, processed much later) uses the true end', async ({ page }) => {
+    const now = new Date(FIXED).getTime();
+    // The timer ended 2h ago; the completion is only processed now.
+    expect(await endedAt(page, now - 2 * 3600_000, now)).toBe(new Date(now - 2 * 3600_000).toISOString());
+  });
+
+  test('no estimate (never started / estimate cleared) uses now', async ({ page }) => {
+    const now = new Date(FIXED).getTime();
+    expect(await endedAt(page, null, now)).toBe(new Date(now).toISOString());
+  });
+
+  test('boundary: late by exactly the threshold is still on time', async ({ page }) => {
+    const now = new Date(FIXED).getTime();
+    expect(await endedAt(page, now - THRESHOLD, now)).toBe(new Date(now).toISOString());
+    expect(await endedAt(page, now - THRESHOLD - 1, now)).toBe(new Date(now - THRESHOLD - 1).toISOString());
+  });
+});
