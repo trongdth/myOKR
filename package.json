@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "snapshots:regen": "bash scripts/regenerate-visual-baselines.sh"
   },
   "dependencies": {
     "@automerge/automerge": "^3.2.6",

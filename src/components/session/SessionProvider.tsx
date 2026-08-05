@@ -6,6 +6,7 @@ import {
   loadTimerState, saveTimerState, clearTimerState,
   playCompletionSound, sendNotification,
   requestNotificationPermission, DEFAULT_SETTINGS, completePomodoroForTask, recordSessionInHistory,
+  stampUpdatedAt, resolveSessionEndedAt,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../../lib/pomodoro-storage';
 import { startFocusMusic, stopFocusMusic } from '../../lib/focus-music';
@@ -30,6 +31,12 @@ function durationMinutes(s: PomodoroSettings, type: SessionType): number {
   };
   return minutes[type];
 }
+
+// A completion delivered more than this long after the timer's estimated end
+// is a missed event being processed late (suspended webview / listener gap),
+// not normal delivery jitter (~1s) — the session must be recorded with its
+// true end, not `now` (see resolveSessionEndedAt).
+const LATE_COMPLETION_THRESHOLD_MS = 30_000;
 
 export interface SessionContextValue {
   // data
@@ -86,6 +93,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const lastFocusTaskId = useRef<string | null>(null);
   const pendingAutoStart = useRef<(() => void) | null>(null);
   const pendingSwitchTaskId = useRef<string | null>(null);
+  // The true end of the current Rust timer: set when a timer starts (now +
+  // remaining seconds), refined by every tick. Survives a pause (the Rust
+  // end_timestamp is frozen across it) and is cleared when the session
+  // completes or is reset — so a completion processed late (missed event) can
+  // still record the honest end instead of inflating the session by the gap.
+  const completionAtRef = useRef<number | null>(null);
   // Guards against a session completion being handled more than once. Completion
   // can be signalled from up to three places (timer-complete event, window-focus
   // sync, and the timeLeft===0 effect); without this, a double signal would
@@ -171,6 +184,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
 
+  // Keep tasksRef in sync so handleTasksChange (a stable useCallback) can diff
+  // incoming tasks against the latest without a stale closure. Powers the
+  // updatedAt stamp on the Task-detail footer's "updated X ago" readout.
+  const tasksRef = useRef(tasks);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
   // Listen to background sync and reload the session data dynamically.
   useEffect(() => {
     async function refreshData() {
@@ -242,10 +263,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setPulse(true);
     setTimeout(() => setPulse(false), 2000);
 
-    const now = new Date().toISOString();
+    const nowMs = Date.now();
+    // A completion processed long after the timer actually ended (missed
+    // timer-complete event, suspended webview) must record the session's true
+    // end — otherwise the gap inflates the record (observed: hours-long
+    // "focuses"). On-time completions use `now` unchanged.
+    const endedAt = resolveSessionEndedAt(completionAtRef.current, nowMs, LATE_COMPLETION_THRESHOLD_MS);
+    completionAtRef.current = null;
+    const now = new Date(nowMs).toISOString();
     const session = {
       startedAt: sessionStartRef.current || now,
-      endedAt: now,
+      endedAt,
       type: sessionType,
       taskId: activeTaskId || undefined,
       completed: true,
@@ -329,6 +357,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Browser fallback (e.g. Playwright tests)
       if (!isRunning) return;
       if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+      completionAtRef.current = Date.now() + timeLeftRef.current * 1000;
 
       const id = window.setInterval(() => {
         setTimeLeft(prev => {
@@ -352,6 +381,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let unlistenComplete: (() => void) | null = null;
 
     listen<number>('timer-tick', (event) => {
+      // The timer's true end: this tick's arrival time plus its remaining
+      // seconds. Refined every second; survives a pause; used as the honest
+      // endedAt when the completion event is processed late.
+      completionAtRef.current = Date.now() + event.payload * 1000;
       setTimeLeft(event.payload);
     }).then(fn => {
       if (cancelled) fn();
@@ -404,12 +437,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!IS_TAURI || isLoading) return;
 
     if (isRunning) {
+      // The timer froze at its final second because its completion event was
+      // missed (suspended webview / listener gap). Restarting it now would run
+      // a 1-second Rust timer whose record inherits the stale sessionStartRef —
+      // inflating the focus by the whole gap. Close the session out first; the
+      // auto-transition stages the next phase.
+      if (timeLeftRef.current <= 1 && sessionStartRef.current) {
+        handleSessionComplete();
+        return;
+      }
       if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+      // Track the true end of this Rust timer (start + remaining seconds). Not
+      // cleared on pause — the Rust end_timestamp is frozen across it, so the
+      // estimate stays the honest end if the completion is processed late.
+      completionAtRef.current = Date.now() + timeLeftRef.current * 1000;
       invoke('start_timer', { secs: timeLeftRef.current, sessionType }).catch(console.error);
     } else {
       invoke('pause_timer').catch(console.error);
     }
-  }, [isRunning, sessionType, isLoading]);
+  }, [isRunning, sessionType, isLoading, handleSessionComplete]);
 
   useEffect(() => {
     if (timeLeft === 0 && !isRunning) return;
@@ -478,6 +524,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const resetTimer = () => {
     setIsRunning(false);
     sessionStartRef.current = null;
+    completionAtRef.current = null;
     if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setTimeLeft(totalSeconds);
     if (IS_TAURI) invoke('reset_timer_state').catch(console.error);
@@ -487,6 +534,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const switchSession = (type: SessionType) => {
     setIsRunning(false);
     sessionStartRef.current = null;
+    completionAtRef.current = null;
     if (autoStartTimeoutRef.current) { clearTimeout(autoStartTimeoutRef.current); autoStartTimeoutRef.current = null; }
     setSessionType(type);
     const dur = durationMinutes(settings, type);
@@ -505,9 +553,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // useCallback so task views (React.memo) don't re-render on every 1-second
   // timer tick — these only reference stable setters / refs / scalar state.
-  const handleTasksChange = useCallback((t: PomodoroTask[]) => {
-    setTasks(t);
-    saveTasks(t).catch(console.error); // rule 3: act (setState) first, persist non-blocking
+  // Stamps `updatedAt` on any task whose object identity changed vs the last
+  // persisted array (callers preserve refs for unchanged tasks via `.map`, so
+  // reference inequality pinpoints the edited task — or a brand-new one). This
+  // is the single funnel for all task writes, so every edit path — detail modal,
+  // TaskList inline cells, task creation, pomodoro completion — gets stamped.
+  const handleTasksChange = useCallback((incoming: PomodoroTask[]) => {
+    const prev = tasksRef.current;
+    const now = new Date().toISOString();
+    const stamped = incoming.map(t => {
+      const p = prev.find(x => x.id === t.id);
+      return (!p || p !== t) ? stampUpdatedAt(t, now) : t;
+    });
+    setTasks(stamped);
+    saveTasks(stamped).catch(console.error); // rule 3: act (setState) first, persist non-blocking
   }, []);
 
   // Guarded active-task setter: switching task during a running focus confirms.

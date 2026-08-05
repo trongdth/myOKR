@@ -63,10 +63,12 @@ export interface PomodoroTask {
   category?: EisenhowerCategory;
   bucket?: TaskBucket;
   dueDate?: string;
-  /** Weekly pomodoro plan (P4): how many pomodoros the user plans to spend on
-   *  this task this week. Absent → the estimate is the fallback readout. */
-  weeklyPomodoroPlan?: number;
   keyResultId?: string;
+  /** Last time any field on this task changed. Stamped centrally in
+   *  handleTasksChange (SessionProvider) on every edit path, so the Task-detail
+   *  footer's "updated X ago" reflects real edits. Absent on legacy tasks → the
+   *  footer falls back to completedAt ?? createdAt. Mirrors KR/habit updatedAt. */
+  updatedAt?: string;
 }
 
 /**
@@ -93,6 +95,29 @@ export function applyPomodoroCompletion(task: PomodoroTask, now: string): Pomodo
 }
 
 /**
+ * The instant a completed session is recorded as ended. A focus that finished
+ * in the background — missed `timer-complete` event (suspended webview,
+ * listener re-registration gap) — is often only processed much later, when the
+ * user returns. Recording `now` then would inflate the session by the whole gap
+ * (observed in real data: 40-min focuses recorded as 178m, 626m, even 3824m).
+ * The frontend tracks the timer's true end (`estimateEndMs`, derived from the
+ * start time plus the remaining seconds of the last tick); when the completion
+ * is processed more than `lateThresholdMs` after that, the estimate is the
+ * honest end. An on-time completion (delivered within ~a second of the end)
+ * uses `now` as before.
+ */
+export function resolveSessionEndedAt(
+  estimateEndMs: number | null,
+  nowMs: number,
+  lateThresholdMs: number,
+): string {
+  if (estimateEndMs !== null && nowMs - estimateEndMs > lateThresholdMs) {
+    return new Date(estimateEndMs).toISOString();
+  }
+  return new Date(nowMs).toISOString();
+}
+
+/**
  * "pomo N of M" position semantics — decision A (see docs/design-system.md,
  * "Pomo count display"). N is the pomodoro you are ON, not the count finished:
  * while a focus is running on this task, the displayed count is
@@ -107,6 +132,39 @@ export function displayedPomoCount(
 ): number {
   const est = estimatedPomodoros || 1;
   return focusInProgress ? Math.min(completedPomodoros + 1, est) : completedPomodoros;
+}
+
+/**
+ * Reorder sub-tasks without drag-and-drop (ADR-0010 — "no HTML5 drag-drop
+ * anywhere"; re-ordering is click-select → click-target). Lifts the sub-task
+ * `movingId` to sit immediately ABOVE `targetId` in the list. Pure / immutable:
+ * returns a new array, never mutates the input.
+ *
+ * No-op (returns the input array as-is) when movingId === targetId, when either
+ * id is absent, or when the item already sits directly above its target — so a
+ * stray click on the row that's already in place changes nothing.
+ */
+export function reorderTodoItems<T extends TodoItem>(todos: T[], movingId: string, targetId: string): T[] {
+  if (movingId === targetId) return todos;
+  const movingIdx = todos.findIndex(t => t.id === movingId);
+  if (movingIdx === -1) return todos;
+  const without = todos.filter(t => t.id !== movingId);
+  const insertIdx = without.findIndex(t => t.id === targetId);
+  if (insertIdx === -1) return todos; // target vanished — refuse to guess
+  const next = without.slice();
+  next.splice(insertIdx, 0, todos[movingIdx]);
+  return next;
+}
+
+/**
+ * Stamp `updatedAt` — the Task-detail footer's "updated X ago" source. Pure and
+ * shared between the two task-write seams: SessionProvider.handleTasksChange
+ * (the funnel for the Pomodoro/Tasks screens) and OKRApp.updateTask (which holds
+ * its own task state, decoupled from the session context). `now` is passed in so
+ * a single edit stamps every changed task at the same instant.
+ */
+export function stampUpdatedAt<T extends PomodoroTask>(task: T, now: string): T {
+  return { ...task, updatedAt: now };
 }
 
 /**
@@ -241,8 +299,11 @@ function normalizeTask(t: unknown): PomodoroTask | null {
   const category = task.category as unknown;
   const bucket = task.bucket as unknown;
   const dueDate = task.dueDate as unknown;
+  // Destructure-drop the removed weeklyPomodoroPlan so legacy docs' orphaned
+  // key never leaks into the typed view (the spread below would carry it).
+  const { weeklyPomodoroPlan: _legacy, ...rest } = task;
   return {
-    ...(task as unknown as PomodoroTask),
+    ...(rest as unknown as PomodoroTask),
     title: typeof task.title === 'string' ? task.title : '',
     estimatedPomodoros: finiteNumber(task.estimatedPomodoros, 0),
     completedPomodoros: finiteNumber(task.completedPomodoros, 0),
@@ -250,7 +311,6 @@ function normalizeTask(t: unknown): PomodoroTask | null {
     category: EISENHOWER_CATEGORIES.includes(category as EisenhowerCategory) ? (category as EisenhowerCategory) : undefined,
     bucket: TASK_BUCKETS.includes(bucket as TaskBucket) ? (bucket as TaskBucket) : 'backlog',
     dueDate: typeof dueDate === 'string' && dueDate.trim() !== '' ? dueDate.trim() : undefined,
-    weeklyPomodoroPlan: finiteNumber(task.weeklyPomodoroPlan, undefined, 0, 99),
     todos: Array.isArray(task.todos) ? task.todos : undefined,
     comments: Array.isArray(task.comments) ? task.comments : undefined,
   };
@@ -656,19 +716,3 @@ export function buildKrCycleMap(
   return map;
 }
 
-/**
- * Weekly pomodoro plan progress (P4): `completed` = completed focus sessions
- * for the task within [weekStart, weekEnd]; `planned` = the explicit weekly
- * plan when set, otherwise the task estimate (the readout always renders
- * "X / Y planned"). An explicit plan of 0 is respected — no fallback.
- */
-export function weeklyPlanProgress(
-  task: PomodoroTask,
-  history: DailyRecord[],
-  weekStart: string,
-  weekEnd: string,
-): { completed: number; planned: number } {
-  const completed = computeWeekTaskPomos(history, weekStart, weekEnd).get(task.id) ?? 0;
-  const planned = task.weeklyPomodoroPlan ?? task.estimatedPomodoros ?? 1;
-  return { completed, planned };
-}

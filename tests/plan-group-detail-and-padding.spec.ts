@@ -132,6 +132,56 @@ test.describe('Plan Group — Task detail header (P4)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// updatedAt (Task-detail footer "updated X ago") — stamped centrally in
+// handleTasksChange on every edit path. Regression test for the stamp: editing
+// a task must persist updatedAt (the clock is frozen at FIXED, so it == FIXED).
+// ---------------------------------------------------------------------------
+test.describe('Task detail — updatedAt stamp on edit', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveTasks([
+        { id: 'td1', title: 'Original', estimatedPomodoros: 2, completedPomodoros: 0, isCompleted: false, createdAt: '2026-05-18T10:00:00Z' },
+      ]);
+    });
+    // The app reads tasks on mount; saveTasks above writes storage but doesn't
+    // re-render, so reload to mount fresh with the seeded task (otherwise a
+    // prior test's task stays on the board).
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await page.locator('.board-task-card').first().click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+  });
+
+  test('editing the title stamps updatedAt and persists it', async ({ page }) => {
+    const before = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 'td1');
+    });
+    expect(before?.updatedAt).toBeUndefined();
+
+    await page.locator('.detail-title').click();
+    const input = page.locator('.detail-title-input');
+    await input.fill('Edited title');
+    await input.press('Enter');
+
+    const after = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 'td1');
+    });
+    expect(after?.title).toBe('Edited title');
+    expect(after?.updatedAt).toBe(FIXED); // clock frozen → stamp == FIXED
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Sub-task (todo) deletion is permanent and undoable, so it must be guarded by
 // a confirmation — matching TaskList's ConfirmModal for task deletion. The 1a
 // redesign had the X button delete immediately with no confirm.
@@ -191,5 +241,54 @@ test.describe('Task detail — sub-task delete confirmation', () => {
     await page.locator('.confirm-modal button:has-text("Cancel")').click();
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
     await expect(doomed).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sub-task reorder via HTML5 drag-and-drop (amends ADR-0010 to permit in-list
+// reordering; PrioritizeModal already uses HTML5 DnD as precedent). Dropping a
+// row onto another inserts it ABOVE the target (reorderTodoItems semantics).
+// ---------------------------------------------------------------------------
+test.describe('Task detail — sub-task drag-and-drop reorder', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveTasks([{
+        id: 'td1', title: 'Reorder me', estimatedPomodoros: 2, completedPomodoros: 0, isCompleted: false,
+        createdAt: '2026-05-18T10:00:00Z',
+        todos: [
+          { id: 's1', text: 'Sub A', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+          { id: 's2', text: 'Sub B', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+          { id: 's3', text: 'Sub C', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+        ],
+      }]);
+    });
+    // Reload so the board shows the freshly-seeded task, not a prior test's.
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await page.locator('.board-task-card').first().click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+  });
+
+  test('click-select reorder: pick up a sub-task, click a row to place it above', async ({ page }) => {
+    const texts = page.locator('.todos-list .todo-text');
+    await expect(texts).toHaveText(['Sub A', 'Sub B', 'Sub C']);
+
+    // Click-select (WKWebView can't start HTML5 drags in scroll regions — see
+    // docs/design-system.md): grip click picks C up, clicking A places C above.
+    const gripC = page.locator('.todos-list .todo-item-row').nth(2).locator('.todo-grip');
+    const rowA = page.locator('.todos-list .todo-item-row').nth(0);
+    await gripC.click();
+    await expect(page.locator('.reorder-hint')).toBeVisible();
+    await rowA.click();
+
+    await expect(texts).toHaveText(['Sub C', 'Sub A', 'Sub B']);
   });
 });

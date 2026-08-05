@@ -77,4 +77,55 @@ test.describe('Data file corruption resilience', () => {
     expect(main).not.toBeNull();
     expect(() => Automerge.load(main!)).not.toThrow();
   });
+
+  test('a transiently-failing load is retried — a valid file is never stashed or replaced by the stale backup', async ({ page }) => {
+    // Real incident (2026-08-05): a single Automerge.load throw on a VALID file
+    // (WASM init race / memory pressure) triggered the stash-and-recover path,
+    // which replaced the current doc with a stale .bak — erasing the day's
+    // recorded sessions and task pomodoros. Recovery must be reserved for a
+    // load that fails twice; one transient failure must fall through to a retry.
+
+    // Main file: a valid doc holding "today's" recorded progress.
+    const main = Automerge.change(Automerge.init<any>(), (d: any) => {
+      d.tasks = [{ id: 'task-1', title: 'Focus Group', completedPomodoros: 2 }];
+      d.history = [{ date: '2026-08-05', completedPomodoros: 2, totalFocusMinutes: 80, tasksCompleted: 0, sessions: [] }];
+    });
+    const mainBytes = Automerge.save(main);
+
+    // Stale backup: the pre-incident .bak, missing today's data entirely.
+    const backup = Automerge.change(Automerge.init<any>(), (d: any) => {
+      d.tasks = [{ id: 'task-1', title: 'Focus Group', completedPomodoros: 0 }];
+    });
+    const backupBytes = Automerge.save(backup);
+
+    // NB: addInitScript serializes the function source — closure variables are
+    // not defined in the page context. Keys must arrive as args (test #2 pattern).
+    await page.addInitScript(([mainKey, m, b]) => {
+      localStorage.setItem(mainKey, m);
+      localStorage.setItem('mock_fs_myokr-data.automerge.bak', b);
+      // Dev/test-only: the app's very first load attempt throws once, then the
+      // retry sees a healthy file. Set before any app code runs.
+      (window as any).__SIMULATE_TRANSIENT_LOAD_FAILURE = true;
+    }, [MAIN_KEY, Buffer.from(mainBytes).toString('base64'), Buffer.from(backupBytes).toString('base64')]);
+
+    await waitForApp(page);
+
+    // The valid file must NOT have been stashed as corrupt...
+    const stashed = await page.evaluate((k) => localStorage.getItem(k), CORRUPT_KEY);
+    expect(stashed).toBeNull();
+
+    // ...and the loaded doc must carry the MAIN file's state, not the stale
+    // backup's (the recover-from-.bak path would have zeroed today's progress).
+    const doc = await page.evaluate(async () => {
+      const d = await (window as any).__getAutomergeDoc();
+      return { pomos: d.tasks?.[0]?.completedPomodoros, history: d.history?.length ?? 0 };
+    });
+    expect(doc.pomos).toBe(2);
+    expect(doc.history).toBe(1);
+
+    // The main file on disk is untouched (still the original valid bytes).
+    const mainAfter = await readMockFile(page, MAIN_KEY);
+    expect(mainAfter).not.toBeNull();
+    expect(Buffer.from(mainAfter!).toString('base64')).toBe(Buffer.from(mainBytes).toString('base64'));
+  });
 });
