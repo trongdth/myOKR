@@ -294,6 +294,11 @@ identically; there is no separate long-break case.
   click-select → click-target, matching UP NEXT** — but **in-list reordering
   (Task-detail sub-tasks) uses HTML5 drag-and-drop** (2026-08-05 amendment to
   ADR-0010; `PrioritizeModal` already used HTML5 DnD for within-quadrant reorder
+  as the precedent). **Foot-gun (2026-08-05): HTML5 DnD drag sources must be
+  non-form elements** — WKWebView (the packaged macOS app) will not initiate a
+  drag from a `<button>`/`<input>`, so the sub-task grip (initially a button)
+  never dragged in the real app while Chromium-based tests passed. Plain
+  `<div draggable>` works (PrioritizeModal proves it).
   as precedent). The grip handle is the drag source; drop on a row inserts above.
 
 ### List view (P3, structural parity)

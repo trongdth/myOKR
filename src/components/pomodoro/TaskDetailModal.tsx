@@ -619,7 +619,11 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
                               handleTodoDrop(todo.id);
                             }}
                           >
-                            <button
+                            {/* Div, not a button — WKWebView won't start HTML5
+                                drags from form controls, so the packaged app's
+                                drag never initiated (PrioritizeModal's
+                                div-based drag is the working precedent). */}
+                            <div
                               className="todo-grip"
                               draggable
                               onDragStart={() => handleTodoDragStart(todo.id)}
@@ -628,7 +632,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
                               aria-label="Drag to reorder sub-task"
                             >
                               <GripVertical size={14} />
-                            </button>
+                            </div>
                             <input
                               type="checkbox"
                               checked={todo.completed}
