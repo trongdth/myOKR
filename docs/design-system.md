@@ -24,7 +24,7 @@ rule). Two standing constraints:
   Plan/Tasks/Objectives/Done, Progress, Settings, Help & tour, v0.3.0) is
   excluded from the redesign. No ⌘K chip next to the logo, no nav restructuring.
 - **No keyboard shortcuts** — ⌘1/⌘2/⌘3 navigation, ⌘↵ start-focus, ⌘⇧ reopen,
-  and shortcut legends are deferred (see ADR-0011). The existing Meta+K opening
+  and shortcut legends are deferred (see [ADR-0011](./adr/0011-no-keyboard-shortcuts.md)). The existing Meta+K opening
   of the search modal is kept (it predates this policy); no new keybindings.
 
 ## Color roles (semantic tokens)
@@ -200,6 +200,62 @@ Screenshot tests in `tests/screenshots.spec.ts` carry `toHaveScreenshot()`
 assertions at **1280×800** for all nine screens, plus a **1024×720** snapshot
 covering the collapsed icon-rail state. Baselines regenerated once when 1a lands;
 after that, unintended visual drift fails CI.
+
+## Focus group screen — per-screen rules
+
+Decided in the Focus-group grilling session (2026-08-04); desktop only. The
+Focus group (Day plan / Session / Habits) is **one screen with an in-content tab
+strip**, mirroring the Plan group's structure — see
+[ADR-0014](./adr/0014-focus-group-consolidated-screen.md). This is a **shell**
+change: the three existing screen bodies are embedded behind the tabs unchanged,
+not redesigned. **Structural parity only** (not mockup-exact), consistent with
+the Today screen (1b).
+
+### Shell
+
+| Slot | Rule |
+|---|---|
+| Header title | **Today's date, day-first**, real (never hardcoded): `{Weekday}, {D} {Mon-short}` → "Tuesday, 4 Aug". The old "Today's Focus" label is dropped. (Today's code builds this `en-US`, which prints month-first "Aug 3"; switch to day-first.) |
+| Header action | **"Plan day"** button (renamed from "Replan day"; same recompute-the-plan action). **Secondary/outlined** so the NOW card's "Start focus" stays the single primary CTA (`--color-primary`) on the Day plan screen. |
+| Tab strip | `Day plan` · `Session` · `Habits`, reusing the `.plan-tab-strip` / `.plan-tab` styles for parity with the Plan group. |
+| Cycle slot (right of tabs) | **Static text** "May cycle · week N of M" via `cycleWeekLabel()`. **Not a dropdown** — Day plan is today-scoped, so there is nothing to filter (unlike the Plan group's cycle-week dropdown). |
+
+### Tab badges
+
+| Tab | Badge | Rule |
+|---|---|---|
+| Day plan | none | A dashboard, not a list — no count. |
+| Session | `live` | Shown while `isRunning` — any phase, focus or break; hidden when idle. |
+| Habits | `2/3` | Today's completion ratio `{ticked today}/{total habits}`. **Hidden when there are no habits** (no `0/0`). |
+
+### Session tab ↔ global SessionWidget
+
+No change to the existing architecture. The global `SessionWidget` already hides
+when `activeSection === 'session'` (the full timer is on screen) and its "Open"
+button navigates to the Session tab; the Session tab's `live` badge mirrors the
+same `isRunning` flag the widget uses.
+
+### Responsive
+
+The bodies inherit their existing rules — Day plan from the
+[Today screen (1b)](#today-screen-1b--per-screen-rules) three-tier grid; Habits
+its 860px state. The new shell mirrors the Plan-group shell. Two Focus-specific
+rules:
+
+- **Padding parity (hard constraint):** the Focus shell's top / right / bottom /
+  left padding **must equal the Plan-group shell's exactly**, at all three
+  responsive tiers (≥1100 / 900–1100 / <900). Asserted by a visual-regression
+  baseline so drift fails CI.
+- **Cycle text** hides at `<900px` (drawer sidebar, single column); the tab row
+  stays. An exception to the global "nothing is hidden, only re-stacked" rule —
+  a tab-row context label has nowhere useful to re-stack to.
+
+### Verification
+
+New `toHaveScreenshot()` baselines at **1280×800** for the Focus shell on each
+tab (Day plan / Session / Habits), plus the **1024×720** collapsed-icon-rail
+state. Padding-parity against the Plan group is asserted in the same suite.
+
 
 ## Plan group screens (P1–P7) — per-screen rules
 
