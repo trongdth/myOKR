@@ -106,7 +106,9 @@ export default function DayPlanBody({ replanSignal, onStartTask, onGoToTasks }: 
 
   useEffect(() => {
     const handleSync = () => {
-      compute();
+      compute().catch(err => {
+        console.error('Failed to recompute today list on sync:', err);
+      });
     };
     window.addEventListener('myokr-data-synced', handleSync);
     return () => window.removeEventListener('myokr-data-synced', handleSync);
@@ -115,7 +117,9 @@ export default function DayPlanBody({ replanSignal, onStartTask, onGoToTasks }: 
   // "Plan day" (Focus shell header) triggers a full replan from scratch.
   useEffect(() => {
     if (replanSignal > 0) {
-      compute({ reset: true, shuffleTies: true });
+      compute({ reset: true, shuffleTies: true }).catch(err => {
+        console.error('Failed to replan day:', err);
+      });
     }
   }, [replanSignal, compute]);
 

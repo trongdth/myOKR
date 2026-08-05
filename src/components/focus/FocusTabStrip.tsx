@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { navigateToSection } from '../pomodoro/PlanTabStrip';
+import { navigateToSection } from '../../lib/navigation';
 import { useSession } from '../session/SessionProvider';
 import { loadHabits, type Habit } from '../../lib/habit-storage';
 import { getLocalDateString } from '../../lib/pomodoro-storage';

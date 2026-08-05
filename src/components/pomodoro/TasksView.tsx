@@ -4,7 +4,8 @@ import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pom
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
 import type { Habit } from '../../lib/habit-storage';
-import PlanTabStrip, { navigateToSection, cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import { navigateToSection } from '../../lib/navigation';
 
 export type ViewMode = 'board' | 'list';
 
