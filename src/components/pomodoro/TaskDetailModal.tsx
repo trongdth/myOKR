@@ -72,11 +72,11 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
   const [editingTodoText, setEditingTodoText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-  /** Sub-task HTML5 drag-and-drop reorder (amends ADR-0010 to permit in-list
-   *  reordering; PrioritizeModal already uses HTML5 DnD as precedent). Drop a
-   *  row onto another → reorderTodoItems inserts it above the target. */
-  const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
-  const [dragOverTodoId, setDragOverTodoId] = useState<string | null>(null);
+  /** Sub-task click-select reorder (restored 2026-08-05 — HTML5 drag-and-drop
+   *  was reverted: WKWebView never initiates drags inside scroll regions, so
+   *  the packaged app could not drag; see docs/design-system.md). Non-null =
+   *  an item is "picked up"; a click on another row places it above that row. */
+  const [reorderMovingId, setReorderMovingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
 
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -142,6 +142,16 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
       descRef.current.setSelectionRange(descRef.current.value.length, descRef.current.value.length);
     }
   }, [isEditingDesc]);
+
+  // Esc cancels an in-flight click-select reorder (no focused input to catch it).
+  useEffect(() => {
+    if (!reorderMovingId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setReorderMovingId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [reorderMovingId]);
 
   const saveTitle = () => {
     const trimmed = editingTitleText.trim();
@@ -218,6 +228,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
 
   // Sub-task label inline edit (click-away / Enter autosaves; Esc reverts)
   const startEditTodo = (t: TodoItem) => {
+    if (reorderMovingId) return; // don't fight the reorder mode
     setEditingTodoId(t.id);
     setEditingTodoText(t.text);
   };
@@ -233,19 +244,16 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
     setEditingTodoId(null);
   };
 
-  // Sub-task drag-and-drop reorder (amends ADR-0010; see PrioritizeModal). The
-  // grip is the drag source; each row is a drop target. Dropping inserts above.
-  const handleTodoDragStart = (id: string) => setDraggedTodoId(id);
-  const handleTodoDragEnd = () => {
-    setDraggedTodoId(null);
-    setDragOverTodoId(null);
+  // Click-select reorder: grip click picks up; clicking another row commits
+  // (reorderTodoItems inserts above the target); Esc or re-click cancels.
+  const togglePickup = (id: string) => {
+    setEditingTodoId(null);
+    setReorderMovingId(prev => (prev === id ? null : id));
   };
-  const handleTodoDrop = (targetId: string) => {
-    if (draggedTodoId && draggedTodoId !== targetId) {
-      onUpdate({ ...task, todos: reorderTodoItems(todos, draggedTodoId, targetId) });
-    }
-    setDraggedTodoId(null);
-    setDragOverTodoId(null);
+  const commitReorder = (targetId: string) => {
+    if (!reorderMovingId) return;
+    onUpdate({ ...task, todos: reorderTodoItems(todos, reorderMovingId, targetId) });
+    setReorderMovingId(null);
   };
 
   // Comments CRUD
@@ -594,45 +602,33 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
                     <button className="add-todo-btn" onClick={addTodo}>Add</button>
                   </div>
 
+                  {reorderMovingId && (
+                    <div className="reorder-hint">
+                      Click a row to move “{todos.find(t => t.id === reorderMovingId)?.text}” above it · <button className="text-btn" onClick={() => setReorderMovingId(null)}>Cancel</button>
+                    </div>
+                  )}
+
                   {todos.length === 0 ? (
                     <p className="empty-tab-hint">No sub-tasks yet. Add one above.</p>
                   ) : (
                     <div className="todos-list">
                       {todos.map(todo => {
-                        const dragging = draggedTodoId === todo.id;
-                        const dragOver = !!draggedTodoId && !dragging && dragOverTodoId === todo.id;
+                        const moving = reorderMovingId === todo.id;
+                        const targeting = reorderMovingId && !moving;
                         return (
                           <div
                             key={todo.id}
-                            className={`todo-item-row${todo.completed ? ' completed' : ''}${dragging ? ' dragging' : ''}${dragOver ? ' drag-over' : ''}`}
-                            onDragOver={e => {
-                              e.preventDefault();
-                              e.dataTransfer.dropEffect = 'move';
-                              if (dragOverTodoId !== todo.id) setDragOverTodoId(todo.id);
-                            }}
-                            onDragLeave={() => {
-                              if (dragOverTodoId === todo.id) setDragOverTodoId(null);
-                            }}
-                            onDrop={e => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleTodoDrop(todo.id);
-                            }}
+                            className={`todo-item-row${todo.completed ? ' completed' : ''}${moving ? ' reordering' : ''}${targeting ? ' reorder-target' : ''}`}
+                            onClick={targeting ? () => commitReorder(todo.id) : undefined}
                           >
-                            {/* Div, not a button — WKWebView won't start HTML5
-                                drags from form controls, so the packaged app's
-                                drag never initiated (PrioritizeModal's
-                                div-based drag is the working precedent). */}
-                            <div
+                            <button
                               className="todo-grip"
-                              draggable
-                              onDragStart={() => handleTodoDragStart(todo.id)}
-                              onDragEnd={handleTodoDragEnd}
-                              title="Drag to reorder"
-                              aria-label="Drag to reorder sub-task"
+                              onClick={e => { e.stopPropagation(); togglePickup(todo.id); }}
+                              title="Click, then click a row to move this above it"
+                              aria-label="Reorder sub-task"
                             >
                               <GripVertical size={14} />
-                            </div>
+                            </button>
                             <input
                               type="checkbox"
                               checked={todo.completed}

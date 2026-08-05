@@ -291,14 +291,10 @@ identically; there is no separate long-break case.
 - **Responsive ≤1100px (P2)**: Today + This week stay open; **Backlog collapses
   to a slim bar** (`Backlog · N · X pomos`, "drop a card here to defer it")
   that expands to a mini-list on click. **Board bucket-moving/deferring uses
-  click-select → click-target, matching UP NEXT** — but **in-list reordering
-  (Task-detail sub-tasks) uses HTML5 drag-and-drop** (2026-08-05 amendment to
-  ADR-0010; `PrioritizeModal` already used HTML5 DnD for within-quadrant reorder
-  as the precedent). **Foot-gun (2026-08-05): HTML5 DnD drag sources must be
-  non-form elements** — WKWebView (the packaged macOS app) will not initiate a
-  drag from a `<button>`/`<input>`, so the sub-task grip (initially a button)
-  never dragged in the real app while Chromium-based tests passed. Plain
-  `<div draggable>` works (PrioritizeModal proves it).
+  click-select → click-target, matching UP NEXT** — and so does **in-list
+  reordering (Task-detail sub-tasks): click-select** (2026-08-05; HTML5
+  drag-and-drop was tried and is dead in the packaged app — see the P4
+  section).
   as precedent). The grip handle is the drag source; drop on a row inserts above.
 
 ### List view (P3, structural parity)
@@ -364,9 +360,15 @@ identically; there is no separate long-break case.
 > - **Sub-tasks.** Checkbox commits instantly (existing); click the label to
 >   edit in place (Enter/click-away autosaves, Esc reverts); `×` opens a
 >   `ConfirmModal` then deletes (no undo toast — considered and skipped).
->   **Reorder is HTML5 drag-and-drop** (2026-08-05: reverses the earlier
->   click-select choice; amends ADR-0010 — `PrioritizeModal` is the precedent).
->   Drag a row's ⋮⋮ grip and drop on another row to insert it *above* that row.
+>   **Reorder is click-select** — grip click picks the row up (it glows), a
+>   click on another row places it *above* that row, Esc / re-click cancels.
+>   HTML5 drag-and-drop was adopted on 2026-08-05 and **reverted the same day**:
+>   WKWebView (the packaged macOS app) never initiates a drag inside a scrollable
+>   region — an instrumented repro shows **zero drag events** when the list
+>   overflows, and the modal body always scrolls. (`PrioritizeModal`'s drag
+>   survives only because its grid never scrolls; the sub-task grip being a
+>   `<button>` was a red herring — a `<div draggable>` fails identically.)
+>   Click-select needs only plain clicks, so it works in every engine.
 >   Show all sub-tasks (no collapse).
 > - **Comments.** Click the label to edit in place (Enter/click-away autosaves);
 >   `×` opens a `ConfirmModal` then deletes (comments previously deleted
@@ -391,8 +393,10 @@ identically; there is no separate long-break case.
 > - **Weekly bar is subtle.** The loud full-width bright-cyan bar became a thin
 >   (4px), short (≤160px), muted (`color-mix` of `--color-primary`) hint. The
 >   estimate is the focal point via the `PomoEstimatePopover` count beside it.
-> - **Sub-task reorder switched to HTML5 drag-and-drop** (see the Sub-tasks bullet
->   above + the ADR-0010 amendment) — the earlier click-select felt messy.
+> - **Sub-task reorder: click-select (final).** HTML5 drag-and-drop was adopted
+>   (this bullet's predecessor) and reverted the same day — WKWebView won't
+>   start a drag in a scroll region, so the packaged app never dragged.
+>   Click-select (grip pick-up → row place → Esc cancels) works everywhere.
 
 ### Done (P5, flagship)
 

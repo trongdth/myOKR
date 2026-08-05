@@ -277,14 +277,17 @@ test.describe('Task detail — sub-task drag-and-drop reorder', () => {
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 
-  test('dragging a sub-task onto another inserts it above the target', async ({ page }) => {
+  test('click-select reorder: pick up a sub-task, click a row to place it above', async ({ page }) => {
     const texts = page.locator('.todos-list .todo-text');
     await expect(texts).toHaveText(['Sub A', 'Sub B', 'Sub C']);
 
-    // Drag Sub C's grip onto Sub A's row → C inserts above A → [C, A, B].
+    // Click-select (WKWebView can't start HTML5 drags in scroll regions — see
+    // docs/design-system.md): grip click picks C up, clicking A places C above.
     const gripC = page.locator('.todos-list .todo-item-row').nth(2).locator('.todo-grip');
     const rowA = page.locator('.todos-list .todo-item-row').nth(0);
-    await gripC.dragTo(rowA);
+    await gripC.click();
+    await expect(page.locator('.reorder-hint')).toBeVisible();
+    await rowA.click();
 
     await expect(texts).toHaveText(['Sub C', 'Sub A', 'Sub B']);
   });

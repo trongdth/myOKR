@@ -2259,154 +2259,6 @@
   font-size: 0.88rem;
 }
 
-/* Todo list */
-.task-detail-todo-input-row {
-  display: flex;
-  gap: 0.5em;
-  margin-bottom: 1em;
-}
-
-.task-detail-todo-input-row input {
-  flex: 1;
-  padding: 0.6em 1em;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  font-family: inherit;
-}
-
-.task-detail-todo-input-row input:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
-}
-
-.task-detail-todo-input-row input::placeholder {
-  color: var(--text-muted);
-}
-
-.task-detail-add-btn {
-  padding: 0.4em 0.85em !important;
-  font-size: 0.95rem !important;
-  border-radius: 8px !important;
-  flex-shrink: 0;
-}
-
-/* Todo progress bar */
-.task-detail-todo-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.75em;
-  margin-bottom: 1em;
-}
-
-.task-detail-todo-progress-bar {
-  flex: 1;
-  height: 4px;
-  background: var(--bg-tertiary);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.task-detail-todo-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
-  border-radius: 2px;
-  transition: width 300ms ease;
-}
-
-.task-detail-todo-progress-text {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  flex-shrink: 0;
-}
-
-/* Todo items */
-.task-detail-todo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35em;
-}
-
-.task-detail-todo-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75em;
-  padding: 0.6em 0.75em;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-}
-
-.task-detail-todo-item:hover {
-  border-color: var(--border-glow);
-}
-
-.task-detail-todo-item.completed {
-  opacity: 0.55;
-}
-
-.task-detail-todo-text {
-  flex: 1;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  min-width: 0;
-  word-break: break-word;
-}
-
-.task-detail-todo-item.completed .task-detail-todo-text {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-.task-detail-todo-text {
-  cursor: text;
-}
-
-.task-detail-todo-drag {
-  cursor: grab;
-  color: var(--text-muted);
-  font-size: 1rem;
-  padding: 0 0.15em;
-  opacity: 0.4;
-  user-select: none;
-  touch-action: none;
-  flex-shrink: 0;
-}
-
-.task-detail-todo-drag:active {
-  cursor: grabbing;
-}
-
-.task-detail-todo-item:hover .task-detail-todo-drag {
-  opacity: 0.7;
-}
-
-.task-detail-todo-item.drag-over {
-  border-top: 2px solid var(--accent-cyan);
-}
-
-.task-detail-todo-item.dragging {
-  opacity: 0.5;
-}
-
-.task-detail-todo-edit-input {
-  flex: 1;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  border: 1px solid var(--accent-cyan);
-  border-radius: 4px;
-  padding: 0.2em 0.5em;
-  min-width: 0;
-  font-family: inherit;
-  outline: none;
-}
-
 /* Comments */
 .task-detail-comment-input-row {
   display: flex;
@@ -4390,9 +4242,25 @@
 }
 .todo-grip:hover { color: var(--text-secondary); background: var(--bg-tertiary); }
 .todo-grip:active { cursor: grabbing; }
-/* HTML5 drag-and-drop states (amends ADR-0010). */
-.todo-item-row.dragging { opacity: 0.4; }
-.todo-item-row.drag-over { box-shadow: inset 0 2px 0 var(--color-primary); }
+/* Click-select reorder states (HTML5 drag-and-drop is dead in WKWebView
+   scroll regions — the packaged app never starts a drag; see
+   docs/design-system.md "Task detail (P4)"). */
+.todo-item-row.reordering {
+  background: var(--bg-tertiary);
+  outline: 1px solid var(--color-primary);
+  outline-offset: -1px;
+}
+.todo-item-row.reorder-target { cursor: pointer; }
+.todo-item-row.reorder-target:hover { box-shadow: inset 0 2px 0 var(--color-primary); }
+.reorder-hint {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--color-primary);
+  background: var(--bg-tertiary);
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+}
 .todo-edit-input {
   flex: 1 1 auto;
   background: var(--bg-tertiary);
