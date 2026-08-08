@@ -6,15 +6,9 @@ import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/screens/habits_screen.dart';
 import 'package:myokr_mobile/src/utils/habit_utils.dart';
 
-class _FakeOkrStorage extends OkrStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakeOkrStorage extends OkrStorage {}
 
-class _FakePomodoroStorage extends PomodoroStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakePomodoroStorage extends PomodoroStorage {}
 
 class _FakeHabitsStorageProvider extends StorageProvider {
   _FakeHabitsStorageProvider({

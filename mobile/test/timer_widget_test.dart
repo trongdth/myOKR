@@ -51,7 +51,10 @@ class FakeStorageProvider extends ChangeNotifier implements StorageProvider {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) {
+    throw UnimplementedError(
+        'StorageProvider member not stubbed: ${invocation.memberName}');
+  }
 }
 
 void main() {
@@ -90,9 +93,15 @@ void main() {
     // Verify it changed to Pause
     expect(find.text('Pause'), findsOneWidget);
 
-    // Tap Tasks Tab
+    // Tap Tasks Tab — pumpAndSettle capped at 2s of fake time instead of the
+    // default 10min: a session timer that actually ticks would never settle,
+    // and the cap turns that latent hang into a fast failure (ticket 11).
     await tester.tap(find.text('Tasks'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 2),
+    );
 
     expect(find.text('What are you working on?'), findsOneWidget);
   });

@@ -5,15 +5,9 @@ import 'package:myokr_mobile/src/pomodoro_storage.dart';
 import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/screens/today_screen.dart';
 
-class _FakeOkrStorage extends OkrStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakeOkrStorage extends OkrStorage {}
 
-class _FakePomodoroStorage extends PomodoroStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakePomodoroStorage extends PomodoroStorage {}
 
 class _ThrowingActiveTaskProvider extends _FakeTodayProvider {
   _ThrowingActiveTaskProvider({required super.testTasks});

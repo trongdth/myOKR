@@ -27,6 +27,7 @@ void main() {
 
   test('PomodoroStorage CRUD tests', () async {
     final tempDir = await Directory.systemTemp.createTemp('pomo_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final storage = PomodoroStorage(testDirectory: tempDir);
 
     // 1. Load settings (should give defaults)
@@ -422,5 +423,6 @@ void main() {
 /// A fresh PomodoroStorage backed by an isolated temp directory.
 Future<PomodoroStorage> _freshStorage() async {
   final tempDir = await Directory.systemTemp.createTemp('pomo_norm_test');
+  addTearDown(() => tempDir.delete(recursive: true));
   return PomodoroStorage(testDirectory: tempDir);
 }
