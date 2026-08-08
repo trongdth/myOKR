@@ -134,9 +134,9 @@ List<Map<String, dynamic>> pickForBudget(
   // Phase 2
   for (final c in candidates) {
     if (picked.length >= 5) break;
-    // Id-less tasks can't participate in id-based dedup; they were already
+    // Non-string ids can't participate in id-based dedup; they were already
     // considered in Phase 1, so skip them here rather than picking twice.
-    if (c['id'] == null || pickedIds.contains(c['id'])) continue;
+    if (c['id'] is! String || pickedIds.contains(c['id'])) continue;
     final slice = todaysSlice(c, maxShare);
     if (slice > 0 && slice <= budget - cumSlices) {
       picked.push(c);

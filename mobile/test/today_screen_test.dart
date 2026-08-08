@@ -28,14 +28,18 @@ class _FakeTodayProvider extends StorageProvider {
 }
 
 void main() {
-  testWidgets('tapping Skip on a task without an id does not crash', (tester) async {
+  testWidgets('Skip and Start Focus on a task without an id do not crash', (tester) async {
+    var focusStarted = false;
     final provider = _FakeTodayProvider(testTasks: [
       {'title': 'Ghost task', 'completed': false},
     ]);
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: TodayScreen(provider: provider, onStartFocus: () {}),
+        body: TodayScreen(
+          provider: provider,
+          onStartFocus: () => focusStarted = true,
+        ),
       ),
     ));
     await tester.pump();
@@ -48,5 +52,11 @@ void main() {
     // No crash; the id-less task is still listed.
     expect(find.text('Ghost task'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
+
+    await tester.tap(find.text('Start Focus'));
+    await tester.pump();
+
+    // No crash; the id-less task cannot start a focus session.
+    expect(focusStarted, isFalse);
   });
 }
