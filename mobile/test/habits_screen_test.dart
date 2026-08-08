@@ -65,11 +65,14 @@ void main() {
     expect(find.text('Want to form'), findsOneWidget);
     expect(find.text('🔥 0'), findsOneWidget);
 
-    // Toggle today's date tick
-    await tester.tap(find.text('15')); // tap 15th day
+    // Toggle today's tick — future days are disabled in the calendar UI,
+    // so the original hardcoded '15' (written on 2026-07-15) broke in August.
+    final now = DateTime.now();
+    final todayStr = now.toIso8601String().substring(0, 10);
+    await tester.tap(find.text('${now.day}'));
     await tester.pumpAndSettle();
 
-    expect(provider.habits.first['ticks'], contains(contains('2026-07-15')));
+    expect(provider.habits.first['ticks'], contains(contains(todayStr)));
   });
 
   testWidgets('HabitsScreen deletes habit with OKR linkage warning', (WidgetTester tester) async {
