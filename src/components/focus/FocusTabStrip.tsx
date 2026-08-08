@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { navigateToSection } from '../../lib/navigation';
 import { useSession } from '../session/SessionProvider';
-import { loadHabits, type Habit } from '../../lib/habit-storage';
+import { loadHabits, buildHabitWeekMatrix, getMondayOf, type Habit } from '../../lib/habit-storage';
 import { getLocalDateString } from '../../lib/pomodoro-storage';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -64,9 +64,11 @@ function SessionLiveBadge() {
   return <span className="plan-tab-count focus-tab-live">live</span>;
 }
 
-/** Today's habit completion (e.g. 2/3) on the Habits tab; hidden when there are
- *  no habits. Loads on mount + on `myokr-data-synced` (HabitsApp dispatches it
- *  on every add/tick/untick/delete). */
+/** This week's habit completion (e.g. 17/28) on the Habits tab — same math as
+ *  the week matrix: completed scheduled cells / scheduled cells this week
+ *  (habits × 7, implicit every-day). Hidden when there are no habits (never
+ *  "0/0"). Loads on mount + on `myokr-data-synced` (HabitsApp dispatches it on
+ *  every add/tick/untick/delete). */
 function HabitsBadge() {
   const [habits, setHabits] = useState<Habit[]>([]);
   useEffect(() => {
@@ -77,8 +79,9 @@ function HabitsBadge() {
   }, []);
   if (habits.length === 0) return null;
   const today = getLocalDateString();
-  const done = habits.filter(h => h.ticks.includes(today)).length;
-  return <span className="plan-tab-count focus-tab-habits">{done}/{habits.length}</span>;
+  const weekStart = getLocalDateString(getMondayOf(new Date()));
+  const matrix = buildHabitWeekMatrix(habits, weekStart, today);
+  return <span className="plan-tab-count focus-tab-habits">{matrix.completed}/{matrix.scheduled}</span>;
 }
 
 export default function FocusTabStrip({ active, cycleLabel }: FocusTabStripProps) {

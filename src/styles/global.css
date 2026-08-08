@@ -83,6 +83,7 @@
 
   /* Additional accents */
   --accent-emerald: #10b981;
+  --accent-orange: #f97316; /* habit derived-accent palette (tracker); see design-system.md */
 }
 
 /* Base styles */
