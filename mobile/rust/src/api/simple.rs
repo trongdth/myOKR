@@ -20,12 +20,30 @@ pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
 }
 
+/// Loads an Automerge document, falling back to a fresh doc when the binary
+/// is corrupt/truncated. Recovery is surfaced loudly (desktop's rule: "never
+/// silent") — the caller then writes the fresh doc, so the corruption is
+/// replaced, not silently dropped.
+fn load_or_new(binary: &[u8]) -> automerge::AutoCommit {
+    match automerge::AutoCommit::load(binary) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("myOKR: recovered from corrupt Automerge binary: {e:?}");
+            automerge::AutoCommit::new()
+        }
+    }
+}
+
 #[flutter_rust_bridge::frb(sync)]
 pub fn merge_automerge_binaries(local_binary: Vec<u8>, remote_binary: Vec<u8>) -> Vec<u8> {
-    use automerge::AutoCommit;
-    let mut local_doc = AutoCommit::load(&local_binary).unwrap();
-    let mut remote_doc = AutoCommit::load(&remote_binary).unwrap();
-    local_doc.merge(&mut remote_doc).unwrap();
+    // A corrupt/truncated side must not panic across the FFI boundary —
+    // recover what's valid (desktop's load retry ends the same way: the
+    // corrupt side is dropped, the good side wins).
+    let mut local_doc = load_or_new(&local_binary);
+    let mut remote_doc = load_or_new(&remote_binary);
+    if local_doc.merge(&mut remote_doc).is_err() {
+        return local_doc.save();
+    }
     local_doc.save()
 }
 
@@ -47,10 +65,17 @@ pub fn automerge_update_property(binary: Vec<u8>, key: String, json_str: String)
     let mut doc = if binary.is_empty() {
         AutoCommit::new()
     } else {
-        AutoCommit::load(&binary).unwrap()
+        // Corrupt file: fall back to a fresh doc instead of panicking
+        // across FFI (mirrors desktop's last-resort init).
+        load_or_new(&binary)
     };
 
-    let val: Value = serde_json::from_str(&json_str).unwrap();
+    let val: Value = match serde_json::from_str(&json_str) {
+        Ok(v) => v,
+        // Invalid payload: no-op — return the input unchanged rather than
+        // wiping the document with an empty save.
+        Err(_) => return binary,
+    };
     
     fn insert_value(doc: &mut AutoCommit, obj: &ObjId, key: &automerge::Prop, val: &Value) {
         match val {
@@ -135,4 +160,59 @@ pub fn automerge_get_property(binary: Vec<u8>, key: String) -> String {
 
     let val = read_value(&doc, &ROOT, &automerge::Prop::Map(key));
     serde_json::to_string(&val).unwrap_or_else(|_| "null".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use automerge::transaction::Transactable;
+    use automerge::{AutoCommit, ReadDoc, ROOT};
+
+    fn valid_doc_binary() -> Vec<u8> {
+        create_automerge_doc_with_data("k".to_string(), "v".to_string())
+    }
+
+    fn read_key(binary: &[u8], key: &str) -> Option<String> {
+        let doc = AutoCommit::load(binary).ok()?;
+        let (val, _) = doc.get(ROOT, key).ok()??;
+        val.into_string().ok()
+    }
+
+    #[test]
+    fn merge_survives_a_corrupt_local_binary() {
+        let corrupt_local = vec![0xDE, 0xAD, 0xBE, 0xEF];
+        let valid_remote = valid_doc_binary();
+
+        let merged = merge_automerge_binaries(corrupt_local, valid_remote);
+        // Must not panic; the valid side survives.
+        assert_eq!(read_key(&merged, "k").as_deref(), Some("v"));
+    }
+
+    #[test]
+    fn merge_survives_a_corrupt_remote_binary() {
+        let valid_local = valid_doc_binary();
+        let corrupt_remote = vec![0xDE, 0xAD, 0xBE, 0xEF];
+
+        let merged = merge_automerge_binaries(valid_local, corrupt_remote);
+        assert_eq!(read_key(&merged, "k").as_deref(), Some("v"));
+    }
+
+    #[test]
+    fn update_survives_a_corrupt_binary() {
+        let corrupt = vec![0xDE, 0xAD, 0xBE, 0xEF];
+
+        let result = automerge_update_property(corrupt, "k".to_string(), "\"v\"".to_string());
+        // Must not panic; the write lands on a fresh doc.
+        assert_eq!(read_key(&result, "k").as_deref(), Some("v"));
+    }
+
+    #[test]
+    fn update_returns_the_input_unchanged_on_invalid_json() {
+        let valid = valid_doc_binary();
+
+        let result =
+            automerge_update_property(valid.clone(), "k".to_string(), "not json {".to_string());
+        // Must not panic and must not wipe the doc: no-op save.
+        assert_eq!(result, valid);
+    }
 }
