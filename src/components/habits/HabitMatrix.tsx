@@ -132,7 +132,7 @@ export default function HabitMatrix({
                   </button>
                 ))}
                 <span className="habit-streak-cell" role="cell">
-                  {row.streakCurrent} {row.streakCurrent === 1 ? 'day' : 'days'}
+                  {row.ticksInWeek} {row.ticksInWeek === 1 ? 'day' : 'days'}
                 </span>
               </div>
             ))}

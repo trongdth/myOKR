@@ -285,11 +285,14 @@ frequency/category fields, so **scheduling is implicit every-day**).
   The matrix **always shows the current period — no in-card navigation**
   (2026-08-08 feedback reversed the chevron decision; history lives in the
   analytics panel). Month view stacks one Mon–Sun block per week of the month.
-- **Streak semantics (2026-08-08 feedback):** the STREAK column counts
-  consecutive ticked days **ending at the most recent tick** — it does not
-  collapse to 0 when the last tick is a few days old (a 3-day run reads "3
-  days" until a new tick extends or breaks it). Desktop `computeHabitStreaks`
-  and the mobile mirror share this definition.
+- **STREAK column (2026-08-08 feedback, final):** the STREAK cell counts the
+  ticks **inside the visible period** — week view: the current Mon–Sun week;
+  month view: per week block. No visible ticks → "0 days"; three ticks in the
+  visible week → "3 days". A global consecutive run proved unreadable (it read
+  "1 day" for habits whose ticks didn't form a run ending today/yesterday, and
+  "1 day" even with no visible ticks). The Today screen's streak pill and the
+  mobile app keep `computeHabitStreaks` (consecutive run) for their own stats;
+  the matrix does not use it.
 - Bottom grid: `SuggestedHabits` (left) + `HabitAnalytics` (right), two equal
   columns; single column below 900px.
 

@@ -87,6 +87,23 @@ test.describe('Habit tracker data', () => {
     ]);
   });
 
+  test('matrix STREAK counts the ticks inside the week block, not a global run', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { buildHabitWeekMatrix } = await import('/src/lib/habit-storage.ts');
+      const ts = '2026-05-01T00:00:00Z';
+      // 3 ticks inside the block (Mon–Sun May 4–10), 1 tick outside (previous week)
+      const habit = {
+        id: 'h1', name: 'Read', status: 'in_progress' as const,
+        ticks: ['2026-04-28', '2026-05-04', '2026-05-05', '2026-05-09'],
+        createdAt: ts, updatedAt: ts,
+      };
+      const inside = buildHabitWeekMatrix([habit], '2026-05-04', '2026-05-06');
+      const outside = buildHabitWeekMatrix([habit], '2026-05-11', '2026-05-13');
+      return { inside: inside.rows[0].ticksInWeek, outside: outside.rows[0].ticksInWeek };
+    });
+    expect(result).toEqual({ inside: 3, outside: 0 });
+  });
+
   test('computeHabitStreaks counts the consecutive ticked days ending at the last tick', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { computeHabitStreaks } = await import('/src/lib/habit-storage.ts');

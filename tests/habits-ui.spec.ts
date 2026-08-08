@@ -136,29 +136,32 @@ test.describe('Habits Tracker UI', () => {
     expect(templates.row).toBe(templates.head);
   });
 
-  test('streak counts consecutive ticks in week and month view alike (3 ticks → 3 days)', async ({ page }) => {
-    // Three consecutive ticks ending 3 days ago — the streak must survive the
-    // month view, not collapse to 0 because the last tick isn't today/yesterday.
+  test('STREAK counts ticks in the visible week — 0 for none, 3 for three (feedback regressions)', async ({ page }) => {
     await page.evaluate(async () => {
       const { saveHabits } = await import('/src/lib/habit-storage.ts');
-      await saveHabits([{
-        id: 'h1', name: 'Read 20 pages', status: 'in_progress',
-        ticks: ['2026-05-18', '2026-05-19', '2026-05-20'], // Mon–Wed; today is Sun 24
-        createdAt: '2026-05-01T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z',
-      }]);
+      const ts = '2026-05-01T00:00:00Z';
+      await saveHabits([
+        // 3 ticks in the PREVIOUS week (May 11–13); nothing visible in the current week
+        { id: 'h1', name: 'Old ticks', status: 'in_progress', ticks: ['2026-05-11', '2026-05-12', '2026-05-13'], createdAt: ts, updatedAt: ts },
+        // 3 ticks in the CURRENT week (May 18–20; today is Sun May 24)
+        { id: 'h2', name: 'This week ticks', status: 'in_progress', ticks: ['2026-05-18', '2026-05-19', '2026-05-20'], createdAt: ts, updatedAt: ts },
+      ]);
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    // Week view
-    const weekRow = page.locator('.habit-row:has-text("Read 20 pages")');
-    await expect(weekRow.locator('.habit-streak-cell')).toHaveText('3 days');
+    // Week view: a habit with no visible ticks reads 0 days, not a stale 1
+    await expect(page.locator('.habit-row:has-text("Old ticks") .habit-streak-cell')).toHaveText('0 days');
+    await expect(page.locator('.habit-row:has-text("This week ticks") .habit-streak-cell')).toHaveText('3 days');
 
-    // Month view — every block shows the same streak
+    // Month view: the STREAK is per week block — the block containing the ticks
+    // shows 3 days, the others show 0
     await page.locator('.habits-view-btn:has-text("Month")').click();
-    const monthRows = page.locator('.habit-row:has-text("Read 20 pages")');
-    await expect(monthRows).toHaveCount(5);
-    await expect(monthRows.nth(0).locator('.habit-streak-cell')).toHaveText('3 days');
-    await expect(monthRows.nth(2).locator('.habit-streak-cell')).toHaveText('3 days');
+    // May 2026 blocks: Apr 27, May 4, May 11, May 18, May 25
+    const blocks = page.locator('.habit-matrix-week');
+    await expect(blocks.nth(0).locator('.habit-row:has-text("Old ticks") .habit-streak-cell')).toHaveText('0 days');
+    await expect(blocks.nth(2).locator('.habit-row:has-text("Old ticks") .habit-streak-cell')).toHaveText('3 days');
+    await expect(blocks.nth(3).locator('.habit-row:has-text("This week ticks") .habit-streak-cell')).toHaveText('3 days');
+    await expect(blocks.nth(4).locator('.habit-row:has-text("This week ticks") .habit-streak-cell')).toHaveText('0 days');
   });
 
   test('checkbox cells are ~40px squares with dark pending fill and accent-matched completed fill', async ({ page }) => {

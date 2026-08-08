@@ -139,7 +139,12 @@ export interface HabitMatrixRow {
   name: string;
   status: HabitStatus;
   cells: HabitMatrixCell[];
-  streakCurrent: number;
+  /** Ticks inside this week block (Mon–Sun) — the matrix's STREAK column.
+   *  Feedback 2026-08-08: a global consecutive run read "1 day" for habits
+   *  whose ticks didn't form a run ending today/yesterday, and "1 day" even
+   *  with no visible ticks. The column now counts the ticks in the visible
+   *  period (week view: current week; month view: per block). */
+  ticksInWeek: number;
 }
 
 export interface HabitWeekMatrix {
@@ -170,13 +175,14 @@ export function buildHabitWeekMatrix(habits: Habit[], weekStart: string, todaySt
       date: day.date,
       state: ticked.has(day.date) ? 'completed' : day.date > todayStr ? 'future' : 'pending',
     }));
-    const { current } = computeHabitStreaks(habit.ticks);
+    const weekEnd = getLocalDateString(addDays(start, 6));
+    const ticksInWeek = habit.ticks.filter((t) => t >= weekStart && t <= weekEnd).length;
     return {
       habitId: habit.id,
       name: habit.name,
       status: habit.status,
       cells,
-      streakCurrent: current,
+      ticksInWeek,
     };
   });
 
