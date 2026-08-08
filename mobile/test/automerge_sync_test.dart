@@ -35,4 +35,27 @@ void main() {
     expect(valB, 'LocalValue');
 
   });
+
+  test('merge survives a corrupt binary on either side (no panic)', () {
+    final corrupt = Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF]);
+    final valid = createAutomergeDocWithData(key: 'k', value: 'v');
+
+    final merged =
+        mergeAutomergeBinaries(localBinary: corrupt, remoteBinary: valid);
+    expect(jsonDecode(automergeGetProperty(binary: merged, key: 'k')), 'v');
+  });
+
+  test('update survives a corrupt binary (write lands on a fresh doc)', () {
+    final corrupt = Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF]);
+
+    final result = automergeUpdateProperty(binary: corrupt, key: 'k', jsonStr: '"v"');
+    expect(jsonDecode(automergeGetProperty(binary: result, key: 'k')), 'v');
+  });
+
+  test('update with invalid JSON returns the input unchanged (no wipe)', () {
+    final input = createAutomergeDocWithData(key: 'k', value: 'v');
+
+    final result = automergeUpdateProperty(binary: input, key: 'k', jsonStr: 'not json {');
+    expect(result, input);
+  });
 }
