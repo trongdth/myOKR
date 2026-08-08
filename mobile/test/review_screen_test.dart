@@ -4,22 +4,15 @@ import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/screens/review_screen.dart';
 import 'package:myokr_mobile/src/screens/review_wizard_screen.dart';
 import 'package:myokr_mobile/src/screens/review_history_widget.dart';
-import 'package:myokr_mobile/src/screens/review_entry_edit_sheet.dart';
 import 'package:myokr_mobile/src/screens/progress_chart_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:myokr_mobile/src/okr_storage.dart';
 import 'package:myokr_mobile/src/pomodoro_storage.dart';
 
-class _FakeOkrStorage extends OkrStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakeOkrStorage extends OkrStorage {}
 
-class _FakePomodoroStorage extends PomodoroStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakePomodoroStorage extends PomodoroStorage {}
 
 class _FakeOkrStorageProvider extends StorageProvider {
   _FakeOkrStorageProvider()

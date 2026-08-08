@@ -34,7 +34,7 @@ class _FakeOkrStorageProvider extends StorageProvider {
   @override
   Future<void> createNextCycle() async {
     final newCycle = {
-      'id': 'cycle-$_nextMonth',
+      'id': 'cycle-${_nextMonth % 12}',
       'name': getMonthName(_nextMonth % 12, _nextYear),
       'month': _nextMonth % 12,
       'year': _nextYear,

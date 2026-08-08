@@ -51,7 +51,10 @@ class FakeStorageProvider extends ChangeNotifier implements StorageProvider {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) {
+    throw UnimplementedError(
+        'StorageProvider member not stubbed: ${invocation.memberName}');
+  }
 }
 
 void main() {
