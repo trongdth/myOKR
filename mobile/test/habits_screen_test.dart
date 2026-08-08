@@ -79,6 +79,11 @@ void main() {
     expect(find.text('Want to form'), findsOneWidget);
     expect(find.text('🔥 0'), findsOneWidget);
 
+    // The persisted habit must not carry a stale 'order' field: it was
+    // derived from list length at creation, goes non-contiguous after a
+    // delete, and nothing reads it (vestigial on desktop too — ticket 09).
+    expect(provider.habits.first.containsKey('order'), isFalse);
+
     // Toggle today's tick — future days are disabled in the calendar UI,
     // so the original hardcoded '15' (written on 2026-07-15) broke in August.
     // Tap by the day cell's semantic key rather than its label text, so the
