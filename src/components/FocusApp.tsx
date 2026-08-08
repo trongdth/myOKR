@@ -40,7 +40,7 @@ export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed
   return (
     <div className="pomodoro-container focus-shell">
       <div className="focus-shell-inner">
-        <FocusHeader onPlanDay={handlePlanDay} />
+        <FocusHeader onPlanDay={handlePlanDay} showPlanDay={tab === 'day-plan'} />
         <FocusTabStrip active={tab} cycleLabel={cycleWeekLabel(activeCycle)} />
         {tab === 'day-plan' && (
           <DayPlanBody

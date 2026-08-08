@@ -88,22 +88,30 @@ test.describe('Habits Tracker UI', () => {
     await page.locator('.add-habit-input').fill('Toggle Test Habit');
     await page.locator('button:has-text("Add Habit")').click();
 
-    // Week view: a single week block with one day-number row; no pagination bar
+    // Week view: one block whose header shows the weekday AND the day number on
+    // the same row (Mon 18 .. Sun 24), no pagination bar
     await expect(page.locator('.habit-matrix-week')).toHaveCount(1);
-    await expect(page.locator('.habit-matrix-daynum')).toHaveCount(7);
+    await expect(page.locator('.habit-matrix-head')).toHaveCount(1);
+    await expect(page.locator('.habit-head-day-label').allTextContents()).resolves.toEqual([
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+    ]);
+    await expect(page.locator('.habit-head-day-num').allTextContents()).resolves.toEqual([
+      '18', '19', '20', '21', '22', '23', '24',
+    ]);
     await expect(page.locator('.habits-view-btn:has-text("Week")')).toHaveClass(/active/);
 
     await page.locator('.habits-view-btn:has-text("Month")').click();
     await expect(page.locator('.habits-view-btn:has-text("Month")')).toHaveClass(/active/);
 
-    // Month view stacks one week block per week of the month; each block carries
-    // its own day numbers (7 per block), with today highlighted
+    // Month view stacks one week block per week of the month, each with its own
+    // full header (day numbers on the same row as the weekdays), today in cyan
     await expect(page.locator('.habit-matrix-week')).toHaveCount(5); // May 2026: 5 Mon–Sun blocks
-    await expect(page.locator('.habit-matrix-daynum')).toHaveCount(35);
-    await expect(page.locator('.habit-matrix-daynum.today')).toHaveText('24');
+    await expect(page.locator('.habit-matrix-head')).toHaveCount(5);
+    await expect(page.locator('.habit-head-day-num')).toHaveCount(35);
+    await expect(page.locator('.habit-head-day.today .habit-head-day-num')).toHaveText('24');
   });
 
-  test('matrix has no in-card pagination bar and header/day-numbers/rows share one column grid', async ({ page }) => {
+  test('matrix has no in-card pagination bar and header rows share one column grid with habit rows', async ({ page }) => {
     await page.locator('.habits-new-btn').click();
     await page.locator('.add-habit-input').fill('Grid Test Habit');
     await page.locator('button:has-text("Add Habit")').click();
@@ -112,8 +120,8 @@ test.describe('Habits Tracker UI', () => {
     await expect(page.locator('.habit-matrix-header')).toHaveCount(0);
     await expect(page.locator('.habit-nav-btn')).toHaveCount(0);
 
-    // Day headers sit directly over their checkbox columns: head, the day-number
-    // row, and every habit row share the exact same grid template.
+    // Day headers sit directly over their checkbox columns: every header and
+    // every habit row share the exact same grid template.
     const templates = await page.evaluate(() => {
       const read = (sel: string) => {
         const el = document.querySelector(sel);
@@ -121,13 +129,36 @@ test.describe('Habits Tracker UI', () => {
       };
       return {
         head: read('.habit-matrix-head'),
-        daynums: read('.habit-matrix-daynums'),
         row: read('.habit-row'),
       };
     });
     expect(templates.head).toBeTruthy();
-    expect(templates.daynums).toBe(templates.head);
     expect(templates.row).toBe(templates.head);
+  });
+
+  test('streak counts consecutive ticks in week and month view alike (3 ticks → 3 days)', async ({ page }) => {
+    // Three consecutive ticks ending 3 days ago — the streak must survive the
+    // month view, not collapse to 0 because the last tick isn't today/yesterday.
+    await page.evaluate(async () => {
+      const { saveHabits } = await import('/src/lib/habit-storage.ts');
+      await saveHabits([{
+        id: 'h1', name: 'Read 20 pages', status: 'in_progress',
+        ticks: ['2026-05-18', '2026-05-19', '2026-05-20'], // Mon–Wed; today is Sun 24
+        createdAt: '2026-05-01T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z',
+      }]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    // Week view
+    const weekRow = page.locator('.habit-row:has-text("Read 20 pages")');
+    await expect(weekRow.locator('.habit-streak-cell')).toHaveText('3 days');
+
+    // Month view — every block shows the same streak
+    await page.locator('.habits-view-btn:has-text("Month")').click();
+    const monthRows = page.locator('.habit-row:has-text("Read 20 pages")');
+    await expect(monthRows).toHaveCount(5);
+    await expect(monthRows.nth(0).locator('.habit-streak-cell')).toHaveText('3 days');
+    await expect(monthRows.nth(2).locator('.habit-streak-cell')).toHaveText('3 days');
   });
 
   test('checkbox cells are ~40px squares with dark pending fill and accent-matched completed fill', async ({ page }) => {

@@ -25,6 +25,11 @@ export function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
+/** Whole-day difference between two 'YYYY-MM-DD' local keys. */
+function diffCalendarDays(a: string, b: string): number {
+  return Math.round((parseDateKey(b).getTime() - parseDateKey(a).getTime()) / 86_400_000);
+}
+
 export function normalizeHabit(h: unknown): Habit | null {
   if (!h || typeof h !== 'object') return null;
   const plainH = JSON.parse(JSON.stringify(h));
@@ -63,23 +68,19 @@ export async function saveHabits(habits: Habit[]): Promise<void> {
   });
 }
 
-export function computeHabitStreaks(ticks: string[], todayStrOverride?: string): { current: number; best: number } {
+export function computeHabitStreaks(ticks: string[]): { current: number; best: number } {
   if (ticks.length === 0) return { current: 0, best: 0 };
   const sortedTicks = [...new Set(ticks)].sort();
 
   let best = 0;
   let currentRun = 0;
-  let prevDate: Date | null = null;
+  let prevKey: string | null = null;
 
-  for (const tickStr of sortedTicks) {
-    const d = new Date(tickStr);
-    if (prevDate === null) {
+  for (const tickKey of sortedTicks) {
+    if (prevKey === null) {
       currentRun = 1;
     } else {
-      const t1 = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
-      const t2 = Date.UTC(prevDate.getFullYear(), prevDate.getMonth(), prevDate.getDate());
-      const diffDays = Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
-
+      const diffDays = diffCalendarDays(prevKey, tickKey);
       if (diffDays === 1) {
         currentRun++;
       } else if (diffDays > 1) {
@@ -87,40 +88,22 @@ export function computeHabitStreaks(ticks: string[], todayStrOverride?: string):
         currentRun = 1;
       }
     }
-    prevDate = d;
+    prevKey = tickKey;
   }
   best = Math.max(best, currentRun);
 
-  // `todayStrOverride` keeps the function deterministic for the tracker's pure
-  // computations; callers that want real "now" (existing behaviour) omit it.
-  const todayStr = todayStrOverride ?? getLocalDateString();
-  const yesterdayStr = todayStrOverride
-    ? getLocalDateString(addDays(parseDateKey(todayStrOverride), -1))
-    : getLocalDateString(addDays(new Date(), -1));
-
-  let current = 0;
-  const lastTick = sortedTicks[sortedTicks.length - 1];
-
-  if (lastTick === todayStr || lastTick === yesterdayStr) {
-    let idx = sortedTicks.length - 1;
-    current = 1;
-    while (idx > 0) {
-      const d1 = new Date(sortedTicks[idx]);
-      const d2 = new Date(sortedTicks[idx - 1]);
-      
-      const t1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
-      const t2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
-      const diffDays = Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 1) {
-        current++;
-        idx--;
-      } else {
-        break;
-      }
-    }
+  // Current streak: the run of consecutive ticked days ending at the most
+  // recent tick. It does not expire when the last tick is a few days old —
+  // three ticks in a row read "3 days" until a new tick extends or breaks the
+  // run (2026-08-08 feedback; the old today/yesterday recency gate collapsed
+  // stale runs to 0 in the tracker's STREAK column).
+  let current = 1;
+  let idx = sortedTicks.length - 1;
+  while (idx > 0 && diffCalendarDays(sortedTicks[idx - 1], sortedTicks[idx]) === 1) {
+    current++;
+    idx--;
   }
-  
+
   return { current, best };
 }
 
@@ -187,7 +170,7 @@ export function buildHabitWeekMatrix(habits: Habit[], weekStart: string, todaySt
       date: day.date,
       state: ticked.has(day.date) ? 'completed' : day.date > todayStr ? 'future' : 'pending',
     }));
-    const { current } = computeHabitStreaks(habit.ticks, todayStr);
+    const { current } = computeHabitStreaks(habit.ticks);
     return {
       habitId: habit.id,
       name: habit.name,

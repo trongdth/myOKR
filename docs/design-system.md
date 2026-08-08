@@ -221,7 +221,7 @@ the Today screen (1b).
 | Slot | Rule |
 |---|---|
 | Header title | **Today's date, day-first**, real (never hardcoded): `{Weekday}, {D} {Mon-short}` → "Tuesday, 4 Aug". The old "Today's Focus" label is dropped. (Today's code builds this `en-US`, which prints month-first "Aug 3"; switch to day-first.) |
-| Header action | **"Plan day"** button (renamed from "Replan day"; same recompute-the-plan action). **Secondary/outlined** so the NOW card's "Start focus" stays the single primary CTA (`--color-primary`) on the Day plan screen. |
+| Header action | **"Plan day"** button (renamed from "Replan day"; same recompute-the-plan action). **Secondary/outlined** so the NOW card's "Start focus" stays the single primary CTA (`--color-primary`) on the Day plan screen. **Day plan tab only** (2026-08-08 feedback): Session/Habits keep the date title with an empty right side. |
 | Tab strip | `Day plan` · `Session` · `Habits`, reusing the `.plan-tab-strip` / `.plan-tab` styles for parity with the Plan group. |
 | Cycle slot (right of tabs) | **Static text** "May cycle · week N of M" via `cycleWeekLabel()`. **Not a dropdown** — Day plan is today-scoped, so there is nothing to filter (unlike the Plan group's cycle-week dropdown). |
 
@@ -276,15 +276,20 @@ frequency/category fields, so **scheduling is implicit every-day**).
   action). The CTA **expands** the existing inline input (type + Enter/Add) —
   no modal. Cycle context ("May cycle · week N of M") is already rendered by the
   Focus shell's tab strip (`cycleWeekLabel()`); the tracker does not repeat it.
-- Matrix card: `HABIT | Mon..Sun | STREAK`. Day headers over the day columns;
-  each week block carries its own mono day-number row (today in cyan) so month
-  view shows correct dates per block. Cells are **~40px rounded squares**:
-  completed = solid habit accent + ✓, pending = dark container
-  (`--bg-tertiary`) with a subtle border, future = dashed + faded and
-  **inert**. Past/today cells toggle (tap again to un-tick). The matrix
-  **always shows the current period — no in-card navigation** (2026-08-08
-  feedback reversed the chevron decision; history lives in the analytics
-  panel). Month view stacks one Mon–Sun block per week of the month.
+- Matrix card: `HABIT | Mon..Sun | STREAK`. Each week block carries its own
+  full header with the weekday **and day number stacked in the same header
+  cell** (`Mon` / `25`; today in cyan) so month view shows correct dates per
+  block. Cells are **~40px rounded squares**: completed = solid habit accent +
+  ✓, pending = dark container (`--bg-tertiary`) with a subtle border, future =
+  dashed + faded and **inert**. Past/today cells toggle (tap again to un-tick).
+  The matrix **always shows the current period — no in-card navigation**
+  (2026-08-08 feedback reversed the chevron decision; history lives in the
+  analytics panel). Month view stacks one Mon–Sun block per week of the month.
+- **Streak semantics (2026-08-08 feedback):** the STREAK column counts
+  consecutive ticked days **ending at the most recent tick** — it does not
+  collapse to 0 when the last tick is a few days old (a 3-day run reads "3
+  days" until a new tick extends or breaks it). Desktop `computeHabitStreaks`
+  and the mobile mirror share this definition.
 - Bottom grid: `SuggestedHabits` (left) + `HabitAnalytics` (right), two equal
   columns; single column below 900px.
 

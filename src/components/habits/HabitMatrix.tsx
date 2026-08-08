@@ -65,26 +65,26 @@ export default function HabitMatrix({
 
   return (
     <div className="habit-matrix">
-      <div className="habit-matrix-table" role="table" aria-label="Weekly habit completion">
-        <div className="habit-matrix-head" role="row">
-          <span className="habit-matrix-head-cell habit-head-habit">HABIT</span>
-          {matrices[0].days.map((day) => (
-            <span key={day.date} className="habit-matrix-head-cell habit-head-day" role="columnheader">
-              <span className="habit-head-day-label">{day.weekdayLabel}</span>
-            </span>
-          ))}
-          <span className="habit-matrix-head-cell habit-head-streak">STREAK</span>
-        </div>
+      <div className="habit-matrix-table" role="table" aria-label="Habit completion matrix">
         {matrices.map((matrix) => (
           <div key={matrix.weekStart} className="habit-matrix-week">
-            <div className="habit-matrix-daynums" aria-hidden="true">
-              <span />
+            {/* Each week block carries its own full header, so the date numbers
+                always sit on the same row as the weekdays — and in month view
+                every block shows its own dates (the first block of a month
+                often overlaps the previous month). */}
+            <div className="habit-matrix-head" role="row">
+              <span className="habit-matrix-head-cell habit-head-habit">HABIT</span>
               {matrix.days.map((day) => (
-                <span key={day.date} className={`habit-matrix-daynum${day.isToday ? ' today' : ''}`}>
-                  {day.dayOfMonth}
+                <span
+                  key={day.date}
+                  className={`habit-matrix-head-cell habit-head-day${day.isToday ? ' today' : ''}`}
+                  role="columnheader"
+                >
+                  <span className="habit-head-day-label">{day.weekdayLabel}</span>
+                  <span className="habit-head-day-num">{day.dayOfMonth}</span>
                 </span>
               ))}
-              <span />
+              <span className="habit-matrix-head-cell habit-head-streak">STREAK</span>
             </div>
             {matrix.rows.map((row) => (
               <div

@@ -33,6 +33,10 @@ String getLocalDateString([DateTime? dt]) {
   return '$y-$m-$d';
 }
 
+/// Mirrors the desktop `computeHabitStreaks` (habit-storage.ts): `current` is
+/// the run of consecutive ticked days ending at the most recent tick — it does
+/// not expire when the last tick is a few days old (2026-08-08 feedback;
+/// desktop dropped its today/yesterday recency gate).
 HabitStreakResult computeHabitStreaks(List<String> ticks) {
   if (ticks.isEmpty) return const HabitStreakResult(current: 0, best: 0);
 
@@ -47,17 +51,13 @@ HabitStreakResult computeHabitStreaks(List<String> ticks) {
 
   int best = 0;
   int currentRun = 0;
-  DateTime? prevDate;
+  String? prevKey;
 
   for (final tickStr in validTicks) {
-    final d = DateTime.parse(tickStr);
-    if (prevDate == null) {
+    if (prevKey == null) {
       currentRun = 1;
     } else {
-      final t1 = DateTime.utc(d.year, d.month, d.day);
-      final t2 = DateTime.utc(prevDate.year, prevDate.month, prevDate.day);
-      final diffDays = t1.difference(t2).inDays;
-
+      final diffDays = _diffCalendarDays(prevKey, tickStr);
       if (diffDays == 1) {
         currentRun++;
       } else if (diffDays > 1) {
@@ -65,38 +65,28 @@ HabitStreakResult computeHabitStreaks(List<String> ticks) {
         currentRun = 1;
       }
     }
-    prevDate = d;
+    prevKey = tickStr;
   }
   if (currentRun > best) best = currentRun;
 
-  final now = DateTime.now();
-  final todayStr = getLocalDateString(now);
-  final yesterdayStr = getLocalDateString(now.subtract(const Duration(days: 1)));
-
-  int current = 0;
-  final lastTick = validTicks.last;
-
-  if (lastTick == todayStr || lastTick == yesterdayStr) {
-    int idx = validTicks.length - 1;
-    current = 1;
-    while (idx > 0) {
-      final d1 = DateTime.parse(validTicks[idx]);
-      final d2 = DateTime.parse(validTicks[idx - 1]);
-
-      final t1 = DateTime.utc(d1.year, d1.month, d1.day);
-      final t2 = DateTime.utc(d2.year, d2.month, d2.day);
-      final diffDays = t1.difference(t2).inDays;
-
-      if (diffDays == 1) {
-        current++;
-        idx--;
-      } else {
-        break;
-      }
-    }
+  // Current streak: consecutive days ending at the last tick.
+  int current = 1;
+  int idx = validTicks.length - 1;
+  while (idx > 0 && _diffCalendarDays(validTicks[idx - 1], validTicks[idx]) == 1) {
+    current++;
+    idx--;
   }
 
   return HabitStreakResult(current: current, best: best);
+}
+
+/// Whole-day difference between two 'YYYY-MM-DD' keys (UTC-safe arithmetic).
+int _diffCalendarDays(String a, String b) {
+  final da = DateTime.parse(a);
+  final db = DateTime.parse(b);
+  return DateTime.utc(db.year, db.month, db.day)
+      .difference(DateTime.utc(da.year, da.month, da.day))
+      .inDays;
 }
 
 List<CalendarDay> getCalendarDaysForMonth(DateTime monthDate, String todayStr) {

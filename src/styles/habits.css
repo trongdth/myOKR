@@ -130,7 +130,6 @@
 }
 
 .habit-matrix-head,
-.habit-matrix-daynums,
 .habit-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(7, 2.5rem) 4.5rem;
@@ -155,8 +154,13 @@
   text-align: left;
 }
 
+/* Weekday label + day number stacked in one header cell — the date number
+   lives on the same row as the weekday (2026-08-08 feedback). */
 .habit-head-day {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 
 .habit-head-day-label {
@@ -164,34 +168,24 @@
   letter-spacing: 0.05em;
 }
 
+.habit-head-day-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.habit-head-day.today .habit-head-day-label,
+.habit-head-day.today .habit-head-day-num {
+  color: var(--color-primary);
+}
+
 .habit-head-streak {
   text-align: right;
 }
 
-/* Per-week day-number row — in month view each week block carries its own
-   dates (the first block of a month often overlaps the previous month). */
-.habit-matrix-daynums {
-  padding-bottom: 0.25rem;
-}
-
-.habit-matrix-daynum {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.habit-matrix-daynum.today {
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
+/* Week blocks (month view stacks several): each carries its own header. */
 .habit-matrix-week + .habit-matrix-week {
-  margin-top: 0.75rem;
-}
-
-.habit-matrix-week + .habit-matrix-week .habit-row {
-  border-top: 1px dashed var(--border-color);
+  margin-top: 1rem;
 }
 
 .habit-row {
@@ -537,7 +531,6 @@
   }
 
   .habit-matrix-head,
-  .habit-matrix-daynums,
   .habit-row {
     grid-template-columns: minmax(0, 1fr) repeat(7, 2rem) 3.6rem;
     column-gap: 4px;

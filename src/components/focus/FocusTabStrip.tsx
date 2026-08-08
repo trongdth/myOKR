@@ -21,24 +21,28 @@ export function formatTodayDayFirst(now: Date = new Date()): string {
 /**
  * Focus-group header: today's date as the title + a "Plan day" action. Reuses
  * the Plan header's structural classes (.tasks-view-header / .plan-header-title)
- * for parity; the Focus shell provides the surrounding padding.
+ * for parity; the Focus shell provides the surrounding padding. The "Plan day"
+ * action belongs to the Day plan tab only (2026-08-08 feedback) — other tabs
+ * keep the date title with an empty right side.
  */
-export function FocusHeader({ onPlanDay }: { onPlanDay: () => void }) {
+export function FocusHeader({ onPlanDay, showPlanDay }: { onPlanDay: () => void; showPlanDay?: boolean }) {
   return (
     <div className="tasks-view-header focus-header">
       <div className="tasks-header-left">
         <h1 className="focus-header-title plan-header-title">{formatTodayDayFirst()}</h1>
       </div>
       <div className="tasks-header-right">
-        <button
-          type="button"
-          onClick={onPlanDay}
-          className="focus-plan-day-btn"
-          title="Recompute today's plan from scratch"
-        >
-          <RefreshCw size={13} />
-          <span>Plan day</span>
-        </button>
+        {showPlanDay && (
+          <button
+            type="button"
+            onClick={onPlanDay}
+            className="focus-plan-day-btn"
+            title="Recompute today's plan from scratch"
+          >
+            <RefreshCw size={13} />
+            <span>Plan day</span>
+          </button>
+        )}
       </div>
     </div>
   );

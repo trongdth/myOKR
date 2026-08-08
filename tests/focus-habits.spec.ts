@@ -25,6 +25,17 @@ test.describe('Focus shell — Habits tab (ticket 03)', () => {
     await expect(page.locator('.plan-tab-strip.focus-tabs .plan-tab.active')).toHaveText(/Habits/);
   });
 
+  test('Plan day button appears only on the Day plan tab', async ({ page }) => {
+    // Day plan keeps the header action
+    await page.locator('.plan-tab:has-text("Day plan")').click();
+    await expect(page.locator('.focus-plan-day-btn')).toBeVisible();
+
+    // Habits tab: header title stays, the Plan day action is gone
+    await openHabits(page);
+    await expect(page.locator('.focus-header-title')).toBeVisible();
+    await expect(page.locator('.focus-plan-day-btn')).toHaveCount(0);
+  });
+
   test('weekly badge is hidden when there are no habits', async ({ page }) => {
     // Default seed has no habits → no badge (never "0/0").
     await expect(page.locator('.focus-tab-habits')).toHaveCount(0);

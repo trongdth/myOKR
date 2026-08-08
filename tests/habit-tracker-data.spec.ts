@@ -87,17 +87,19 @@ test.describe('Habit tracker data', () => {
     ]);
   });
 
-  test('computeHabitStreaks honors an explicit today; yesterday keeps the streak alive', async ({ page }) => {
+  test('computeHabitStreaks counts the consecutive ticked days ending at the last tick', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { computeHabitStreaks } = await import('/src/lib/habit-storage.ts');
       return {
-        todayAndYesterday: computeHabitStreaks(['2026-05-23', '2026-05-24'], '2026-05-24').current,
-        yesterdayAlive: computeHabitStreaks(['2026-05-22', '2026-05-23'], '2026-05-24').current,
-        stale: computeHabitStreaks(['2026-05-21'], '2026-05-24').current,
-        best: computeHabitStreaks(['2026-05-10', '2026-05-11', '2026-05-12', '2026-05-20'], '2026-05-24').best,
+        endingToday: computeHabitStreaks(['2026-05-23', '2026-05-24']).current,
+        endingYesterday: computeHabitStreaks(['2026-05-22', '2026-05-23']).current,
+        staleRun: computeHabitStreaks(['2026-05-21', '2026-05-22', '2026-05-23']).current, // 3 ticks, last one 2 days ago
+        singleTick: computeHabitStreaks(['2026-05-21']).current,
+        brokenRun: computeHabitStreaks(['2026-05-10', '2026-05-20']).current,
+        best: computeHabitStreaks(['2026-05-10', '2026-05-11', '2026-05-12', '2026-05-20']).best,
       };
     });
-    expect(result).toEqual({ todayAndYesterday: 2, yesterdayAlive: 2, stale: 0, best: 3 });
+    expect(result).toEqual({ endingToday: 2, endingYesterday: 2, staleRun: 3, singleTick: 1, brokenRun: 1, best: 3 });
   });
 
   test('buildHabitAnalytics: 30-day rates, trend vs previous window, weak-day insight', async ({ page }) => {
