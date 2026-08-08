@@ -36,6 +36,18 @@ void main() {
 
   });
 
+  test('merge resolves a same-key conflict to a single scalar', () {
+    final a = createAutomergeDocWithData(key: 'k', value: 'A');
+    final b = createAutomergeDocWithData(key: 'k', value: 'B');
+
+    final merged = mergeAutomergeBinaries(localBinary: a, remoteBinary: b);
+
+    // Concurrent same-key writes conflict; Automerge resolves them
+    // deterministically — the merged doc must hold ONE of the two, not both.
+    final val = jsonDecode(automergeGetProperty(binary: merged, key: 'k'));
+    expect(val == 'A' || val == 'B', isTrue, reason: 'got: $val');
+  });
+
   test('merge survives a corrupt binary on either side (no panic)', () {
     final corrupt = Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF]);
     final valid = createAutomergeDocWithData(key: 'k', value: 'v');
