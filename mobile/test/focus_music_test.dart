@@ -25,6 +25,30 @@ class _ThrowingPlayer implements FocusMusicPlayer {
   Future<void> stop() async {}
 }
 
+class _FlakyStartPlayer implements FocusMusicPlayer {
+  int startCalls = 0;
+  int stopCalls = 0;
+
+  @override
+  Future<void> start() async {
+    startCalls++;
+    if (startCalls == 1) throw Exception('device busy');
+  }
+
+  @override
+  Future<void> stop() async => stopCalls++;
+}
+
+class _ThrowingStopPlayer implements FocusMusicPlayer {
+  final List<String> calls = [];
+
+  @override
+  Future<void> start() async => calls.add('start');
+
+  @override
+  Future<void> stop() async => throw Exception('pause failed');
+}
+
 class _ThrowingAudioPlayer extends AudioPlayer {
   @override
   Future<Duration?> setAsset(
@@ -132,6 +156,36 @@ void main() {
       await controller.sync(
           sessionType: 'focus', isRunning: true, enabled: true);
       expect(controller.isPlaying, isFalse);
+    });
+
+    test('a failed start is retried on the next sync', () async {
+      final player = _FlakyStartPlayer();
+      final controller = FocusMusicController(player);
+      await controller.sync(
+          sessionType: 'focus', isRunning: true, enabled: true);
+      expect(controller.isPlaying, isFalse);
+      expect(player.startCalls, 1);
+
+      // Same session state: the failed start must be retried, not skipped
+      // because _playing never flipped.
+      await controller.sync(
+          sessionType: 'focus', isRunning: true, enabled: true);
+      expect(player.startCalls, 2);
+      expect(controller.isPlaying, isTrue);
+    });
+
+    test('a failing stop does not crash sync and stays believed-playing', () async {
+      final player = _ThrowingStopPlayer();
+      final controller = FocusMusicController(player);
+      await controller.sync(
+          sessionType: 'focus', isRunning: true, enabled: true);
+      expect(controller.isPlaying, isTrue);
+
+      // Break edge: stop fails — no crash, and _playing stays true so the
+      // next stop edge retries instead of forgetting the stuck player.
+      await controller.sync(
+          sessionType: 'shortBreak', isRunning: false, enabled: true);
+      expect(controller.isPlaying, isTrue);
     });
   });
 

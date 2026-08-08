@@ -80,7 +80,11 @@ class FocusMusicController {
   /// Stop unconditionally (e.g. on app teardown), regardless of tracked state.
   Future<void> dispose() async {
     if (_playing) {
-      await _player.stop();
+      try {
+        await _player.stop();
+      } catch (e) {
+        debugPrint('focus music stop failed: $e');
+      }
       _playing = false;
     }
   }
