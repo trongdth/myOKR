@@ -26,7 +26,7 @@ class _ReviewEntryEditSheetState extends State<ReviewEntryEditSheet> {
   void initState() {
     super.initState();
     final currVal = (widget.entry['currentValue'] as num?)?.toDouble() ?? 0.0;
-    _valueController = TextEditingController(text: currVal.toStringAsFixed(currVal.truncateToDouble() == currVal ? 0 : 1));
+    _valueController = TextEditingController(text: currVal.toString());
     _noteController = TextEditingController(text: widget.entry['note'] as String? ?? '');
     _selectedConfidence = widget.entry['confidence'] as String? ?? 'on_track';
   }
