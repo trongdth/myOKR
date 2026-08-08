@@ -17,6 +17,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
 
   String? _authUrl;
   String? _codeVerifier;
+  String? _oauthState;
 
   @override
   void initState() {
@@ -49,10 +50,12 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     }
 
     try {
-      final (verifier, url) = widget.provider.dropboxService.getDropboxAuthUrl(clientId);
+      final (verifier, state, url) =
+          widget.provider.dropboxService.getDropboxAuthUrl(clientId);
       setState(() {
         _authUrl = url;
         _codeVerifier = verifier;
+        _oauthState = state;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,16 +86,24 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
 
   Future<void> _handleConnect() async {
     final clientId = _clientIdController.text.trim();
-    final authCode = _authCodeController.text.trim();
+    final authResponse = _authCodeController.text.trim();
 
-    if (clientId.isEmpty || authCode.isEmpty || _codeVerifier == null) {
+    if (clientId.isEmpty ||
+        authResponse.isEmpty ||
+        _codeVerifier == null ||
+        _oauthState == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete the authorization step.')),
       );
       return;
     }
 
-    final success = await widget.provider.connectDropbox(clientId, authCode, _codeVerifier!);
+    final success = await widget.provider.connectDropbox(
+      clientId,
+      authResponse,
+      _codeVerifier!,
+      expectedState: _oauthState!,
+    );
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Successfully connected to Dropbox!')),
@@ -130,6 +141,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
         setState(() {
           _authUrl = null;
           _codeVerifier = null;
+          _oauthState = null;
           _authCodeController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -317,7 +329,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
                   obscureText: true,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: InputDecoration(
-                    hintText: 'Paste the Authorization Code here',
+                    hintText: 'Paste the full authorization URL here',
                     hintStyle: const TextStyle(color: AppTheme.textMuted),
                     filled: true,
                     fillColor: AppTheme.bgCard,

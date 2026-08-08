@@ -90,9 +90,21 @@ class StorageProvider extends ChangeNotifier {
   }
 
 
-  Future<bool> connectDropbox(String clientId, String authCode, String codeVerifier) async {
-    if (clientId.trim().isEmpty || authCode.trim().isEmpty || codeVerifier.isEmpty) {
-      syncError = 'Please complete the authorization step.';
+  Future<bool> connectDropbox(
+    String clientId,
+    String authResponse,
+    String codeVerifier, {
+    required String expectedState,
+  }) async {
+    // The user may paste the bare code, a code=...&state=... query, or the
+    // full redirect URL. The CSRF state must come back with the code.
+    final parsed = parseAuthResponse(authResponse);
+    if (clientId.trim().isEmpty ||
+        parsed.code.isEmpty ||
+        codeVerifier.isEmpty ||
+        parsed.state == null) {
+      syncError =
+          'Please complete the authorization step — paste the full redirect URL.';
       notifyListeners();
       return false;
     }
@@ -104,8 +116,10 @@ class StorageProvider extends ChangeNotifier {
     try {
       final refreshToken = await dropboxService.exchangeDropboxCode(
         clientId.trim(),
-        authCode.trim(),
+        parsed.code,
         codeVerifier,
+        expectedState: expectedState,
+        returnedState: parsed.state!,
       );
 
       final isValid = await dropboxService.validateDropboxToken(clientId.trim(), refreshToken);
