@@ -8,16 +8,11 @@ export interface Habit {
   name: string;
   status: HabitStatus;
   ticks: string[];       // sorted 'YYYY-MM-DD', deduped in normalizeHabit
-  order: number;
   createdAt: string;
   updatedAt: string;
 }
 
 const HABIT_STATUS_VALUES: readonly HabitStatus[] = ['want_to_form', 'in_progress', 'formed'];
-
-function finiteNumber(v: unknown, fallback: number): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-}
 
 export function normalizeHabit(h: unknown): Habit | null {
   if (!h || typeof h !== 'object') return null;
@@ -36,7 +31,6 @@ export function normalizeHabit(h: unknown): Habit | null {
     name: typeof habit.name === 'string' ? habit.name : '',
     status: HABIT_STATUS_VALUES.includes(status as HabitStatus) ? (status as HabitStatus) : 'want_to_form',
     ticks,
-    order: finiteNumber(habit.order, 0),
     createdAt: typeof habit.createdAt === 'string' ? habit.createdAt : new Date().toISOString(),
     updatedAt: typeof habit.updatedAt === 'string' ? habit.updatedAt : new Date().toISOString(),
   };

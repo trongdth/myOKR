@@ -56,7 +56,6 @@ export default function HabitsApp() {
       name: newHabitName.trim(),
       status: 'want_to_form',
       ticks: [],
-      order: habits.length,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

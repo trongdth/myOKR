@@ -33,7 +33,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
       'name': name,
       'status': 'want_to_form',
       'ticks': <String>[],
-      'order': widget.provider.habits.length,
       'createdAt': DateTime.now().toIso8601String(),
       'updatedAt': DateTime.now().toIso8601String(),
     };
