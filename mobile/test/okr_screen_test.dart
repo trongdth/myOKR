@@ -108,14 +108,10 @@ class _FakeOkrStorageProvider extends StorageProvider {
 
 class _FailingOkrStorageProvider extends _FakeOkrStorageProvider {
   _FailingOkrStorageProvider({
-    required List<Map<String, dynamic>> testCycles,
-    required List<Map<String, dynamic>> testObjectives,
-    required List<Map<String, dynamic>> testKeyResults,
-  }) : super(
-          testCycles: testCycles,
-          testObjectives: testObjectives,
-          testKeyResults: testKeyResults,
-        );
+    required super.testCycles,
+    required super.testObjectives,
+    required super.testKeyResults,
+  });
 
   @override
   Future<void> saveObjective(Map<String, dynamic> obj) async =>
