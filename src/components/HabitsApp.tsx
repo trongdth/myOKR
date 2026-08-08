@@ -5,9 +5,6 @@ import {
   loadHabits,
   saveHabits,
   buildHabitAnalytics,
-  getMondayOf,
-  addDays,
-  parseDateKey,
   type Habit,
   type HabitStatus,
 } from '../lib/habit-storage';
@@ -24,7 +21,6 @@ export default function HabitsApp() {
   const [isLoading, setIsLoading] = useState(true);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [view, setView] = useState<'week' | 'month'>('week');
-  const [anchor, setAnchor] = useState(() => getLocalDateString(getMondayOf(new Date())));
   const [showAddForm, setShowAddForm] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const addInputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +55,6 @@ export default function HabitsApp() {
   }, []);
 
   const todayStr = getLocalDateString();
-  const currentWeekStart = getLocalDateString(getMondayOf(new Date()));
 
   const createHabit = async (name: string) => {
     const newHabit: Habit = {
@@ -85,34 +80,7 @@ export default function HabitsApp() {
 
   const handleToggleView = (next: 'week' | 'month') => {
     setView(next);
-    setAnchor(next === 'week' ? currentWeekStart : `${todayStr.slice(0, 7)}-01`);
   };
-
-  const handlePrev = () => {
-    if (view === 'week') {
-      setAnchor(getLocalDateString(addDays(parseDateKey(anchor), -7)));
-    } else {
-      const [y, m1] = anchor.split('-').map(Number); // month key is 1-indexed
-      const prevMonth = m1 === 1 ? 12 : m1 - 1;
-      const prevYear = m1 === 1 ? y - 1 : y;
-      setAnchor(`${prevYear}-${String(prevMonth).padStart(2, '0')}-01`);
-    }
-  };
-
-  const handleNext = () => {
-    if (view === 'week') {
-      setAnchor(getLocalDateString(addDays(parseDateKey(anchor), 7)));
-    } else {
-      const [y, m1] = anchor.split('-').map(Number); // month key is 1-indexed
-      const nextMonth = m1 === 12 ? 1 : m1 + 1;
-      const nextYear = m1 === 12 ? y + 1 : y;
-      setAnchor(`${nextYear}-${String(nextMonth).padStart(2, '0')}-01`);
-    }
-  };
-
-  const canGoForward = view === 'week'
-    ? anchor !== currentWeekStart
-    : anchor !== `${todayStr.slice(0, 7)}-01`;
 
   const handleToggleTick = async (habitId: string, dateStr: string) => {
     const updated = habits.map(h => {
@@ -269,11 +237,7 @@ export default function HabitsApp() {
       <HabitMatrix
         habits={habits}
         view={view}
-        anchor={anchor}
         todayStr={todayStr}
-        canGoForward={canGoForward}
-        onPrev={handlePrev}
-        onNext={handleNext}
         onToggleTick={handleToggleTick}
         onUpdateStatus={handleUpdateStatus}
         onDelete={handleDeleteHabit}

@@ -2,6 +2,14 @@ import { test, expect } from '@playwright/test';
 
 const FIXED_TIME = new Date('2026-05-24T12:00:00.000Z'); // Sunday 2026-05-24
 
+/** '#rrggbb' → 'rgb(r, g, b)' as returned by getComputedStyle().backgroundColor */
+function hexToRgb(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
+
 test.describe('Habits Tracker UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.clock.setFixedTime(FIXED_TIME);
@@ -75,17 +83,17 @@ test.describe('Habits Tracker UI', () => {
     await expect(page.locator('.suggested-chip')).toHaveCount(3);
   });
 
-  test('Week/Month toggle switches the matrix period label', async ({ page }) => {
+  test('Week/Month toggle switches the matrix between one week and stacked month blocks', async ({ page }) => {
     await page.locator('.habits-new-btn').click();
     await page.locator('.add-habit-input').fill('Toggle Test Habit');
     await page.locator('button:has-text("Add Habit")').click();
 
-    // Week view: Monday 18 – Sunday 24 (the fixed test date is a Sunday)
-    await expect(page.locator('.habit-matrix-period')).toHaveText('Mon 18 – Sun 24');
+    // Week view: a single week block with one day-number row; no pagination bar
+    await expect(page.locator('.habit-matrix-week')).toHaveCount(1);
+    await expect(page.locator('.habit-matrix-daynum')).toHaveCount(7);
     await expect(page.locator('.habits-view-btn:has-text("Week")')).toHaveClass(/active/);
 
     await page.locator('.habits-view-btn:has-text("Month")').click();
-    await expect(page.locator('.habit-matrix-period')).toHaveText('May 2026');
     await expect(page.locator('.habits-view-btn:has-text("Month")')).toHaveClass(/active/);
 
     // Month view stacks one week block per week of the month; each block carries
@@ -93,6 +101,118 @@ test.describe('Habits Tracker UI', () => {
     await expect(page.locator('.habit-matrix-week')).toHaveCount(5); // May 2026: 5 Mon–Sun blocks
     await expect(page.locator('.habit-matrix-daynum')).toHaveCount(35);
     await expect(page.locator('.habit-matrix-daynum.today')).toHaveText('24');
+  });
+
+  test('matrix has no in-card pagination bar and header/day-numbers/rows share one column grid', async ({ page }) => {
+    await page.locator('.habits-new-btn').click();
+    await page.locator('.add-habit-input').fill('Grid Test Habit');
+    await page.locator('button:has-text("Add Habit")').click();
+
+    // No `< Mon 3 – Sun 9 >` navigation bar inside the card
+    await expect(page.locator('.habit-matrix-header')).toHaveCount(0);
+    await expect(page.locator('.habit-nav-btn')).toHaveCount(0);
+
+    // Day headers sit directly over their checkbox columns: head, the day-number
+    // row, and every habit row share the exact same grid template.
+    const templates = await page.evaluate(() => {
+      const read = (sel: string) => {
+        const el = document.querySelector(sel);
+        return el ? window.getComputedStyle(el).gridTemplateColumns : null;
+      };
+      return {
+        head: read('.habit-matrix-head'),
+        daynums: read('.habit-matrix-daynums'),
+        row: read('.habit-row'),
+      };
+    });
+    expect(templates.head).toBeTruthy();
+    expect(templates.daynums).toBe(templates.head);
+    expect(templates.row).toBe(templates.head);
+  });
+
+  test('checkbox cells are ~40px squares with dark pending fill and accent-matched completed fill', async ({ page }) => {
+    await page.locator('.habits-new-btn').click();
+    await page.locator('.add-habit-input').fill('Style Test Habit');
+    await page.locator('button:has-text("Add Habit")').click();
+
+    const row = page.locator('.habit-row:has-text("Style Test Habit")');
+    const pendingCell = row.locator('.habit-cell.pending').first();
+    const todayCell = row.locator('.habit-cell.today');
+
+    // ~40px rounded squares (unscaled CSS pixels at the default viewport)
+    const size = await pendingCell.evaluate((el) => {
+      const s = window.getComputedStyle(el);
+      return { width: s.width, height: s.height, radius: s.borderRadius };
+    });
+    expect(parseFloat(size.width)).toBeGreaterThanOrEqual(38);
+    expect(parseFloat(size.height)).toBeGreaterThanOrEqual(38);
+    expect(parseFloat(size.radius)).toBeGreaterThanOrEqual(8);
+
+    // Unchecked = dark filled container with a subtle border
+    const pendingStyle = await pendingCell.evaluate((el) => {
+      const s = window.getComputedStyle(el);
+      return { bg: s.backgroundColor, border: s.borderTopColor };
+    });
+    const bgTertiary = await page.evaluate(() => window.getComputedStyle(document.documentElement).getPropertyValue('--bg-tertiary').trim());
+    expect(pendingStyle.bg).toBe(hexToRgb(bgTertiary));
+
+    // Completed fill matches the habit's accent; check glyph is light and bold
+    await todayCell.click();
+    const completedStyle = await todayCell.evaluate((el) => {
+      const s = window.getComputedStyle(el);
+      const rowEl = el.closest('.habit-row') as HTMLElement;
+      return {
+        bg: s.backgroundColor,
+        color: s.color,
+        accent: window.getComputedStyle(rowEl).getPropertyValue('--habit-accent').trim(),
+      };
+    });
+    expect(completedStyle.bg).toBe(hexToRgb(completedStyle.accent));
+    const textPrimary = await page.evaluate(() => window.getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim());
+    expect(completedStyle.color).toBe(hexToRgb(textPrimary));
+  });
+
+  test('analytics bar label, track, and rate align on one row across the card width', async ({ page }) => {
+    await page.evaluate(async () => {
+      const { saveHabits } = await import('/src/lib/habit-storage.ts');
+      await saveHabits([{
+        id: 'h1', name: 'Read 20 pages', status: 'in_progress', ticks: ['2026-05-24'],
+        createdAt: '2026-04-01T00:00:00Z', updatedAt: '2026-04-01T00:00:00Z',
+      }]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    const panel = page.locator('.habit-analytics');
+    const barRow = page.locator('.analytics-bar-row').first();
+    await expect(barRow).toBeVisible();
+
+    const geometry = await page.evaluate(() => {
+      const panelEl = document.querySelector('.habit-analytics') as HTMLElement;
+      const rowEl = document.querySelector('.analytics-bar-row') as HTMLElement;
+      const nameEl = rowEl.querySelector('.analytics-bar-name') as HTMLElement;
+      const trackEl = rowEl.querySelector('.analytics-bar-track') as HTMLElement;
+      const rateEl = rowEl.querySelector('.analytics-bar-rate') as HTMLElement;
+      const panelRect = panelEl.getBoundingClientRect();
+      const rowRect = rowEl.getBoundingClientRect();
+      const trackRect = trackEl.getBoundingClientRect();
+      const rateRect = rateEl.getBoundingClientRect();
+      const nameRect = nameEl.getBoundingClientRect();
+      const panelStyles = window.getComputedStyle(panelEl);
+      const panelBorderX = parseFloat(panelStyles.borderLeftWidth) + parseFloat(panelStyles.borderRightWidth);
+      const centerY = (r: DOMRect) => r.top + r.height / 2;
+      return {
+        // Row fills the panel's content width (20px padding each side, borders excluded)
+        rowSpansCard: Math.abs(rowRect.width - (panelRect.width - panelBorderX - 40)) < 2,
+        // Label, track and rate share one horizontal row (vertically centered)
+        sameRow: Math.abs(centerY(nameRect) - centerY(rateRect)) < 2 && Math.abs(centerY(trackRect) - centerY(rateRect)) < 2,
+        rateAtRowEnd: Math.abs(rateRect.right - rowRect.right) < 2,
+        trackWidth: trackRect.width,
+      };
+    });
+    expect(geometry.rowSpansCard).toBe(true);
+    expect(geometry.sameRow).toBe(true);
+    expect(geometry.rateAtRowEnd).toBe(true);
+    expect(geometry.trackWidth).toBeGreaterThan(80);
   });
 
   test('30-day analytics: metric, trend, bars, and the weak-day insight banner', async ({ page }) => {

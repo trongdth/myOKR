@@ -124,47 +124,6 @@
   padding: 1.25rem 1.25rem 0.75rem;
 }
 
-.habit-matrix-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.habit-nav-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.habit-nav-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.habit-nav-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.habit-matrix-period {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  min-width: 11rem;
-  text-align: center;
-}
-
 .habit-matrix-table {
   display: flex;
   flex-direction: column;
@@ -174,7 +133,7 @@
 .habit-matrix-daynums,
 .habit-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(7, 2.25rem) 4.5rem;
+  grid-template-columns: minmax(0, 1fr) repeat(7, 2.5rem) 4.5rem;
   column-gap: 6px;
   align-items: center;
 }
@@ -343,16 +302,16 @@
 }
 
 .habit-cell {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
   background: var(--bg-tertiary);
-  color: var(--bg-primary);
+  color: var(--text-primary);
   cursor: pointer;
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -360,7 +319,7 @@
 .habit-cell.completed {
   background: var(--habit-accent);
   border-color: transparent;
-  color: var(--bg-primary); /* dark glyph on accent fills — same convention as .btn on cyan */
+  color: var(--text-primary); /* near-white glyph on accent fills */
   box-shadow: 0 2px 8px color-mix(in srgb, var(--habit-accent) 35%, transparent);
 }
 
@@ -516,7 +475,7 @@
 
 .analytics-bar-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 2.6rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
   column-gap: 0.6rem;
   align-items: center;
 }
@@ -587,6 +546,6 @@
   .habit-cell {
     width: 2rem;
     height: 2rem;
-    border-radius: 7px;
+    border-radius: 8px;
   }
 }

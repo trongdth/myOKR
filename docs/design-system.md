@@ -276,12 +276,15 @@ frequency/category fields, so **scheduling is implicit every-day**).
   action). The CTA **expands** the existing inline input (type + Enter/Add) —
   no modal. Cycle context ("May cycle · week N of M") is already rendered by the
   Focus shell's tab strip (`cycleWeekLabel()`); the tracker does not repeat it.
-- Matrix card: `HABIT | Mon..Sun | STREAK`. Day headers `Mon 25` with today's
-  column in cyan. Cells: completed = solid habit accent + ✓, pending = dark
-  container, future = dashed + faded and **inert**. Past/today cells toggle
-  (tap again to un-tick). Chevrons navigate periods; **forward navigation stops
-  at the current week/month**. Month view stacks one Mon–Sun block per week of
-  the month.
+- Matrix card: `HABIT | Mon..Sun | STREAK`. Day headers over the day columns;
+  each week block carries its own mono day-number row (today in cyan) so month
+  view shows correct dates per block. Cells are **~40px rounded squares**:
+  completed = solid habit accent + ✓, pending = dark container
+  (`--bg-tertiary`) with a subtle border, future = dashed + faded and
+  **inert**. Past/today cells toggle (tap again to un-tick). The matrix
+  **always shows the current period — no in-card navigation** (2026-08-08
+  feedback reversed the chevron decision; history lives in the analytics
+  panel). Month view stacks one Mon–Sun block per week of the month.
 - Bottom grid: `SuggestedHabits` (left) + `HabitAnalytics` (right), two equal
   columns; single column below 900px.
 
@@ -333,7 +336,7 @@ state when nothing was scheduled in the window.
 
 ### Responsive
 
-Bottom panels stack at ≤900px; matrix day cells shrink to 2rem (from 2.25rem)
+Bottom panels stack at ≤900px; matrix day cells shrink to 2rem (from 2.5rem)
 at ≤900px. Nothing else re-stacks — the matrix stays a matrix ("nothing hidden,
 only re-stacked").
 

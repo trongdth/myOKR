@@ -1,17 +1,13 @@
-import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 import {
   buildHabitWeekMatrix,
   getMondayOf,
+  parseDateKey,
   type Habit,
   type HabitStatus,
 } from '../../lib/habit-storage';
 import { getLocalDateString } from '../../lib/pomodoro-storage';
 import { habitAccentClass } from './habit-accent';
-
-const MONTHS_FULL = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
 
 /** Monday-start weeks whose Monday..Sunday window overlaps `monthKey` ('YYYY-MM-01'). */
 function getMonthWeekStarts(monthKey: string): string[] {
@@ -30,52 +26,36 @@ function getMonthWeekStarts(monthKey: string): string[] {
 interface HabitMatrixProps {
   habits: Habit[];
   view: 'week' | 'month';
-  /** Week view: Monday 'YYYY-MM-DD'. Month view: 'YYYY-MM-01'. */
-  anchor: string;
   todayStr: string;
-  canGoForward: boolean;
-  onPrev: () => void;
-  onNext: () => void;
   onToggleTick: (habitId: string, dateStr: string) => void;
   onUpdateStatus: (habitId: string, status: HabitStatus) => void;
   onDelete: (habitId: string) => void;
 }
 
 /**
- * The weekly completion matrix — HABIT | Mon..Sun | STREAK. Week view renders
- * one Mon–Sun block; month view stacks one block per week of the anchor month.
- * Cells: completed = solid habit-accent with ✓, pending = dark with border,
- * future = dashed + faded. Past/today cells toggle, future cells are inert.
+ * The weekly completion matrix — HABIT | Mon..Sun | STREAK. Always shows the
+ * current period (no in-card navigation): week view renders one Mon–Sun block;
+ * month view stacks one block per week of the current month. Cells: completed =
+ * solid habit-accent with ✓, pending = dark with border, future = dashed +
+ * faded. Past/today cells toggle, future cells are inert.
  */
 export default function HabitMatrix({
   habits,
   view,
-  anchor,
   todayStr,
-  canGoForward,
-  onPrev,
-  onNext,
   onToggleTick,
   onUpdateStatus,
   onDelete,
 }: HabitMatrixProps) {
-  const weekStarts = view === 'week' ? [anchor] : getMonthWeekStarts(anchor);
+  const weekStarts =
+    view === 'week'
+      ? [getLocalDateString(getMondayOf(parseDateKey(todayStr)))]
+      : getMonthWeekStarts(`${todayStr.slice(0, 7)}-01`);
   const matrices = weekStarts.map((weekStart) => buildHabitWeekMatrix(habits, weekStart, todayStr));
-
-  let periodLabel: string;
-  if (view === 'week') {
-    const first = matrices[0].days[0];
-    const last = matrices[0].days[6];
-    periodLabel = `${first.weekdayLabel} ${first.dayOfMonth} – ${last.weekdayLabel} ${last.dayOfMonth}`;
-  } else {
-    const [y, m1] = anchor.split('-').map(Number); // month key is 1-indexed
-    periodLabel = `${MONTHS_FULL[m1 - 1]} ${y}`;
-  }
 
   if (habits.length === 0) {
     return (
       <div className="habit-matrix">
-        <MatrixHeader periodLabel={periodLabel} canGoForward={canGoForward} onPrev={onPrev} onNext={onNext} />
         <div className="habit-matrix-empty">
           No habits yet — add one with <strong>+ New habit</strong> or pick a suggestion below.
         </div>
@@ -85,7 +65,6 @@ export default function HabitMatrix({
 
   return (
     <div className="habit-matrix">
-      <MatrixHeader periodLabel={periodLabel} canGoForward={canGoForward} onPrev={onPrev} onNext={onNext} />
       <div className="habit-matrix-table" role="table" aria-label="Weekly habit completion">
         <div className="habit-matrix-head" role="row">
           <span className="habit-matrix-head-cell habit-head-habit">HABIT</span>
@@ -149,7 +128,7 @@ export default function HabitMatrix({
                     disabled={cell.state === 'future'}
                     onClick={() => onToggleTick(row.habitId, cell.date)}
                   >
-                    {cell.state === 'completed' && <Check size={13} strokeWidth={3} aria-hidden="true" />}
+                    {cell.state === 'completed' && <Check size={16} strokeWidth={3} aria-hidden="true" />}
                   </button>
                 ))}
                 <span className="habit-streak-cell" role="cell">
@@ -160,36 +139,6 @@ export default function HabitMatrix({
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function MatrixHeader({
-  periodLabel,
-  canGoForward,
-  onPrev,
-  onNext,
-}: {
-  periodLabel: string;
-  canGoForward: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="habit-matrix-header">
-      <button type="button" className="habit-nav-btn" title="Previous period" onClick={onPrev}>
-        <ChevronLeft size={15} />
-      </button>
-      <span className="habit-matrix-period">{periodLabel}</span>
-      <button
-        type="button"
-        className="habit-nav-btn"
-        title="Next period"
-        onClick={onNext}
-        disabled={!canGoForward}
-      >
-        <ChevronRight size={15} />
-      </button>
     </div>
   );
 }
