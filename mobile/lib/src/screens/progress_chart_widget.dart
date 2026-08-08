@@ -140,7 +140,11 @@ class ProgressChartWidget extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
-            children: data.seriesList.map((s) {
+            // Only series with points get a swatch — an empty series (zero
+            // target, no valid entries) would be a phantom legend entry.
+            children: data.seriesList
+                .where((s) => s.points.isNotEmpty)
+                .map((s) {
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

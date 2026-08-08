@@ -97,5 +97,25 @@ void main() {
       final painterC = tester.renderObject<RenderCustomPaint>(chartPaint).painter!;
       expect(painterC.shouldRepaint(painterB), isTrue);
     });
+
+    testWidgets('legend hides series with no points (zero target)',
+        (tester) async {
+      final keyResultsWithZero = [
+        {'id': 'kr1', 'title': 'Revenue KR', 'targetValue': 100},
+        {'id': 'kr2', 'title': 'Zero target', 'targetValue': 0},
+      ];
+      final reviewsWithZero = reviews(2).map((r) {
+        r['entries'] = [
+          {'keyResultId': 'kr1', 'currentValue': 10},
+          {'keyResultId': 'kr2', 'currentValue': 5},
+        ];
+        return r;
+      }).toList();
+
+      await tester.pumpWidget(wrap(reviewsWithZero, keyResultsWithZero));
+
+      expect(find.text('Revenue KR'), findsOneWidget);
+      expect(find.text('Zero target'), findsNothing); // no phantom swatch
+    });
   });
 }
