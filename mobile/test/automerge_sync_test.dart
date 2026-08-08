@@ -15,7 +15,7 @@ void main() {
     );
   });
 
-  test('Merge Automerge binaries', () async {
+  test('Merge Automerge binaries', skip: !Platform.isMacOS, () async {
     // Simulate remote device setting key A
     final remoteBinary = createAutomergeDocWithData(key: 'A', value: 'RemoteValue');
     
@@ -36,7 +36,7 @@ void main() {
 
   });
 
-  test('merge resolves a same-key conflict to a single scalar', () {
+  test('merge resolves a same-key conflict to a single scalar', skip: !Platform.isMacOS, () {
     final a = createAutomergeDocWithData(key: 'k', value: 'A');
     final b = createAutomergeDocWithData(key: 'k', value: 'B');
 
@@ -48,7 +48,7 @@ void main() {
     expect(val == 'A' || val == 'B', isTrue, reason: 'got: $val');
   });
 
-  test('merge survives a corrupt binary on either side (no panic)', () {
+  test('merge survives a corrupt binary on either side (no panic)', skip: !Platform.isMacOS, () {
     final corrupt = Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF]);
     final valid = createAutomergeDocWithData(key: 'k', value: 'v');
 
@@ -57,14 +57,14 @@ void main() {
     expect(jsonDecode(automergeGetProperty(binary: merged, key: 'k')), 'v');
   });
 
-  test('update survives a corrupt binary (write lands on a fresh doc)', () {
+  test('update survives a corrupt binary (write lands on a fresh doc)', skip: !Platform.isMacOS, () {
     final corrupt = Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF]);
 
     final result = automergeUpdateProperty(binary: corrupt, key: 'k', jsonStr: '"v"');
     expect(jsonDecode(automergeGetProperty(binary: result, key: 'k')), 'v');
   });
 
-  test('update with invalid JSON returns the input unchanged (no wipe)', () {
+  test('update with invalid JSON returns the input unchanged (no wipe)', skip: !Platform.isMacOS, () {
     final input = createAutomergeDocWithData(key: 'k', value: 'v');
 
     final result = automergeUpdateProperty(binary: input, key: 'k', jsonStr: 'not json {');

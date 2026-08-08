@@ -25,6 +25,7 @@ void main() {
 
   test('StorageProvider loads data correctly', () async {
     final tempDir = await Directory.systemTemp.createTemp('provider_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final okrStorage = OkrStorage(testDirectory: tempDir);
     final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
 
@@ -51,6 +52,7 @@ void main() {
 
   test('StorageProvider calculates getEffectiveCurrentValue across all 5 modes', () async {
     final tempDir = await Directory.systemTemp.createTemp('provider_kr_calc_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final okrStorage = OkrStorage(testDirectory: tempDir);
     final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
 
@@ -103,6 +105,7 @@ void main() {
 
   test('StorageProvider KR CRUD and confidence update', () async {
     final tempDir = await Directory.systemTemp.createTemp('provider_kr_crud_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final okrStorage = OkrStorage(testDirectory: tempDir);
     final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
 
@@ -137,6 +140,7 @@ void main() {
 
   test('StorageProvider getEffectiveCurrentValueAsOf, repairReviews and syncKeyResultsFromReviews', () async {
     final tempDir = await Directory.systemTemp.createTemp('provider_review_repair_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final okrStorage = OkrStorage(testDirectory: tempDir);
     final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
 
@@ -226,6 +230,7 @@ void main() {
 
   test('StorageProvider handles Dropbox connect, disconnect, and syncData', () async {
     final tempDir = await Directory.systemTemp.createTemp('provider_sync_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final okrStorage = OkrStorage(testDirectory: tempDir);
     final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
 

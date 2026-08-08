@@ -23,18 +23,26 @@ class _FakeOkrStorageProvider extends StorageProvider {
     isLoading = false;
   }
 
+  // Derived from the last cycle instead of hard-coded fixture dates, so the
+  // fake stays faithful when the fixture changes (ticket 11).
+  int get _nextMonth => (cycles.last['month'] as int? ?? -1) + 1;
+
+  int get _nextYear => _nextMonth > 11
+      ? (cycles.last['year'] as int? ?? 2026) + 1
+      : (cycles.last['year'] as int? ?? 2026);
+
   @override
   Future<void> createNextCycle() async {
     final newCycle = {
-      'id': 'cycle-june',
-      'name': 'June 2026',
-      'month': 5,
-      'year': 2026,
+      'id': 'cycle-$_nextMonth',
+      'name': getMonthName(_nextMonth % 12, _nextYear),
+      'month': _nextMonth % 12,
+      'year': _nextYear,
       'isActive': false,
       'createdAt': DateTime.now().toIso8601String(),
     };
     cycles = [...cycles, newCycle];
-    selectedCycleId = 'cycle-june';
+    selectedCycleId = newCycle['id'] as String;
     notifyListeners();
   }
 
@@ -42,9 +50,9 @@ class _FakeOkrStorageProvider extends StorageProvider {
   Future<void> cloneActiveCycle() async {
     final newCycle = {
       'id': 'cycle-cloned',
-      'name': 'June 2026',
-      'month': 5,
-      'year': 2026,
+      'name': getMonthName(_nextMonth % 12, _nextYear),
+      'month': _nextMonth % 12,
+      'year': _nextYear,
       'isActive': false,
       'createdAt': DateTime.now().toIso8601String(),
     };
@@ -118,15 +126,9 @@ class _FailingOkrStorageProvider extends _FakeOkrStorageProvider {
       throw Exception('disk full');
 }
 
-class _FakeOkrStorage extends OkrStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakeOkrStorage extends OkrStorage {}
 
-class _FakePomodoroStorage extends PomodoroStorage {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+class _FakePomodoroStorage extends PomodoroStorage {}
 
 void main() {
   testWidgets('OkrScreen renders cycle header and opens management sheet', (WidgetTester tester) async {

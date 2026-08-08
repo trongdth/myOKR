@@ -15,6 +15,7 @@ void main() {
 
   test('OkrStorage CRUD and defensive normalization tests', () async {
     final tempDir = await Directory.systemTemp.createTemp('okr_test');
+    addTearDown(() => tempDir.delete(recursive: true));
     final storage = OkrStorage(testDirectory: tempDir);
 
     // 1. Initial state should be empty

@@ -21,7 +21,10 @@ class _ThrowingProvider extends ChangeNotifier implements StorageProvider {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) {
+    throw UnimplementedError(
+        'StorageProvider member not stubbed: ${invocation.memberName}');
+  }
 }
 
 class _FakeProvider extends ChangeNotifier implements StorageProvider {
@@ -40,7 +43,10 @@ class _FakeProvider extends ChangeNotifier implements StorageProvider {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) {
+    throw UnimplementedError(
+        'StorageProvider member not stubbed: ${invocation.memberName}');
+  }
 }
 
 void main() {
