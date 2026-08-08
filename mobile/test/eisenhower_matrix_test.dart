@@ -6,6 +6,24 @@ import 'package:myokr_mobile/src/screens/eisenhower_matrix_screen.dart';
 // A minimal in-memory provider: holds tasks, captures saveTasks, notifies. Other
 // StorageProvider members are unimplemented (noSuchMethod) — the matrix touches
 // only tasks + saveTasks + ChangeNotifier. Mirrors the settings-sheet test fake.
+class _ThrowingProvider extends ChangeNotifier implements StorageProvider {
+  _ThrowingProvider(this.tasks);
+
+  @override
+  List<Map<String, dynamic>> tasks;
+
+  int saveCalls = 0;
+
+  @override
+  Future<void> saveTasks(List<Map<String, dynamic>> newTasks) async {
+    saveCalls++;
+    throw Exception('disk full');
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _FakeProvider extends ChangeNotifier implements StorageProvider {
   _FakeProvider(this.tasks);
 
@@ -114,6 +132,85 @@ void main() {
       expect(saved['title'], 'Alpha');
       expect(saved['id'], 't1');
       expect(saved['estimatedPomodoros'], 3);
+    });
+
+    testWidgets('assign failure shows a snackbar and keeps the selection',
+        (tester) async {
+      final fake = _ThrowingProvider([
+        {'id': 't1', 'title': 'Alpha'}, // unassigned
+      ]);
+      await tester
+          .pumpWidget(MaterialApp(home: EisenhowerMatrixScreen(provider: fake)));
+
+      await tester.tap(find.byKey(const Key('task-t1')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('quadrant-do')));
+      await tester.pump();
+
+      expect(find.textContaining('Failed to save'), findsOneWidget);
+      expect(fake.saveCalls, 1);
+
+      // Selection was NOT cleared on failure: tapping the quadrant again
+      // re-saves instead of being a no-op.
+      await tester.tap(find.byKey(const Key('quadrant-do')));
+      await tester.pump();
+      expect(fake.saveCalls, 2);
+    });
+
+    testWidgets('Apply Order failure shows a snackbar and does not pop',
+        (tester) async {
+      final fake = _ThrowingProvider([
+        {'id': 't1', 'title': 'Alpha', 'category': 'do'},
+      ]);
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => EisenhowerMatrixScreen(provider: fake)),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Apply Order'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to save'), findsOneWidget);
+      expect(find.text('Prioritize'), findsOneWidget); // not popped
+    });
+
+    testWidgets('Apply Order success pops the screen', (tester) async {
+      final fake = _FakeProvider([
+        {'id': 't1', 'title': 'Alpha', 'category': 'do'},
+      ]);
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => EisenhowerMatrixScreen(provider: fake)),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Apply Order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Prioritize'), findsNothing); // popped
     });
 
     testWidgets('Apply Order reorders the task list by priority (AC #3/#5)',

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/theme.dart';
@@ -29,7 +31,13 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   void _startTask(String taskId) {
-    widget.provider.setActiveTaskId(taskId);
+    // Fire-and-forget: navigation to the timer is the UX intent, a
+    // persistence failure must not block it. The error is logged.
+    unawaited(
+      widget.provider.setActiveTaskId(taskId).catchError((Object e) {
+        debugPrint('setActiveTaskId failed: $e');
+      }),
+    );
     widget.onStartFocus();
   }
 

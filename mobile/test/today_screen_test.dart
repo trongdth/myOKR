@@ -15,6 +15,14 @@ class _FakePomodoroStorage extends PomodoroStorage {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _ThrowingActiveTaskProvider extends _FakeTodayProvider {
+  _ThrowingActiveTaskProvider({required super.testTasks});
+
+  @override
+  Future<void> setActiveTaskId(String? taskId) async =>
+      throw Exception('prefs unavailable');
+}
+
 class _FakeTodayProvider extends StorageProvider {
   _FakeTodayProvider({required List<Map<String, dynamic>> testTasks})
       : super(
@@ -58,5 +66,28 @@ void main() {
 
     // No crash; the id-less task cannot start a focus session.
     expect(focusStarted, isFalse);
+  });
+
+  testWidgets('setActiveTaskId failure does not block starting focus', (tester) async {
+    var focusStarted = false;
+    final provider = _ThrowingActiveTaskProvider(testTasks: [
+      {'id': 't1', 'title': 'Real task', 'completed': false},
+    ]);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: TodayScreen(
+          provider: provider,
+          onStartFocus: () => focusStarted = true,
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    await tester.tap(find.text('Start Focus'));
+    await tester.pump();
+
+    // The persistence failure is logged, not thrown; the session still starts.
+    expect(focusStarted, isTrue);
   });
 }
