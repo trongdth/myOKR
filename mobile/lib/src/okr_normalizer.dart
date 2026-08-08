@@ -247,7 +247,10 @@ Map<String, dynamic>? normalizeHabit(Object? raw) {
     ticks = valid;
   }
   habit['ticks'] = ticks;
-  habit['order'] = finiteNumber(habit['order'], 0).toInt();
+  // Vestigial field (ticket 09): written at creation, never read on either
+  // platform. Drop it symmetrically with desktop's normalizeHabit so docs
+  // converge on a shape without it.
+  habit.remove('order');
   habit['createdAt'] = habit['createdAt'] is String ? habit['createdAt'] : DateTime.now().toIso8601String();
   habit['updatedAt'] = habit['updatedAt'] is String ? habit['updatedAt'] : DateTime.now().toIso8601String();
 

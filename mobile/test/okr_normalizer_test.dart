@@ -125,6 +125,31 @@ void main() {
     });
   });
 
+  group('normalizeHabit', () {
+    test('drops the vestigial order field from legacy habits', () {
+      final input = {
+        'id': 'h-1',
+        'name': 'Drink water',
+        'status': 'want_to_form',
+        'ticks': <String>[],
+        'order': 5, // legacy value — nothing reads it (ticket 09)
+      };
+      final normalized = normalizeHabit(input);
+      expect(normalized!.containsKey('order'), isFalse);
+    });
+
+    test('does not add an order field to new habits', () {
+      final input = {
+        'id': 'h-2',
+        'name': 'Walk',
+        'status': 'want_to_form',
+        'ticks': <String>[],
+      };
+      final normalized = normalizeHabit(input);
+      expect(normalized!.containsKey('order'), isFalse);
+    });
+  });
+
   group('normalizeReview', () {
     test('preserves review structure and review entries', () {
       final input = {
