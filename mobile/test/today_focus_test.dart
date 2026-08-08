@@ -53,4 +53,32 @@ void main() {
     expect(picked[0]['id'], 'task-1');
     expect(picked[1]['id'], 'task-2');
   });
+
+  test('pickForBudget picks an id-less task at most once', () {
+    final settings = {
+      'focusDuration': 25,
+    }; // Budget = 240 / 25 = 10 pomodoros
+
+    final tasks = [
+      {
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 1,
+        'createdAt': '2026-06-23',
+      },
+      {
+        'id': 'task-1',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 1,
+        'createdAt': '2026-06-23',
+      },
+    ];
+
+    final picked = pickForBudget(tasks, [], null, settings);
+
+    // The id-less task must not be double-picked by Phase 2's dedup.
+    expect(picked.length, 2);
+    expect(picked.where((t) => t['id'] == null).length, 1);
+  });
 }

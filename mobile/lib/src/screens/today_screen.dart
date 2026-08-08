@@ -273,7 +273,10 @@ class _TodayScreenState extends State<TodayScreen> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: () => _skipTask(task['id']),
+                            onPressed: () {
+                              final id = task['id'];
+                              if (id is String) _skipTask(id);
+                            },
                             icon: const Icon(Icons.skip_next, size: 16),
                             label: const Text('Skip'),
                             style: OutlinedButton.styleFrom(
@@ -284,7 +287,10 @@ class _TodayScreenState extends State<TodayScreen> {
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
-                            onPressed: () => _startTask(task['id']),
+                            onPressed: () {
+                              final id = task['id'];
+                              if (id is String) _startTask(id);
+                            },
                             icon: const Icon(Icons.play_arrow, size: 16),
                             label: const Text('Start Focus'),
                             style: ElevatedButton.styleFrom(
