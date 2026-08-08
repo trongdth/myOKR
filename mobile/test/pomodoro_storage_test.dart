@@ -93,6 +93,21 @@ void main() {
     expect(s['focusMusicEnabled'], false); // default injected by normalizer
   });
 
+  test('loadSettings clamps lower bounds to 1', () async {
+    final storage = await _freshStorage();
+    await storage.saveProperty('settings', {
+      'focusDuration': 0,
+      'shortBreakDuration': -5,
+      'longBreakDuration': 0,
+      'pomosBeforeLongBreak': 0,
+    });
+    final s = await storage.loadSettings();
+    expect(s['focusDuration'], 1); // clamped 1–120
+    expect(s['shortBreakDuration'], 1); // clamped 1–60
+    expect(s['longBreakDuration'], 1); // clamped 1–120
+    expect(s['pomosBeforeLongBreak'], 1); // clamped 1–10
+  });
+
   test('loadSettings yields defaults on a hostile top-level shape (no throw)',
       () async {
     final storage = await _freshStorage();
@@ -145,6 +160,9 @@ void main() {
     final sessions = hist[0]['sessions'] as List;
     expect(sessions.length, 2); // 'junk' (non-map) dropped
     expect(sessions[0]['type'], 'focus'); // 'bogus' coerced to default
+    expect(sessions[0]['completed'], false); // missing → default
+    expect(sessions[0]['startedAt'], ''); // missing → default
+    expect(sessions[0]['endedAt'], ''); // missing → default
     expect(sessions[1]['type'], 'focus');
   });
 

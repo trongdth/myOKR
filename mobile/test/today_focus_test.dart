@@ -54,6 +54,119 @@ void main() {
     expect(picked[1]['id'], 'task-2');
   });
 
+  test('pickForBudget stops when the budget is exactly full', () {
+    final settings = {
+      'focusDuration': 240,
+    }; // Budget = 240 / 240 = 1
+
+    final tasks = [
+      {
+        'id': 't1',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 1,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+      {
+        'id': 't2',
+        'isCompleted': false,
+        'category': 'delegate',
+        'estimatedPomodoros': 1,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+    ];
+
+    final picked = pickForBudget(tasks, [], null, settings);
+
+    // Phase 1's `remaining <= budget - cumActual` admits exactly one task.
+    expect(picked.length, 1);
+  });
+
+  test('pickForBudget skips tasks with nothing remaining', () {
+    final settings = {
+      'focusDuration': 25,
+    }; // Budget = 10
+
+    final tasks = [
+      {
+        'id': 'done',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 2,
+        'completedPomodoros': 2, // remaining = 0
+        'createdAt': '2026-06-23',
+      },
+      {
+        'id': 't1',
+        'isCompleted': false,
+        'category': 'delegate',
+        'estimatedPomodoros': 1,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+    ];
+
+    final picked = pickForBudget(tasks, [], null, settings);
+
+    final ids = picked.map((t) => t['id']).toList();
+    expect(ids, isNot(contains('done'))); // nothing left to count
+    expect(ids, contains('t1'));
+  });
+
+  test('pickForBudget caps oversized tasks at maxShare in Phase 2', () {
+    final settings = {
+      'focusDuration': 25,
+    }; // Budget = 10, maxShare = max(2, 5) = 5
+
+    final tasks = [
+      {
+        'id': 'big1',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 100,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+      {
+        'id': 'big2',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 100,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+    ];
+
+    final picked = pickForBudget(tasks, [], null, settings);
+
+    // Uncapped, each slice (100) would exceed the budget and neither would
+    // be picked. Capped at 5 each, both fit (5 + 5 <= 10).
+    expect(picked.length, 2);
+  });
+
+  test('pickForBudget caps the pick at 5 tasks', () {
+    final settings = {
+      'focusDuration': 25,
+    }; // Budget = 10
+
+    final tasks = List.generate(6, (i) {
+      return {
+        'id': 't$i',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 1,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      };
+    });
+
+    final picked = pickForBudget(tasks, [], null, settings);
+
+    expect(picked.length, 5); // the `picked.length >= 5` break
+  });
+
   test('pickForBudget picks an id-less task at most once', () {
     final settings = {
       'focusDuration': 25,
