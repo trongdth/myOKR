@@ -1,23 +1,24 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:myokr_mobile/src/theme.dart';
+
+const List<Color> krColors = [
+  Color(0xFF06B6D4), // cyan
+  Color(0xFFA855F7), // purple
+  Color(0xFFF97316), // orange
+  Color(0xFF22C55E), // green
+  Color(0xFFEAB308), // yellow
+  Color(0xFFEC4899), // pink
+  Color(0xFF3B82F6), // blue
+  Color(0xFF14B8A6), // teal
+  Color(0xFFF43E5E), // rose
+  Color(0xFF8B5CF6), // violet
+];
 
 class ProgressChartWidget extends StatelessWidget {
   final List<Map<String, dynamic>> reviews;
   final List<Map<String, dynamic>> keyResults;
-
-  static const List<Color> krColors = [
-    Color(0xFF06B6D4), // cyan
-    Color(0xFFA855F7), // purple
-    Color(0xFFF97316), // orange
-    Color(0xFF22C55E), // green
-    Color(0xFFEAB308), // yellow
-    Color(0xFFEC4899), // pink
-    Color(0xFF3B82F6), // blue
-    Color(0xFF14B8A6), // teal
-    Color(0xFFF43E5E), // rose
-    Color(0xFF8B5CF6), // violet
-  ];
 
   const ProgressChartWidget({
     super.key,
@@ -65,67 +66,10 @@ class ProgressChartWidget extends StatelessWidget {
       );
     }
 
-    // Extract unique KRs present in reviews
-    final krIds = <String>{};
-    for (final r in sortedReviews) {
-      final entries = r['entries'];
-      if (entries is List) {
-        for (final e in entries) {
-          if (e is Map && e['keyResultId'] != null) {
-            krIds.add(e['keyResultId'] as String);
-          }
-        }
-      }
-    }
-
-    final seriesList = <_ChartSeries>[];
-    int colorIdx = 0;
-    for (final krId in krIds) {
-      Map<String, dynamic>? kr;
-      for (final item in keyResults) {
-        if (item['id'] == krId) {
-          kr = item;
-          break;
-        }
-      }
-
-      final title = kr?['title'] as String? ?? 'Key Result';
-      final target = (kr?['targetValue'] as num?)?.toDouble() ?? 0.0;
-      final color = krColors[colorIdx % krColors.length];
-      colorIdx++;
-
-      final points = <Offset>[];
-      for (int i = 0; i < sortedReviews.length; i++) {
-        final r = sortedReviews[i];
-        final entriesList = r['entries'] as List? ?? [];
-        Map? entry;
-        for (final item in entriesList) {
-          if (item is Map && item['keyResultId'] == krId) {
-            entry = item;
-            break;
-          }
-        }
-        if (entry != null && target > 0) {
-          final curr = (entry['currentValue'] as num?)?.toDouble() ?? 0.0;
-          final pct = min(100.0, (curr / target) * 100.0);
-          points.add(Offset(i.toDouble(), pct));
-        } else {
-          points.add(Offset(i.toDouble(), 0.0));
-        }
-      }
-
-      seriesList.add(_ChartSeries(
-        krId: krId,
-        title: title,
-        color: color,
-        points: points,
-      ));
-    }
-
-    final dates = sortedReviews.map((r) {
-      final wStart = r['weekStartDate'] as String? ?? '';
-      return wStart.length >= 10 ? wStart.substring(5) : wStart;
-    }).toList();
+    final data = buildChartData(
+      sortedReviews: sortedReviews,
+      keyResults: keyResults,
+    );
 
     return Container(
       width: double.infinity,
@@ -166,8 +110,8 @@ class ProgressChartWidget extends StatelessWidget {
                 Expanded(
                   child: CustomPaint(
                     painter: _ProgressChartPainter(
-                      dates: dates,
-                      seriesList: seriesList,
+                      dates: data.dates,
+                      seriesList: data.seriesList,
                     ),
                   ),
                 ),
@@ -181,7 +125,7 @@ class ProgressChartWidget extends StatelessWidget {
             padding: const EdgeInsets.only(left: 36.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: dates
+              children: data.dates
                   .map((d) => Text(
                         d,
                         style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
@@ -196,7 +140,11 @@ class ProgressChartWidget extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
-            children: seriesList.map((s) {
+            // Only series with points get a swatch — an empty series (zero
+            // target, no valid entries) would be a phantom legend entry.
+            children: data.seriesList
+                .where((s) => s.points.isNotEmpty)
+                .map((s) {
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -223,23 +171,118 @@ class ProgressChartWidget extends StatelessWidget {
   }
 }
 
-class _ChartSeries {
-  final String krId;
-  final String title;
-  final Color color;
-  final List<Offset> points;
-
-  _ChartSeries({
+/// One KR's line in the chart: [points] are (reviewIndex, percent) pairs.
+/// Weeks where the review had no entry for this KR (or its target was 0)
+/// are omitted — gaps in data must not read as a 0% drop (ticket 04).
+@immutable
+class ChartSeries {
+  const ChartSeries({
     required this.krId,
     required this.title,
     required this.color,
     required this.points,
   });
+
+  final String krId;
+  final String title;
+  final Color color;
+  final List<Offset> points;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChartSeries &&
+      other.krId == krId &&
+      other.title == title &&
+      other.color == color &&
+      listEquals(other.points, points);
+
+  @override
+  int get hashCode => Object.hash(krId, title, color, Object.hashAll(points));
+}
+
+/// The chart's data: x-axis [dates] and one [ChartSeries] per KR.
+@immutable
+class ChartData {
+  const ChartData({required this.dates, required this.seriesList});
+
+  final List<String> dates;
+  final List<ChartSeries> seriesList;
+}
+
+/// Builds the chart series from completed reviews (already sorted by
+/// weekStartDate). Extracted from the widget so the data shape — including
+/// the gap-skipping rule — is unit-testable.
+ChartData buildChartData({
+  required List<Map<String, dynamic>> sortedReviews,
+  required List<Map<String, dynamic>> keyResults,
+}) {
+  final krIds = <String>{};
+  for (final r in sortedReviews) {
+    final entries = r['entries'];
+    if (entries is List) {
+      for (final e in entries) {
+        if (e is Map && e['keyResultId'] != null) {
+          krIds.add(e['keyResultId'] as String);
+        }
+      }
+    }
+  }
+
+  final seriesList = <ChartSeries>[];
+  int colorIdx = 0;
+  for (final krId in krIds) {
+    Map<String, dynamic>? kr;
+    for (final item in keyResults) {
+      if (item['id'] == krId) {
+        kr = item;
+        break;
+      }
+    }
+
+    final title = kr?['title'] as String? ?? 'Key Result';
+    final target = (kr?['targetValue'] as num?)?.toDouble() ?? 0.0;
+    final color = krColors[colorIdx % krColors.length];
+    colorIdx++;
+
+    final points = <Offset>[];
+    for (int i = 0; i < sortedReviews.length; i++) {
+      final r = sortedReviews[i];
+      final entriesList = r['entries'] as List? ?? [];
+      Map? entry;
+      for (final item in entriesList) {
+        if (item is Map && item['keyResultId'] == krId) {
+          entry = item;
+          break;
+        }
+      }
+      // A missing entry or a zero target is a data gap, not 0% progress —
+      // skip the point so the line bridges the gap instead of dropping.
+      if (entry != null && target > 0) {
+        final curr = (entry['currentValue'] as num?)?.toDouble() ?? 0.0;
+        final pct = min(100.0, (curr / target) * 100.0);
+        points.add(Offset(i.toDouble(), pct));
+      }
+    }
+
+    seriesList.add(ChartSeries(
+      krId: krId,
+      title: title,
+      color: color,
+      points: points,
+    ));
+  }
+
+  final dates = sortedReviews.map((r) {
+    final wStart = r['weekStartDate'] as String? ?? '';
+    return wStart.length >= 10 ? wStart.substring(5) : wStart;
+  }).toList();
+
+  return ChartData(dates: dates, seriesList: seriesList);
 }
 
 class _ProgressChartPainter extends CustomPainter {
   final List<String> dates;
-  final List<_ChartSeries> seriesList;
+  final List<ChartSeries> seriesList;
 
   _ProgressChartPainter({
     required this.dates,
@@ -312,6 +355,7 @@ class _ProgressChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ProgressChartPainter oldDelegate) {
-    return false;
+    return !listEquals(dates, oldDelegate.dates) ||
+        !listEquals(seriesList, oldDelegate.seriesList);
   }
 }
