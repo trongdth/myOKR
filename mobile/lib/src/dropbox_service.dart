@@ -5,18 +5,39 @@ import 'package:http/http.dart' as http;
 
 import 'package:crypto/crypto.dart';
 
+/// Parses what the user pastes back after authorizing: the bare code, a
+/// `code=...&state=...` query string, or the full redirect URL.
+({String code, String? state}) parseAuthResponse(String raw) {
+  final text = raw.trim();
+  if (text.startsWith('http')) {
+    final params = Uri.tryParse(text)?.queryParameters ?? {};
+    return (code: params['code'] ?? '', state: params['state']);
+  }
+  if (text.contains('=')) {
+    final params =
+        Uri.parse(text.startsWith('?') ? text : '?$text').queryParameters;
+    return (code: params['code'] ?? '', state: params['state']);
+  }
+  return (code: text, state: null);
+}
+
 class DropboxService {
   final http.Client _client;
 
   DropboxService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Generates a PKCE code verifier and challenge.
-  /// Returns a tuple: (codeVerifier, url)
-  (String, String) getDropboxAuthUrl(String clientId) {
-    // Generate code verifier
+  String _randomToken() {
     final rand = Random.secure();
     final values = List<int>.generate(32, (i) => rand.nextInt(256));
-    final codeVerifier = base64UrlEncode(values).replaceAll('=', '');
+    return base64UrlEncode(values).replaceAll('=', '');
+  }
+
+  /// Generates a PKCE code verifier/challenge plus a CSRF [state] token.
+  /// Returns a tuple: (codeVerifier, state, url). The state must be verified
+  /// against the value returned with the authorization code (ticket 05).
+  (String, String, String) getDropboxAuthUrl(String clientId) {
+    final codeVerifier = _randomToken();
+    final state = _randomToken();
 
     // Generate code challenge
     final bytes = utf8.encode(codeVerifier);
@@ -30,13 +51,25 @@ class DropboxService {
       'token_access_type': 'offline',
       'code_challenge': codeChallenge,
       'code_challenge_method': 'S256',
+      'state': state,
     }).toString();
 
-    return (codeVerifier, url);
+    return (codeVerifier, state, url);
   }
 
-  /// Exchanges the authorization code for a refresh token.
-  Future<String> exchangeDropboxCode(String clientId, String code, String codeVerifier) async {
+  /// Exchanges the authorization code for a refresh token. Rejects the
+  /// exchange — without any network I/O — when [returnedState] does not
+  /// match the [expectedState] from [getDropboxAuthUrl] (CSRF protection).
+  Future<String> exchangeDropboxCode(
+    String clientId,
+    String code,
+    String codeVerifier, {
+    required String expectedState,
+    required String returnedState,
+  }) async {
+    if (returnedState != expectedState) {
+      throw Exception('OAuth state mismatch — authorization rejected');
+    }
     final response = await _client.post(
       Uri.parse('https://api.dropboxapi.com/oauth2/token'),
       headers: {

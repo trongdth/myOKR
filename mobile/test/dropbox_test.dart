@@ -20,12 +20,14 @@ void main() {
       service = DropboxService(client: mockClient);
     });
 
-    test('getDropboxAuthUrl generates valid URL', () {
-      final (verifier, url) = service.getDropboxAuthUrl('my_client_id');
+    test('getDropboxAuthUrl generates valid URL with state', () {
+      final (verifier, state, url) = service.getDropboxAuthUrl('my_client_id');
       expect(verifier, isNotEmpty);
+      expect(state, isNotEmpty);
       expect(url, contains('https://www.dropbox.com/oauth2/authorize'));
       expect(url, contains('client_id=my_client_id'));
       expect(url, contains('code_challenge='));
+      expect(url, contains('state=$state'));
     });
 
     test('exchangeDropboxCode returns refresh token on success', () async {
@@ -36,7 +38,8 @@ void main() {
       )).thenAnswer((_) async => http.Response(
           jsonEncode({'refresh_token': 'test_refresh_token'}), 200));
 
-      final token = await service.exchangeDropboxCode('client_id', 'code', 'verifier');
+      final token = await service.exchangeDropboxCode('client_id', 'code', 'verifier',
+          expectedState: 'st8', returnedState: 'st8');
       expect(token, 'test_refresh_token');
     });
 

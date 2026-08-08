@@ -31,8 +31,12 @@ class _FakeUrlLauncher extends UrlLauncherPlatform {
 
 class _FakeDropboxService extends DropboxService {
   @override
-  (String, String) getDropboxAuthUrl(String clientId) {
-    return ('verifier-1', 'https://example.com/authorize');
+  (String, String, String) getDropboxAuthUrl(String clientId) {
+    return (
+      'verifier-1',
+      'state-1',
+      'https://example.com/authorize?state=state-1'
+    );
   }
 }
 
