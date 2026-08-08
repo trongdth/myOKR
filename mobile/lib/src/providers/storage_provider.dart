@@ -69,6 +69,27 @@ class StorageProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  /// Starts (or restarts) the 15-minute periodic sync timer.
+  void _scheduleSyncTimer() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer.periodic(const Duration(minutes: 15), (_) => syncData());
+  }
+
+  /// Stops the periodic sync timer while the app is backgrounded — a
+  /// backgrounded app must not keep hitting Dropbox every 15 minutes
+  /// (ticket 12).
+  void pauseSync() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+  }
+
+  /// Restarts the periodic sync timer when the app returns to the foreground.
+  void resumeSync() {
+    if (isDropboxConnected) {
+      _scheduleSyncTimer();
+    }
+  }
+
   Future<void> initSync() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -77,8 +98,7 @@ class StorageProvider extends ChangeNotifier {
       lastSyncTime = prefs.getString('last_sync_time');
 
       if (isDropboxConnected) {
-        _syncTimer?.cancel();
-        _syncTimer = Timer.periodic(const Duration(minutes: 15), (_) => syncData());
+        _scheduleSyncTimer();
         Future.delayed(const Duration(seconds: 3), () {
           if (isDropboxConnected) {
             syncData();
@@ -130,8 +150,7 @@ class StorageProvider extends ChangeNotifier {
         dropboxClientId = clientId.trim();
         dropboxRefreshToken = refreshToken;
 
-        _syncTimer?.cancel();
-        _syncTimer = Timer.periodic(const Duration(minutes: 15), (_) => syncData());
+        _scheduleSyncTimer();
 
         isSyncing = false;
         notifyListeners();
