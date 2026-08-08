@@ -106,6 +106,22 @@ class _FakeOkrStorageProvider extends StorageProvider {
   }
 }
 
+class _FailingOkrStorageProvider extends _FakeOkrStorageProvider {
+  _FailingOkrStorageProvider({
+    required List<Map<String, dynamic>> testCycles,
+    required List<Map<String, dynamic>> testObjectives,
+    required List<Map<String, dynamic>> testKeyResults,
+  }) : super(
+          testCycles: testCycles,
+          testObjectives: testObjectives,
+          testKeyResults: testKeyResults,
+        );
+
+  @override
+  Future<void> saveObjective(Map<String, dynamic> obj) async =>
+      throw Exception('disk full');
+}
+
 class _FakeOkrStorage extends OkrStorage {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -172,6 +188,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('June 2026 ▾'), findsOneWidget);
+  });
+
+  testWidgets('saveObjective failure shows a snackbar and keeps the sheet open', (WidgetTester tester) async {
+    final provider = _FailingOkrStorageProvider(
+      testCycles: [
+        {
+          'id': 'cycle-1',
+          'name': 'May 2026',
+          'month': 4,
+          'year': 2026,
+          'isActive': true,
+          'createdAt': '2026-05-01T00:00:00Z',
+        }
+      ],
+      testObjectives: [],
+      testKeyResults: [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OkrScreen(provider: provider),
+      ),
+    );
+
+    await tester.tap(find.text('+ Add Objective'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('obj_title_input')), 'Doomed');
+    await tester.tap(find.text('Save Objective'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Failed to save'), findsOneWidget);
+    expect(find.text('New Objective'), findsOneWidget); // sheet still open
   });
 
   testWidgets('OkrScreen allows adding and editing objectives via bottom sheet', (WidgetTester tester) async {

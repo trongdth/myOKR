@@ -67,8 +67,16 @@ class _ObjectiveFormSheetState extends State<ObjectiveFormSheet> {
       obj.remove('reward');
     }
 
-    await widget.provider.saveObjective(obj);
-    if (mounted) Navigator.pop(context);
+    try {
+      await widget.provider.saveObjective(obj);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save objective: $e')),
+        );
+      }
+    }
   }
 
   @override

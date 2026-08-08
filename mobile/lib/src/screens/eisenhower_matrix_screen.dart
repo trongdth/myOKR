@@ -63,7 +63,7 @@ class _EisenhowerMatrixScreenState extends State<EisenhowerMatrixScreen> {
   // Assign the selected task to [category]. Read-modify-write on the task map
   // preserves sibling keys (sync-safe, ADR-0004); categories then travel via the
   // shared doc like any task edit (relies on ticket 03). Clears the selection.
-  void _assignSelectedTo(String category) {
+  Future<void> _assignSelectedTo(String category) async {
     final id = _selectedTaskId;
     if (id == null) return;
     final updated = widget.provider.tasks.map((t) {
@@ -72,13 +72,30 @@ class _EisenhowerMatrixScreenState extends State<EisenhowerMatrixScreen> {
       }
       return t;
     }).toList();
-    widget.provider.saveTasks(updated);
-    setState(() => _selectedTaskId = null);
+    try {
+      await widget.provider.saveTasks(updated);
+      if (mounted) setState(() => _selectedTaskId = null);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
+    }
   }
 
-  void _applyPriorityOrder() {
-    widget.provider.saveTasks(applyEisenhowerPriorityOrder(widget.provider.tasks));
-    if (mounted) Navigator.pop(context);
+  Future<void> _applyPriorityOrder() async {
+    try {
+      await widget.provider.saveTasks(
+          applyEisenhowerPriorityOrder(widget.provider.tasks));
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
+    }
   }
 
   @override
