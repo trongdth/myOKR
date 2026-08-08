@@ -81,7 +81,6 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     }
   }
 
-
   Future<void> _handleConnect() async {
     final clientId = _clientIdController.text.trim();
     final authCode = _authCodeController.text.trim();
