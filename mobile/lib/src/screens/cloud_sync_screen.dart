@@ -64,12 +64,20 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
   Future<void> _handleOpenLink() async {
     if (_authUrl == null) return;
     final uri = Uri.parse(_authUrl!);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open browser for authorization link.')),
-      );
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open browser for authorization link.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open browser: $e')),
+        );
+      }
     }
   }
 
