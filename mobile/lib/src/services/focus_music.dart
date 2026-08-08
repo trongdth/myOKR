@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 /// Ambient focus music for a pomodoro focus session (ADR-0005).
@@ -57,11 +58,22 @@ class FocusMusicController {
       enabled: enabled,
     );
     if (want && !_playing) {
-      await _player.start();
-      _playing = true;
+      try {
+        await _player.start();
+        _playing = true;
+      } catch (e) {
+        // A player failure must not crash callers (sync runs from a provider
+        // listener on every timer transition); stay stopped so the next sync
+        // retries instead of believing music is playing.
+        debugPrint('focus music start failed: $e');
+      }
     } else if (!want && _playing) {
-      await _player.stop();
-      _playing = false;
+      try {
+        await _player.stop();
+        _playing = false;
+      } catch (e) {
+        debugPrint('focus music stop failed: $e');
+      }
     }
   }
 
@@ -80,9 +92,9 @@ class FocusMusicController {
 /// (ticket 05 AC #2/#3); the gating that decides *when* to call these methods
 /// is verified separately with a fake player.
 class JustAudioFocusMusicPlayer implements FocusMusicPlayer {
-  JustAudioFocusMusicPlayer();
+  JustAudioFocusMusicPlayer({AudioPlayer? player}) : _player = player ?? AudioPlayer();
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player;
   bool _prepared = false;
 
   Future<void> _prepare() async {
@@ -96,8 +108,14 @@ class JustAudioFocusMusicPlayer implements FocusMusicPlayer {
   Future<void> start() async {
     await _prepare();
     // play() returns a future that completes on stop/completion; for a looping
-    // asset it stays pending, so we don't await it — start() must return.
-    unawaited(_player.play());
+    // asset it stays pending, so we don't await it — start() must return. A
+    // failure (missing asset, audio device error) must not escape as an
+    // uncaught zone error, so it is swallowed and logged here.
+    unawaited(
+      _player.play().catchError((Object e) {
+        debugPrint('focus music play failed: $e');
+      }),
+    );
   }
 
   @override

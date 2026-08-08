@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:myokr_mobile/src/services/focus_music.dart';
 
 // Focus-music gating tests (ticket 05 AC #4/#5). The player sits behind an
@@ -14,6 +15,31 @@ class _RecordingPlayer implements FocusMusicPlayer {
 
   @override
   Future<void> stop() async => calls.add('stop');
+}
+
+class _ThrowingPlayer implements FocusMusicPlayer {
+  @override
+  Future<void> start() async => throw Exception('audio device error');
+
+  @override
+  Future<void> stop() async {}
+}
+
+class _ThrowingAudioPlayer extends AudioPlayer {
+  @override
+  Future<Duration?> setAsset(
+    String assetPath, {
+    String? package,
+    bool preload = true,
+    Duration? initialPosition,
+    dynamic tag,
+  }) async => null;
+
+  @override
+  Future<void> setLoopMode(LoopMode mode) async {}
+
+  @override
+  Future<void> play() async => throw Exception('audio decode failed');
 }
 
 void main() {
@@ -99,6 +125,26 @@ void main() {
             sessionType: 'focus', isRunning: true, enabled: true);
       }
       expect(player.calls, ['start']); // no duplicate starts
+    });
+
+    test('a failing player does not crash sync and state stays false', () async {
+      final controller = FocusMusicController(_ThrowingPlayer());
+      await controller.sync(
+          sessionType: 'focus', isRunning: true, enabled: true);
+      expect(controller.isPlaying, isFalse);
+    });
+  });
+
+  group('JustAudioFocusMusicPlayer', () {
+    test('start() swallows a play() failure instead of leaking an uncaught error',
+        () async {
+      // AudioPlayer's constructor registers an audio_session handler.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final player = JustAudioFocusMusicPlayer(player: _ThrowingAudioPlayer());
+      await player.start();
+      // Let the unawaited play() future settle — an uncaught zone error would
+      // fail this test.
+      await Future<void>.delayed(Duration.zero);
     });
   });
 }
