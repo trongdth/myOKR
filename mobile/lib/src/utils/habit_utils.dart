@@ -1,3 +1,9 @@
+/// Builds a habit id that stays unique even when two habits are created
+/// within the same millisecond: the caller's monotonic [sequence] breaks ties
+/// between ids generated from the same [timestampMs].
+String buildHabitId(int sequence, {int? timestampMs}) =>
+    'habit_${timestampMs ?? DateTime.now().millisecondsSinceEpoch}_$sequence';
+
 class HabitStreakResult {
   final int current;
   final int best;

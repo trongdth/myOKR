@@ -20,7 +20,7 @@ class TodayScreen extends StatefulWidget {
 }
 
 class _TodayScreenState extends State<TodayScreen> {
-  final List<String> _skippedIds = [];
+  final Set<String> _skippedIds = {};
 
   void _skipTask(String taskId) {
     setState(() {

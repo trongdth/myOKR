@@ -40,6 +40,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   void dispose() {
     widget.provider.removeListener(_syncFocusMusic);
     _tabController.dispose();
+    _taskController.dispose();
     _timer?.cancel();
     super.dispose();
   }

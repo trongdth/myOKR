@@ -16,6 +16,7 @@ class HabitsScreen extends StatefulWidget {
 class _HabitsScreenState extends State<HabitsScreen> {
   final TextEditingController _nameController = TextEditingController();
   bool _showFormed = false;
+  int _habitIdSequence = 0;
 
   @override
   void dispose() {
@@ -28,7 +29,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     if (name.isEmpty) return;
 
     final newHabit = {
-      'id': 'habit_${DateTime.now().millisecondsSinceEpoch}',
+      'id': buildHabitId(_habitIdSequence++),
       'name': name,
       'status': 'want_to_form',
       'ticks': <String>[],
@@ -90,11 +91,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   String _getMonthTitle() {
     final now = DateTime.now();
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[now.month - 1]} ${now.year}';
+    return getMonthName(now.month - 1, now.year);
   }
 
   Widget _buildHabitCard(Map<String, dynamic> habit) {
@@ -209,6 +206,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 }
 
                 return GestureDetector(
+                  key: ValueKey('habit-day-${day.dateStr}'),
                   onTap: day.isFuture
                       ? null
                       : () => widget.provider.toggleHabitTick(habitId, day.dateStr),

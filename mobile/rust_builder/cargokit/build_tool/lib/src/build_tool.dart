@@ -124,7 +124,7 @@ class PrecompileBinariesCommand extends Command {
       )
       ..addOption(
         'android-min-sdk-version',
-        help: 'Android minimum rquired version (if available)',
+        help: 'Android minimum required version (if available)',
       )
       ..addOption(
         'temp-dir',
@@ -148,7 +148,7 @@ class PrecompileBinariesCommand extends Command {
   @override
   final description = 'Prebuild and upload binaries\n'
       'Private key must be passed through PRIVATE_KEY environment variable. '
-      'Use gen_key through generate priave key.\n'
+      'Use gen-key to generate a private key.\n'
       'Github token must be passed as GITHUB_TOKEN environment variable.\n';
 
   @override
@@ -184,8 +184,8 @@ class PrecompileBinariesCommand extends Command {
             'Invalid android-min-sdk-version: $androidMinSdkVersionString');
       }
     }
-    final targetStrigns = argResults!['target'] as List<String>;
-    final targets = targetStrigns.map((target) {
+    final targetStrings = argResults!['target'] as List<String>;
+    final targets = targetStrings.map((target) {
       final res = Target.forRustTriple(target);
       if (res == null) {
         throw ArgumentError('Invalid target: $target');

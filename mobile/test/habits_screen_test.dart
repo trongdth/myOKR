@@ -4,6 +4,7 @@ import 'package:myokr_mobile/src/okr_storage.dart';
 import 'package:myokr_mobile/src/pomodoro_storage.dart';
 import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/screens/habits_screen.dart';
+import 'package:myokr_mobile/src/utils/habit_utils.dart';
 
 class _FakeOkrStorage extends OkrStorage {
   @override
@@ -42,6 +43,19 @@ class _FakeHabitsStorageProvider extends StorageProvider {
 }
 
 void main() {
+  group('buildHabitId', () {
+    test('yields distinct ids for two habits created in the same millisecond', () {
+      final a = buildHabitId(0, timestampMs: 1750000000000);
+      final b = buildHabitId(1, timestampMs: 1750000000000);
+
+      expect(a, isNot(equals(b)));
+    });
+
+    test('embeds the timestamp and sequence in a habit_-prefixed id', () {
+      expect(buildHabitId(3, timestampMs: 1750000000000), 'habit_1750000000000_3');
+    });
+  });
+
   testWidgets('HabitsScreen renders empty state, adds a habit, and toggles tick', (WidgetTester tester) async {
     final provider = _FakeHabitsStorageProvider(
       testHabits: [],
@@ -67,9 +81,10 @@ void main() {
 
     // Toggle today's tick — future days are disabled in the calendar UI,
     // so the original hardcoded '15' (written on 2026-07-15) broke in August.
-    final now = DateTime.now();
-    final todayStr = now.toIso8601String().substring(0, 10);
-    await tester.tap(find.text('${now.day}'));
+    // Tap by the day cell's semantic key rather than its label text, so the
+    // test doesn't depend on how the calendar renders day numbers.
+    final todayStr = getLocalDateString();
+    await tester.tap(find.byKey(ValueKey('habit-day-$todayStr')));
     await tester.pumpAndSettle();
 
     expect(provider.habits.first['ticks'], contains(contains(todayStr)));
