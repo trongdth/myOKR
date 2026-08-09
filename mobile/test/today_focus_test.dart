@@ -194,4 +194,45 @@ void main() {
     expect(picked.length, 2);
     expect(picked.where((t) => t['id'] == null).length, 1);
   });
+
+  test('Phase 1 protects small-remaining tasks from being crowded out', () {
+    // Regression pin for ticket 27: a single-pass loop (no Phase 1) lets a
+    // large-remaining task whose SLICE fits (d: rem 9, slice 5) crowd out a
+    // small-remaining task (c: rem 2, slice 2) that Phase 1 picked first.
+    // Old code picks [a, c]; the removed-Phase-1 variant picks [a, d].
+    final settings = {
+      'focusDuration': 25,
+    }; // Budget = 10, maxShare = 5
+
+    final tasks = [
+      {
+        'id': 'a',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 8,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+      {
+        'id': 'd',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 9,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+      {
+        'id': 'c',
+        'isCompleted': false,
+        'category': 'do',
+        'estimatedPomodoros': 2,
+        'completedPomodoros': 0,
+        'createdAt': '2026-06-23',
+      },
+    ];
+
+    final picked = pickForBudget(tasks, [], null, settings);
+
+    expect(picked.map((t) => t['id']).toList(), ['a', 'c']);
+  });
 }
