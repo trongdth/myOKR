@@ -123,7 +123,8 @@ void main() {
     expect(fake.savedPayloads.length, 1);
   });
 
-  testWidgets('non-gesture value changes persist the slider value', (tester) async {
+  testWidgets('keyboard-style changes persist exactly once (via onChangeEnd)',
+      (tester) async {
     final fake = _SettingsCaptureProvider({
       'focusDuration': 25,
       'shortBreakDuration': 5,
@@ -139,18 +140,19 @@ void main() {
 
     final slider = find.byType(Slider).first;
     await tester.ensureVisible(slider);
-    await tester.tap(slider); // one gesture (saves on end)
-    await tester.pump();
-    final savesAfterTap = fake.savedPayloads.length;
-    expect(savesAfterTap, greaterThanOrEqualTo(1));
 
-    // Keyboard arrows and a11y actions fire the slider's onChanged with NO
-    // gesture end (the test framework doesn't dispatch those inputs, so
-    // invoke the callback directly — it is the same entry point). The
-    // change must still persist (ticket 30).
-    tester.widget<Slider>(slider).onChanged!(30.0);
+    // The pinned SDK's keyboard/a11y path (slider.dart increaseAction:
+    // 1948-1956) fires onChangeStart -> onChanged -> onChangeEnd for a
+    // single value change. The sheet registers onChanged + onChangeEnd;
+    // simulate the framework calling them in that order — the test
+    // framework can't route key events to this slider — and assert the
+    // change persists exactly once, at the end.
+    final sliderWidget = tester.widget<Slider>(slider);
+    final before = fake.savedPayloads.length;
+    sliderWidget.onChanged!(26.0);
+    sliderWidget.onChangeEnd!(26.0);
     await tester.pump();
 
-    expect(fake.savedPayloads.length, greaterThan(savesAfterTap));
+    expect(fake.savedPayloads.length, before + 1);
   });
 }

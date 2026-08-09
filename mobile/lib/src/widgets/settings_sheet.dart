@@ -20,10 +20,6 @@ class _SettingsSheetState extends State<SettingsSheet> {
   late bool _autoStartFocus;
   late bool _focusMusic;
 
-  // Set while a pointer drag is in progress; keyboard/a11y value changes
-  // fire onChanged without a gesture end (ticket 30).
-  bool _sliderGestureActive = false;
-
   @override
   void initState() {
     super.initState();
@@ -90,20 +86,15 @@ class _SettingsSheetState extends State<SettingsSheet> {
           divisions: max - min,
           activeColor: AppTheme.accentCyan,
           inactiveColor: AppTheme.borderColor,
-          onChangeStart: (_) => _sliderGestureActive = true,
           onChanged: (val) {
             // Update the live label only — the drag fires dozens of ticks.
             onChanged(val.round());
-            // Keyboard/a11y changes have no gesture end — persist directly.
-            if (!_sliderGestureActive) {
-              _saveSettings();
-            }
           },
-          // Persist once per drag gesture, not per tick (ticket 15).
-          onChangeEnd: (_) {
-            _sliderGestureActive = false;
-            _saveSettings();
-          },
+          // Persist once per interaction, not per tick (ticket 15). Keyboard
+          // and a11y changes go through increaseAction/decreaseAction, which
+          // fire onChangeEnd too (pinned SDK, slider.dart:1948-1956) — so
+          // they persist here as well.
+          onChangeEnd: (_) => _saveSettings(),
         ),
         const SizedBox(height: 8),
       ],
