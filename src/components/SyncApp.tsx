@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { validateDropboxToken, syncWithDropbox, getDropboxAuthUrl, exchangeDropboxCode, parseAuthResponse } from '../lib/dropbox-service';
+import { DROPBOX_KEYS, loadCredentials, saveCredentials, clearCredentials } from '../lib/credential-store';
+import { tauriCredentialStore } from '../lib/tauri-credential-adapter';
 import '../styles/app.css';
 
 const CLIENT_ID_KEY = 'dropbox_client_id';
@@ -17,13 +19,16 @@ export default function SyncApp() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedClientId = localStorage.getItem(CLIENT_ID_KEY);
-    const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (savedClientId && savedRefreshToken) {
-      setIsConnected(true);
-    }
-    const last = localStorage.getItem('last_sync_time');
-    if (last) setLastSync(last);
+    // Credentials live in the OS keychain (ticket 28); legacy localStorage
+    // values are migrated on first load (retry-safe).
+    (async () => {
+      const creds = await loadCredentials(tauriCredentialStore, DROPBOX_KEYS);
+      if (creds[CLIENT_ID_KEY] && creds[REFRESH_TOKEN_KEY]) {
+        setIsConnected(true);
+      }
+      const last = localStorage.getItem('last_sync_time');
+      if (last) setLastSync(last);
+    })();
   }, []);
 
   const handleGetLink = async () => {
@@ -64,8 +69,10 @@ export default function SyncApp() {
       if (refreshToken) {
         const valid = await validateDropboxToken(clientId.trim(), refreshToken);
         if (valid) {
-          localStorage.setItem(CLIENT_ID_KEY, clientId.trim());
-          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+          await saveCredentials(tauriCredentialStore, {
+            [CLIENT_ID_KEY]: clientId.trim(),
+            [REFRESH_TOKEN_KEY]: refreshToken,
+          });
           setIsConnected(true);
           window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
         } else {
@@ -82,8 +89,7 @@ export default function SyncApp() {
   };
 
   const handleDisconnect = () => {
-    localStorage.removeItem(CLIENT_ID_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    void clearCredentials(tauriCredentialStore, DROPBOX_KEYS);
     setIsConnected(false);
     setClientId('');
     setAuthCode('');
