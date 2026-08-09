@@ -445,14 +445,25 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'POMODOROS THIS WEEK',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+                          // Flexible + ellipsis: the label must yield to the
+                          // trailing controls on narrow phones (ticket 29).
+                          const Flexible(
+                            flex: 1,
+                            child: Text(
+                              'POMODOROS THIS WEEK',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                          // flex: 0 — the controls keep their intrinsic width,
+                          // the label absorbs the rest.
                           if (_editingWeeklyPlan)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
+                            Flexible(
+                              flex: 0,
+                              child: Row(
+                                children: [
                                 IconButton(
                                   icon: const Icon(Icons.remove_circle_outline, color: AppTheme.textSecondary),
                                   visualDensity: VisualDensity.compact,
@@ -485,15 +496,19 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
                                   onPressed: () => setState(() => _editingWeeklyPlan = false),
                                 ),
                               ],
-                            )
+                            ),
+                          )
                           else
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '$_completedThisWeek / $_displayWeeklyPlan planned',
-                                  style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600),
-                                ),
+                            Flexible(
+                              flex: 0,
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '$_completedThisWeek / $_displayWeeklyPlan planned',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600),
+                                  ),
                                 TextButton(
                                   onPressed: () {
                                     setState(() {
@@ -506,6 +521,7 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
                                 ),
                               ],
                             ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
