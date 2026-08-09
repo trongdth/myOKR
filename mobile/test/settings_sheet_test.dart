@@ -97,4 +97,29 @@ void main() {
     expect(payload['soundTheme'], 'rain', // sibling preserved (read-modify-write)
         reason: 'ADR-0004: a settings save must not erase sibling keys');
   });
+
+  testWidgets('a slider drag fires exactly one save, not one per tick',
+      (tester) async {
+    final fake = _SettingsCaptureProvider({
+      'focusDuration': 25,
+      'shortBreakDuration': 5,
+      'longBreakDuration': 15,
+      'pomosBeforeLongBreak': 4,
+      'autoStartBreaks': false,
+      'autoStartFocus': false,
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SettingsSheet(provider: fake)),
+    ));
+
+    final slider = find.byType(Slider).first;
+    await tester.ensureVisible(slider);
+    // A long drag generates many onChanged ticks.
+    await tester.timedDrag(slider, const Offset(120, 0),
+        const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    expect(fake.savedPayloads.length, 1);
+  });
 }

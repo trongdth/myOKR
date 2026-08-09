@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/theme.dart';
@@ -25,6 +27,11 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
   bool _isEditingDesc = false;
   late String _category;
   String? _keyResultId;
+
+  // Title keystrokes are debounced — saving the whole task list per keypress
+  // was a full persistence per character (ticket 15).
+  Timer? _titleSaveDebounce;
+  bool _titleDirty = false;
 
   late List<Map<String, dynamic>> _todos;
   late List<Map<String, dynamic>> _comments;
@@ -62,11 +69,27 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
 
   @override
   void dispose() {
+    _titleSaveDebounce?.cancel();
+    // Flush a pending title edit: closing within the debounce window must
+    // not lose the last keystrokes.
+    if (_titleDirty) {
+      _saveTask();
+    }
     _titleController.dispose();
     _descController.dispose();
     _todoController.dispose();
     _commentController.dispose();
     super.dispose();
+  }
+
+  void _onTitleChanged(String _) {
+    _titleDirty = true;
+    _titleSaveDebounce?.cancel();
+    _titleSaveDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _titleDirty = false;
+      _saveTask();
+    });
   }
 
   /// Readout denominator: the edited plan once the user touched it, otherwise
@@ -275,7 +298,7 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
                         hintText: 'Task Title',
                         hintStyle: TextStyle(color: AppTheme.textMuted),
                       ),
-                      onChanged: (_) => _saveTask(),
+                      onChanged: _onTitleChanged,
                     ),
                   ),
                   IconButton(
