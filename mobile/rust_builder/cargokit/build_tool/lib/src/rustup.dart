@@ -18,6 +18,21 @@ class _Toolchain {
   final List<String> targets;
 }
 
+/// Whether a `rustup toolchain list` line names a STANDARD toolchain
+/// (stable/beta/nightly, optionally with a host-triple suffix) rather than a
+/// custom one. Anchored to the full toolchain token: a custom toolchain
+/// named like 'stable-custom' (single dash-segment) is NOT standard (ticket
+/// 18).
+bool isStandardToolchainLine(String line) {
+  return RegExp(r'^(stable|beta|nightly)(?:-[a-z0-9_]+(?:-[a-z0-9_]+)+)?(\s|$)')
+      .hasMatch(line.trim());
+}
+
+/// Whether [target] still needs installing for the given [installed] list
+/// (null = unknown → install). Makes installTarget idempotent (ticket 18).
+bool needsTargetInstall(List<String>? installed, String target) =>
+    !(installed?.contains(target) ?? false);
+
 class Rustup {
   List<String>? installedTargets(String toolchain) {
     final targets = _installedTargets(toolchain);
@@ -35,9 +50,13 @@ class Rustup {
     String target, {
     required String toolchain,
   }) {
+    final installed = _installedTargets(toolchain);
+    if (!needsTargetInstall(installed, target)) {
+      return; // idempotent — no duplicate installs (ticket 18)
+    }
     log.info("Installing Rust target: $target");
     runCommand("rustup", ['target', 'add', '--toolchain', toolchain, target]);
-    _installedTargets(toolchain)?.add(target);
+    installed?.add(target);
   }
 
   bool _didInstallZigBuild = false;
@@ -77,13 +96,12 @@ class Rustup {
 
     final res = runCommand("rustup", ['toolchain', 'list']);
 
-    // To list all non-custom toolchains, we need to filter out lines that
-    // don't start with "stable", "beta", or "nightly".
-    Pattern nonCustom = RegExp(r"^(stable|beta|nightly)");
+    // To list all non-custom toolchains, filter lines naming a standard
+    // toolchain (anchored to the full token — see isStandardToolchainLine).
     final lines = res.stdout
         .toString()
         .split('\n')
-        .where((e) => e.isNotEmpty && e.startsWith(nonCustom))
+        .where((e) => e.isNotEmpty && isStandardToolchainLine(e))
         .map(extractToolchainName)
         .toList(growable: true);
 
