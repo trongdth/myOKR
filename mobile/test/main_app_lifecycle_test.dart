@@ -61,9 +61,18 @@ void main() {
     await tester.pump();
     expect(provider.pauseCalls, 3);
 
-    // Foregrounded: the sync timer restarts.
+    // Foregrounded: the real reverse sequence paused -> hidden -> inactive
+    // -> resumed; the sync timer restarts only on resumed.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
+    // 5 pauses: 3 on the way down (inactive/hidden/paused) + 2 on the way up
+    // (hidden/inactive). The extra up-path pauses are harmless — the timer
+    // is restarted by the resumed call right after.
+    expect(provider.pauseCalls, 5);
     expect(provider.resumeCalls, 1);
   });
 }
