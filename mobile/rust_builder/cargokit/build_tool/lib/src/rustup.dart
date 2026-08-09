@@ -22,7 +22,11 @@ class _Toolchain {
 /// (stable/beta/nightly, optionally with a host-triple suffix) rather than a
 /// custom one. Anchored to the full toolchain token: a custom toolchain
 /// named like 'stable-custom' (single dash-segment) is NOT standard (ticket
-/// 18).
+/// 18). Residual: a custom name with >= 2 dash-segments (e.g.
+/// 'nightly-custom-name') still matches — rustup itself refuses to *link*
+/// names that parse as official (its date/host grammar is stricter), so the
+/// exposure is a user deliberately naming a toolchain that way; accepted as
+/// out of the ticket's scope.
 bool isStandardToolchainLine(String line) {
   return RegExp(r'^(stable|beta|nightly)(?:-[a-z0-9_]+(?:-[a-z0-9_]+)+)?(\s|$)')
       .hasMatch(line.trim());
