@@ -43,44 +43,34 @@ class _ReviewScreenWrapperState extends State<_ReviewScreenWrapper> {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
+  // Built once: the children subscribe to the provider themselves, so a
+  // provider notification must not reconstruct or rebuild them (ticket 13).
+  // Identical widget instances let Flutter skip the child element rebuilds.
+  late final List<Widget> _screens;
+
   @override
   void initState() {
     super.initState();
     widget.provider.loadAllData();
     widget.provider.initSync();
-    widget.provider.addListener(_onProviderChange);
+    _screens = [
+      TodayScreen(
+        provider: widget.provider,
+        onStartFocus: () {
+          setState(() {
+            _currentIndex = 2;
+          });
+        },
+      ),
+      OkrScreen(provider: widget.provider),
+      TimerScreen(provider: widget.provider),
+      _ReviewScreenWrapper(provider: widget.provider),
+      HabitsScreen(provider: widget.provider),
+    ];
   }
-
-  @override
-  void dispose() {
-    widget.provider.removeListener(_onProviderChange);
-    super.dispose();
-  }
-
-  void _onProviderChange() {
-    if (mounted) setState(() {});
-  }
-
-  List<Widget> get _screens => [
-    TodayScreen(
-      provider: widget.provider,
-      onStartFocus: () {
-        setState(() {
-          _currentIndex = 2;
-        });
-      },
-    ),
-    OkrScreen(provider: widget.provider),
-    TimerScreen(provider: widget.provider),
-    _ReviewScreenWrapper(provider: widget.provider),
-    HabitsScreen(provider: widget.provider),
-  ];
 
   @override
   Widget build(BuildContext context) {
-    final isConnected = widget.provider.isDropboxConnected;
-    final isSyncing = widget.provider.isSyncing;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('myOKR'),
@@ -98,24 +88,33 @@ class _MainLayoutState extends State<MainLayout> {
               );
             },
           ),
-          IconButton(
-            icon: isSyncing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentCyan),
-                  )
-                : Icon(
-                    isConnected ? Icons.cloud_done : Icons.cloud_sync,
-                    color: isConnected ? AppTheme.accentCyan : AppTheme.textSecondary,
-                  ),
-            tooltip: 'Cloud Sync',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CloudSyncScreen(provider: widget.provider),
-                ),
+          // Scoped to the indicator only — the layout-wide listener was
+          // rebuilding all five screens on every provider notification.
+          ListenableBuilder(
+            listenable: widget.provider,
+            builder: (context, _) {
+              final isConnected = widget.provider.isDropboxConnected;
+              final isSyncing = widget.provider.isSyncing;
+              return IconButton(
+                icon: isSyncing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentCyan),
+                      )
+                    : Icon(
+                        isConnected ? Icons.cloud_done : Icons.cloud_sync,
+                        color: isConnected ? AppTheme.accentCyan : AppTheme.textSecondary,
+                      ),
+                tooltip: 'Cloud Sync',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CloudSyncScreen(provider: widget.provider),
+                    ),
+                  );
+                },
               );
             },
           ),

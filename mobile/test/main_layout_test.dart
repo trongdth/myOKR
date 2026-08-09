@@ -75,4 +75,45 @@ void main() {
 
     provider.dispose();
   });
+
+  testWidgets('provider notifications do not rebuild child screens', (tester) async {
+    final provider = _FakeStorageProvider();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainLayout(provider: provider),
+      ),
+    );
+    await tester.pump();
+
+    // Identical widget instances mean the children's elements skip their
+    // rebuild — the layout must not reconstruct the screens per notification
+    // (ticket 13: each screen subscribes to the provider itself).
+    final before = tester.widget<TodayScreen>(find.byType(TodayScreen));
+
+    provider.notifyListeners();
+    await tester.pump();
+
+    final after = tester.widget<TodayScreen>(find.byType(TodayScreen));
+    expect(identical(before, after), isTrue);
+  });
+
+  testWidgets('the AppBar sync indicator still reacts to provider changes',
+      (tester) async {
+    final provider = _FakeStorageProvider();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainLayout(provider: provider),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    provider.isSyncing = true;
+    provider.notifyListeners();
+    await tester.pump();
+
+    // The indicator is driven by its own listener, not the layout-wide one.
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
 }
