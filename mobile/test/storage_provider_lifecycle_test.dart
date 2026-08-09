@@ -9,6 +9,22 @@ import 'package:myokr_mobile/src/pomodoro_storage.dart';
 import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class _ThrowingSecureStorage extends FlutterSecureStorage {
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('keychain unavailable');
+  }
+}
+
 class _ConnectingDropboxService extends DropboxService {
   @override
   Future<String> exchangeDropboxCode(
@@ -163,7 +179,34 @@ void main() {
       expect(prefs.getString('dropbox_client_id'), isNull);
       expect(prefs.getString('dropbox_refresh_token'), isNull);
 
+      // Disconnect clears both stores.
+      await provider.disconnectDropbox();
+      expect(await secure.read(key: 'dropbox_client_id'), isNull);
+      expect(await secure.read(key: 'dropbox_refresh_token'), isNull);
+
       provider.dispose();
+    });
+
+    test('a failing secure write keeps the prefs copy for the next retry',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'dropbox_client_id': 'legacy-client',
+        'dropbox_refresh_token': 'legacy-token',
+      });
+
+      final provider = StorageProvider(
+        okrStorage: _FakeOkrStorage(),
+        pomodoroStorage: _FakePomodoroStorage(),
+        secureStorage: _ThrowingSecureStorage(),
+      );
+      await provider.initSync();
+
+      // The write failed: nothing was cleared, so the migration re-runs on
+      // the next load instead of losing the only credential copy.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('dropbox_client_id'), 'legacy-client');
+      expect(prefs.getString('dropbox_refresh_token'), 'legacy-token');
+      expect(provider.isDropboxConnected, false);
     });
   });
 }

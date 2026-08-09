@@ -62,7 +62,9 @@ class StorageProvider extends ChangeNotifier {
     required this.okrStorage,
     required this.pomodoroStorage,
     DropboxService? dropboxService,
-  }) : dropboxService = dropboxService ?? DropboxService();
+    FlutterSecureStorage? secureStorage,
+  })  : dropboxService = dropboxService ?? DropboxService(),
+        _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   @override
   void dispose() {
@@ -93,8 +95,9 @@ class StorageProvider extends ChangeNotifier {
 
   // Credentials live in secure storage (Keychain/Keystore) — a refresh token
   // is a long-lived credential and must not sit in plain SharedPreferences
-  // (ticket 16). lastSyncTime stays in prefs: it is not a secret.
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  // (ticket 16). lastSyncTime stays in prefs: it is not a secret. Injectable
+  // for tests that simulate a failing secure write.
+  final FlutterSecureStorage _secureStorage;
 
   Future<void> initSync() async {
     try {
@@ -103,24 +106,25 @@ class StorageProvider extends ChangeNotifier {
 
       dropboxClientId = await _secureStorage.read(key: 'dropbox_client_id');
       dropboxRefreshToken = await _secureStorage.read(key: 'dropbox_refresh_token');
-      if (dropboxRefreshToken == null) {
-        // Idempotent migration of legacy prefs credentials: prefs are only
-        // cleared AFTER the secure write succeeds, so a failed write retries
-        // on the next load.
-        final legacyClient = prefs.getString('dropbox_client_id');
-        final legacyToken = prefs.getString('dropbox_refresh_token');
-        if (legacyClient != null || legacyToken != null) {
-          if (legacyClient != null) {
-            await _secureStorage.write(key: 'dropbox_client_id', value: legacyClient);
-            dropboxClientId = legacyClient;
-          }
-          if (legacyToken != null) {
-            await _secureStorage.write(key: 'dropbox_refresh_token', value: legacyToken);
-            dropboxRefreshToken = legacyToken;
-          }
-          await prefs.remove('dropbox_client_id');
-          await prefs.remove('dropbox_refresh_token');
+      // A prefs copy means either pre-secure-storage legacy data, or a
+      // connect whose post-write cleanup failed. Handle both: write the
+      // prefs values into EMPTY secure slots (migration), and always drop
+      // the prefs copy — if secure already holds a value, the prefs copy is
+      // stale and must not overwrite it. Prefs are cleared only after the
+      // writes succeed, so a failure retries on the next load.
+      final legacyClient = prefs.getString('dropbox_client_id');
+      final legacyToken = prefs.getString('dropbox_refresh_token');
+      if (legacyClient != null || legacyToken != null) {
+        if (legacyClient != null && dropboxClientId == null) {
+          await _secureStorage.write(key: 'dropbox_client_id', value: legacyClient);
+          dropboxClientId = legacyClient;
         }
+        if (legacyToken != null && dropboxRefreshToken == null) {
+          await _secureStorage.write(key: 'dropbox_refresh_token', value: legacyToken);
+          dropboxRefreshToken = legacyToken;
+        }
+        await prefs.remove('dropbox_client_id');
+        await prefs.remove('dropbox_refresh_token');
       }
 
       if (isDropboxConnected) {
