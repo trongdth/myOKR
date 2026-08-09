@@ -1,33 +1,14 @@
-import { Dropbox, DropboxAuth } from 'dropbox';
+import { Dropbox } from 'dropbox';
 import { getAutomergeBinary, mergeExternalBinary, FORCE_SYNC_OVERWRITE_FLAG } from './automerge-storage';
 
 const DROPBOX_FILE_PATH = '/myokr-data.automerge';
 
-/**
- * Generates the PKCE OAuth 2.0 authorization URL.
- */
-export async function getDropboxAuthUrl(clientId: string): Promise<{ url: string; codeVerifier: string }> {
-  const auth = new DropboxAuth({ clientId });
-  // Pass undefined for redirectUri to use the "no-redirect" copy/paste code flow
-  // Use 'offline' to get a refresh token
-  const url = await auth.getAuthenticationUrl(undefined as any, undefined, 'code', 'offline', undefined, 'none', true);
-  const codeVerifier = auth.getCodeVerifier();
-  return { url: url as string, codeVerifier };
-}
+export {
+  getDropboxAuthUrl,
+  parseAuthResponse,
+  exchangeDropboxCode,
+} from './dropbox-oauth';
 
-/**
- * Exchanges the authorization code for a refresh token.
- */
-export async function exchangeDropboxCode(clientId: string, code: string, codeVerifier: string): Promise<string> {
-  const auth = new DropboxAuth({ clientId });
-  auth.setCodeVerifier(codeVerifier);
-  const response = await auth.getAccessTokenFromCode(undefined as any, code);
-  return (response.result as any).refresh_token;
-}
-
-/**
- * Validates a Dropbox connection by calling the users/get_current_account API.
- */
 export async function validateDropboxToken(clientId: string, refreshToken: string): Promise<boolean> {
   try {
     const dbx = new Dropbox({ clientId, refreshToken });
