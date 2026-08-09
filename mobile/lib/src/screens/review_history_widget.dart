@@ -3,6 +3,53 @@ import 'package:myokr_mobile/src/theme.dart';
 import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/screens/review_entry_edit_sheet.dart';
 
+/// Completed focus pomos per task, from [history] sessions within
+/// [weekStart]..[weekEnd]. Pure — the widget aggregates once per expanded
+/// card instead of once per KR entry (ticket 14).
+Map<String, int> aggregatePomoCounts({
+  required List<Map<String, dynamic>> history,
+  required String weekStart,
+  required String weekEnd,
+}) {
+  final pomoCounts = <String, int>{};
+  for (final day in history) {
+    final date = day['date'] as String?;
+    if (date != null && date.compareTo(weekStart) >= 0 && date.compareTo(weekEnd) <= 0) {
+      final sessions = day['sessions'];
+      if (sessions is List) {
+        for (final s in sessions) {
+          if (s is Map && s['type'] == 'focus' && s['completed'] == true && s['taskId'] != null) {
+            final tId = s['taskId'] as String;
+            pomoCounts[tId] = (pomoCounts[tId] ?? 0) + 1;
+          }
+        }
+      }
+    }
+  }
+  return pomoCounts;
+}
+
+/// Tasks in [taskMap] linked to [krId] that have pomos, sorted by pomos
+/// desc. Pure — cheap enough to run per KR entry.
+List<Map<String, dynamic>> filterLinkedTasks({
+  required Map<String, Map<String, dynamic>> taskMap,
+  required Map<String, int> pomoCounts,
+  required String krId,
+}) {
+  final result = <Map<String, dynamic>>[];
+  for (final entry in pomoCounts.entries) {
+    final task = taskMap[entry.key];
+    if (task != null && task['keyResultId'] == krId) {
+      result.add({
+        'taskTitle': task['title'] as String? ?? 'Untitled Task',
+        'pomos': entry.value,
+      });
+    }
+  }
+  result.sort((a, b) => (b['pomos'] as int).compareTo(a['pomos'] as int));
+  return result;
+}
+
 class ReviewHistoryWidget extends StatefulWidget {
   final StorageProvider provider;
   final List<Map<String, dynamic>> reviews;
@@ -44,44 +91,6 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
       default:
         return '⚪';
     }
-  }
-
-  List<Map<String, dynamic>> _getLinkedTasksForKr(String krId, String weekStart, String weekEnd) {
-    final taskMap = <String, Map<String, dynamic>>{};
-    for (final task in widget.provider.tasks) {
-      final id = task['id'] as String?;
-      if (id != null) taskMap[id] = task;
-    }
-
-    final pomoCounts = <String, int>{};
-    for (final day in widget.provider.history) {
-      final date = day['date'] as String?;
-      if (date != null && date.compareTo(weekStart) >= 0 && date.compareTo(weekEnd) <= 0) {
-        final sessions = day['sessions'];
-        if (sessions is List) {
-          for (final s in sessions) {
-            if (s is Map && s['type'] == 'focus' && s['completed'] == true && s['taskId'] != null) {
-              final tId = s['taskId'] as String;
-              pomoCounts[tId] = (pomoCounts[tId] ?? 0) + 1;
-            }
-          }
-        }
-      }
-    }
-
-    final result = <Map<String, dynamic>>[];
-    for (final entry in pomoCounts.entries) {
-      final task = taskMap[entry.key];
-      if (task != null && task['keyResultId'] == krId) {
-        result.add({
-          'taskTitle': task['title'] as String? ?? 'Untitled Task',
-          'pomos': entry.value,
-        });
-      }
-    }
-
-    result.sort((a, b) => (b['pomos'] as int).compareTo(a['pomos'] as int));
-    return result;
   }
 
   void _confirmDelete(BuildContext context, String reviewId, String weekStart) {
@@ -177,6 +186,18 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
       );
     }
 
+    // Built once per build, not once per KR entry (ticket 14).
+    final taskMap = <String, Map<String, dynamic>>{};
+    for (final task in widget.provider.tasks) {
+      final id = task['id'] as String?;
+      if (id != null) taskMap[id] = task;
+    }
+    final krMap = <String, Map<String, dynamic>>{};
+    for (final kr in widget.provider.keyResults) {
+      final id = kr['id'] as String?;
+      if (id != null) krMap[id] = kr;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -191,7 +212,7 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: sorted.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             final review = sorted[index];
             final reviewId = review['id'] as String? ?? '';
@@ -207,6 +228,15 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
             final tasksCompleted = (pomodoroStats['tasksCompleted'] as num?)?.toInt() ?? 0;
 
             final reflection = review['reflection'] as String?;
+
+            // Aggregated once per expanded card, not once per KR entry.
+            final pomoCounts = isExpanded
+                ? aggregatePomoCounts(
+                    history: widget.provider.history,
+                    weekStart: weekStart,
+                    weekEnd: weekEnd,
+                  )
+                : null;
 
             return Container(
               decoration: BoxDecoration(
@@ -289,13 +319,19 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
                           // KR entries
                           ...entries.map((entry) {
                             final krId = entry['keyResultId'] as String?;
-                            final kr = widget.provider.keyResults.firstWhere((k) => k['id'] == krId, orElse: () => {});
+                            final kr = krId != null ? (krMap[krId] ?? <String, dynamic>{}) : <String, dynamic>{};
                             final krTitle = kr['title'] as String? ?? 'Key Result';
                             final prevVal = (entry['previousValue'] as num?)?.toDouble() ?? 0.0;
                             final currVal = (entry['currentValue'] as num?)?.toDouble() ?? 0.0;
                             final confIcon = _getConfidenceIcon(entry['confidence'] as String?);
                             final note = entry['note'] as String?;
-                            final linkedTasks = krId != null ? _getLinkedTasksForKr(krId, weekStart, weekEnd) : <Map<String, dynamic>>[];
+                            final linkedTasks = krId != null && pomoCounts != null
+                                ? filterLinkedTasks(
+                                    taskMap: taskMap,
+                                    pomoCounts: pomoCounts,
+                                    krId: krId,
+                                  )
+                                : <Map<String, dynamic>>[];
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 10),
