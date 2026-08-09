@@ -111,19 +111,37 @@ List<Map<String, dynamic>> pickForBudget(
     return createdA.compareTo(createdB);
   });
 
-  // Single pass over candidates in score order. The former Phase 1 was
-  // redundant (ticket 27): slice = min(remaining, maxShare) <= remaining and
-  // cumulative slices never exceed cumulative remainings, so Phase 2 always
-  // admitted everything Phase 1 did, in the same order. With one pass, no
-  // id-based dedup is needed either — each candidate is visited exactly once.
   final picked = <Map<String, dynamic>>[];
+  final pickedIds = <String>{};
+  int cumActual = 0;
   int cumSlices = 0;
 
+  // Phase 1
   for (final c in candidates) {
     if (picked.length >= 5) break;
+    final estimated = c['estimatedPomodoros'] as int? ?? 1;
+    final completed = c['completedPomodoros'] as int? ?? 0;
+    final remaining = max(0, estimated - completed);
+    if (remaining > 0 && remaining <= budget - cumActual) {
+      picked.push(c);
+      final id = c['id'];
+      if (id is String) pickedIds.add(id);
+      cumActual += remaining;
+      cumSlices += todaysSlice(c, maxShare);
+    }
+  }
+
+  // Phase 2
+  for (final c in candidates) {
+    if (picked.length >= 5) break;
+    // Non-string ids can't participate in id-based dedup; they were already
+    // considered in Phase 1, so skip them here rather than picking twice.
+    if (c['id'] is! String || pickedIds.contains(c['id'])) continue;
     final slice = todaysSlice(c, maxShare);
     if (slice > 0 && slice <= budget - cumSlices) {
       picked.push(c);
+      final id = c['id'];
+      if (id is String) pickedIds.add(id);
       cumSlices += slice;
     }
   }
