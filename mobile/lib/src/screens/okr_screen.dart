@@ -574,6 +574,25 @@ class KeyResultRowWidget extends StatelessWidget {
   final StorageProvider provider;
   final VoidCallback onEdit;
 
+  /// Adjusts a manual KR's currentValue by [delta], reading the LATEST value
+  /// from the provider rather than this widget's snapshot — rapid taps before
+  /// a rebuild otherwise both compute from the same stale value and the
+  /// second tap is dropped (ticket 24).
+  void _adjustKRValue(Map<String, dynamic> kr, double delta) {
+    final krId = kr['id'] as String?;
+    final latest = krId != null
+        ? provider.keyResults.firstWhere(
+            (k) => k['id'] == krId,
+            orElse: () => kr,
+          )
+        : kr;
+    final curr = (latest['currentValue'] as num?)?.toDouble() ?? 0.0;
+    final newCurr = max(0.0, curr + delta);
+    final updated = Map<String, dynamic>.from(latest);
+    updated['currentValue'] = newCurr;
+    provider.saveKeyResult(updated);
+  }
+
   const KeyResultRowWidget({
     super.key,
     required this.keyResult,
@@ -665,13 +684,7 @@ class KeyResultRowWidget extends StatelessWidget {
                         InkWell(
                           key: Key('kr_dec_$krId'),
                           borderRadius: BorderRadius.circular(4),
-                          onTap: () {
-                            final curr = (kr['currentValue'] as num?)?.toDouble() ?? 0.0;
-                            final newCurr = max(0.0, curr - 1.0);
-                            final updated = Map<String, dynamic>.from(kr);
-                            updated['currentValue'] = newCurr;
-                            provider.saveKeyResult(updated);
-                          },
+                          onTap: () => _adjustKRValue(kr, -1.0),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
@@ -686,13 +699,7 @@ class KeyResultRowWidget extends StatelessWidget {
                         InkWell(
                           key: Key('kr_inc_$krId'),
                           borderRadius: BorderRadius.circular(4),
-                          onTap: () {
-                            final curr = (kr['currentValue'] as num?)?.toDouble() ?? 0.0;
-                            final newCurr = curr + 1.0;
-                            final updated = Map<String, dynamic>.from(kr);
-                            updated['currentValue'] = newCurr;
-                            provider.saveKeyResult(updated);
-                          },
+                          onTap: () => _adjustKRValue(kr, 1.0),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
