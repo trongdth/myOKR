@@ -121,4 +121,43 @@ void main() {
 
     expect(find.text('Renamed'), findsOneWidget); // sheet still open
   });
+
+  testWidgets('the POMODOROS row fits a narrow phone (375px)', (tester) async {
+    // Real-width text at a phone surface: the Ahem test font renders ~2x
+    // device width, so 0.5 scale calibrates it to real text (ticket 29).
+    // An overflow throws during layout and fails the test.
+    tester.platformDispatcher.textScaleFactorTestValue = 0.5;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.binding.setSurfaceSize(const Size(375, 667));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final provider = _FakeTaskStorageProvider(testTasks: [
+      {'id': 't1', 'title': 'A', 'category': 'do'},
+    ]);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => Center(
+            child: ElevatedButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => TaskDetailsSheet(
+                    task: provider.tasks.first,
+                    provider: provider,
+                  ),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('POMODOROS THIS WEEK'), findsOneWidget);
+  });
 }
