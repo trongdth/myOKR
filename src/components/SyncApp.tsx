@@ -89,7 +89,7 @@ export default function SyncApp() {
   };
 
   const handleDisconnect = () => {
-    void clearCredentials(tauriCredentialStore, DROPBOX_KEYS);
+    void clearCredentials(tauriCredentialStore, DROPBOX_KEYS).catch(console.error);
     setIsConnected(false);
     setClientId('');
     setAuthCode('');
@@ -101,14 +101,13 @@ export default function SyncApp() {
   };
 
   const syncData = async (forceUpload: boolean = false) => {
-    const savedClientId = localStorage.getItem(CLIENT_ID_KEY);
-    const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!isConnected || !savedClientId || !savedRefreshToken) return;
-    
+    const creds = await loadCredentials(tauriCredentialStore, DROPBOX_KEYS);
+    if (!isConnected || !creds.dropbox_client_id || !creds.dropbox_refresh_token) return;
+
     setError(null);
     setIsSyncing(true);
     try {
-      await syncWithDropbox(savedClientId, savedRefreshToken, forceUpload);
+      await syncWithDropbox(creds.dropbox_client_id, creds.dropbox_refresh_token, forceUpload);
       
       const now = new Date().toLocaleString();
       setLastSync(now);

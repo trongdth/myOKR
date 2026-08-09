@@ -1,6 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { DROPBOX_KEYS, loadCredentials, clearCredentials } from './lib/credential-store';
+import { tauriCredentialStore } from './lib/tauri-credential-adapter';
 import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
@@ -115,16 +117,27 @@ export default function App() {
     plan: true,
     progress: true,
   });
-  const [isSyncConnected, setIsSyncConnected] = useState(() =>
-    !!(localStorage.getItem('dropbox_client_id') && localStorage.getItem('dropbox_refresh_token'))
-  );
+  // Credentials live in the OS keychain (ticket 28); the connection state is
+  // resolved asynchronously from the secure store.
+  const [isSyncConnected, setIsSyncConnected] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      const creds = await loadCredentials(tauriCredentialStore, DROPBOX_KEYS);
+      if (!cancelled) {
+        setIsSyncConnected(!!(creds.dropbox_client_id && creds.dropbox_refresh_token));
+      }
+    };
+    void refresh();
     const handleStatusChange = () => {
-      setIsSyncConnected(!!(localStorage.getItem('dropbox_client_id') && localStorage.getItem('dropbox_refresh_token')));
+      void refresh();
     };
     window.addEventListener('myokr-sync-status-changed', handleStatusChange);
-    return () => window.removeEventListener('myokr-sync-status-changed', handleStatusChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('myokr-sync-status-changed', handleStatusChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -191,18 +204,18 @@ export default function App() {
     const handleSyncError = (e: any) => {
       console.error(e);
       if (e?.status === 401) {
-        localStorage.removeItem('dropbox_client_id');
-        localStorage.removeItem('dropbox_refresh_token');
+        // Token rejected — clear it from the keychain (mirrors mobile's
+        // delete-on-401).
+        void clearCredentials(tauriCredentialStore, DROPBOX_KEYS).catch(console.error);
         window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
       }
     };
 
-    const performSync = () => {
-      const currentClientId = localStorage.getItem('dropbox_client_id');
-      const currentRefreshToken = localStorage.getItem('dropbox_refresh_token');
-      if (!currentClientId || !currentRefreshToken) return;
+    const performSync = async () => {
+      const creds = await loadCredentials(tauriCredentialStore, DROPBOX_KEYS);
+      if (!creds.dropbox_client_id || !creds.dropbox_refresh_token) return;
       import('./lib/dropbox-service').then(({ syncWithDropbox }) => {
-        syncWithDropbox(currentClientId, currentRefreshToken).then(() => {
+        syncWithDropbox(creds.dropbox_client_id!, creds.dropbox_refresh_token!).then(() => {
           const now = new Date().toLocaleString();
           localStorage.setItem('last_sync_time', now);
           window.dispatchEvent(new CustomEvent('myokr-data-synced'));
