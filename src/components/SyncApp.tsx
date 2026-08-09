@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { validateDropboxToken, syncWithDropbox, getDropboxAuthUrl, exchangeDropboxCode } from '../lib/dropbox-service';
+import { validateDropboxToken, syncWithDropbox, getDropboxAuthUrl, exchangeDropboxCode, parseAuthResponse } from '../lib/dropbox-service';
 import '../styles/app.css';
 
 const CLIENT_ID_KEY = 'dropbox_client_id';
@@ -10,6 +10,7 @@ export default function SyncApp() {
   const [authCode, setAuthCode] = useState('');
   const [authUrl, setAuthUrl] = useState('');
   const [codeVerifier, setCodeVerifier] = useState('');
+  const [oauthState, setOAuthState] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -32,23 +33,34 @@ export default function SyncApp() {
     }
     setError(null);
     try {
-      const { url, codeVerifier: verifier } = await getDropboxAuthUrl(clientId.trim());
+      const { url, codeVerifier: verifier, state } = await getDropboxAuthUrl(clientId.trim());
       setAuthUrl(url);
       setCodeVerifier(verifier);
+      setOAuthState(state);
     } catch (e) {
       setError('Failed to generate authorization URL. Check your App Key.');
     }
   };
 
   const handleConnect = async () => {
-    if (!clientId.trim() || !authCode.trim() || !codeVerifier) {
+    if (!clientId.trim() || !authCode.trim() || !codeVerifier || !oauthState) {
       setError('Please complete the authorization step.');
+      return;
+    }
+    // The user may paste the bare code, a code=...&state=... query, or the
+    // full redirect URL. The CSRF state must come back with the code.
+    const parsed = parseAuthResponse(authCode);
+    if (parsed.code === '' || parsed.state == null) {
+      setError('Please paste the full authorization URL (it carries the state).');
       return;
     }
     setError(null);
     setIsSyncing(true);
     try {
-      const refreshToken = await exchangeDropboxCode(clientId.trim(), authCode.trim(), codeVerifier);
+      const refreshToken = await exchangeDropboxCode(clientId.trim(), parsed.code, codeVerifier, {
+        expectedState: oauthState,
+        returnedState: parsed.state,
+      });
       if (refreshToken) {
         const valid = await validateDropboxToken(clientId.trim(), refreshToken);
         if (valid) {
@@ -77,6 +89,7 @@ export default function SyncApp() {
     setAuthCode('');
     setAuthUrl('');
     setCodeVerifier('');
+    setOAuthState('');
     setError(null);
     window.dispatchEvent(new CustomEvent('myokr-sync-status-changed'));
   };
@@ -183,7 +196,7 @@ export default function SyncApp() {
                       type="password"
                       value={authCode}
                       onChange={(e) => setAuthCode(e.target.value)}
-                      placeholder="Paste the Authorization Code here"
+                      placeholder="Paste the full authorization URL here"
                       className="okr-input"
                       style={{ flex: '1 1 300px', padding: '0.8rem 1rem', fontSize: '1rem' }}
                     />
