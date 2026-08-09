@@ -142,7 +142,13 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
           }
           return t;
         }).toList();
-        widget.provider.saveTasks(updatedTasks);
+        // Session-complete bookkeeping: fire-and-forget, errors must not
+        // escape into the timer flow.
+        unawaited(
+          widget.provider.saveTasks(updatedTasks).catchError((Object e) {
+            debugPrint('task save failed: $e');
+          }),
+        );
       }
 
       _sessionType = isLongBreak ? 'longBreak' : 'shortBreak';
@@ -497,7 +503,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     );
   }
 
-  void _addTask() {
+  Future<void> _addTask() async {
     final title = _taskController.text.trim();
     if (title.isEmpty) return;
 
@@ -512,29 +518,61 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     };
 
     final newTasks = List<Map<String, dynamic>>.from(widget.provider.tasks)..add(newTask);
-    widget.provider.saveTasks(newTasks);
-    _taskController.clear();
+    try {
+      await widget.provider.saveTasks(newTasks);
+      if (mounted) _taskController.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save task: $e')),
+        );
+      }
+    }
   }
 
-  void _toggleTaskCompletion(int index, bool isCompleted) {
+  Future<void> _toggleTaskCompletion(int index, bool isCompleted) async {
     final updatedTasks = List<Map<String, dynamic>>.from(widget.provider.tasks);
     updatedTasks[index]['completed'] = isCompleted;
-    
+
     final taskId = updatedTasks[index]['id'];
     if (isCompleted && widget.provider.activeTaskId == taskId) {
-      widget.provider.setActiveTaskId(null);
+      unawaited(
+        widget.provider.setActiveTaskId(null).catchError((Object e) {
+          debugPrint('setActiveTaskId failed: $e');
+        }),
+      );
     }
-    
-    widget.provider.saveTasks(updatedTasks);
+
+    try {
+      await widget.provider.saveTasks(updatedTasks);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save task: $e')),
+        );
+      }
+    }
   }
 
-  void _deleteTask(int index) {
+  Future<void> _deleteTask(int index) async {
     final task = widget.provider.tasks[index];
     if (widget.provider.activeTaskId == task['id']) {
-      widget.provider.setActiveTaskId(null);
+      unawaited(
+        widget.provider.setActiveTaskId(null).catchError((Object e) {
+          debugPrint('setActiveTaskId failed: $e');
+        }),
+      );
     }
     final updatedTasks = List<Map<String, dynamic>>.from(widget.provider.tasks)..removeAt(index);
-    widget.provider.saveTasks(updatedTasks);
+    try {
+      await widget.provider.saveTasks(updatedTasks);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save task: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildAnalyticsTab() {

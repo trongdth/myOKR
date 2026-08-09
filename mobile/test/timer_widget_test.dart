@@ -127,4 +127,35 @@ void main() {
     // Verify task is added to the list
     expect(find.text('Read a book'), findsOneWidget);
   });
+
+  testWidgets('add-task failure shows a snackbar and keeps the typed text',
+      (WidgetTester tester) async {
+    final fakeProvider = _ThrowingTimerProvider();
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: TimerScreen(provider: fakeProvider),
+      ),
+    ));
+
+    await tester.tap(find.text('Tasks'));
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 2),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Read a book');
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Failed to save'), findsOneWidget);
+    expect(find.text('Read a book'), findsOneWidget); // controller not cleared
+  });
+}
+
+class _ThrowingTimerProvider extends FakeStorageProvider {
+  @override
+  Future<void> saveTasks(List<Map<String, dynamic>> newTasks) async =>
+      throw Exception('disk full');
 }
