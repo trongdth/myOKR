@@ -478,7 +478,13 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                           color: activeTaskId == task['id'] ? AppTheme.accentCyan : AppTheme.textSecondary,
                         ),
                         onPressed: () {
-                          widget.provider.setActiveTaskId(task['id']);
+                          // Fire-and-forget: navigation is the UX intent, a
+                          // persistence failure must not block it (ticket 23).
+                          unawaited(
+                            widget.provider.setActiveTaskId(task['id']).catchError((Object e) {
+                              debugPrint('setActiveTaskId failed: $e');
+                            }),
+                          );
                           setState(() {
                             _resetToCurrentSession();
                           });
