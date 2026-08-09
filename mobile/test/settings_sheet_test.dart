@@ -122,4 +122,37 @@ void main() {
 
     expect(fake.savedPayloads.length, 1);
   });
+
+  testWidgets('keyboard-style changes persist exactly once (via onChangeEnd)',
+      (tester) async {
+    final fake = _SettingsCaptureProvider({
+      'focusDuration': 25,
+      'shortBreakDuration': 5,
+      'longBreakDuration': 15,
+      'pomosBeforeLongBreak': 4,
+      'autoStartBreaks': false,
+      'autoStartFocus': false,
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SettingsSheet(provider: fake)),
+    ));
+
+    final slider = find.byType(Slider).first;
+    await tester.ensureVisible(slider);
+
+    // The pinned SDK's keyboard/a11y path (slider.dart increaseAction:
+    // 1948-1956) fires onChangeStart -> onChanged -> onChangeEnd for a
+    // single value change. The sheet registers onChanged + onChangeEnd;
+    // simulate the framework calling them in that order — the test
+    // framework can't route key events to this slider — and assert the
+    // change persists exactly once, at the end.
+    final sliderWidget = tester.widget<Slider>(slider);
+    final before = fake.savedPayloads.length;
+    sliderWidget.onChanged!(26.0);
+    sliderWidget.onChangeEnd!(26.0);
+    await tester.pump();
+
+    expect(fake.savedPayloads.length, before + 1);
+  });
 }

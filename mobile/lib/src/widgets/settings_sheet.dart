@@ -90,7 +90,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
             // Update the live label only — the drag fires dozens of ticks.
             onChanged(val.round());
           },
-          // Persist once per drag gesture, not per tick (ticket 15).
+          // Persist once per interaction, not per tick (ticket 15). Keyboard
+          // and a11y changes go through increaseAction/decreaseAction, which
+          // fire onChangeEnd too (pinned SDK, slider.dart:1948-1956) — so
+          // they persist here as well.
           onChangeEnd: (_) => _saveSettings(),
         ),
         const SizedBox(height: 8),
