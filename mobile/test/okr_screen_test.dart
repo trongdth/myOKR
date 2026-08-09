@@ -329,6 +329,57 @@ void main() {
     expect(find.text('3 / 5 widgets'), findsOneWidget);
   });
 
+  testWidgets('two rapid increment taps apply +2 (no dropped taps)',
+      (WidgetTester tester) async {
+    final provider = _FakeOkrStorageProvider(
+      testCycles: [
+        {
+          'id': 'cycle-1',
+          'name': 'May 2026',
+          'month': 4,
+          'year': 2026,
+          'isActive': true,
+          'createdAt': '2026-05-01T00:00:00Z',
+        }
+      ],
+      testObjectives: [
+        {
+          'id': 'obj-1',
+          'cycleId': 'cycle-1',
+          'title': 'Ship Mobile App',
+          'order': 0,
+        }
+      ],
+      testKeyResults: [
+        {
+          'id': 'kr-1',
+          'objectiveId': 'obj-1',
+          'title': 'Build Widgets',
+          'targetValue': 5,
+          'currentValue': 2.0,
+          'unit': 'widgets',
+          'confidence': 'on_track',
+          'completionMode': 'manual',
+        }
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OkrScreen(provider: provider),
+      ),
+    );
+
+    // Two taps with no intervening pump — both read the same stale widget
+    // snapshot on the old code and the second increment is lost.
+    await tester.tap(find.byKey(const Key('kr_inc_kr-1')));
+    await tester.tap(find.byKey(const Key('kr_inc_kr-1')));
+    await tester.pumpAndSettle();
+
+    expect(provider.keyResults.first['currentValue'], 4.0);
+    expect(find.text('4 / 5 widgets'), findsOneWidget);
+  });
+
   testWidgets('OkrScreen allows adding a new Key Result via bottom sheet', (WidgetTester tester) async {
     final provider = _FakeOkrStorageProvider(
       testCycles: [
