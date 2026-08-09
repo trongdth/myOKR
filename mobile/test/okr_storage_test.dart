@@ -114,4 +114,23 @@ void main() {
 
     expect(_CountingPathProvider.resolveCount, 1);
   });
+
+  test('concurrent first accesses share a single resolution', () async {
+    final tempDir = await Directory.systemTemp.createTemp('dir_cache_test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final original = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _CountingPathProvider(tempDir.path);
+    addTearDown(() => PathProviderPlatform.instance = original);
+    _CountingPathProvider.resolveCount = 0;
+
+    final storage = OkrStorage();
+    // Both start before either await completes.
+    await Future.wait([
+      storage.saveAutomergeBinary(Uint8List.fromList([1, 2, 3])),
+      storage.getAutomergeBinary(),
+    ]);
+
+    expect(_CountingPathProvider.resolveCount, 1);
+  });
 }

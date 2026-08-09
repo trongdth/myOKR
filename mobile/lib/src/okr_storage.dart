@@ -12,13 +12,15 @@ class OkrStorage {
 
   // The documents directory never changes for the app's lifetime; resolve it
   // once instead of hitting the platform channel on every load/save (ticket 17).
-  Directory? _cachedDirectory;
+  // The FUTURE is cached, not the value: concurrent first accesses (e.g. a
+  // save racing sync's merge read) share one platform call.
+  Future<Directory>? _cachedDirectory;
 
   OkrStorage({this.testDirectory});
 
   Future<File> get _localFile async {
     final directory =
-        testDirectory ?? (_cachedDirectory ??= await getApplicationDocumentsDirectory());
+        testDirectory ?? await (_cachedDirectory ??= getApplicationDocumentsDirectory());
     return File('${directory.path}/$_filePath');
   }
 
