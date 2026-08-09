@@ -526,6 +526,12 @@
 /* ===== Responsive (design-system 2a / habits 860px state) ===== */
 
 @media (max-width: 900px) {
+  /* Touch-safe: no hover exists on touch devices — row actions (status +
+     delete) are always visible below 900px instead of hover-revealed. */
+  .habit-row-actions {
+    opacity: 1;
+  }
+
   .habits-bottom-grid {
     grid-template-columns: minmax(0, 1fr);
   }

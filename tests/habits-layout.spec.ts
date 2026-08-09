@@ -89,7 +89,20 @@ test.describe('Habits Tracker Layout and Styles', () => {
     await expect(firstRow.locator('.habit-streak-cell')).toHaveText('0 days');
   });
 
-  test('row actions are hover-revealed; status select keeps the custom styling', async ({ page }) => {
+  test('row actions are always visible below 900px (touch-safe)', async ({ page }) => {
+    await addHabit(page, 'Touch Actions Habit');
+
+    const row = page.locator('.habit-row:has-text("Touch Actions Habit")');
+    const actions = row.locator('.habit-row-actions');
+
+    // No hover exists on touch — the actions must be visible from the start
+    await expect(actions).toHaveCSS('opacity', '1');
+    await expect(row.locator('.habit-status-select')).toBeVisible();
+    await expect(row.locator('.habit-delete-btn')).toBeVisible();
+  });
+
+  test('row actions are hover-revealed above 900px; status select keeps the custom styling', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await addHabit(page, 'Dropdown Styling Habit');
 
     const row = page.locator('.habit-row:has-text("Dropdown Styling Habit")');

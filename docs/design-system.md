@@ -345,7 +345,9 @@ state when nothing was scheduled in the window.
 ### Responsive
 
 Bottom panels stack at ≤900px; matrix day cells shrink to 2rem (from 2.5rem)
-at ≤900px. Nothing else re-stacks — the matrix stays a matrix ("nothing hidden,
+at ≤900px; **row actions (status select + delete) are always visible at ≤900px**
+(hover-reveal only applies above — touch devices have no hover; 2026-08-09 PR
+feedback). Nothing else re-stacks — the matrix stays a matrix ("nothing hidden,
 only re-stacked").
 
 ## Plan group screens (P1–P7) — per-screen rules
