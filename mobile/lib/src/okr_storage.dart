@@ -10,10 +10,15 @@ class OkrStorage {
   final String _filePath = 'myokr-data.automerge';
   final Directory? testDirectory;
 
+  // The documents directory never changes for the app's lifetime; resolve it
+  // once instead of hitting the platform channel on every load/save (ticket 17).
+  Directory? _cachedDirectory;
+
   OkrStorage({this.testDirectory});
 
   Future<File> get _localFile async {
-    final directory = testDirectory ?? await getApplicationDocumentsDirectory();
+    final directory =
+        testDirectory ?? (_cachedDirectory ??= await getApplicationDocumentsDirectory());
     return File('${directory.path}/$_filePath');
   }
 

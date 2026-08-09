@@ -30,6 +30,11 @@ void main() {
       expect(url, contains('state=$state'));
     });
 
+    test('close() closes the underlying http client', () {
+      service.close();
+      verify(mockClient.close()).called(1);
+    });
+
     test('exchangeDropboxCode returns refresh token on success', () async {
       when(mockClient.post(
         Uri.parse('https://api.dropboxapi.com/oauth2/token'),

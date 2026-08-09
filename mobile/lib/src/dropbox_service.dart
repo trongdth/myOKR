@@ -26,6 +26,10 @@ class DropboxService {
 
   DropboxService({http.Client? client}) : _client = client ?? http.Client();
 
+  /// Releases the underlying HTTP client (connection pool + sockets).
+  /// The owning provider calls this on dispose (ticket 17).
+  void close() => _client.close();
+
   String _randomToken() {
     final rand = Random.secure();
     final values = List<int>.generate(32, (i) => rand.nextInt(256));
