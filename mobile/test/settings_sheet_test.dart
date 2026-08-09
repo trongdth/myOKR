@@ -122,4 +122,35 @@ void main() {
 
     expect(fake.savedPayloads.length, 1);
   });
+
+  testWidgets('non-gesture value changes persist the slider value', (tester) async {
+    final fake = _SettingsCaptureProvider({
+      'focusDuration': 25,
+      'shortBreakDuration': 5,
+      'longBreakDuration': 15,
+      'pomosBeforeLongBreak': 4,
+      'autoStartBreaks': false,
+      'autoStartFocus': false,
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SettingsSheet(provider: fake)),
+    ));
+
+    final slider = find.byType(Slider).first;
+    await tester.ensureVisible(slider);
+    await tester.tap(slider); // one gesture (saves on end)
+    await tester.pump();
+    final savesAfterTap = fake.savedPayloads.length;
+    expect(savesAfterTap, greaterThanOrEqualTo(1));
+
+    // Keyboard arrows and a11y actions fire the slider's onChanged with NO
+    // gesture end (the test framework doesn't dispatch those inputs, so
+    // invoke the callback directly — it is the same entry point). The
+    // change must still persist (ticket 30).
+    tester.widget<Slider>(slider).onChanged!(30.0);
+    await tester.pump();
+
+    expect(fake.savedPayloads.length, greaterThan(savesAfterTap));
+  });
 }
