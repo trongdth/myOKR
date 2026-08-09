@@ -192,6 +192,11 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
       final id = task['id'] as String?;
       if (id != null) taskMap[id] = task;
     }
+    final krMap = <String, Map<String, dynamic>>{};
+    for (final kr in widget.provider.keyResults) {
+      final id = kr['id'] as String?;
+      if (id != null) krMap[id] = kr;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +319,7 @@ class _ReviewHistoryWidgetState extends State<ReviewHistoryWidget> {
                           // KR entries
                           ...entries.map((entry) {
                             final krId = entry['keyResultId'] as String?;
-                            final kr = widget.provider.keyResults.firstWhere((k) => k['id'] == krId, orElse: () => {});
+                            final kr = krId != null ? (krMap[krId] ?? <String, dynamic>{}) : <String, dynamic>{};
                             final krTitle = kr['title'] as String? ?? 'Key Result';
                             final prevVal = (entry['previousValue'] as num?)?.toDouble() ?? 0.0;
                             final currVal = (entry['currentValue'] as num?)?.toDouble() ?? 0.0;

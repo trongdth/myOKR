@@ -54,5 +54,22 @@ void main() {
         {'taskTitle': 'Alpha', 'pomos': 3},
       ]);
     });
+
+    test('falls back to Untitled Task for tasks without a title', () {
+      final taskMap = {
+        't1': {'id': 't1', 'keyResultId': 'kr1'}, // no title
+      };
+      final pomoCounts = {'t1': 1};
+
+      final linked = filterLinkedTasks(
+        taskMap: taskMap,
+        pomoCounts: pomoCounts,
+        krId: 'kr1',
+      );
+
+      expect(linked, [
+        {'taskTitle': 'Untitled Task', 'pomos': 1},
+      ]);
+    });
   });
 }
