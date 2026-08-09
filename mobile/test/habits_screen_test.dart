@@ -136,4 +136,36 @@ void main() {
     // Key Result should fall back to manual mode
     expect(provider.keyResults.first['completionMode'], 'manual');
   });
+
+  testWidgets('add-habit failure shows a snackbar and keeps the typed name',
+      (WidgetTester tester) async {
+    final provider = _ThrowingHabitsProvider(
+      testHabits: [],
+      testKeyResults: [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: HabitsScreen(provider: provider)),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Drink Water');
+    await tester.tap(find.text('Add Habit'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Failed to save'), findsOneWidget);
+    expect(find.text('Drink Water'), findsOneWidget); // name not cleared
+  });
+}
+
+class _ThrowingHabitsProvider extends _FakeHabitsStorageProvider {
+  _ThrowingHabitsProvider({
+    required super.testHabits,
+    required super.testKeyResults,
+  });
+
+  @override
+  Future<void> saveHabit(Map<String, dynamic> habit) async =>
+      throw Exception('disk full');
 }

@@ -9,6 +9,14 @@ class _FakeOkrStorage extends OkrStorage {}
 
 class _FakePomodoroStorage extends PomodoroStorage {}
 
+class _ThrowingTaskStorageProvider extends _FakeTaskStorageProvider {
+  _ThrowingTaskStorageProvider({required super.testTasks});
+
+  @override
+  Future<void> saveTasks(List<Map<String, dynamic>> newTasks) async =>
+      throw Exception('disk full');
+}
+
 class _FakeTaskStorageProvider extends StorageProvider {
   _FakeTaskStorageProvider({required this.testTasks})
       : super(
@@ -97,5 +105,20 @@ void main() {
 
     expect(provider.saveCalls, 1);
     expect(provider.tasks.first['title'], 'Renamed');
+  });
+
+  testWidgets('a failing save does not crash the sheet', (tester) async {
+    final provider = _ThrowingTaskStorageProvider(testTasks: [
+      {'id': 't1', 'title': 'A', 'category': 'do'},
+    ]);
+    await openSheet(tester, provider);
+
+    // The debounce fires _saveTask, whose save fails — the error must be
+    // swallowed, not escaped as an unhandled async exception.
+    await tester.enterText(find.byType(TextField).first, 'Renamed');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+
+    expect(find.text('Renamed'), findsOneWidget); // sheet still open
   });
 }

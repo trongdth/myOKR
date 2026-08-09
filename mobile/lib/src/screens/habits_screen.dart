@@ -24,7 +24,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     super.dispose();
   }
 
-  void _handleAddHabit() {
+  Future<void> _handleAddHabit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
@@ -37,8 +37,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
       'updatedAt': DateTime.now().toIso8601String(),
     };
 
-    widget.provider.saveHabit(newHabit);
-    _nameController.clear();
+    try {
+      await widget.provider.saveHabit(newHabit);
+      if (mounted) _nameController.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save habit: $e')),
+        );
+      }
+    }
   }
 
   void _confirmDeleteHabit(BuildContext context, Map<String, dynamic> habit) {

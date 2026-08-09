@@ -146,7 +146,13 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
       return t['id'] == widget.task['id'] ? updatedTask : t;
     }).toList();
 
-    widget.provider.saveTasks(updatedTasks);
+    // Fire-and-forget (debounce + dispose callers can't await); a failing
+    // save must not escape as an unhandled async error (ticket 23).
+    unawaited(
+      widget.provider.saveTasks(updatedTasks).catchError((Object e) {
+        debugPrint('task save failed: $e');
+      }),
+    );
   }
 
   void _addTodo() {
