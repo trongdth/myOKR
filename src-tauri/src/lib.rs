@@ -68,6 +68,30 @@ fn hide_window(window: tauri::Window) {
     let _ = window.hide();
 }
 
+/// Reads a credential from the OS keychain (service "myokr"). Returns None
+/// when absent or the keychain is unavailable (ticket 28).
+#[tauri::command]
+fn secure_get(key: String) -> Option<String> {
+    keyring::Entry::new("myokr", &key)
+        .ok()?
+        .get_password()
+        .ok()
+}
+
+/// Stores a credential in the OS keychain (ticket 28).
+#[tauri::command]
+fn secure_set(key: String, value: String) -> Result<(), String> {
+    let entry = keyring::Entry::new("myokr", &key).map_err(|e| e.to_string())?;
+    entry.set_password(&value).map_err(|e| e.to_string())
+}
+
+/// Removes a credential from the OS keychain (ticket 28).
+#[tauri::command]
+fn secure_delete(key: String) -> Result<(), String> {
+    let entry = keyring::Entry::new("myokr", &key).map_err(|e| e.to_string())?;
+    entry.delete_credential().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn start_timer(state: State<'_, Arc<TimerState>>, app: AppHandle, secs: u32, session_type: String) {
     let now = get_current_time_secs();
@@ -261,7 +285,10 @@ pub fn run() {
             pause_timer,
             reset_timer_state,
             get_timer_state,
-            hide_window
+            hide_window,
+            secure_get,
+            secure_set,
+            secure_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
