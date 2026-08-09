@@ -24,4 +24,54 @@ void main() {
       expect(body, '05:00 - Grab coffee');
     });
   });
+
+  group('needsLiveActivityUpdate', () {
+    test('first call always needs an update (create)', () {
+      expect(
+        BackgroundTimerManager.needsLiveActivityUpdate(
+          previousType: null,
+          previousTask: null,
+          sessionType: 'focus',
+          taskName: 'Task',
+        ),
+        isTrue,
+      );
+    });
+
+    test('per-second ticks with an unchanged session do NOT update', () {
+      expect(
+        BackgroundTimerManager.needsLiveActivityUpdate(
+          previousType: 'focus',
+          previousTask: 'Task',
+          sessionType: 'focus',
+          taskName: 'Task',
+        ),
+        isFalse,
+      );
+    });
+
+    test('a session type change needs an update', () {
+      expect(
+        BackgroundTimerManager.needsLiveActivityUpdate(
+          previousType: 'focus',
+          previousTask: 'Task',
+          sessionType: 'shortBreak',
+          taskName: 'Task',
+        ),
+        isTrue,
+      );
+    });
+
+    test('a task change needs an update', () {
+      expect(
+        BackgroundTimerManager.needsLiveActivityUpdate(
+          previousType: 'focus',
+          previousTask: 'Task A',
+          sessionType: 'focus',
+          taskName: 'Task B',
+        ),
+        isTrue,
+      );
+    });
+  });
 }

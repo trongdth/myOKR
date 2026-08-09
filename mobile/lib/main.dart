@@ -156,17 +156,49 @@ Future<void> main() async {
   runApp(MyApp(provider: provider));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final StorageProvider provider;
-  
+
   const MyApp({super.key, required this.provider});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Backgrounded: stop the 15-minute Dropbox sync timer. Foregrounded:
+    // restart it (ticket 12).
+    switch (state) {
+      case AppLifecycleState.resumed:
+        widget.provider.resumeSync();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        widget.provider.pauseSync();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'myOKR',
       theme: AppTheme.darkTheme,
-      home: MainLayout(provider: provider),
+      home: MainLayout(provider: widget.provider),
     );
   }
 }
