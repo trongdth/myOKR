@@ -87,9 +87,11 @@ class _SettingsSheetState extends State<SettingsSheet> {
           activeColor: AppTheme.accentCyan,
           inactiveColor: AppTheme.borderColor,
           onChanged: (val) {
+            // Update the live label only — the drag fires dozens of ticks.
             onChanged(val.round());
-            _saveSettings();
           },
+          // Persist once per drag gesture, not per tick (ticket 15).
+          onChangeEnd: (_) => _saveSettings(),
         ),
         const SizedBox(height: 8),
       ],
