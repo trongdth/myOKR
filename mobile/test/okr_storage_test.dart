@@ -3,6 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:myokr_mobile/src/rust/frb_generated.dart';
 import 'package:myokr_mobile/src/okr_storage.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+class _CountingPathProvider extends PathProviderPlatform {
+  _CountingPathProvider(this.documentsPath);
+
+  final String documentsPath;
+  static int resolveCount = 0;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async {
+    resolveCount++;
+    return documentsPath;
+  }
+}
 
 void main() {
   setUpAll(() async {
@@ -81,5 +95,42 @@ void main() {
     expect(loadedReviews.length, 1);
     expect(loadedReviews[0]['id'], 'rev-1');
     expect(loadedReviews[0]['pomodoroStats']['totalPomodoros'], 10);
+  });
+
+  test('the documents directory is resolved only once across accesses',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp('dir_cache_test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final original = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _CountingPathProvider(tempDir.path);
+    addTearDown(() => PathProviderPlatform.instance = original);
+    _CountingPathProvider.resolveCount = 0;
+
+    // No testDirectory — exercises the real resolution path.
+    final storage = OkrStorage();
+    await storage.saveAutomergeBinary(Uint8List.fromList([1, 2, 3]));
+    await storage.getAutomergeBinary();
+
+    expect(_CountingPathProvider.resolveCount, 1);
+  });
+
+  test('concurrent first accesses share a single resolution', () async {
+    final tempDir = await Directory.systemTemp.createTemp('dir_cache_test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final original = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _CountingPathProvider(tempDir.path);
+    addTearDown(() => PathProviderPlatform.instance = original);
+    _CountingPathProvider.resolveCount = 0;
+
+    final storage = OkrStorage();
+    // Both start before either await completes.
+    await Future.wait([
+      storage.saveAutomergeBinary(Uint8List.fromList([1, 2, 3])),
+      storage.getAutomergeBinary(),
+    ]);
+
+    expect(_CountingPathProvider.resolveCount, 1);
   });
 }

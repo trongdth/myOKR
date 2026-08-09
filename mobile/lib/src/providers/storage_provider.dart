@@ -69,6 +69,7 @@ class StorageProvider extends ChangeNotifier {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    dropboxService.close();
     super.dispose();
   }
 
