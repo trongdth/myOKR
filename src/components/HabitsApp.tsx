@@ -1,24 +1,29 @@
-import { useState, useEffect } from 'react';
-import { Trash2, Flame, Trophy, Calendar, TrendingUp, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, TrendingUp } from 'lucide-react';
 import '../styles/habits.css';
 import {
   loadHabits,
   saveHabits,
-  computeHabitStreaks,
+  buildHabitAnalytics,
   type Habit,
-  type HabitStatus
+  type HabitStatus,
 } from '../lib/habit-storage';
 import { loadKeyResults, getEffectiveCurrentValue, loadObjectives, loadCycles } from '../lib/okr-storage';
 import { updateAutomergeDoc } from '../lib/automerge-storage';
 import { generateId, getLocalDateString, loadTasks, loadSettings } from '../lib/pomodoro-storage';
 import ConfirmModal from './ConfirmModal';
 import LoadingState from './shared/LoadingState';
+import HabitMatrix from './habits/HabitMatrix';
+import SuggestedHabits from './habits/SuggestedHabits';
+import HabitAnalytics from './habits/HabitAnalytics';
 
 export default function HabitsApp() {
   const [isLoading, setIsLoading] = useState(true);
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [view, setView] = useState<'week' | 'month'>('week');
+  const [showAddForm, setShowAddForm] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
-  const [showFormed, setShowFormed] = useState(false);
+  const addInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     habitId: string;
     title: string;
@@ -49,21 +54,32 @@ export default function HabitsApp() {
     return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, []);
 
-  const handleAddHabit = async () => {
-    if (!newHabitName.trim()) return;
+  const todayStr = getLocalDateString();
+
+  const createHabit = async (name: string) => {
     const newHabit: Habit = {
       id: generateId(),
-      name: newHabitName.trim(),
+      name,
       status: 'want_to_form',
       ticks: [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
     const updated = [...habits, newHabit];
     setHabits(updated);
     await saveHabits(updated);
-    setNewHabitName('');
     window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  };
+
+  const handleAddHabit = async () => {
+    if (!newHabitName.trim()) return;
+    await createHabit(newHabitName.trim());
+    setNewHabitName('');
+    setShowAddForm(false);
+  };
+
+  const handleToggleView = (next: 'week' | 'month') => {
+    setView(next);
   };
 
   const handleToggleTick = async (habitId: string, dateStr: string) => {
@@ -133,7 +149,7 @@ export default function HabitsApp() {
             }
           });
         }
-        
+
         if (d.habits) {
           const idx = d.habits.findIndex(h => h.id === habitId);
           if (idx !== -1) {
@@ -162,199 +178,75 @@ export default function HabitsApp() {
     }
   };
 
-  // Calendar month grid generator
-  const getCalendarDays = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    
-    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
-    const blanks = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // Mon-indexed
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    const days: { dateStr: string; label: number; isBlank: boolean; isFuture: boolean }[] = [];
-    
-    for (let i = 0; i < blanks; i++) {
-      days.push({ dateStr: '', label: 0, isBlank: true, isFuture: false });
-    }
-    
-    const todayStr = getLocalDateString();
-    for (let i = 1; i <= daysInMonth; i++) {
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(i).padStart(2, '0');
-      const dateStr = `${year}-${mm}-${dd}`;
-      days.push({
-        dateStr,
-        label: i,
-        isBlank: false,
-        isFuture: dateStr > todayStr
-      });
-    }
-    
-    return days;
-  };
-
-  const getMonthTitle = () => {
-    const today = new Date();
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return `${months[today.getMonth()]} ${today.getFullYear()}`;
-  };
-
+  useEffect(() => {
+    if (showAddForm) addInputRef.current?.focus();
+  }, [showAddForm]);
 
   if (isLoading) {
     return <LoadingState className="habits-container" />;
   }
 
-  const calendarDays = getCalendarDays();
-  const todayStr = getLocalDateString();
-
-  const activeHabits = habits.filter(h => h.status !== 'formed');
-  const formedHabits = habits.filter(h => h.status === 'formed');
-
-  const renderHabitCard = (habit: Habit) => {
-    const { current: currentStreak, best: bestStreak } = computeHabitStreaks(habit.ticks);
-
-    return (
-      <div key={habit.id} className="habit-card">
-        <div className="habit-card-header">
-          <div className="habit-info">
-            <span className="habit-name">{habit.name}</span>
-            <div className="habit-meta">
-              <select
-                className="habit-status-select"
-                value={habit.status}
-                onChange={e => handleUpdateStatus(habit.id, e.target.value as HabitStatus)}
-              >
-                <option value="want_to_form">Want to form</option>
-                <option value="in_progress">In progress</option>
-                <option value="formed">Formed</option>
-              </select>
-            </div>
-          </div>
-          <div className="habit-actions">
-            <button
-              className="habit-delete-btn"
-              onClick={() => handleDeleteHabit(habit.id)}
-              title="Delete habit"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="habit-stats-section">
-          <div className="habit-stat-box">
-            <span className="habit-stat-val"><Flame size={14} className="icon-inline" /> {currentStreak}</span>
-            <span className="habit-stat-lbl">Current Streak</span>
-          </div>
-          <div className="habit-stat-box">
-            <span className="habit-stat-val"><Trophy size={14} className="icon-inline" /> {bestStreak}</span>
-            <span className="habit-stat-lbl">Best Streak</span>
-          </div>
-          <div className="habit-stat-box">
-            <span className="habit-stat-val"><Calendar size={14} className="icon-inline" /> {habit.ticks.length}</span>
-            <span className="habit-stat-lbl">Total Ticks</span>
-          </div>
-        </div>
-
-        {/* Tick Grid (Calendar) */}
-        <div className="calendar-section">
-          <div className="calendar-title">{getMonthTitle()}</div>
-          <div className="calendar-grid">
-            <div className="calendar-weekday">M</div>
-            <div className="calendar-weekday">T</div>
-            <div className="calendar-weekday">W</div>
-            <div className="calendar-weekday">T</div>
-            <div className="calendar-weekday">F</div>
-            <div className="calendar-weekday">S</div>
-            <div className="calendar-weekday">S</div>
-            
-            {calendarDays.map((day, idx) => {
-              if (day.isBlank) {
-                return <div key={`blank-${idx}`} className="calendar-day blank" />;
-              }
-              const isTicked = habit.ticks.includes(day.dateStr);
-              const isToday = day.dateStr === todayStr;
-              return (
-                <button
-                  key={day.dateStr}
-                  className={`calendar-day${isTicked ? ' ticked' : ''}${isToday ? ' today' : ''}`}
-                  disabled={day.isFuture}
-                  onClick={() => handleToggleTick(habit.id, day.dateStr)}
-                >
-                  {day.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const analytics = buildHabitAnalytics(habits, todayStr);
 
   return (
     <div className="habits-container">
       <div className="habits-header">
-        <h2 className="habits-title"><TrendingUp size={18} className="icon-inline" /> Habits</h2>
-      </div>
-
-      <div className="add-habit-card">
-        <input
-          type="text"
-          className="add-habit-input"
-          placeholder="I want to form a habit to..."
-          value={newHabitName}
-          onChange={e => setNewHabitName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
-        />
-        <button className="btn add-habit-btn" onClick={handleAddHabit}>
-          Add Habit
-        </button>
-      </div>
-
-      <div className="habits-grid">
-        {activeHabits.map(renderHabitCard)}
-      </div>
-
-      {formedHabits.length > 0 && (
-        <div className="formed-habits-section" style={{ marginTop: '2rem' }}>
-          <button
-            className="formed-habits-toggle"
-            onClick={() => setShowFormed(!showFormed)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary, #475569)',
-              cursor: 'pointer',
-              fontWeight: '600',
-              padding: '0.5rem 0',
-              fontSize: '0.95rem'
-            }}
-          >
-            <span style={{
-              transform: showFormed ? 'rotate(90deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s',
-              display: 'inline-block'
-            }}>
-              <ChevronRight size={12} />
-            </span>
-            Formed Habits ({formedHabits.length})
+        <div className="habits-header-left">
+          <h2 className="habits-title"><TrendingUp size={18} className="icon-inline" /> Habits</h2>
+          <div className="habits-view-toggle" role="group" aria-label="Habits view">
+            <button
+              type="button"
+              className={`habits-view-btn${view === 'week' ? ' active' : ''}`}
+              onClick={() => handleToggleView('week')}
+            >
+              Week
+            </button>
+            <button
+              type="button"
+              className={`habits-view-btn${view === 'month' ? ' active' : ''}`}
+              onClick={() => handleToggleView('month')}
+            >
+              Month
+            </button>
+          </div>
+        </div>
+        <div className="habits-header-right">
+          <button type="button" className="btn habits-new-btn" onClick={() => setShowAddForm(s => !s)}>
+            <Plus size={14} strokeWidth={2.5} /> New habit
           </button>
-          
-          {showFormed && (
-            <div className="habits-grid formed-habits-grid" style={{ marginTop: '1rem' }}>
-              {formedHabits.map(renderHabitCard)}
-            </div>
-          )}
+        </div>
+      </div>
+
+      {showAddForm && (
+        <div className="add-habit-card">
+          <input
+            ref={addInputRef}
+            type="text"
+            className="add-habit-input"
+            placeholder="I want to form a habit to..."
+            value={newHabitName}
+            onChange={e => setNewHabitName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
+          />
+          <button className="btn add-habit-btn" onClick={handleAddHabit}>
+            Add Habit
+          </button>
         </div>
       )}
+
+      <HabitMatrix
+        habits={habits}
+        view={view}
+        todayStr={todayStr}
+        onToggleTick={handleToggleTick}
+        onUpdateStatus={handleUpdateStatus}
+        onDelete={handleDeleteHabit}
+      />
+
+      <div className="habits-bottom-grid">
+        <SuggestedHabits existingNames={habits.map(h => h.name)} onAdd={createHabit} />
+        <HabitAnalytics analytics={analytics} />
+      </div>
 
       <ConfirmModal
         isOpen={!!confirmDelete}

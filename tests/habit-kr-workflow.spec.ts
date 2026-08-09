@@ -53,10 +53,11 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await navTo(page, 'Habits');
     await expect(page.locator('.habits-title')).toHaveText('Habits');
 
+    await page.locator('.habits-new-btn').click();
     const habitInput = page.locator('.add-habit-input');
     await habitInput.fill('Forming E2E Habit');
     await page.locator('button:has-text("Add Habit")').click();
-    await expect(page.locator('.habit-name')).toHaveText('Forming E2E Habit');
+    await expect(page.locator('.habit-row:has-text("Forming E2E Habit") .habit-name')).toHaveText('Forming E2E Habit');
 
     // 2. Go to OKRs tab and create objective + KR
     await navTo(page, 'Objectives');
@@ -86,11 +87,12 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await navTo(page, 'Habits');
     await expect(page.locator('.habits-title')).toHaveText('Habits');
 
-    // Toggle today's habit tick cell in the calendar grid
-    const todayCell = page.locator('.habit-card:has-text("Forming E2E Habit") .calendar-day.today');
+    // Toggle today's cell in the habit's matrix row
+    const habitRow = page.locator('.habit-row:has-text("Forming E2E Habit")');
+    const todayCell = habitRow.locator('.habit-cell.today');
     await expect(todayCell).toBeVisible();
     await todayCell.click();
-    await expect(todayCell).toHaveClass(/ticked/);
+    await expect(todayCell).toHaveClass(/completed/);
 
     // 4. Go back to OKRs and check progress
     await navTo(page, 'Objectives');
@@ -107,12 +109,14 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     // 5. Clean up habit (which also tests KR unlink fallback to manual mode)
     await navTo(page, 'Habits');
-    await page.locator('.habit-delete-btn').click();
-    
+    const habitRowDelete = page.locator('.habit-row:has-text("Forming E2E Habit")');
+    await habitRowDelete.hover();
+    await habitRowDelete.locator('.habit-delete-btn').click();
+
     // Expect ConfirmModal warning about linked KR
     await expect(page.locator('.prioritize-title')).toContainText('Delete Linked Habit?');
     await page.locator('.prioritize-actions >> button:has-text("Confirm")').click();
-    await expect(page.locator('.habit-name')).toHaveCount(0);
+    await expect(page.locator('.habit-row')).toHaveCount(0);
 
     // Verify KR fell back to manual completion mode with preserved progress value
     await navTo(page, 'Objectives');

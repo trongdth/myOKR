@@ -25,27 +25,36 @@ test.describe('Focus shell — Habits tab (ticket 03)', () => {
     await expect(page.locator('.plan-tab-strip.focus-tabs .plan-tab.active')).toHaveText(/Habits/);
   });
 
-  test('today-ratio badge is hidden when there are no habits', async ({ page }) => {
+  test('Plan day button appears only on the Day plan tab', async ({ page }) => {
+    // Day plan keeps the header action
+    await page.locator('.plan-tab:has-text("Day plan")').click();
+    await expect(page.locator('.focus-plan-day-btn')).toBeVisible();
+
+    // Habits tab: header title stays, the Plan day action is gone
+    await openHabits(page);
+    await expect(page.locator('.focus-header-title')).toBeVisible();
+    await expect(page.locator('.focus-plan-day-btn')).toHaveCount(0);
+  });
+
+  test('weekly badge is hidden when there are no habits', async ({ page }) => {
     // Default seed has no habits → no badge (never "0/0").
     await expect(page.locator('.focus-tab-habits')).toHaveCount(0);
   });
 
-  test('today-ratio badge shows done/total when habits exist', async ({ page }) => {
-    // Seed 3 habits, 2 ticked today → "2/3", then nudge the sync event so the
-    // badge (which loads on mount + sync) refreshes.
+  test('weekly badge shows completed/scheduled cells of the current week', async ({ page }) => {
+    // Seed 3 habits: h1 ticked Mon+Tue+Sun (3 cells), h2 ticked Sun (1), h3 none.
+    // Current week is Mon 2026-05-18 – Sun 2026-05-24 → completed 4, scheduled 3×7=21.
     await page.evaluate(async () => {
       const { saveHabits } = await import('/src/lib/habit-storage.ts');
-      const { getLocalDateString } = await import('/src/lib/pomodoro-storage.ts');
-      const today = getLocalDateString();
       const ts = '2026-05-01T00:00:00Z';
       await saveHabits([
-        { id: 'h1', name: 'Read', status: 'in_progress', ticks: [today], order: 0, createdAt: ts, updatedAt: ts },
-        { id: 'h2', name: 'Workout', status: 'in_progress', ticks: [today], order: 1, createdAt: ts, updatedAt: ts },
-        { id: 'h3', name: 'No screens', status: 'want_to_form', ticks: [], order: 2, createdAt: ts, updatedAt: ts },
+        { id: 'h1', name: 'Read', status: 'in_progress', ticks: ['2026-05-18', '2026-05-19', '2026-05-24'], createdAt: ts, updatedAt: ts },
+        { id: 'h2', name: 'Workout', status: 'in_progress', ticks: ['2026-05-24'], createdAt: ts, updatedAt: ts },
+        { id: 'h3', name: 'No screens', status: 'want_to_form', ticks: [], createdAt: ts, updatedAt: ts },
       ]);
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    await expect(page.locator('.focus-tab-habits')).toHaveText('2/3');
+    await expect(page.locator('.focus-tab-habits')).toHaveText('4/21');
   });
 });

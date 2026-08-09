@@ -32,6 +32,19 @@ void main() {
       expect(res.best, 3);
     });
 
+    test('computeHabitStreaks keeps a stale run — consecutive ticks ending a few days ago', () {
+      // Three consecutive ticks ending 3 days ago: the run survives (desktop
+      // dropped its today/yesterday recency gate on 2026-08-08; mobile mirrors).
+      final ticks = [
+        '2026-07-06',
+        '2026-07-07',
+        '2026-07-08',
+      ];
+      final res = computeHabitStreaks(ticks);
+      expect(res.current, 3);
+      expect(res.best, 3);
+    });
+
     test('getCalendarDaysForMonth creates correct Mon-Sun grid', () {
       final july2026 = DateTime(2026, 7, 1);
       final todayStr = '2026-07-15';

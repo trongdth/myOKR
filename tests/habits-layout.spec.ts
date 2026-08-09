@@ -2,20 +2,24 @@ import { test, expect } from '@playwright/test';
 
 test.use({ viewport: { width: 800, height: 800 } });
 
-test.describe('Habits Tab Layout and Title Styles', () => {
+test.describe('Habits Tracker Layout and Styles', () => {
   test.beforeEach(async ({ page }) => {
-    // Set localStorage to bypass walkthrough and open Habits directly
     await page.addInitScript(() => {
       window.localStorage.setItem('myokr_active_section', 'habits');
       window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
     });
-    
+
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
 
+  const addHabit = async (page: import('@playwright/test').Page, name: string) => {
+    await page.locator('.habits-new-btn').click();
+    await page.locator('.add-habit-input').fill(name);
+    await page.locator('button:has-text("Add Habit")').click();
+  };
+
   test('Habits screen title is styled consistently with other screens and has no redundant heatmap', async ({ page }) => {
-    // Verify Habits title style matches standard titles (color, font size, no gradient)
     const title = page.locator('.habits-title');
     await expect(title).toBeVisible();
     await expect(title).toHaveText('Habits');
@@ -31,98 +35,85 @@ test.describe('Habits Tab Layout and Title Styles', () => {
     expect(titleStyles.fontSize).toBe('24px'); // 1.5rem (1.5 * 16px)
     expect(titleStyles.backgroundImage).toBe('none'); // Gradient background image is removed
 
-    // Create a habit if none exists
-    const habitCount = await page.locator('.habit-name').count();
-    if (habitCount === 0) {
-      const input = page.locator('.add-habit-input');
-      await input.fill('Test Layout Habit');
-      await page.locator('button:has-text("Add Habit")').click();
-      await expect(page.locator('.habit-name').first()).toBeVisible();
-    }
-
     // Verify no horizontal overflow in the viewport
     const hasOverflow = await page.evaluate(() => {
       return document.documentElement.scrollWidth > document.documentElement.clientWidth;
     });
     expect(hasOverflow).toBe(false);
 
-    // Verify heatmap grid and heatmap section are completely removed (redundant)
+    // The old per-habit heatmap grids are gone (the week matrix replaced them)
     await expect(page.locator('.habit-heatmap-grid')).toHaveCount(0);
     await expect(page.locator('.heatmap-section')).toHaveCount(0);
   });
 
   test('allows deleting a habit when multiple habits exist', async ({ page }) => {
-    // Create Habit 1
-    const input = page.locator('.add-habit-input');
-    await input.fill('Habit One');
-    await page.locator('button:has-text("Add Habit")').click();
-    await expect(page.locator('.habit-name:has-text("Habit One")')).toBeVisible();
-
-    // Create Habit 2
-    await input.fill('Habit Two');
-    await page.locator('button:has-text("Add Habit")').click();
-    await expect(page.locator('.habit-name:has-text("Habit Two")')).toBeVisible();
+    await addHabit(page, 'Habit One');
+    await addHabit(page, 'Habit Two');
+    await expect(page.locator('.habit-row')).toHaveCount(2);
 
     // Delete Habit One
-    const cardOne = page.locator('.habit-card:has-text("Habit One")');
-    await cardOne.locator('.habit-delete-btn').click();
+    const rowOne = page.locator('.habit-row:has-text("Habit One")');
+    await rowOne.hover();
+    await rowOne.locator('.habit-delete-btn').click();
 
-    // Confirm modal
     await expect(page.locator('.prioritize-title')).toContainText('Delete Habit');
     await page.locator('.prioritize-actions >> button:has-text("Confirm")').click();
 
-    // Verify Habit One is gone, but Habit Two remains!
-    await expect(page.locator('.habit-card:has-text("Habit One")')).toHaveCount(0);
-    await expect(page.locator('.habit-card:has-text("Habit Two")')).toBeVisible();
+    await expect(page.locator('.habit-row:has-text("Habit One")')).toHaveCount(0);
+    await expect(page.locator('.habit-row:has-text("Habit Two")')).toBeVisible();
   });
 
-  test('implements one-habit-per-line stack and hides formed habits by default', async ({ page }) => {
-    // Create a new habit
-    const input = page.locator('.add-habit-input');
-    await input.fill('Habit per line test');
-    await page.locator('button:has-text("Add Habit")').click();
-    await expect(page.locator('.habit-name:has-text("Habit per line test")')).toBeVisible();
+  test('matrix renders one row per habit with 7 day columns and a streak column', async ({ page }) => {
+    await addHabit(page, 'Read 20 pages');
+    await addHabit(page, 'Walk 8,000 steps');
 
-    // 1. Verify layout is a flex stack (one habit per line)
-    const habitsGrid = page.locator('.habits-grid').first();
-    const displayStyle = await habitsGrid.evaluate((el) => {
-      const styles = window.getComputedStyle(el);
-      return {
-        display: styles.display,
-        flexDirection: styles.flexDirection
-      };
-    });
-    expect(displayStyle.display).toBe('flex');
-    expect(displayStyle.flexDirection).toBe('column');
+    // Head: HABIT + Mon..Sun (7) + STREAK
+    await expect(page.locator('.habit-head-habit')).toHaveText('HABIT');
+    await expect(page.locator('.habit-head-day')).toHaveCount(7);
+    await expect(page.locator('.habit-head-day-label').allTextContents()).resolves.toEqual([
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+    ]);
+    await expect(page.locator('.habit-head-streak')).toHaveText('STREAK');
 
-    // 2. Verify marking habit as formed hides it from the active list
-    const statusSelect = page.locator('.habit-card:has-text("Habit per line test") >> .habit-status-select');
-    await statusSelect.selectOption('formed');
+    // One row per habit, creation order
+    const rows = page.locator('.habit-row');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0).locator('.habit-name')).toHaveText('Read 20 pages');
+    await expect(rows.nth(1).locator('.habit-name')).toHaveText('Walk 8,000 steps');
 
-    // Check it is no longer visible in the active habits grid
-    await expect(page.locator('.habits-grid').first().locator('.habit-name:has-text("Habit per line test")')).toHaveCount(0);
-
-    // 3. Verify it is shown inside the formed habits section once expanded
-    const toggleBtn = page.locator('.formed-habits-toggle');
-    await expect(toggleBtn).toBeVisible();
-    await toggleBtn.click();
-
-    const formedGrid = page.locator('.formed-habits-grid');
-    await expect(formedGrid.locator('.habit-name:has-text("Habit per line test")')).toBeVisible();
+    // Each row: dot + title + "Every day" subtitle + 7 cells + streak readout
+    const firstRow = rows.nth(0);
+    await expect(firstRow.locator('.habit-dot')).toBeVisible();
+    await expect(firstRow.locator('.habit-sub')).toHaveText('Every day');
+    await expect(firstRow.locator('.habit-cell')).toHaveCount(7);
+    await expect(firstRow.locator('.habit-streak-cell')).toHaveText('0 days');
   });
 
-  test('uses modern custom styled select element for status dropdown', async ({ page }) => {
-    // Create a habit if none exists
-    const habitCount = await page.locator('.habit-name').count();
-    if (habitCount === 0) {
-      const input = page.locator('.add-habit-input');
-      await input.fill('Dropdown Styling Habit');
-      await page.locator('button:has-text("Add Habit")').click();
-      await expect(page.locator('.habit-name').first()).toBeVisible();
-    }
+  test('row actions are always visible below 900px (touch-safe)', async ({ page }) => {
+    await addHabit(page, 'Touch Actions Habit');
 
-    const selectEl = page.locator('.habit-status-select').first();
-    await expect(selectEl).toBeVisible();
+    const row = page.locator('.habit-row:has-text("Touch Actions Habit")');
+    const actions = row.locator('.habit-row-actions');
+
+    // No hover exists on touch — the actions must be visible from the start
+    await expect(actions).toHaveCSS('opacity', '1');
+    await expect(row.locator('.habit-status-select')).toBeVisible();
+    await expect(row.locator('.habit-delete-btn')).toBeVisible();
+  });
+
+  test('row actions are hover-revealed above 900px; status select keeps the custom styling', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await addHabit(page, 'Dropdown Styling Habit');
+
+    const row = page.locator('.habit-row:has-text("Dropdown Styling Habit")');
+    const actions = row.locator('.habit-row-actions');
+    const selectEl = row.locator('.habit-status-select');
+
+    // Hidden until the row is hovered (or focused)
+    const initialOpacity = await actions.evaluate((el) => window.getComputedStyle(el).opacity);
+    expect(initialOpacity).toBe('0');
+    await row.hover();
+    await expect(actions).toHaveCSS('opacity', '1');
 
     const selectStyles = await selectEl.evaluate((el) => {
       const styles = window.getComputedStyle(el);
@@ -131,15 +122,14 @@ test.describe('Habits Tab Layout and Title Styles', () => {
         webkitAppearance: styles.webkitAppearance,
         backgroundImage: styles.backgroundImage,
         paddingRight: styles.paddingRight,
-        borderRadius: styles.borderRadius
+        borderRadius: styles.borderRadius,
       };
     });
 
     expect(selectStyles.appearance).toBe('none');
     expect(selectStyles.backgroundImage).toContain('data:image/svg+xml');
-    expect(selectStyles.borderRadius).toBe('8px');
-    
-    // Check that paddingRight has enough spacing for custom chevron (at least 24px)
+    expect(selectStyles.borderRadius).toBe('6px');
+
     const paddingRightVal = parseInt(selectStyles.paddingRight, 10);
     expect(paddingRightVal).toBeGreaterThanOrEqual(24);
   });

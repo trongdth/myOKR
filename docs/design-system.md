@@ -38,7 +38,7 @@ meaning aligns (cyan = primary action = focus).
 | `--color-primary` | `#22D3EE` | THE single primary action per screen (e.g. the one Start / Save CTA) |
 | `--color-focus` | `#22D3EE` | Focus-session / timer semantics (same hue as primary) |
 | `--color-objective` | `#a855f7` (violet) | OKR Objectives |
-| `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else |
+| `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else. **One carve-out:** the Habits analytics weak-day insight banner (2026-08-08, Habits tracker) — an insight derived from streak data, documented in the Habits section below |
 | `--color-risk` | `#f43f5e` (rose) | At-risk / warning |
 
 OKR `Confidence` status mapping (the enum is domain vocabulary in `CONTEXT.md`;
@@ -105,9 +105,12 @@ re-stacked.**
 | ≥ 1280px | 212px labelled | full layout — three columns, side rails visible ("everything in turn 1") |
 | 1100 – 1280px | 60px icon rail + tooltips + Pomodoro flyout | keeps **three columns** (gains back ~150px) |
 | 900 – 1100px | icon rail | **two columns** — side rails move under the main pane as a horizontal strip; Tasks drops to two buckets with Backlog collapsed |
-| < 900px | drawer (hamburger) | single column, list fallbacks — Habits week-matrix → today-list + 7-dot history strip |
+| < 900px | drawer (hamburger) | single column, list fallbacks |
 
-Habits also gets a dedicated **860px** state (the case the audit called out).
+Habits also gets a dedicated **860px** state (the case the audit called out): the
+tracker re-stacks rather than hiding — the bottom panels (suggestions +
+analytics) go single-column and the matrix's day cells shrink (see the Habits
+tracker section).
 
 The Pomodoro sub-items (Timer / Tasks / Analytics) show as a **hover flyout** on
 the collapsed icon rail. Per-screen resize examples continue in the document as
@@ -186,8 +189,10 @@ Today follows the `okr.css` / `review.css` precedent: semantic colors via
 Shared `<EmptyState>` primitive: icon + heading + message + **3 one-click starter
 actions**. An empty state must offer a next step, never a dead end.
 
-Applied to: Habits (lone input → starter suggestions), Review ("do 2 reviews
-first" → starter actions), OKR empty.
+Applied to: Review ("do 2 reviews first" → starter actions), OKR empty. Habits
+shipped its own take on 2026-08-08 (tracker): the starter suggestions became an
+**always-visible** `SuggestedHabits` chip panel (mockup authority) — see the
+Habits tracker section below.
 
 **Cloud Sync:** the five-step Dropbox developer-console tutorial is replaced by
 the EmptyState pattern, with the bring-your-own-app-key flow behind an
@@ -216,7 +221,7 @@ the Today screen (1b).
 | Slot | Rule |
 |---|---|
 | Header title | **Today's date, day-first**, real (never hardcoded): `{Weekday}, {D} {Mon-short}` → "Tuesday, 4 Aug". The old "Today's Focus" label is dropped. (Today's code builds this `en-US`, which prints month-first "Aug 3"; switch to day-first.) |
-| Header action | **"Plan day"** button (renamed from "Replan day"; same recompute-the-plan action). **Secondary/outlined** so the NOW card's "Start focus" stays the single primary CTA (`--color-primary`) on the Day plan screen. |
+| Header action | **"Plan day"** button (renamed from "Replan day"; same recompute-the-plan action). **Secondary/outlined** so the NOW card's "Start focus" stays the single primary CTA (`--color-primary`) on the Day plan screen. **Day plan tab only** (2026-08-08 feedback): Session/Habits keep the date title with an empty right side. |
 | Tab strip | `Day plan` · `Session` · `Habits`, reusing the `.plan-tab-strip` / `.plan-tab` styles for parity with the Plan group. |
 | Cycle slot (right of tabs) | **Static text** "May cycle · week N of M" via `cycleWeekLabel()`. **Not a dropdown** — Day plan is today-scoped, so there is nothing to filter (unlike the Plan group's cycle-week dropdown). |
 
@@ -226,7 +231,7 @@ the Today screen (1b).
 |---|---|---|
 | Day plan | none | A dashboard, not a list — no count. |
 | Session | `live` | Shown while `isRunning` — any phase, focus or break; hidden when idle. |
-| Habits | `2/3` | Today's completion ratio `{ticked today}/{total habits}`. **Hidden when there are no habits** (no `0/0`). |
+| Habits | `4/21` | **This week's** completion ratio — `{completed scheduled cells}/{scheduled cells this week}` (habits × 7, implicit every-day scheduling). Same math as the week matrix. **Hidden when there are no habits** (no `0/0`). *(2026-08-08: was the daily `2/3` ratio; the tracker made the badge weekly.)* |
 
 ### Session tab ↔ global SessionWidget
 
@@ -256,6 +261,94 @@ New `toHaveScreenshot()` baselines at **1280×800** for the Focus shell on each
 tab (Day plan / Session / Habits), plus the **1024×720** collapsed-icon-rail
 state. Padding-parity against the Plan group is asserted in the same suite.
 
+
+## Habits tracker (2026-08-08) — per-screen rules
+
+The Habits tab is a full tracker: a weekly/monthly completion matrix, one-click
+suggestion chips, and a 30-day consistency panel. Desktop-only; the data model
+is unchanged (`Habit = {id, name, status, ticks, createdAt, updatedAt}` — no
+frequency/category fields, so **scheduling is implicit every-day**).
+
+### Layout
+
+- Header: `Habits` title · **[Week] [Month]** segmented toggle (Week default) ·
+  `+ New habit` CTA (`.btn`, cyan `--color-primary`, the screen's single primary
+  action). The CTA **expands** the existing inline input (type + Enter/Add) —
+  no modal. Cycle context ("May cycle · week N of M") is already rendered by the
+  Focus shell's tab strip (`cycleWeekLabel()`); the tracker does not repeat it.
+- Matrix card: `HABIT | Mon..Sun | STREAK`. Each week block carries its own
+  full header with the weekday **and day number stacked in the same header
+  cell** (`Mon` / `25`; today in cyan) so month view shows correct dates per
+  block. Cells are **~40px rounded squares**: completed = solid habit accent +
+  ✓, pending = dark container (`--bg-tertiary`) with a subtle border, future =
+  dashed + faded and **inert**. Past/today cells toggle (tap again to un-tick).
+  The matrix **always shows the current period — no in-card navigation**
+  (2026-08-08 feedback reversed the chevron decision; history lives in the
+  analytics panel). Month view stacks one Mon–Sun block per week of the month.
+- **STREAK column (2026-08-08 feedback, final):** the STREAK cell counts the
+  ticks **inside the visible period** — week view: the current Mon–Sun week;
+  month view: per week block. No visible ticks → "0 days"; three ticks in the
+  visible week → "3 days". A global consecutive run proved unreadable (it read
+  "1 day" for habits whose ticks didn't form a run ending today/yesterday, and
+  "1 day" even with no visible ticks). The Today screen's streak pill and the
+  mobile app keep `computeHabitStreaks` (consecutive run) for their own stats;
+  the matrix does not use it.
+- Bottom grid: `SuggestedHabits` (left) + `HabitAnalytics` (right), two equal
+  columns; single column below 900px.
+
+### Derived habit accents (no category field)
+
+Each habit gets a **stable accent derived from its id** — a presentation hash
+over the token palette, so the same habit always has the same color and no
+category field is needed (a future stored category replaces the derivation):
+
+| Class | Accent |
+|---|---|
+| `habit-accent-0` | `--okr-on-track` (green) |
+| `habit-accent-1` | `--color-objective` (violet) |
+| `habit-accent-2` | `--accent-emerald` |
+| `habit-accent-3` | `--accent-orange` (new token, added with the tracker) |
+
+Excluded by semantics: cyan (primary action), amber (streaks), rose (risk).
+The accent paints the row dot, completed cells, and analytics bars.
+
+### Streak / amber
+
+The STREAK column and any streak numbers use `--color-streak` amber (the streak
+role — no exception). The **analytics weak-day insight banner** is the single
+carve-out: amber banner, because the insight is computed from streak history
+(2026-08-08; see the color-roles table).
+
+### Suggestion chips
+
+`SUGGESTED — ONE CLICK TO ADD` renders four **daily-shaped** templates: *Inbox
+to zero · Walk 8,000 steps · Lights out by 23:00 · Plan tomorrow before
+closing*. Weekly-only templates were dropped (all habits are implicitly
+every-day). A chip whose exact name already exists is **hidden** (dedupe). One
+click creates the habit (`want_to_form`, no ticks). The footer keeps the
+original empty-state copy: *"A habit needs a cue and a size you can't fail
+at…"* — the chips are always visible (mockup authority), superseding the
+empty-state-only reading of the Empty states section.
+
+### Analytics math
+
+Rolling **30-day window ending today** vs the **previous 30 days**:
+`overall % = completed / scheduled` (per habit, a window day counts as
+scheduled only on/after `createdAt` — a new habit isn't charged for days it
+didn't exist). Trend badge (emerald, `+N pts vs last month`; rose when
+negative) is the current-window rate minus the previous window's; **hidden when
+either window has no scheduled days**. Per-habit bars use the derived accent.
+Weak-day insight = the lowest-rate weekday with data, shown **only when it is
+strictly below the best weekday** (an all-100% week has no weak day). Empty
+state when nothing was scheduled in the window.
+
+### Responsive
+
+Bottom panels stack at ≤900px; matrix day cells shrink to 2rem (from 2.5rem)
+at ≤900px; **row actions (status select + delete) are always visible at ≤900px**
+(hover-reveal only applies above — touch devices have no hover; 2026-08-09 PR
+feedback). Nothing else re-stacks — the matrix stays a matrix ("nothing hidden,
+only re-stacked").
 
 ## Plan group screens (P1–P7) — per-screen rules
 
