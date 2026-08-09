@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:myokr_mobile/src/rust/frb_generated.dart';
@@ -10,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUpAll(() async {
     await RustLib.init(
-      externalLibrary: Platform.isMacOS 
+      externalLibrary: Platform.isMacOS
         ? ExternalLibrary.open('rust/target/debug/librust_lib_myokr_mobile.dylib')
         : null,
     );
@@ -21,6 +22,9 @@ void main() {
   // is initialized.
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    // Dropbox credentials live in secure storage (ticket 16); reset its mock
+    // so disconnect/initSync never touch the real platform.
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
   });
 
   test('StorageProvider loads data correctly', () async {
