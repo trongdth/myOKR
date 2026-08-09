@@ -6,6 +6,26 @@ import 'package:myokr_mobile/src/providers/storage_provider.dart';
 import 'package:myokr_mobile/src/theme.dart';
 import 'package:myokr_mobile/src/widgets/myokr_card.dart';
 
+/// Parses and validates an import payload, converting every section to its
+/// typed form BEFORE any write — a bad entry in one list must not leave
+/// earlier sections already persisted (ticket 19). Throws on the first
+/// invalid section (TypeError from the casts, or FormatException from
+/// jsonDecode).
+Map<String, dynamic> parseImportPayload(String text) {
+  final data = jsonDecode(text) as Map<String, dynamic>;
+  final parsed = <String, dynamic>{};
+  if (data['settings'] != null) {
+    parsed['settings'] = Map<String, dynamic>.from(data['settings'] as Map);
+  }
+  for (final key in ['tasks', 'history', 'cycles', 'objectives', 'keyResults']) {
+    if (data[key] != null) {
+      parsed[key] = List<Map<String, dynamic>>.from(
+          (data[key] as List).map((e) => Map<String, dynamic>.from(e as Map)));
+    }
+  }
+  return parsed;
+}
+
 class AnalyticsView extends StatelessWidget {
   final StorageProvider provider;
 
@@ -91,27 +111,29 @@ class AnalyticsView extends StatelessWidget {
                 final messenger = ScaffoldMessenger.of(context);
 
                 try {
-                  final data = jsonDecode(text) as Map<String, dynamic>;
-                  
-                  if (data['settings'] != null) {
-                    await provider.saveSettings(Map<String, dynamic>.from(data['settings']));
+                  // Validate EVERY section before writing any of them — a
+                  // bad entry must not leave earlier sections persisted.
+                  final parsed = parseImportPayload(text);
+
+                  if (parsed['settings'] != null) {
+                    await provider.saveSettings(parsed['settings'] as Map<String, dynamic>);
                   }
-                  if (data['tasks'] != null) {
-                    await provider.saveTasks(List<Map<String, dynamic>>.from(data['tasks']));
+                  if (parsed['tasks'] != null) {
+                    await provider.saveTasks(parsed['tasks'] as List<Map<String, dynamic>>);
                   }
-                  if (data['history'] != null) {
-                    provider.history = List<Map<String, dynamic>>.from(data['history']);
+                  if (parsed['history'] != null) {
+                    provider.history = parsed['history'] as List<Map<String, dynamic>>;
                     await provider.pomodoroStorage.saveHistory(provider.history);
                   }
-                  if (data['cycles'] != null) {
-                    provider.cycles = List<Map<String, dynamic>>.from(data['cycles']);
+                  if (parsed['cycles'] != null) {
+                    provider.cycles = parsed['cycles'] as List<Map<String, dynamic>>;
                     await provider.okrStorage.saveCycles(provider.cycles);
                   }
-                  if (data['objectives'] != null) {
-                    await provider.saveObjectives(List<Map<String, dynamic>>.from(data['objectives']));
+                  if (parsed['objectives'] != null) {
+                    await provider.saveObjectives(parsed['objectives'] as List<Map<String, dynamic>>);
                   }
-                  if (data['keyResults'] != null) {
-                    await provider.saveKeyResults(List<Map<String, dynamic>>.from(data['keyResults']));
+                  if (parsed['keyResults'] != null) {
+                    await provider.saveKeyResults(parsed['keyResults'] as List<Map<String, dynamic>>);
                   }
 
                   // Force a reload
