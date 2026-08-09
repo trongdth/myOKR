@@ -47,6 +47,7 @@ dependencies:
   flutter_foreground_task: ^9.2.2
   just_audio: ^0.10.6
   audio_session: ^0.2.4
+  flutter_secure_storage: ^11.0.0
 
 dev_dependencies:
   flutter_test:

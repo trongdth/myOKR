@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:myokr_mobile/src/dropbox_service.dart';
 import 'package:myokr_mobile/src/okr_storage.dart';
@@ -90,12 +91,37 @@ class StorageProvider extends ChangeNotifier {
     }
   }
 
+  // Credentials live in secure storage (Keychain/Keystore) — a refresh token
+  // is a long-lived credential and must not sit in plain SharedPreferences
+  // (ticket 16). lastSyncTime stays in prefs: it is not a secret.
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
   Future<void> initSync() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      dropboxClientId = prefs.getString('dropbox_client_id');
-      dropboxRefreshToken = prefs.getString('dropbox_refresh_token');
       lastSyncTime = prefs.getString('last_sync_time');
+
+      dropboxClientId = await _secureStorage.read(key: 'dropbox_client_id');
+      dropboxRefreshToken = await _secureStorage.read(key: 'dropbox_refresh_token');
+      if (dropboxRefreshToken == null) {
+        // Idempotent migration of legacy prefs credentials: prefs are only
+        // cleared AFTER the secure write succeeds, so a failed write retries
+        // on the next load.
+        final legacyClient = prefs.getString('dropbox_client_id');
+        final legacyToken = prefs.getString('dropbox_refresh_token');
+        if (legacyClient != null || legacyToken != null) {
+          if (legacyClient != null) {
+            await _secureStorage.write(key: 'dropbox_client_id', value: legacyClient);
+            dropboxClientId = legacyClient;
+          }
+          if (legacyToken != null) {
+            await _secureStorage.write(key: 'dropbox_refresh_token', value: legacyToken);
+            dropboxRefreshToken = legacyToken;
+          }
+          await prefs.remove('dropbox_client_id');
+          await prefs.remove('dropbox_refresh_token');
+        }
+      }
 
       if (isDropboxConnected) {
         _scheduleSyncTimer();
@@ -144,9 +170,11 @@ class StorageProvider extends ChangeNotifier {
 
       final isValid = await dropboxService.validateDropboxToken(clientId.trim(), refreshToken);
       if (isValid) {
+        await _secureStorage.write(key: 'dropbox_client_id', value: clientId.trim());
+        await _secureStorage.write(key: 'dropbox_refresh_token', value: refreshToken);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('dropbox_client_id', clientId.trim());
-        await prefs.setString('dropbox_refresh_token', refreshToken);
+        await prefs.remove('dropbox_client_id');
+        await prefs.remove('dropbox_refresh_token');
         dropboxClientId = clientId.trim();
         dropboxRefreshToken = refreshToken;
 
@@ -173,6 +201,8 @@ class StorageProvider extends ChangeNotifier {
     _syncTimer?.cancel();
     _syncTimer = null;
 
+    await _secureStorage.delete(key: 'dropbox_client_id');
+    await _secureStorage.delete(key: 'dropbox_refresh_token');
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('dropbox_client_id');
     await prefs.remove('dropbox_refresh_token');
