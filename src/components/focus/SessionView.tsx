@@ -4,6 +4,7 @@ import ConfirmModal from '../ConfirmModal';
 import NumberInput from '../NumberInput';
 import LoadingState from '../shared/LoadingState';
 import AmbientPresetPicker from '../shared/AmbientPresetPicker';
+import AmbientAudioWidget from '../shared/AmbientAudioWidget';
 import { useSession } from '../session/SessionProvider';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { loadHistory, todayKey } from '../../lib/pomodoro-storage';
@@ -225,7 +226,12 @@ export default function SessionView({
         bottom. The stats column is wired here; audio (left) and queue (middle)
         are placeholder slots filled by tickets 05 and 06. */}
     <div className="session-bottom-bar">
-      <div className="session-bottom-bar-audio" aria-label="Audio" />
+      <div className="session-bottom-bar-audio">
+        <AmbientAudioWidget
+          value={settings.ambientPreset}
+          onChange={p => updateSetting('ambientPreset', p)}
+        />
+      </div>
       <div className="session-bottom-bar-queue">
         <QueueWidget activeTask={activeTask} onGoToDayPlan={() => navigateToSection('day-plan')} />
       </div>

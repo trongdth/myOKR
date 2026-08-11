@@ -192,10 +192,73 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await expect(stats.locator('.session-stats-label')).toHaveText('sessions today');
   });
 
-  test('audio slot is still a placeholder (ticket 06 fills it)', async ({ page }) => {
+  test('audio widget shows the active ambient preset (ticket 06)', async ({ page }) => {
     const audio = page.locator('.session-bottom-bar-audio');
     await expect(audio).toBeVisible();
-    await expect(audio.locator('.ambient-picker')).toHaveCount(0);
+    // Default is 'none' → invites the user to pick.
+    const widget = audio.locator('.audio-widget');
+    await expect(widget).toBeVisible();
+    await expect(widget).toContainText(/none|pick/i);
+  });
+});
+
+// ==========================================
+// Ambient audio widget (ticket 06)
+// ==========================================
+
+test.describe('Ambient audio widget (ticket 06)', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    await openSession(page);
+  });
+
+  test('shows the active preset name and opens a selector', async ({ page }) => {
+    const widget = page.locator('.audio-widget');
+    await expect(widget).toBeVisible();
+
+    // Open the selector.
+    await widget.click();
+    const selector = page.locator('.audio-selector');
+    await expect(selector).toBeVisible();
+    // All four options are present.
+    await expect(selector.locator('.audio-option', { hasText: /Rain/i })).toBeVisible();
+    await expect(selector.locator('.audio-option', { hasText: /Forest/i })).toBeVisible();
+    await expect(selector.locator('.audio-option', { hasText: /Caf/i })).toBeVisible();
+    await expect(selector.locator('.audio-option', { hasText: /None/i })).toBeVisible();
+  });
+
+  test('selecting a preset updates the widget display and persists', async ({ page }) => {
+    const widget = page.locator('.audio-widget');
+    await widget.click();
+    await page.locator('.audio-option', { hasText: /^Rain/i }).click();
+
+    // Selector closes; widget now shows Rain.
+    await expect(page.locator('.audio-selector')).toHaveCount(0);
+    await expect(widget).toContainText(/Rain/i);
+  });
+
+  test('selecting None turns the sound off', async ({ page }) => {
+    // Set to Rain first.
+    const widget = page.locator('.audio-widget');
+    await widget.click();
+    await page.locator('.audio-option', { hasText: /^Rain/i }).click();
+    await expect(widget).toContainText(/Rain/i);
+
+    // Now select None.
+    await widget.click();
+    await page.locator('.audio-option', { hasText: /^None/i }).click();
+    await expect(widget).toContainText(/none|pick/i);
+  });
+
+  test('reflects the persisted preset on mount', async ({ page }) => {
+    // The settings panel's AmbientPresetPicker and the bottom-bar widget share
+    // settings.ambientPreset — change via settings, widget reflects it.
+    await page.locator('.timer-controls button[title="Settings"]').click();
+    await page.locator('.ambient-chip', { hasText: 'Forest' }).click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
+
+    const widget = page.locator('.audio-widget');
+    await expect(widget).toContainText(/Forest/i);
   });
 });
 
