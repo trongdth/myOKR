@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import ConfirmModal from '../ConfirmModal';
 import NumberInput from '../NumberInput';
@@ -7,6 +7,8 @@ import AmbientPresetPicker from '../shared/AmbientPresetPicker';
 import { useSession } from '../session/SessionProvider';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { loadHistory, todayKey } from '../../lib/pomodoro-storage';
+import { loadTodayPlan } from '../../lib/today-focus';
+import { navigateToSection } from '../../lib/navigation';
 import '../../styles/pomodoro.css';
 
 /**
@@ -47,6 +49,36 @@ export default function SessionView({
   const [showSettings, setShowSettings] = useState(false);
   const [showTaskPicker, setShowTaskPicker] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+
+  // Day plan queue (ADR-0017): SessionView reads TodayPlan directly so the
+  // Queue widget + picker reflect what the user staged on the Day plan tab.
+  // Refreshed on mount and on window focus (the user edits the plan by
+  // switching tabs, which remounts/refreshes on return). No live localStorage
+  // subscription in v1 — single-window app, tab-switch suffices.
+  const [planVersion, setPlanVersion] = useState(0);
+  useEffect(() => {
+    const refresh = () => setPlanVersion(v => v + 1);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('myokr-data-synced', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('myokr-data-synced', refresh);
+    };
+  }, []);
+
+  // Resolve TodayPlan.taskIds against the live tasks list, preserving queue
+  // order (NOW first). Drops completed/skipped/missing tasks. The active task
+  // may not be in the queue (e.g. staged via requestedTaskId before a plan
+  // exists) — that's fine; it still shows in the card, just not the picker.
+  const queuedTasks: PomodoroTask[] = useMemo(() => {
+    void planVersion; // re-read when the refresh counter bumps.
+    const plan = loadTodayPlan();
+    if (!plan || plan.taskIds.length === 0) return [];
+    const byId = new Map(tasks.map(t => [t.id, t]));
+    return plan.taskIds
+      .map(id => byId.get(id))
+      .filter((t): t is PomodoroTask => !!t && !t.isCompleted);
+  }, [tasks, planVersion]);
 
   // Consume requestedTaskId — e.g. "Start focus" staged from the Day plan.
   useEffect(() => {
@@ -116,10 +148,11 @@ export default function SessionView({
       />
       {showTaskPicker && (
         <TaskPicker
-          tasks={tasks}
+          tasks={queuedTasks}
           activeTaskId={activeTaskId}
           onPick={(id) => { setActiveTask(id); setShowTaskPicker(false); }}
           onClear={() => { setActiveTask(null); setShowTaskPicker(false); }}
+          onPlanDay={() => { setShowTaskPicker(false); navigateToSection('day-plan'); }}
         />
       )}
 
@@ -193,7 +226,9 @@ export default function SessionView({
         are placeholder slots filled by tickets 05 and 06. */}
     <div className="session-bottom-bar">
       <div className="session-bottom-bar-audio" aria-label="Audio" />
-      <div className="session-bottom-bar-queue" aria-label="Queue" />
+      <div className="session-bottom-bar-queue">
+        <QueueWidget activeTask={activeTask} onGoToDayPlan={() => navigateToSection('day-plan')} />
+      </div>
       <div className="session-bottom-bar-stats">
         <SessionStats />
       </div>
@@ -238,29 +273,35 @@ function ActiveTaskCard({
 }
 
 /**
- * Lightweight task picker for the Active Task Card. Lists incomplete tasks
- * (most-recently-updated first) plus a "Clear" option. Sourced from the full
- * tasks list in this slice; ticket 05 narrows the source to the Day plan queue
- * and adds the empty-plan → Day plan handoff.
+ * Lightweight task picker for the Active Task Card. Lists the Day plan's queued
+ * tasks in order (NOW first), plus a "Clear" option. When the queue is empty
+ * (no TodayPlan, or all tasks completed/skipped), offers a "Plan your day →"
+ * handoff that navigates to the Day plan tab (ADR-0017).
  */
 function TaskPicker({
   tasks,
   activeTaskId,
   onPick,
   onClear,
+  onPlanDay,
 }: {
   tasks: PomodoroTask[];
   activeTaskId: string | null;
   onPick: (id: string) => void;
   onClear: () => void;
+  onPlanDay: () => void;
 }) {
-  const choices = tasks
-    .filter(t => !t.isCompleted)
-    .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt));
+  // tasks is already filtered to incomplete + queue-ordered by the caller.
+  const choices = tasks;
   return (
     <div className="task-picker" role="listbox" aria-label="Pick active task">
       {choices.length === 0 && (
-        <div className="task-picker-empty">No open tasks. Add one on the Tasks tab.</div>
+        <div className="task-picker-empty">
+          <span>Nothing queued for today.</span>
+          <button type="button" className="task-picker-plan-link" onClick={onPlanDay}>
+            Plan your day →
+          </button>
+        </div>
       )}
       {choices.map(t => (
         <button
@@ -312,6 +353,40 @@ function SessionStats() {
     <div className="session-stats" aria-label="Today's completed focus sessions">
       <span className="session-stats-count">{count}</span>
       <span className="session-stats-label">sessions today</span>
+    </div>
+  );
+}
+
+/**
+ * The Queue widget (bottom-middle, ADR-0016 / ticket 05). Shows the active
+ * task's title and its remaining pomos (`estimatedPomodoros − completedPomodoros`)
+ * — the same units as the session-of label. When no task is active, offers a
+ * link to the Day plan tab.
+ */
+function QueueWidget({
+  activeTask,
+  onGoToDayPlan,
+}: {
+  activeTask: PomodoroTask | null;
+  onGoToDayPlan: () => void;
+}) {
+  if (!activeTask) {
+    return (
+      <div className="queue-widget queue-widget-empty" aria-label="No active task">
+        <button type="button" className="queue-plan-link" onClick={onGoToDayPlan}>
+          Pick a task →
+        </button>
+      </div>
+    );
+  }
+  const remaining = Math.max(0, (activeTask.estimatedPomodoros || 1) - activeTask.completedPomodoros);
+  return (
+    <div className="queue-widget" aria-label={`Active task: ${activeTask.title}`}>
+      <span className="queue-title">{activeTask.title}</span>
+      <span className="queue-remaining">
+        <span className="queue-remaining-count">{remaining}</span>
+        <span className="queue-remaining-label">{remaining === 1 ? 'pomo left' : 'pomos left'}</span>
+      </span>
     </div>
   );
 }

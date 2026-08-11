@@ -127,6 +127,81 @@
   letter-spacing: 0.05em;
 }
 
+/* Queue widget (bottom-middle, ticket 05): active task title + remaining
+   pomos, or a link to the Day plan when no task is active. */
+.queue-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  width: 100%;
+  min-width: 0;
+}
+
+.queue-title {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-remaining {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
+  flex-shrink: 0;
+}
+
+.queue-remaining-count {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-focus);
+}
+
+.queue-remaining-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.queue-widget-empty {
+  justify-content: center;
+}
+
+.queue-plan-link {
+  background: transparent;
+  border: none;
+  color: var(--color-focus);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+}
+
+.queue-plan-link:hover {
+  text-decoration: underline;
+}
+
+/* "Plan your day →" handoff inside the task picker's empty state. */
+.task-picker-plan-link {
+  display: block;
+  margin-top: 0.5em;
+  background: transparent;
+  border: none;
+  color: var(--color-focus);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.task-picker-plan-link:hover {
+  text-decoration: underline;
+}
+
 /* Session type tabs */
 .session-tabs {
   display: flex;

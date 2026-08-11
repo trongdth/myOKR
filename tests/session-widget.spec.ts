@@ -32,7 +32,19 @@ async function addTask(page: Page, name: string) {
   await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
 }
 
+// Visit the Day plan tab and replan so newly-created tasks join the queue
+// (buildTodayList honors a saved plan's taskIds; only a replan re-ranks and
+// picks up new tasks). The Session picker is sourced from the Day plan queue
+// (ticket 05).
+async function replanDay(page: Page) {
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
+}
+
 async function selectTask(page: Page, name: string) {
+  await replanDay(page);
   await openSession(page);
   await page.locator('.active-task-card').click();
   await page.locator(`.task-picker-item:has-text("${name}")`).click();

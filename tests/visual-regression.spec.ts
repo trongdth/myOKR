@@ -79,6 +79,12 @@ test.describe('Visual regression (1a redesign)', () => {
     await page.waitForTimeout(300);
     await page.locator('.quick-add-input').fill('Running Baseline Task');
     await page.locator('form.quick-add-bar').press('Enter');
+    // Replan the Day plan so the new task joins the queue (the Session picker
+    // is sourced from TodayPlan.taskIds, ticket 05).
+    await page.locator('[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
     // Select it via the Session Active Task Card picker.
     await page.locator('[title="Session"]').first().click();
     await page.waitForTimeout(300);

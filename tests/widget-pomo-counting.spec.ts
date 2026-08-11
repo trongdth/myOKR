@@ -16,8 +16,12 @@ async function waitForApp(page: Page) {
 }
 
 async function selectTask(page: Page, name: string) {
-  // The Session tab's TaskList is gone (ticket 03); select via the Active Task
-  // Card's picker on the Session tab.
+  // Replan so the seeded task is on the Day plan queue (the Session picker is
+  // sourced from TodayPlan.taskIds, ticket 05).
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
   await openSession(page);
   await page.locator('.active-task-card').click();
   await page.locator(`.task-picker-item:has-text("${name}")`).click();

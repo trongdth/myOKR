@@ -77,6 +77,11 @@ test.describe('Pomodoro: Ambient sound preset picker (ADR-0015)', () => {
     page.on('pageerror', (e) => errors.push(String(e)));
 
     await addTask(page, 'Focus Task');
+    // Replan so the new task joins the Day plan queue (picker source, ticket 05).
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
     // Select the task via the Session Active Task Card picker (ticket 03).
     await page.locator('button[title="Session"]').first().click();
     await page.locator('.active-task-card').click();

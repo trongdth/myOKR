@@ -36,8 +36,14 @@ async function addTask(page: Page, name: string) {
 }
 
 // Select a task as active via the Session tab's Active Task Card picker
-// (the TaskList left the Session tab in ticket 03).
+// (the TaskList left the Session tab in ticket 03; the picker is sourced from
+// the Day plan queue, ticket 05). Replan so the newly-created task joins the
+// queue.
 async function selectTaskOnTasksAndOpenSession(page: Page, name: string) {
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
   await openSession(page);
   await page.locator('.active-task-card').click();
   await page.locator(`.task-picker-item:has-text("${name}")`).click();
@@ -83,6 +89,11 @@ test.describe('Focus shell — Session tab (ticket 02)', () => {
 test.describe('Session-of label + Active Task Card (ticket 03)', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
+    // Replan so seeded tasks are on the Day plan queue (picker source, ticket 05).
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
     await openSession(page);
   });
 
@@ -181,15 +192,44 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await expect(stats.locator('.session-stats-label')).toHaveText('sessions today');
   });
 
-  test('audio and queue slots are placeholders in this slice', async ({ page }) => {
-    // Tickets 05 (queue) and 06 (audio) fill these; for now they render as
-    // empty/placeholder slots without breaking the grid.
+  test('audio slot is still a placeholder (ticket 06 fills it)', async ({ page }) => {
     const audio = page.locator('.session-bottom-bar-audio');
-    const queue = page.locator('.session-bottom-bar-queue');
     await expect(audio).toBeVisible();
-    await expect(queue).toBeVisible();
-    // No real audio widget or queue widget yet.
     await expect(audio.locator('.ambient-picker')).toHaveCount(0);
-    await expect(queue.locator('.queue-widget')).toHaveCount(0);
+  });
+});
+
+// ==========================================
+// Queue widget + Day-plan picker sourcing (ticket 05)
+// ==========================================
+
+test.describe('Queue widget + Day-plan picker (ticket 05)', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    // Replan so seeded tasks are on the Day plan queue (the Session picker is
+    // sourced from TodayPlan.taskIds, ticket 05).
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
+    await openSession(page);
+  });
+
+  test('Queue widget shows the active task title + remaining pomos', async ({ page }) => {
+    // Seed task 'Design new dashboard layout' has completed 3 / estimated 5 → 2 left.
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    const queue = page.locator('.queue-widget');
+    await expect(queue).toBeVisible();
+    await expect(queue).toContainText('Design new dashboard layout');
+    await expect(queue.locator('.queue-remaining')).toContainText('2');
+  });
+
+  test('Queue widget shows empty state linking to Day plan when no task is active', async ({ page }) => {
+    const queue = page.locator('.queue-widget');
+    await expect(queue).toBeVisible();
+    // No active task → empty state offers a link to the Day plan.
+    await expect(queue).toContainText(/pick a task|no task|plan/i);
   });
 });

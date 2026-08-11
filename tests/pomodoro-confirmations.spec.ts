@@ -63,6 +63,13 @@ async function completeTaskInline(page: Page, name: string) {
 }
 
 async function selectTask(page: Page, name: string) {
+  // Replan the Day plan so newly-created tasks join the queue (the Session
+  // picker is sourced from TodayPlan.taskIds, ticket 05; a saved plan doesn't
+  // re-rank on its own).
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
   await openSession(page);
   await page.locator('.active-task-card').click();
   await page.locator(`.task-picker-item:has-text("${name}")`).click();
