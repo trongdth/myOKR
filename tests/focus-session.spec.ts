@@ -14,11 +14,33 @@ async function openSession(page: Page) {
   await page.waitForTimeout(300);
 }
 
-// TaskList quick-add (mirrors session-widget.spec.ts).
+// Navigate to the Tasks tab (the TaskList left the Session tab in ticket 03;
+// task management now happens on Tasks / Day plan). The Plan nav group starts
+// collapsed, so expand it first when needed.
+async function openTasks(page: Page) {
+  const item = page.locator('button[title="Tasks"]').first();
+  if (!(await item.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  }
+  await item.click();
+  await page.waitForTimeout(300);
+}
+
+// TaskList quick-add on the Tasks tab (the Session tab's TaskList is gone).
+// The Tasks quick-add is a form: fill the input and press Enter to submit.
 async function addTask(page: Page, name: string) {
-  await page.locator('input[placeholder*="What are you working on?"]').fill(name);
-  await page.locator('button.add-task-btn').click();
-  await expect(page.locator(`.task-item:has-text("${name}")`)).toBeVisible();
+  await openTasks(page);
+  await page.locator('.quick-add-input').fill(name);
+  await page.locator('form.quick-add-bar').press('Enter');
+  await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
+}
+
+// Select a task as active via the Session tab's Active Task Card picker
+// (the TaskList left the Session tab in ticket 03).
+async function selectTaskOnTasksAndOpenSession(page: Page, name: string) {
+  await openSession(page);
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
 }
 
 test.describe('Focus shell — Session tab (ticket 02)', () => {
@@ -36,7 +58,7 @@ test.describe('Focus shell — Session tab (ticket 02)', () => {
     await expect(page.locator('.focus-tab-live')).toHaveCount(0);
 
     await addTask(page, 'Live Task');
-    await page.locator('.task-item:has-text("Live Task")').click();
+    await selectTaskOnTasksAndOpenSession(page, 'Live Task');
     await page.locator('.timer-section button:has-text("Start")').click();
 
     await expect(page.locator('.focus-tab-live')).toBeVisible();
@@ -49,6 +71,61 @@ test.describe('Focus shell — Session tab (ticket 02)', () => {
     await page.locator('.focus-card .btn:has-text("Start focus")').first().click();
 
     await expect(page.locator('.focus-shell .timer-section')).toBeVisible();
-    await expect(page.locator('text=Working on:')).toBeVisible();
+    await expect(page.locator('.active-task-card')).toBeVisible();
+    await expect(page.locator('.active-task-card')).toContainText('Refactor auth module');
+  });
+});
+
+// ==========================================
+// Session-of label + Active Task Card (ticket 03)
+// ==========================================
+
+test.describe('Session-of label + Active Task Card (ticket 03)', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    await openSession(page);
+  });
+
+  test('session-of label shows completed/estimated for the active task', async ({ page }) => {
+    // Seed task 'Design new dashboard layout' has completed 3 / estimated 5.
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    const label = page.locator('.timer-session-of');
+    await expect(label).toBeVisible();
+    await expect(label).toContainText('SESSION 3 OF 5');
+  });
+
+  test('session-of label is hidden when no task is active', async ({ page }) => {
+    // No task staged at start — the label must be absent (only digits show).
+    await expect(page.locator('.timer-session-of')).toHaveCount(0);
+  });
+
+  test('session-of label is hidden during a break', async ({ page }) => {
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    // Switch to Short Break — the label must disappear (breaks aren't task-attributed).
+    await page.locator('button.session-tab:has-text("Short Break")').click();
+    await expect(page.locator('.timer-session-of')).toHaveCount(0);
+  });
+
+  test('Active Task Card shows empty state when no task is active', async ({ page }) => {
+    const card = page.locator('.active-task-card');
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('No task');
+  });
+
+  test('Active Task Card picker lists incomplete tasks and selects one', async ({ page }) => {
+    await page.locator('.active-task-card').click();
+    const picker = page.locator('.task-picker');
+    await expect(picker).toBeVisible();
+    // Seeded open tasks appear (completed ones are filtered out).
+    await expect(picker.locator('.task-picker-item:has-text("Design new dashboard layout")')).toBeVisible();
+
+    await page.locator('.task-picker-item:has-text("Write API documentation")').click();
+    await expect(page.locator('.active-task-card')).toContainText('Write API documentation');
+    // Picker closes after selection.
+    await expect(page.locator('.task-picker')).toHaveCount(0);
   });
 });

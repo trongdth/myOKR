@@ -16,7 +16,17 @@ async function waitForApp(page: Page) {
 }
 
 async function selectTask(page: Page, name: string) {
-  await page.locator(`.task-item:has-text("${name}")`).click();
+  // The Session tab's TaskList is gone (ticket 03); select via the Active Task
+  // Card's picker on the Session tab.
+  await openSession(page);
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  await expect(page.locator('.active-task-card')).toContainText(name);
+}
+
+async function openSession(page: Page) {
+  await page.locator('button[title="Session"]').first().click();
+  await page.waitForTimeout(300);
 }
 
 async function openSettings(page: Page) {
@@ -60,9 +70,11 @@ test.describe('Session widget pomo counting', () => {
     await waitForApp(page);
 
     // Seed task 'Design new dashboard layout' (estimate 5, completed 3).
-    // Make it the active task from the Session screen (the only way to link).
+    // Make it the active task from the Tasks screen (the Session tab's TaskList
+    // is gone in ticket 03; the Tasks tab is where task selection happens now).
     await selectTask(page, 'Design new dashboard layout');
-    await expect(page.locator('text=Working on:')).toContainText('Design new dashboard layout');
+    await openSession(page);
+    await expect(page.locator('.active-task-card')).toContainText('Design new dashboard layout');
 
     // 1-min focus so the session completes in ~3s after speeding up timers.
     await setDurations(page, 1, 1);

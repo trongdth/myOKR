@@ -9,15 +9,33 @@ async function waitForApp(page: Page) {
   await page.locator('button[title="Session"]').first().click();
 }
 
+// The Session tab's TaskList is gone (ticket 03); addTask uses the Tasks tab
+// quick-add, selectTask uses the Session Active Task Card picker.
+async function openTasks(page: Page) {
+  const item = page.locator('button[title="Tasks"]').first();
+  if (!(await item.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  }
+  await item.click();
+  await page.waitForTimeout(300);
+}
+
+async function openSession(page: Page) {
+  await page.locator('button[title="Session"]').first().click();
+  await page.waitForTimeout(300);
+}
+
 async function addTask(page: Page, name: string) {
-  const input = page.locator('input[placeholder*="What are you working on?"]');
-  await input.fill(name);
-  await page.locator('button.add-task-btn').click();
-  await expect(page.locator(`.task-item:has-text("${name}")`)).toBeVisible();
+  await openTasks(page);
+  await page.locator('.quick-add-input').fill(name);
+  await page.locator('form.quick-add-bar').press('Enter');
+  await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
 }
 
 async function selectTask(page: Page, name: string) {
-  await page.locator(`.task-item:has-text("${name}")`).click();
+  await openSession(page);
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
 }
 
 // ==========================================

@@ -15,11 +15,22 @@ async function openSettings(page: Page) {
   await expect(page.locator('.settings-panel')).toBeVisible();
 }
 
+// The Session tab's TaskList is gone (ticket 03); addTask uses the Tasks tab
+// quick-add. Selection happens via the Session Active Task Card picker inline.
+async function openTasks(page: Page) {
+  const item = page.locator('button[title="Tasks"]').first();
+  if (!(await item.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  }
+  await item.click();
+  await page.waitForTimeout(300);
+}
+
 async function addTask(page: Page, name: string) {
-  const input = page.locator('input[placeholder*="What are you working on?"]');
-  await input.fill(name);
-  await page.locator('button.add-task-btn').click();
-  await expect(page.locator(`.task-item:has-text("${name}")`)).toBeVisible();
+  await openTasks(page);
+  await page.locator('.quick-add-input').fill(name);
+  await page.locator('form.quick-add-bar').press('Enter');
+  await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
 }
 
 // NOTE: cross-reload persistence of PomodoroSettings is not asserted here. The
@@ -66,7 +77,10 @@ test.describe('Pomodoro: Ambient sound preset picker (ADR-0015)', () => {
     page.on('pageerror', (e) => errors.push(String(e)));
 
     await addTask(page, 'Focus Task');
-    await page.locator('.task-item:has-text("Focus Task")').click();
+    // Select the task via the Session Active Task Card picker (ticket 03).
+    await page.locator('button[title="Session"]').first().click();
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Focus Task")').click();
 
     await openSettings(page);
     await page.locator('.ambient-chip', { hasText: 'Forest' }).click();

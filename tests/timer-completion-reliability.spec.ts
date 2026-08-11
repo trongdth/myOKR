@@ -18,8 +18,11 @@ async function waitForApp(page: Page) {
   await page.locator('button[title="Session"]').first().click();
 }
 
+// The Session tab's TaskList is gone (ticket 03); selectTask uses the Session
+// Active Task Card picker.
 async function selectTask(page: Page, name: string) {
-  await page.locator(`.task-item:has-text("${name}")`).click();
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
 }
 
 // The seeded history already holds focus sessions for today (no taskId);

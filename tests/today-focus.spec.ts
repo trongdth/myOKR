@@ -164,8 +164,8 @@ test.describe('Today Focus', () => {
     await page.locator('.focus-card .btn:has-text("Start focus")').click();
 
     await expect(page.locator('.timer-section')).toBeVisible();
-    await expect(page.locator('text=Working on:')).toBeVisible();
-    await expect(page.locator('strong').filter({ hasText: 'Refactor auth module' })).toBeVisible();
+    await expect(page.locator('.active-task-card')).toBeVisible();
+    await expect(page.locator('.active-task-card')).toContainText('Refactor auth module');
   });
 
   test('Skip removes card, refills, and persists across reload', async ({ page }) => {
