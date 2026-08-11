@@ -9,7 +9,7 @@ import {
   stampUpdatedAt, resolveSessionEndedAt,
   type PomodoroSettings, type SessionType, type PomodoroTask, type DailyRecord,
 } from '../../lib/pomodoro-storage';
-import { startFocusMusic, stopFocusMusic } from '../../lib/focus-music';
+import { startAmbient, stopAmbient } from '../../lib/focus-music';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import ConfirmModal from '../ConfirmModal';
@@ -469,18 +469,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (isRunning) completionHandledRef.current = false;
   }, [isRunning]);
 
-  // ----- Focus music -----
-  // Plays looping ambient audio while a focus session is actively running and
-  // the user has enabled it. Stops on pause, on session end/break, or when the
-  // setting is toggled off.
+  // ----- Ambient sound (ADR-0015) -----
+  // Plays the selected ambient preset while a focus session is actively running.
+  // Stops on pause, on session end/break, or when the preset is 'none'. The
+  // preset can also be swapped mid-session; startAmbient is idempotent and
+  // disposes the old engine when the preset changes.
   useEffect(() => {
-    if (isRunning && sessionType === 'focus' && settings.focusMusicEnabled) {
-      startFocusMusic();
+    if (isRunning && sessionType === 'focus' && settings.ambientPreset !== 'none') {
+      startAmbient(settings.ambientPreset);
     } else {
-      stopFocusMusic();
+      stopAmbient();
     }
-    return () => stopFocusMusic();
-  }, [isRunning, sessionType, settings.focusMusicEnabled]);
+    return () => stopAmbient();
+  }, [isRunning, sessionType, settings.ambientPreset]);
 
   // ----- Update window title + system tray -----
   useEffect(() => {

@@ -4,6 +4,18 @@
 import { getAutomergeDoc, updateAutomergeDoc, sanitizeForAutomerge } from './automerge-storage';
 
 // ===== TYPES =====
+
+/**
+ * Ambient background sound for the Session tab (ADR-0015). Procedural Web Audio
+ * synths — no audio assets (licensing). `'none'` is the new off; it replaces the
+ * legacy `focusMusicEnabled: boolean` drone, which is migrated away in
+ * `normalizeSettings` (old `true` → `'none'`, since the drone is gone and we
+ * can't know which preset the user would have wanted).
+ */
+export type AmbientPreset = 'none' | 'rain' | 'forest' | 'cafe';
+
+export const AMBIENT_PRESETS: readonly AmbientPreset[] = ['none', 'rain', 'forest', 'cafe'];
+
 export interface PomodoroSettings {
   focusDuration: number;
   shortBreakDuration: number;
@@ -11,7 +23,7 @@ export interface PomodoroSettings {
   pomosBeforeLongBreak: number;
   autoStartBreaks: boolean;
   autoStartFocus: boolean;
-  focusMusicEnabled: boolean;
+  ambientPreset: AmbientPreset;
 }
 
 export type SessionType = 'focus' | 'shortBreak' | 'longBreak';
@@ -258,7 +270,7 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   // waits for a tap — the global session widget's resume job.
   autoStartBreaks: true,
   autoStartFocus: false,
-  focusMusicEnabled: false,
+  ambientPreset: 'none',
 };
 
 // ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
@@ -288,8 +300,25 @@ function normalizeSettings(raw: unknown): PomodoroSettings {
     // existing docs that stored an explicit value keep it (the migration wrinkle).
     autoStartBreaks: typeof src.autoStartBreaks === 'boolean' ? src.autoStartBreaks : DEFAULT_SETTINGS.autoStartBreaks,
     autoStartFocus: typeof src.autoStartFocus === 'boolean' ? src.autoStartFocus : DEFAULT_SETTINGS.autoStartFocus,
-    focusMusicEnabled: typeof src.focusMusicEnabled === 'boolean' ? src.focusMusicEnabled : DEFAULT_SETTINGS.focusMusicEnabled,
+    // ambientPreset replaces the legacy focusMusicEnabled boolean (ADR-0015).
+    // Migration: a legacy doc without ambientPreset (regardless of its old
+    // focusMusicEnabled value) resolves to 'none' — the drone is gone and we
+    // won't presume Rain/Forest/Café on the user's behalf. Any explicit,
+    // in-enum ambientPreset is honored.
+    ambientPreset: resolveAmbientPreset(src.ambientPreset),
   };
+}
+
+/**
+ * Resolve the ambient preset from a persisted settings object. Honors a valid
+ * `ambientPreset`; anything else (including legacy docs that only had the old
+ * `focusMusicEnabled` boolean) falls back to 'none'. See ADR-0015: we never
+ * silently enable a sound preset on the user's behalf.
+ */
+function resolveAmbientPreset(rawPreset: unknown): AmbientPreset {
+  return AMBIENT_PRESETS.includes(rawPreset as AmbientPreset)
+    ? (rawPreset as AmbientPreset)
+    : DEFAULT_SETTINGS.ambientPreset;
 }
 
 function normalizeTask(t: unknown): PomodoroTask | null {

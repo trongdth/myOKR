@@ -5,6 +5,7 @@ import PrioritizeModal from '../pomodoro/PrioritizeModal';
 import ConfirmModal from '../ConfirmModal';
 import NumberInput from '../NumberInput';
 import LoadingState from '../shared/LoadingState';
+import AmbientPresetPicker from '../shared/AmbientPresetPicker';
 import { useSession } from '../session/SessionProvider';
 import { useOkrViewData } from '../../hooks/useOkrViewData';
 import '../../styles/pomodoro.css';
@@ -144,11 +145,10 @@ export default function SessionView({
               </div>
             </div>
             <div className="setting-item full-width">
-              <div className="toggle-row">
-                <span className="setting-label">Focus music</span>
-                <button className={`toggle-switch${settings.focusMusicEnabled ? ' on' : ''}`}
-                  onClick={() => updateSetting('focusMusicEnabled', !settings.focusMusicEnabled)} />
-              </div>
+              <AmbientPresetPicker
+                value={settings.ambientPreset}
+                onChange={p => updateSetting('ambientPreset', p)}
+              />
             </div>
           </div>
         </div>
