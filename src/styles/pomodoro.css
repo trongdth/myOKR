@@ -67,6 +67,66 @@
   gap: 2em;
 }
 
+/* Session-view wrapper (ADR-0016, ticket 04): holds the timer column above and
+   the 3-column bottom utility bar pinned at the bottom. The bar is a fixed
+   grid; the timer column grows to fill. */
+.session-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.session-view > .timer-section {
+  flex: 1;
+}
+
+.session-bottom-bar {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 0.8fr;
+  gap: 16px;
+  padding: 12px 0 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--border-color);
+  align-items: center;
+}
+
+/* The three columns share a slot style so placeholders look intentional until
+   tickets 05/06 fill them. */
+.session-bottom-bar-audio,
+.session-bottom-bar-queue,
+.session-bottom-bar-stats {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.session-bottom-bar-stats {
+  justify-content: flex-end;
+}
+
+/* Stats widget: count + label, right-aligned. Mono count matches the timer's
+   numeric language. */
+.session-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+
+.session-stats-count {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-focus);
+}
+
+.session-stats-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 /* Session type tabs */
 .session-tabs {
   display: flex;

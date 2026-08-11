@@ -129,3 +129,67 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     await expect(page.locator('.task-picker')).toHaveCount(0);
   });
 });
+
+// ==========================================
+// Bottom utility bar + Stats widget (ticket 04)
+// ==========================================
+
+test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    await openSession(page);
+  });
+
+  test('3-column bottom bar is present with audio / queue / stats slots', async ({ page }) => {
+    const bar = page.locator('.session-bottom-bar');
+    await expect(bar).toBeVisible();
+    // Three grid columns.
+    await expect(bar.locator('.session-bottom-bar-audio')).toBeVisible();
+    await expect(bar.locator('.session-bottom-bar-queue')).toBeVisible();
+    await expect(bar.locator('.session-bottom-bar-stats')).toBeVisible();
+  });
+
+  test('Stats widget shows today\'s completed session count', async ({ page }) => {
+    // The seed history includes today's record (mocks/store.ts generates 14
+    // days; today's pomodorosPerDay[13] = 3). The stats widget reads today's
+    // DailyRecord.completedPomodoros.
+    const stats = page.locator('.session-bottom-bar-stats');
+    await expect(stats).toBeVisible();
+    await expect(stats.locator('.session-stats-label')).toHaveText('sessions today');
+    // Today's seeded count is 3 — a real number, not 0.
+    const count = await stats.locator('.session-stats-count').textContent();
+    expect(Number(count)).toBeGreaterThan(0);
+  });
+
+  test('Stats widget shows 0 sessions today when no history exists', async ({ page }) => {
+    // Wipe today's history, flush the Automerge queue so the write settles,
+    // then signal a sync so SessionStats reloads without a full page reload
+    // (which would re-seed the mock store).
+    await page.evaluate(async () => {
+      const { loadHistory, saveHistory, todayKey } = await import('/src/lib/pomodoro-storage.ts');
+      const hist = await loadHistory();
+      const key = todayKey();
+      await saveHistory(hist.filter(r => r.date !== key));
+      await (window as any).__flushAutomergeQueue?.();
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    // The count + label are flex-gap separated, so textContent concatenates;
+    // assert them separately.
+    const stats = page.locator('.session-bottom-bar-stats');
+    await expect(stats.locator('.session-stats-count')).toHaveText('0', { timeout: 5000 });
+    await expect(stats.locator('.session-stats-label')).toHaveText('sessions today');
+  });
+
+  test('audio and queue slots are placeholders in this slice', async ({ page }) => {
+    // Tickets 05 (queue) and 06 (audio) fill these; for now they render as
+    // empty/placeholder slots without breaking the grid.
+    const audio = page.locator('.session-bottom-bar-audio');
+    const queue = page.locator('.session-bottom-bar-queue');
+    await expect(audio).toBeVisible();
+    await expect(queue).toBeVisible();
+    // No real audio widget or queue widget yet.
+    await expect(audio.locator('.ambient-picker')).toHaveCount(0);
+    await expect(queue.locator('.queue-widget')).toHaveCount(0);
+  });
+});

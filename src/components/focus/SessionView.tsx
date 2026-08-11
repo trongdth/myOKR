@@ -6,6 +6,7 @@ import LoadingState from '../shared/LoadingState';
 import AmbientPresetPicker from '../shared/AmbientPresetPicker';
 import { useSession } from '../session/SessionProvider';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
+import { loadHistory, todayKey } from '../../lib/pomodoro-storage';
 import '../../styles/pomodoro.css';
 
 /**
@@ -69,6 +70,7 @@ export default function SessionView({
   }
 
   return (
+    <div className="session-view">
     <div className="timer-section">
       {/* Row 1 — Mode selector (pill container) */}
       <div className="session-tabs">
@@ -185,6 +187,18 @@ export default function SessionView({
         confirmText="Reset"
       />
     </div>
+
+    {/* Bottom utility bar (ADR-0016, ticket 04): 3-column grid fixed at the
+        bottom. The stats column is wired here; audio (left) and queue (middle)
+        are placeholder slots filled by tickets 05 and 06. */}
+    <div className="session-bottom-bar">
+      <div className="session-bottom-bar-audio" aria-label="Audio" />
+      <div className="session-bottom-bar-queue" aria-label="Queue" />
+      <div className="session-bottom-bar-stats">
+        <SessionStats />
+      </div>
+    </div>
+    </div>
   );
 }
 
@@ -266,6 +280,38 @@ function TaskPicker({
           Clear active task
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Today's completed-session count, sourced from today's DailyRecord
+ * (ticket 04 / ADR-0016). Reads `completedPomodoros` for today's date key; falls
+ * back to 0 when there is no record for today. Reloads on mount and on the
+ * `myokr-data-synced` event so it reflects sessions as they complete.
+ */
+function SessionStats() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const load = () => {
+      loadHistory()
+        .then(hist => {
+          const key = todayKey();
+          const today = hist.find(r => r.date === key);
+          setCount(today?.completedPomodoros ?? 0);
+        })
+        .catch(() => { /* no history — stay at 0 */ });
+    };
+    load();
+    window.addEventListener('myokr-data-synced', load);
+    return () => window.removeEventListener('myokr-data-synced', load);
+  }, []);
+
+  return (
+    <div className="session-stats" aria-label="Today's completed focus sessions">
+      <span className="session-stats-count">{count}</span>
+      <span className="session-stats-label">sessions today</span>
     </div>
   );
 }
