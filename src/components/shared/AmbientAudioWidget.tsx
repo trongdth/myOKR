@@ -57,7 +57,10 @@ export default function AmbientAudioWidget({
         aria-label={`Ambient sound: ${STATUS_LABEL[value]}. Click to change.`}
       >
         <Music4 size={14} className="audio-widget-icon" />
-        <span className="audio-widget-name">{STATUS_LABEL[value]}</span>
+        <span className="audio-widget-text">
+          <span className="audio-widget-name">{STATUS_LABEL[value]}</span>
+          <span className="audio-widget-subtitle">Ambient</span>
+        </span>
         <ChevronDown size={12} className="audio-widget-chevron" />
       </button>
       {open && (

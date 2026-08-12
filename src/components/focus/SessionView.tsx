@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
+import { Pause, Play, RotateCcw, Settings, CheckCircle2 } from 'lucide-react';
 import ConfirmModal from '../ConfirmModal';
 import NumberInput from '../NumberInput';
 import LoadingState from '../shared/LoadingState';
@@ -8,6 +8,8 @@ import AmbientAudioWidget from '../shared/AmbientAudioWidget';
 import { useSession } from '../session/SessionProvider';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { loadHistory, todayKey } from '../../lib/pomodoro-storage';
+import { loadKeyResults, loadObjectives, formatKrSubtitle } from '../../lib/okr-storage';
+import type { KeyResult, Objective } from '../../lib/okr-storage';
 import { loadTodayPlan } from '../../lib/today-focus';
 import { navigateToSection } from '../../lib/navigation';
 import '../../styles/pomodoro.css';
@@ -77,6 +79,34 @@ export default function SessionView({
     };
   }, [tasks]);
 
+  // KR + Objective maps for the Active Task Card subtitle (the KR the task
+  // links to, resolved objective.title → kr.title — same idiom as NowCard /
+  // FocusCard / UpNextCard). Loaded once and refreshed on data sync. The KR
+  // title is intentionally NOT stored on the task (normalized in the Automerge
+  // doc); it's one Map.get away here.
+  const [krMap, setKrMap] = useState<Map<string, KeyResult>>(new Map());
+  const [objMap, setObjMap] = useState<Map<string, Objective>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [krs, objs] = await Promise.all([loadKeyResults(), loadObjectives()]);
+      if (cancelled) return;
+      setKrMap(new Map(krs.map(k => [k.id, k])));
+      setObjMap(new Map(objs.map(o => [o.id, o])));
+    };
+    load();
+    const refresh = () => load();
+    window.addEventListener('myokr-data-synced', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('myokr-data-synced', refresh);
+    };
+  }, []);
+
+  // Resolve the active task's KR/objective for the card subtitle.
+  const activeKr = activeTask?.keyResultId ? krMap.get(activeTask.keyResultId) : undefined;
+  const activeObj = activeKr ? objMap.get(activeKr.objectiveId) : undefined;
+
   // Consume requestedTaskId — e.g. "Start focus" staged from the Day plan.
   useEffect(() => {
     if (requestedTaskId && !isLoading) {
@@ -108,15 +138,11 @@ export default function SessionView({
         <button className={`session-tab${sessionType === 'longBreak' ? ' active break-tab' : ''}`} onClick={() => switchSession('longBreak')}>Long Break</button>
       </div>
 
-      {/* Row 2 — Timer ring (digits centered, session-of label below) */}
+      {/* Row 2 — Timer ring (digits centered, session-of label below).
+          Solid cyan stroke (design-system.md: the cyan→violet gradient is
+          logo-only; the ring uses --color-focus via CSS). */}
       <div className={`timer-ring-container${pulse ? ' pulse' : ''}`}>
         <svg className="timer-ring-svg" viewBox="0 0 260 260">
-          <defs>
-            <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#06b6d4" />
-              <stop offset="100%" stopColor="#a855f7" />
-            </linearGradient>
-          </defs>
           <circle className="timer-ring-bg" cx="130" cy="130" r="120" />
           <circle
             className={`timer-ring-progress${isBreak ? ' break-ring' : ''}`}
@@ -140,6 +166,8 @@ export default function SessionView({
           plan handoff. */}
       <ActiveTaskCard
         activeTask={activeTask}
+        kr={activeKr}
+        objective={activeObj}
         onPick={() => setShowTaskPicker(s => !s)}
         pickerOpen={showTaskPicker}
       />
@@ -229,7 +257,11 @@ export default function SessionView({
         />
       </div>
       <div className="session-bottom-bar-queue">
-        <QueueWidget activeTask={activeTask} onGoToDayPlan={() => navigateToSection('day-plan')} />
+        <QueueWidget
+          queuedTasks={queuedTasks}
+          activeTaskId={activeTaskId}
+          onGoToDayPlan={() => navigateToSection('day-plan')}
+        />
       </div>
       <div className="session-bottom-bar-stats">
         <SessionStats />
@@ -240,20 +272,31 @@ export default function SessionView({
 }
 
 /**
- * The Active Task Card (Row 3, ADR-0016). A centered card (~500–600 px) showing
- * the task a focus session is attributed to. Click opens a lightweight task
- * picker (pulled forward from ticket 05). The empty state ("No task — pick
- * one") is itself clickable and opens the same picker.
+ * The Active Task Card (Row 3, ADR-0016). A centered card showing the task a
+ * focus session is attributed to. Layout (mockup 2026-08-12): a decorative
+ * square icon tile on the left, a stacked title + KR subtitle in the middle,
+ * and a cyan "Change" button on the right edge. The whole card remains
+ * clickable to open the picker; "Change" is a redundant visual affordance for
+ * the same action.
+ *
+ * The subtitle resolves the KR the task links to (objective.title → kr.title),
+ * matching NowCard / FocusCard / UpNextCard. Falls back to "No key result
+ * linked" when the task has no KR (same copy as TasksView's card subtitle).
  */
 function ActiveTaskCard({
   activeTask,
+  kr,
+  objective,
   onPick,
   pickerOpen,
 }: {
   activeTask: PomodoroTask | null;
+  kr?: KeyResult;
+  objective?: Objective;
   onPick: () => void;
   pickerOpen: boolean;
 }) {
+  const subtitle = formatKrSubtitle(kr, objective);
   return (
     <div
       className={`active-task-card${activeTask ? '' : ' empty'}${pickerOpen ? ' picker-open' : ''}`}
@@ -264,12 +307,30 @@ function ActiveTaskCard({
       aria-label={activeTask ? `Active task: ${activeTask.title}. Click to change.` : 'No active task. Click to pick one.'}
       title="Click to change the active task"
     >
-      <span className="active-task-card-label">Working on</span>
-      {activeTask ? (
-        <strong className="active-task-card-title">{activeTask.title}</strong>
-      ) : (
-        <span className="active-task-card-empty">No task — pick one</span>
-      )}
+      {/* Decorative square icon tile (no behavior). */}
+      <span className="active-task-card-icon" aria-hidden="true">
+        <CheckCircle2 size={18} />
+      </span>
+      <div className="active-task-card-body">
+        <span className="active-task-card-label">Working on</span>
+        {activeTask ? (
+          <strong className="active-task-card-title">{activeTask.title}</strong>
+        ) : (
+          <span className="active-task-card-empty">No task — pick one</span>
+        )}
+        {activeTask && (
+          <span className="active-task-card-subtitle">{subtitle}</span>
+        )}
+      </div>
+      {/* Cyan "Change" button — opens the same picker as the card click. */}
+      <button
+        type="button"
+        className="active-task-card-change"
+        onClick={(e) => { e.stopPropagation(); onPick(); }}
+        aria-label="Change active task"
+      >
+        Change
+      </button>
     </div>
   );
 }
@@ -363,35 +424,41 @@ function SessionStats() {
 }
 
 /**
- * The Queue widget (bottom-middle, ADR-0016 / ticket 05). Shows the active
- * task's title and its remaining pomos (`estimatedPomodoros − completedPomodoros`)
- * — the same units as the session-of label. When no task is active, offers a
- * link to the Day plan tab.
+ * The Queue widget (bottom-middle, ADR-0016 / ticket 05, redesigned 2026-08-12).
+ * Shows the NEXT task in the Day-plan queue — the first queued task that isn't
+ * the active one (i.e. the first item in the Day plan's UP NEXT cell). This is
+ * a behavior change from ticket 05's active-task mirror: the middle card now
+ * answers "what's after this?" rather than "what's running?".
+ *
+ * Empty state: when there is no next task (queue empty, or only the active task
+ * remains), offers a link to the Day plan tab.
  */
 function QueueWidget({
-  activeTask,
+  queuedTasks,
+  activeTaskId,
   onGoToDayPlan,
 }: {
-  activeTask: PomodoroTask | null;
+  queuedTasks: PomodoroTask[];
+  activeTaskId: string | null;
   onGoToDayPlan: () => void;
 }) {
-  if (!activeTask) {
+  // Next = first queued task that isn't the active one (matches the Day plan's
+  // UP NEXT cell — the items after NOW).
+  const nextTask = queuedTasks.find(t => t.id !== activeTaskId) ?? null;
+
+  if (!nextTask) {
     return (
-      <div className="queue-widget queue-widget-empty" aria-label="No active task">
+      <div className="queue-widget queue-widget-empty" aria-label="No next task in queue">
         <button type="button" className="queue-plan-link" onClick={onGoToDayPlan}>
           Pick a task →
         </button>
       </div>
     );
   }
-  const remaining = Math.max(0, (activeTask.estimatedPomodoros || 1) - activeTask.completedPomodoros);
   return (
-    <div className="queue-widget" aria-label={`Active task: ${activeTask.title}`}>
-      <span className="queue-title">{activeTask.title}</span>
-      <span className="queue-remaining">
-        <span className="queue-remaining-count">{remaining}</span>
-        <span className="queue-remaining-label">{remaining === 1 ? 'pomo left' : 'pomos left'}</span>
-      </span>
+    <div className="queue-widget" aria-label={`Up next: ${nextTask.title}`}>
+      <span className="queue-eyebrow">Up next in queue</span>
+      <span className="queue-title">{nextTask.title}</span>
     </div>
   );
 }

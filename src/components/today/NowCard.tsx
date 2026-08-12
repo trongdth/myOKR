@@ -1,7 +1,7 @@
 import { Play } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import type { KeyResult, Objective } from '../../lib/okr-storage';
-import { CONFIDENCE_META } from '../../lib/okr-storage';
+import { CONFIDENCE_META, formatKrSubtitle } from '../../lib/okr-storage';
 import type { ScoreBreakdown } from '../../lib/today-focus';
 import { todaysSlice } from '../../lib/today-focus';
 
@@ -22,7 +22,7 @@ export default function NowCard({ task, kr, objective, maxShare, onStart, onSkip
 
   const confidenceLabel = kr ? CONFIDENCE_META[kr.confidence].label : '';
   const isAtRisk = kr?.confidence === 'at_risk' || kr?.confidence === 'off_track';
-  const krText = kr ? `${objective ? objective.title + ' → ' : ''}${kr.title}` : 'No key result linked';
+  const krText = formatKrSubtitle(kr, objective);
   const statusLabel = kr ? confidenceLabel : (isAtRisk ? 'At Risk' : 'On Track');
 
   // Render max 8 pomo segments for compact visualization

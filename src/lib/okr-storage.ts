@@ -99,6 +99,22 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+/**
+ * Format a task's KR subtitle as an objective→KR breadcrumb, matching the
+ * Today/Focus cards (NowCard, FocusCard, UpNextCard) and the Session Active
+ * Task Card. Returns a fallback when the task has no KR link — same copy as
+ * TasksView's card subtitle ("No key result linked"). Centralised so the four
+ * render sites can't drift apart.
+ */
+export function formatKrSubtitle(
+  kr?: KeyResult,
+  objective?: Objective,
+  fallback = 'No key result linked',
+): string {
+  if (!kr) return fallback;
+  return `${objective ? objective.title + ' → ' : ''}${kr.title}`;
+}
+
 export function getMonthName(month: number, year: number): string {
   return `${MONTH_NAMES[month]} ${year}`;
 }

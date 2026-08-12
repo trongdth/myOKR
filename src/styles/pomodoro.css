@@ -85,60 +85,95 @@
   display: grid;
   grid-template-columns: 1fr 1.5fr 0.8fr;
   gap: 16px;
-  padding: 12px 0 0;
+  padding: 0;
   margin-top: 16px;
-  border-top: 1px solid var(--border-color);
-  align-items: center;
+  align-items: stretch;
 }
 
-/* The three columns share a slot style so placeholders look intentional until
-   tickets 05/06 fill them. */
+/* Each slot is a distinct rounded card on --bg-card (mockup 2026-08-12): the
+   old flat row + top border is gone. */
 .session-bottom-bar-audio,
 .session-bottom-bar-queue,
 .session-bottom-bar-stats {
-  min-height: 40px;
+  min-height: 56px;
   display: flex;
   align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.6em 0.9em;
+  box-shadow: var(--shadow-card);
 }
 
-/* Ambient audio widget (bottom-left, ticket 06): status pill + dropdown. */
+/* Ambient audio widget (bottom-left, ticket 06): status pill + dropdown. The
+   card slot owns the surface; the widget button is transparent on top. */
 .audio-widget-wrap {
   position: relative;
+  width: 100%;
 }
 
 .audio-widget {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.45em;
-  padding: 0.4em 0.7em;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-secondary);
+  gap: 0.6em;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+  transition: color 200ms ease;
 }
 
 .audio-widget:hover {
-  color: var(--text-primary);
-  border-color: var(--color-focus);
+  color: var(--color-focus);
 }
 
 .audio-widget.active {
   color: var(--color-focus);
-  border-color: var(--color-focus);
 }
 
 .audio-widget-icon {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-focus) 14%, transparent);
+  color: var(--color-focus);
+}
+
+.audio-widget-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.2;
 }
 
 .audio-widget-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.audio-widget.active .audio-widget-name {
+  color: var(--color-focus);
+}
+
+.audio-widget-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .audio-widget-chevron {
@@ -189,69 +224,63 @@
   justify-content: flex-end;
 }
 
-/* Stats widget: count + label, right-aligned. Mono count matches the timer's
-   numeric language. */
+/* Stats widget: large numeric count + two-line label (mockup 2026-08-12). */
 .session-stats {
   display: flex;
-  align-items: baseline;
-  gap: 0.4em;
+  align-items: center;
+  gap: 0.5em;
 }
 
 .session-stats-count {
   font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-size: 1.9rem;
   font-weight: 700;
   color: var(--color-focus);
+  line-height: 1;
 }
 
 .session-stats-label {
-  font-size: 0.78rem;
-  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
 }
 
-/* Queue widget (bottom-middle, ticket 05): active task title + remaining
-   pomos, or a link to the Day plan when no task is active. */
+/* Queue widget (bottom-middle, ticket 05, redesigned 2026-08-12): eyebrow
+   "UP NEXT IN QUEUE" above the next task's title. No remaining-pomo count —
+   the card answers "what's after this?", not "what's running?". */
 .queue-widget {
   display: flex;
-  align-items: center;
-  gap: 0.75em;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15em;
   width: 100%;
   min-width: 0;
 }
 
-.queue-title {
-  flex: 1;
-  font-size: 0.88rem;
+.queue-eyebrow {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-weight: 500;
+}
+
+.queue-title {
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.queue-remaining {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3em;
-  flex-shrink: 0;
-}
-
-.queue-remaining-count {
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-focus);
-}
-
-.queue-remaining-label {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
 .queue-widget-empty {
   justify-content: center;
+  align-items: center;
 }
 
 .queue-plan-link {
@@ -340,19 +369,19 @@
 .timer-ring-bg {
   fill: none;
   stroke: var(--bg-tertiary);
-  stroke-width: 6;
+  stroke-width: 14;
 }
 
 .timer-ring-progress {
   fill: none;
-  stroke: url(#timerGradient);
-  stroke-width: 6;
+  stroke: var(--color-focus);
+  stroke-width: 14;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.5s ease;
 }
 
 .timer-ring-progress.break-ring {
-  stroke: #4ade80;
+  stroke: var(--okr-on-track);
 }
 
 .timer-display {
@@ -373,16 +402,15 @@
 }
 
 /* session-of label (ADR-0016, ticket 03): per-task "SESSION x OF y" progress
-   shown ~8px below the digits, replacing the old phase-name .timer-label.
-   Hidden by the component when no task is active. Same mono tokens as the
-   digits; muted so the digits stay the focal point. */
+   shown ~8px below the digits. Cyan (--color-focus) so it reads as part of the
+   timer's focus semantics, with wider tracking for the mockup's tag feel. */
 .timer-session-of {
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--color-focus);
   margin-top: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.15em;
 }
 
 /* Timer controls */
@@ -392,27 +420,54 @@
   align-items: center;
 }
 
-/* Active Task Card (Row 3, ADR-0016): centered card ~500–600 px showing the
-   task a focus session is attributed to. Sits between the ring and the
-   controls. The focus token marks it as session-attribution, not decoration. */
+/* Active Task Card (Row 3, ADR-0016, redesigned 2026-08-12): centered card
+   showing the task a focus session is attributed to. Layout = [icon tile]
+   [stacked label/title/subtitle] [Change button]. The old 3px cyan left border
+   is gone (the icon tile now carries the focus accent). Sits between the ring
+   and the controls. */
 .active-task-card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.3em;
+  gap: 1em;
   width: 100%;
   max-width: 560px;
-  min-width: 500px;
-  padding: 1em 1.5em;
-  background: var(--bg-secondary);
+  /* No min-width: a hard floor overflowed panes narrower than it at the <900px
+     single-column tier (design-system.md responsive rule). The row layout
+     wraps its content; width:100% keeps it filling the column instead. */
+  padding: 1em 1.25em;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-left: 3px solid var(--color-focus);
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+/* Decorative square icon tile (focus accent). */
+.active-task-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   border-radius: 10px;
-  text-align: center;
+  background: color-mix(in srgb, var(--color-focus) 16%, transparent);
+  color: var(--color-focus);
+  border: 1px solid color-mix(in srgb, var(--color-focus) 40%, transparent);
+}
+
+.active-task-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  flex: 1;
+  min-width: 0;
 }
 
 .active-task-card-label {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -426,22 +481,42 @@
   word-break: break-word;
 }
 
-/* Click-to-pick affordance (pulled forward from ticket 05). The card is a
-   button-like surface; the empty state invites a click. */
-.active-task-card {
+.active-task-card-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-task-card-change {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-focus);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
+  padding: 0.3em 0.4em;
+  border-radius: 6px;
+  transition: opacity 200ms ease;
+}
+
+.active-task-card-change:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
 .active-task-card:hover,
 .active-task-card:focus-visible,
 .active-task-card.picker-open {
   border-color: var(--color-focus);
-  box-shadow: 0 0 0 1px var(--color-focus);
   outline: none;
 }
 
 .active-task-card.empty {
-  border-left-color: var(--border-color);
   opacity: 0.85;
 }
 
@@ -452,11 +527,11 @@
   font-style: italic;
 }
 
-/* Lightweight task picker dropdown for the Active Task Card. */
+/* Lightweight task picker dropdown for the Active Task Card. Matches the
+   card's width (width:100% / max-width:560px, no hard min-width). */
 .task-picker {
   width: 100%;
   max-width: 560px;
-  min-width: 500px;
   max-height: 280px;
   overflow-y: auto;
   background: var(--bg-secondary);

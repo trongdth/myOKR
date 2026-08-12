@@ -127,6 +127,58 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     await expect(card).toContainText('No task');
   });
 
+  test('Active Task Card shows the KR subtitle (objective → KR) when the task links to a KR', async ({ page }) => {
+    // Seed task 'Design new dashboard layout' (task-1) links to kr-1 (obj-1
+    // 'Ship myOKR v2.0'). The subtitle line resolves objective.title → kr.title.
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    const subtitle = page.locator('.active-task-card-subtitle');
+    await expect(subtitle).toBeVisible();
+    await expect(subtitle).toContainText('Ship myOKR v2.0');
+    await expect(subtitle).toContainText('Complete 15 feature tickets');
+  });
+
+  test('Active Task Card shows a fallback subtitle when the task has no KR', async ({ page }) => {
+    // Seed task 'Write API documentation' (task-3) has no keyResultId.
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Write API documentation")').click();
+
+    const subtitle = page.locator('.active-task-card-subtitle');
+    await expect(subtitle).toBeVisible();
+    // No KR → fallback text (not empty, not the KR title).
+    await expect(subtitle).toContainText(/no key result|unlink/i);
+  });
+
+  test('Active Task Card has a decorative left icon tile and a cyan Change button', async ({ page }) => {
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    // Decorative square icon tile on the left (no role / aria, pure decoration).
+    await expect(page.locator('.active-task-card .active-task-card-icon')).toBeVisible();
+    // Cyan "Change" button on the right edge opens the picker.
+    const change = page.locator('.active-task-card .active-task-card-change');
+    await expect(change).toBeVisible();
+    await expect(change).toHaveText(/change/i);
+    await change.click();
+    await expect(page.locator('.task-picker')).toBeVisible();
+  });
+
+  test('Active Task Card has no left accent border', async ({ page }) => {
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    // The old 3px cyan border-left was removed; the card uses a uniform border.
+    const borderLeft = await page.locator('.active-task-card').evaluate(
+      el => getComputedStyle(el).borderLeftWidth
+    );
+    // All borders should be the same width (no 3px accent on the left).
+    const borderRight = await page.locator('.active-task-card').evaluate(
+      el => getComputedStyle(el).borderRightWidth
+    );
+    expect(borderLeft).toBe(borderRight);
+  });
+
   test('Active Task Card picker lists incomplete tasks and selects one', async ({ page }) => {
     await page.locator('.active-task-card').click();
     const picker = page.locator('.task-picker');
@@ -169,6 +221,87 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await expect(bar.locator('.session-bottom-bar-audio')).toBeVisible();
     await expect(bar.locator('.session-bottom-bar-queue')).toBeVisible();
     await expect(bar.locator('.session-bottom-bar-stats')).toBeVisible();
+  });
+
+  test('each bottom-bar slot is a rounded card on bg-card (not a flat text row)', async ({ page }) => {
+    // The three slots are distinct rounded containers, not a flat row divided
+    // by a top border line (ADR-0016 redesign follow-up).
+    for (const sel of ['.session-bottom-bar-audio', '.session-bottom-bar-queue', '.session-bottom-bar-stats']) {
+      const slot = page.locator(sel);
+      const styles = await slot.evaluate(el => {
+        const cs = getComputedStyle(el);
+        return { radius: cs.borderRadius, bg: cs.backgroundColor };
+      });
+      // Rounded (not 0). 8px+ radius.
+      expect(Number(styles.radius.replace('px', ''))).toBeGreaterThanOrEqual(8);
+    }
+    // The bar itself no longer has a top divider border.
+    const barBorderTop = await page.locator('.session-bottom-bar').evaluate(
+      el => getComputedStyle(el).borderTopWidth
+    );
+    expect(Number(barBorderTop.replace('px', ''))).toBe(0);
+  });
+
+  test('audio card has an Ambient subtitle line under the preset name', async ({ page }) => {
+    const audio = page.locator('.session-bottom-bar-audio');
+    await expect(audio.locator('.audio-widget-subtitle')).toBeVisible();
+    await expect(audio.locator('.audio-widget-subtitle')).toHaveText(/ambient/i);
+  });
+
+  test('stats card shows a large numeric count beside the label', async ({ page }) => {
+    const stats = page.locator('.session-bottom-bar-stats');
+    await expect(stats.locator('.session-stats-count')).toBeVisible();
+    await expect(stats.locator('.session-stats-label')).toBeVisible();
+    // Count is rendered larger than the label (mockup: big number).
+    const countSize = await stats.locator('.session-stats-count').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+    const labelSize = await stats.locator('.session-stats-label').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+    expect(countSize).toBeGreaterThan(labelSize);
+  });
+
+  test('timer ring progress stroke is solid cyan (no gradient, thick)', async ({ page }) => {
+    // Stage a task + start so progress > 0 and the arc is visible.
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
+    await openSession(page);
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item').first().click();
+    await page.locator('.timer-section button:has-text("Start")').click();
+    await page.waitForTimeout(200);
+
+    const stroke = await page.locator('.timer-ring-progress').evaluate(el => {
+      const cs = getComputedStyle(el);
+      return { stroke: cs.stroke, width: cs.strokeWidth };
+    });
+    // NOT a url(#gradient) reference — solid color.
+    expect(stroke.stroke).not.toContain('url(');
+    // Thick (mockup target ~14, was 6).
+    expect(parseFloat(stroke.width)).toBeGreaterThanOrEqual(10);
+    // Cyan: the stroke resolves to --color-primary #22D3EE = rgb(34, 211, 238).
+    await expect.poll(async () => {
+      const rgb = await page.locator('.timer-ring-progress').evaluate(el => getComputedStyle(el).stroke);
+      return rgb;
+    }, { timeout: 3000 }).toMatch(/rgb\(34,\s*211,\s*238\)|#22d3ee/i);
+    await page.locator('.timer-section button:has-text("Pause")').click();
+  });
+
+  test('SESSION x OF y label is cyan, not muted gray', async ({ page }) => {
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
+    await openSession(page);
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+
+    const label = page.locator('.timer-session-of');
+    await expect(label).toBeVisible();
+    const color = await label.evaluate(el => getComputedStyle(el).color.toLowerCase());
+    // Must NOT be the old muted gray (#71717a / rgb(113, 113, 122)).
+    expect(color).not.toMatch(/113,\s*113,\s*122/);
+    // Must be cyan (--color-focus #22d3ee = rgb(34, 211, 238)).
+    expect(color).toMatch(/rgb\(34,\s*211,\s*238\)|#22d3ee/);
   });
 
   test('Stats widget shows today\'s completed session count', async ({ page }) => {
@@ -289,21 +422,38 @@ test.describe('Queue widget + Day-plan picker (ticket 05)', () => {
     await openSession(page);
   });
 
-  test('Queue widget shows the active task title + remaining pomos', async ({ page }) => {
-    // Seed task 'Design new dashboard layout' has completed 3 / estimated 5 → 2 left.
+  test('Queue widget shows the NEXT queued task (not the active one) under "UP NEXT IN QUEUE"', async ({ page }) => {
+    // The middle card now shows the next task in the Day-plan queue that isn't
+    // the active task (behavior change from ticket 05's active-task mirror).
     await page.locator('.active-task-card').click();
     await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
 
     const queue = page.locator('.queue-widget');
     await expect(queue).toBeVisible();
-    await expect(queue).toContainText('Design new dashboard layout');
-    await expect(queue.locator('.queue-remaining')).toContainText('2');
+    // Eyebrow label is the "UP NEXT IN QUEUE" caption.
+    await expect(queue.locator('.queue-eyebrow')).toHaveText(/up next in queue/i);
+    // The preview must NOT be the active task title (it's the NEXT one).
+    await expect(queue).not.toContainText('Design new dashboard layout');
+    // The preview string is a non-empty task title.
+    const preview = (await queue.locator('.queue-title').textContent()) ?? '';
+    expect(preview.trim().length).toBeGreaterThan(0);
   });
 
-  test('Queue widget shows empty state linking to Day plan when no task is active', async ({ page }) => {
+  test('Queue widget shows empty state linking to Day plan when the queue is exhausted', async ({ page }) => {
+    // With no active task and a populated queue, the "next" task is simply the
+    // first queued task — so the empty state only triggers when the queue has
+    // no items at all. Stage a single-task queue by completing/skipping all but
+    // one is heavy; instead assert the empty-state copy shape directly by
+    // wiping the TodayPlan.
+    await page.evaluate(async () => {
+      const { saveTodayPlan } = await import('/src/lib/today-focus.ts');
+      await saveTodayPlan({ date: '1970-01-01', taskIds: [], skippedIds: [] });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.waitForTimeout(200);
+
     const queue = page.locator('.queue-widget');
     await expect(queue).toBeVisible();
-    // No active task → empty state offers a link to the Day plan.
     await expect(queue).toContainText(/pick a task|no task|plan/i);
   });
 });
