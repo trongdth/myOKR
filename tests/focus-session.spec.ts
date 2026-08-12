@@ -139,6 +139,17 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     // Picker closes after selection.
     await expect(page.locator('.task-picker')).toHaveCount(0);
   });
+
+  test('picker uses menu semantics (not listbox) so mixed actions are accessible', async ({ page }) => {
+    // The picker contains task options AND non-option actions (Clear, Plan your
+    // day). A listbox may only hold options; a menu allows mixed menuitems.
+    await page.locator('.active-task-card').click();
+    const picker = page.locator('.task-picker');
+    await expect(picker).toBeVisible();
+    await expect(picker).toHaveAttribute('role', 'menu');
+    // Task items are menuitems.
+    await expect(picker.locator('.task-picker-item').first()).toHaveAttribute('role', 'menuitem');
+  });
 });
 
 // ==========================================

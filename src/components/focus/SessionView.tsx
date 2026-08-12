@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Pause, Play, RotateCcw, Settings } from 'lucide-react';
 import ConfirmModal from '../ConfirmModal';
 import NumberInput from '../NumberInput';
@@ -53,33 +53,29 @@ export default function SessionView({
 
   // Day plan queue (ADR-0017): SessionView reads TodayPlan directly so the
   // Queue widget + picker reflect what the user staged on the Day plan tab.
-  // Refreshed on mount and on window focus (the user edits the plan by
-  // switching tabs, which remounts/refreshes on return). No live localStorage
-  // subscription in v1 — single-window app, tab-switch suffices.
-  const [planVersion, setPlanVersion] = useState(0);
+  // The resolved queue lives in state and is recomputed in an effect whenever
+  // the tasks list changes or a refresh signal fires (window focus /
+  // myokr-data-synced — the user edits the plan by switching tabs, which
+  // remounts/refreshes on return). No live localStorage subscription in v1.
+  const [queuedTasks, setQueuedTasks] = useState<PomodoroTask[]>([]);
   useEffect(() => {
-    const refresh = () => setPlanVersion(v => v + 1);
+    const resolve = () => {
+      const plan = loadTodayPlan();
+      if (!plan || plan.taskIds.length === 0) { setQueuedTasks([]); return; }
+      const byId = new Map(tasks.map(t => [t.id, t]));
+      setQueuedTasks(plan.taskIds
+        .map(id => byId.get(id))
+        .filter((t): t is PomodoroTask => !!t && !t.isCompleted));
+    };
+    resolve();
+    const refresh = () => resolve();
     window.addEventListener('focus', refresh);
     window.addEventListener('myokr-data-synced', refresh);
     return () => {
       window.removeEventListener('focus', refresh);
       window.removeEventListener('myokr-data-synced', refresh);
     };
-  }, []);
-
-  // Resolve TodayPlan.taskIds against the live tasks list, preserving queue
-  // order (NOW first). Drops completed/skipped/missing tasks. The active task
-  // may not be in the queue (e.g. staged via requestedTaskId before a plan
-  // exists) — that's fine; it still shows in the card, just not the picker.
-  const queuedTasks: PomodoroTask[] = useMemo(() => {
-    void planVersion; // re-read when the refresh counter bumps.
-    const plan = loadTodayPlan();
-    if (!plan || plan.taskIds.length === 0) return [];
-    const byId = new Map(tasks.map(t => [t.id, t]));
-    return plan.taskIds
-      .map(id => byId.get(id))
-      .filter((t): t is PomodoroTask => !!t && !t.isCompleted);
-  }, [tasks, planVersion]);
+  }, [tasks]);
 
   // Consume requestedTaskId — e.g. "Start focus" staged from the Day plan.
   useEffect(() => {
@@ -299,12 +295,15 @@ function TaskPicker({
 }) {
   // tasks is already filtered to incomplete + queue-ordered by the caller.
   const choices = tasks;
+  // role="menu" (not listbox): the picker mixes task options with non-option
+  // actions (Clear, Plan your day), which a listbox forbids. A menu allows
+  // mixed menuitem children, matching the dropdown's actual behavior.
   return (
-    <div className="task-picker" role="listbox" aria-label="Pick active task">
+    <div className="task-picker" role="menu" aria-label="Pick active task">
       {choices.length === 0 && (
         <div className="task-picker-empty">
           <span>Nothing queued for today.</span>
-          <button type="button" className="task-picker-plan-link" onClick={onPlanDay}>
+          <button type="button" role="menuitem" className="task-picker-plan-link" onClick={onPlanDay}>
             Plan your day →
           </button>
         </div>
@@ -313,8 +312,8 @@ function TaskPicker({
         <button
           key={t.id}
           type="button"
-          role="option"
-          aria-selected={t.id === activeTaskId}
+          role="menuitem"
+          aria-checked={t.id === activeTaskId}
           className={`task-picker-item${t.id === activeTaskId ? ' active' : ''}`}
           onClick={() => onPick(t.id)}
         >
@@ -323,7 +322,7 @@ function TaskPicker({
         </button>
       ))}
       {activeTaskId && (
-        <button type="button" className="task-picker-clear" onClick={onClear}>
+        <button type="button" role="menuitem" className="task-picker-clear" onClick={onClear}>
           Clear active task
         </button>
       )}
