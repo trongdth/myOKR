@@ -307,3 +307,87 @@ test.describe('Queue widget + Day-plan picker (ticket 05)', () => {
     await expect(queue).toContainText(/pick a task|no task|plan/i);
   });
 });
+
+// ==========================================
+// Regression: focus completion → short break transition
+// ==========================================
+
+test.describe('Focus completion transitions to short break', () => {
+  test('a completed focus auto-starts the short break (with active task)', async ({ page }) => {
+    await waitForApp(page);
+    // 1-min focus / 1-min break, auto-start breaks ON (posture ii).
+    await openSession(page);
+    await page.locator('.timer-controls button[title="Settings"]').click();
+    const inputs = page.locator('.settings-grid input[type="number"]');
+    await inputs.nth(0).fill('1'); // focus
+    await inputs.nth(1).fill('1'); // short break
+    // Turn auto-start breaks ON (the mock seed defaults it to false).
+    const breakToggle = page.locator('.toggle-row:has-text("Auto-start breaks") .toggle-switch');
+    if (await breakToggle.evaluate(el => !el.classList.contains('on'))) await breakToggle.click();
+    await page.locator('.timer-controls button[title="Settings"]').click();
+
+    // Speed up so 1-min focus completes in ~3s.
+    await page.evaluate(() => {
+      const origInterval = window.setInterval.bind(window);
+      const origTimeout = window.setTimeout.bind(window);
+      const speed = (ms: number) => ms >= 500 ? Math.max(ms / 20, 10) : ms;
+      (window as any).setInterval = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+        origInterval(fn, ms !== undefined ? speed(ms) : ms, ...args);
+      (window as any).setTimeout = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+        origTimeout(fn, ms !== undefined ? speed(ms) : ms, ...args);
+    });
+
+    // Stage a task via the Day plan (replan + picker).
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
+    await openSession(page);
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item').first().click();
+    await expect(page.locator('.active-task-card')).not.toContainText('No task');
+
+    // Start focus.
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Focus completes → Short Break auto-starts.
+    await expect(page.locator('button.session-tab.active:has-text("Short Break")')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('a completed focus switches to the short break tab with correct duration (NO active task)', async ({ page }) => {
+    // Regression guard: the new Session tab defaults to no active task (the
+    // TaskList is gone). A focus run without a task must still transition to
+    // the break — the break logic is independent of task attribution. With
+    // autoStartBreaks OFF (the mock default), the break stages but doesn't
+    // auto-start; we assert the tab switches and the duration is correct.
+    await waitForApp(page);
+    await openSession(page);
+    await page.locator('.timer-controls button[title="Settings"]').click();
+    const inputs = page.locator('.settings-grid input[type="number"]');
+    await inputs.nth(0).fill('1');
+    await inputs.nth(1).fill('1');
+    await page.locator('.timer-controls button[title="Settings"]').click();
+
+    await page.evaluate(() => {
+      const origInterval = window.setInterval.bind(window);
+      const origTimeout = window.setTimeout.bind(window);
+      const speed = (ms: number) => ms >= 500 ? Math.max(ms / 20, 10) : ms;
+      (window as any).setInterval = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+        origInterval(fn, ms !== undefined ? speed(ms) : ms, ...args);
+      (window as any).setTimeout = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+        origTimeout(fn, ms !== undefined ? speed(ms) : ms, ...args);
+    });
+
+    // Start focus with NO task — dismiss the "No Task Selected" warning.
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('.confirm-modal button:has-text("Start Anyway")')).toBeVisible();
+    await page.locator('.confirm-modal button:has-text("Start Anyway")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Focus completes → Short Break tab activates with the break duration.
+    await expect(page.locator('button.session-tab.active:has-text("Short Break")')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('.timer-digits')).toHaveText('01:00');
+  });
+});

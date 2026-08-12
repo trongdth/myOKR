@@ -351,6 +351,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [sessionType, completedPomos, activeTaskId, activeTask, tasks, settings]);
 
+  // Keep a ref to the latest handleSessionComplete so the Tauri timer-listener
+  // effect (below) doesn't need to re-register when the callback's deps change.
+  // Without this, a completion that updates `tasks`/`sessionType` changes the
+  // callback's identity, re-running the listener effect while the async
+  // listen() promises are still pending — the old timer-complete listener
+  // leaks (can't be unregistered) and fires with a stale closure, causing a
+  // double completion that skips the break and restarts focus.
+  const handleSessionCompleteRef = useRef(handleSessionComplete);
+  useEffect(() => {
+    handleSessionCompleteRef.current = handleSessionComplete;
+  }, [handleSessionComplete]);
+
   // ----- Timer tick (Tauri Rust / Browser Fallback) -----
   useEffect(() => {
     if (!IS_TAURI) {
@@ -376,6 +388,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // `cancelled` guards the async `listen()` registration: if the effect re-runs
     // (or unmounts) before the listen() promises resolve, the unlisten functions
     // would still be null and the handlers would leak — firing duplicate ticks.
+    // The effect depends only on [isRunning] (not handleSessionComplete) and
+    // calls the latest handler via a ref, so the listeners are registered once
+    // per run and never leak from a mid-run re-registration.
     let cancelled = false;
     let unlistenTick: (() => void) | null = null;
     let unlistenComplete: (() => void) | null = null;
@@ -392,7 +407,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }).catch(console.error);
 
     listen('timer-complete', () => {
-      handleSessionComplete();
+      handleSessionCompleteRef.current();
     }).then(fn => {
       if (cancelled) fn();
       else unlistenComplete = fn;
@@ -403,7 +418,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (unlistenTick) unlistenTick();
       if (unlistenComplete) unlistenComplete();
     };
-  }, [isRunning, handleSessionComplete]);
+  }, [isRunning]);
 
   // Sync state on window focus
   useEffect(() => {
