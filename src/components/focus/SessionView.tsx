@@ -374,7 +374,7 @@ function TaskPicker({
           key={t.id}
           type="button"
           role="menuitem"
-          aria-checked={t.id === activeTaskId}
+          aria-current={t.id === activeTaskId ? 'true' : undefined}
           className={`task-picker-item${t.id === activeTaskId ? ' active' : ''}`}
           onClick={() => onPick(t.id)}
         >

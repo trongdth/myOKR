@@ -202,6 +202,22 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     // Task items are menuitems.
     await expect(picker.locator('.task-picker-item').first()).toHaveAttribute('role', 'menuitem');
   });
+
+  test('active task item marks selection via aria-current, not aria-checked (ARIA validity)', async ({ page }) => {
+    // aria-checked is invalid on role="menuitem" (it belongs to
+    // menuitemradio/menuitemcheckbox). The picker mixes task menuitems with
+    // non-option actions (Clear / Plan your day), so it can't become a listbox
+    // or a pure radio group — aria-current="true" is the correct way to mark
+    // the selected menuitem.
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await page.locator('.active-task-card').click(); // reopen
+
+    const activeItem = page.locator('.task-picker-item:has-text("Design new dashboard layout")');
+    await expect(activeItem).toHaveAttribute('aria-current', 'true');
+    // aria-checked must NOT be present on a menuitem.
+    await expect(activeItem).not.toHaveAttribute('aria-checked', /.*/);
+  });
 });
 
 // ==========================================

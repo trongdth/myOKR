@@ -152,3 +152,45 @@ test.describe('Pomodoro: Ambient sound preset picker (ADR-0015)', () => {
     await expect(group.locator('.ambient-chip', { hasText: 'Rain' })).not.toHaveClass(/\bactive\b/);
   });
 });
+
+// ==========================================
+// Scheduler pause-state guard (ADR-0015)
+// ==========================================
+// The ambient engines (Rain/Forest/Café) each run a recursive setTimeout
+// scheduler that spawns an ephemeral sound then re-arms itself. If the
+// AudioContext is not in a running state, the spawn must be SKIPPED — otherwise
+// currentTime freezes (suspended/interrupted) or the context is gone (closed),
+// and re-scheduling piles up overlapping node graphs that only resolve once the
+// context later resumes. The guard rule is centralized in shouldTickAudio(state)
+// so all three engines share it.
+//
+// Sources of truth for the "must pause" set:
+//  - 'closed': terminal, per the Web Audio spec.
+//  - 'suspended': currentTime is frozen — documented in ADR-0015.
+//  - 'interrupted': iOS Safari places a context here on phone-call/Siri
+//    interruption; currentTime freezes the same way as 'suspended'.
+
+test.describe('Ambient scheduler pause-state guard', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('shouldTickAudio pauses on closed, suspended, AND interrupted; runs otherwise', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { shouldTickAudio } = await import('/src/lib/focus-music.ts');
+      return {
+        running: shouldTickAudio('running'),
+        suspended: shouldTickAudio('suspended'),
+        interrupted: shouldTickAudio('interrupted'),
+        closed: shouldTickAudio('closed'),
+      };
+    });
+    // Only 'running' may tick (spawn + re-arm).
+    expect(result.running).toBe(true);
+    // All three pause states must skip the tick.
+    expect(result.suspended).toBe(false);
+    expect(result.interrupted).toBe(false);
+    expect(result.closed).toBe(false);
+  });
+});

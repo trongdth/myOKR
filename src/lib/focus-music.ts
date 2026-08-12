@@ -40,11 +40,51 @@ interface Engine {
 abstract class AbstractEngine implements Engine {
   protected nodes: AudioNode[] = [];
   protected lfos: OscillatorNode[] = [];
-  protected timers: number[] = [];
+  // Only the PENDING timer is held here. Each tick clears its own id before
+  // re-arming, so this stays length-1 for the engine's lifetime instead of
+  // growing unboundedly (the old impl pushed every fired id, accumulating
+  // tens of thousands per hour on the Rain engine's 30–150 ms loop).
+  protected timer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * The shared recursive-scheduler loop. Every engine's periodic spawn
+   * (droplet / chirp / clink) is the same shape: guard the AudioContext state,
+   * spawn one event, then re-arm with a random delay in [minDelay, maxDelay].
+   * Centralizing it means a fix to the guard (e.g. the 'interrupted' state)
+   * or the timer bookkeeping applies to all three engines at once.
+   *
+   * On any non-'running' state the spawn is skipped but the loop still re-arms
+   * (cheaply, every 100 ms while paused) so it self-resumes when the context
+   * returns to running. `dispose()` clears the pending timer to stop the loop.
+   */
+  protected scheduleLoop(
+    audioCtx: AudioContext,
+    spawn: () => void,
+    minDelay: number,
+    maxDelay: number,
+    firstMinDelay: number,
+    firstMaxDelay: number,
+  ): void {
+    const tick = () => {
+      this.timer = null;
+      // Guard: skip the spawn unless the context is running (see
+      // shouldTickAudio). Still re-arm so we self-resume on resume.
+      if (shouldTickAudio(audioCtx.state)) {
+        spawn();
+      }
+      const delay = shouldTickAudio(audioCtx.state)
+        ? rand(minDelay, maxDelay)
+        : 100; // pause poll
+      this.timer = setTimeout(tick, delay);
+    };
+    this.timer = setTimeout(tick, rand(firstMinDelay, firstMaxDelay));
+  }
 
   dispose(): void {
-    this.timers.forEach(clearTimeout);
-    this.timers = [];
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
     this.lfos.forEach((o) => {
       try {
         o.stop();
@@ -158,6 +198,24 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+/**
+ * The pause rule shared by every engine scheduler. Returns true only when the
+ * AudioContext is `'running'` — the one state where currentTime advances and
+ * scheduling a spawn is safe. In every other state the tick must be SKIPPED:
+ *
+ * - `'closed'`: terminal (Web Audio spec); spawning would throw.
+ * - `'suspended'`: currentTime is frozen, so scheduled spawns pile up and
+ *   overlap until the context later resumes.
+ * - `'interrupted'`: iOS Safari enters this on phone-call/Siri interruption;
+ *   currentTime freezes the same way as `'suspended'`.
+ *
+ * Centralized so the three engines (Rain/Forest/Café) can't drift apart on
+ * which states they treat as a pause.
+ */
+export function shouldTickAudio(state: AudioContextState): boolean {
+  return state === 'running';
+}
+
 // ---- RainEngine -----------------------------------------------------------
 // Body: pink noise → bandpass (~3 kHz, Q 0.7), slow LFO on cutoff + master gain
 // for wind-shifting density. Droplets: white-noise impulses → highpass (~2.5 kHz),
@@ -228,7 +286,12 @@ class RainEngine extends AbstractEngine {
     // 3. Pre-cached Droplet Impulse Buffer & Scheduler
     // ------------------------------------------------------------------------
     this.dropletBuffer = this.createDropletBuffer(audioCtx);
-    this.scheduleDroplets(audioCtx, masterFilter);
+    this.scheduleLoop(
+      audioCtx,
+      () => this.spawnDroplet(audioCtx, masterFilter),
+      30, 150, // ongoing droplet density window (ms)
+      50, 200, // first droplet delay window (ms)
+    );
   }
 
   /**
@@ -244,30 +307,6 @@ class RainEngine extends AbstractEngine {
       data[i] = (Math.random() * 2 - 1) * Math.exp(-6 * t);
     }
     return buf;
-  }
-
-  private scheduleDroplets(
-    audioCtx: AudioContext,
-    destination: AudioNode,
-  ): void {
-    const tick = () => {
-      if (audioCtx.state === "closed") return;
-      // If context is suspended, wait for it to resume to avoid scheduling collisions
-      if (audioCtx.state === "suspended") {
-        const timerId = window.setTimeout(tick, 100);
-        this.timers.push(timerId);
-        return;
-      }
-
-      this.spawnDroplet(audioCtx, destination);
-
-      // Random density variation for natural falling rhythm
-      const timerId = window.setTimeout(tick, rand(30, 150));
-      this.timers.push(timerId);
-    };
-
-    const initialTimerId = window.setTimeout(tick, rand(50, 200));
-    this.timers.push(initialTimerId);
   }
 
   private spawnDroplet(audioCtx: AudioContext, destination: AudioNode): void {
@@ -395,23 +434,12 @@ class ForestEngine extends AbstractEngine {
     reverb.connect(out);
     this.nodes.push(reverb);
 
-    this.scheduleChirps(audioCtx, reverb);
-  }
-
-  private scheduleChirps(audioCtx: AudioContext, reverb: AudioNode) {
-    const tick = () => {
-      if (audioCtx.state === "closed") return;
-      if (audioCtx.state === "suspended") {
-        const timerId = window.setTimeout(tick, 100);
-        this.timers.push(timerId);
-        return;
-      }
-      this.spawnChirp(audioCtx, reverb);
-      const timerId = window.setTimeout(tick, rand(3000, 10000));
-      this.timers.push(timerId);
-    };
-    const initialTimerId = window.setTimeout(tick, rand(1500, 4000));
-    this.timers.push(initialTimerId);
+    this.scheduleLoop(
+      audioCtx,
+      () => this.spawnChirp(audioCtx, reverb),
+      3000, 10000, // ongoing chirp spacing (ms)
+      1500, 4000, // first chirp delay window (ms)
+    );
   }
 
   private spawnChirp(audioCtx: AudioContext, reverb: AudioNode) {
@@ -541,26 +569,12 @@ class CafeEngine extends AbstractEngine {
     // ------------------------------------------------------------------------
     // 3. Periodic Ceramic Modal Clinks
     // ------------------------------------------------------------------------
-    this.scheduleClinks(audioCtx, reverb);
-  }
-
-  private scheduleClinks(audioCtx: AudioContext, reverb: AudioNode): void {
-    const tick = () => {
-      if (audioCtx.state === "closed") return;
-      if (audioCtx.state === "suspended") {
-        const timerId = window.setTimeout(tick, 100);
-        this.timers.push(timerId);
-        return;
-      }
-
-      this.spawnModalClink(audioCtx, reverb);
-
-      const timerId = window.setTimeout(tick, rand(2000, 7000));
-      this.timers.push(timerId);
-    };
-
-    const initialTimerId = window.setTimeout(tick, rand(1000, 3000));
-    this.timers.push(initialTimerId);
+    this.scheduleLoop(
+      audioCtx,
+      () => this.spawnModalClink(audioCtx, reverb),
+      2000, 7000, // ongoing clink spacing (ms)
+      1000, 3000, // first clink delay window (ms)
+    );
   }
 
   private spawnModalClink(audioCtx: AudioContext, reverb: AudioNode): void {
