@@ -3,6 +3,7 @@ import { getAutomergeDoc, updateAutomergeDoc } from '../lib/automerge-storage';
 import type { PomodoroSettings } from '../lib/pomodoro-storage';
 import { DEFAULT_SETTINGS } from '../lib/pomodoro-storage';
 import NumberInput from './NumberInput';
+import AmbientPresetPicker from './shared/AmbientPresetPicker';
 import '../styles/app.css';
 
 export default function SessionDefaultsApp() {
@@ -112,15 +113,10 @@ export default function SessionDefaultsApp() {
                 aria-label="Auto-start focus"
               />
             </div>
-            <div className="toggle-row">
-              <span className="setting-label">Enable Focus Music</span>
-              <button
-                className={`toggle-switch${settings.focusMusicEnabled ? ' on' : ''}`}
-                onClick={() => updateSetting('focusMusicEnabled', !settings.focusMusicEnabled)}
-                type="button"
-                aria-label="Enable Focus Music"
-              />
-            </div>
+            <AmbientPresetPicker
+              value={settings.ambientPreset}
+              onChange={p => updateSetting('ambientPreset', p)}
+            />
           </div>
         </div>
       </div>

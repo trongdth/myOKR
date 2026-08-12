@@ -67,6 +67,254 @@
   gap: 2em;
 }
 
+/* Session-view wrapper (ADR-0016, ticket 04): holds the timer column above and
+   the 3-column bottom utility bar pinned at the bottom. The bar is a fixed
+   grid; the timer column grows to fill. */
+.session-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.session-view > .timer-section {
+  flex: 1;
+}
+
+.session-bottom-bar {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 0.8fr;
+  gap: 16px;
+  padding: 0;
+  margin-top: 16px;
+  align-items: stretch;
+}
+
+/* Each slot is a distinct rounded card on --bg-card (mockup 2026-08-12): the
+   old flat row + top border is gone. */
+.session-bottom-bar-audio,
+.session-bottom-bar-queue,
+.session-bottom-bar-stats {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.6em 0.9em;
+  box-shadow: var(--shadow-card);
+}
+
+/* Ambient audio widget (bottom-left, ticket 06): status pill + dropdown. The
+   card slot owns the surface; the widget button is transparent on top. */
+.audio-widget-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.audio-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: color 200ms ease;
+}
+
+.audio-widget:hover {
+  color: var(--color-focus);
+}
+
+.audio-widget.active {
+  color: var(--color-focus);
+}
+
+.audio-widget-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-focus) 14%, transparent);
+  color: var(--color-focus);
+}
+
+.audio-widget-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.audio-widget-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-widget.active .audio-widget-name {
+  color: var(--color-focus);
+}
+
+.audio-widget-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.audio-widget-chevron {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.audio-selector {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  min-width: 140px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.3em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-card);
+  z-index: 10;
+}
+
+.audio-option {
+  padding: 0.45em 0.7em;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  text-align: left;
+  cursor: pointer;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+}
+
+.audio-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.audio-option.active {
+  color: var(--bg-primary);
+  background: var(--color-focus);
+  border-color: var(--color-focus);
+}
+
+.session-bottom-bar-stats {
+  justify-content: flex-end;
+}
+
+/* Stats widget: large numeric count + two-line label (mockup 2026-08-12). */
+.session-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.session-stats-count {
+  font-family: var(--font-mono);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--color-focus);
+  line-height: 1;
+}
+
+.session-stats-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+}
+
+/* Queue widget (bottom-middle, ticket 05, redesigned 2026-08-12): eyebrow
+   "UP NEXT IN QUEUE" above the next task's title. No remaining-pomo count —
+   the card answers "what's after this?", not "what's running?". */
+.queue-widget {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15em;
+  width: 100%;
+  min-width: 0;
+}
+
+.queue-eyebrow {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+.queue-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-widget-empty {
+  justify-content: center;
+  align-items: center;
+}
+
+.queue-plan-link {
+  background: transparent;
+  border: none;
+  color: var(--color-focus);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+}
+
+.queue-plan-link:hover {
+  text-decoration: underline;
+}
+
+/* "Plan your day →" handoff inside the task picker's empty state. */
+.task-picker-plan-link {
+  display: block;
+  margin-top: 0.5em;
+  background: transparent;
+  border: none;
+  color: var(--color-focus);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.task-picker-plan-link:hover {
+  text-decoration: underline;
+}
+
 /* Session type tabs */
 .session-tabs {
   display: flex;
@@ -121,19 +369,19 @@
 .timer-ring-bg {
   fill: none;
   stroke: var(--bg-tertiary);
-  stroke-width: 6;
+  stroke-width: 14;
 }
 
 .timer-ring-progress {
   fill: none;
-  stroke: url(#timerGradient);
-  stroke-width: 6;
+  stroke: var(--color-focus);
+  stroke-width: 14;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.5s ease;
 }
 
 .timer-ring-progress.break-ring {
-  stroke: #4ade80;
+  stroke: var(--okr-on-track);
 }
 
 .timer-display {
@@ -153,34 +401,16 @@
   line-height: 1;
 }
 
-.timer-label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-top: 0.5em;
+/* session-of label (ADR-0016, ticket 03): per-task "SESSION x OF y" progress
+   shown ~8px below the digits. Cyan (--color-focus) so it reads as part of the
+   timer's focus semantics, with wider tracking for the mockup's tag feel. */
+.timer-session-of {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-focus);
+  margin-top: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.pomodoro-count {
-  display: flex;
-  gap: 0.35em;
-  justify-content: center;
-  margin-top: 0.75em;
-}
-
-.pomo-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-}
-
-.pomo-dot.filled {
-  background: var(--accent-cyan);
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 6px rgba(6, 182, 212, 0.4);
+  letter-spacing: 0.15em;
 }
 
 /* Timer controls */
@@ -188,6 +418,195 @@
   display: flex;
   gap: 1em;
   align-items: center;
+}
+
+/* Active Task Card (Row 3, ADR-0016, redesigned 2026-08-12): centered card
+   showing the task a focus session is attributed to. Layout = [icon tile]
+   [stacked label/title/subtitle] [Change button]. The old 3px cyan left border
+   is gone (the icon tile now carries the focus accent). Sits between the ring
+   and the controls. */
+.active-task-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1em;
+  width: 100%;
+  max-width: 560px;
+  /* No min-width: a hard floor overflowed panes narrower than it at the <900px
+     single-column tier (design-system.md responsive rule). The row layout
+     wraps its content; width:100% keeps it filling the column instead. */
+  padding: 1em 1.25em;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+/* Decorative square icon tile (focus accent). */
+.active-task-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-focus) 16%, transparent);
+  color: var(--color-focus);
+  border: 1px solid color-mix(in srgb, var(--color-focus) 40%, transparent);
+}
+
+.active-task-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  flex: 1;
+  min-width: 0;
+}
+
+.active-task-card-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.active-task-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.active-task-card-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-task-card-change {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-focus);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.3em 0.4em;
+  border-radius: 6px;
+  transition: opacity 200ms ease;
+}
+
+.active-task-card-change:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.active-task-card:hover,
+.active-task-card:focus-visible,
+.active-task-card.picker-open {
+  border-color: var(--color-focus);
+  outline: none;
+}
+
+.active-task-card.empty {
+  opacity: 0.85;
+}
+
+.active-task-card-empty {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Lightweight task picker dropdown for the Active Task Card. Matches the
+   card's width (width:100% / max-width:560px, no hard min-width). */
+.task-picker {
+  width: 100%;
+  max-width: 560px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.35em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-card);
+}
+
+.task-picker-empty {
+  padding: 0.75em 1em;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.task-picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.5em 0.75em;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+}
+
+.task-picker-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.task-picker-item.active {
+  background: color-mix(in srgb, var(--color-focus) 14%, transparent);
+  border-color: var(--color-focus);
+}
+
+.task-picker-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-picker-item-pomos {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.task-picker-clear {
+  margin-top: 2px;
+  padding: 0.5em 0.75em;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-picker-clear:hover {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
 .timer-controls .btn {
@@ -345,6 +764,48 @@
 
 .toggle-switch.on::after {
   transform: translateX(20px);
+}
+
+/* Ambient sound preset picker (ADR-0015) — segmented chips that replace the
+   legacy Focus-music toggle. */
+.ambient-picker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.5em 0;
+  flex-wrap: wrap;
+}
+
+.ambient-picker {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.ambient-chip {
+  padding: 0.3em 0.7em;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+}
+
+.ambient-chip:hover {
+  color: var(--text-primary);
+}
+
+.ambient-chip.active {
+  color: var(--bg-primary);
+  background: var(--color-focus);
+  border-color: var(--color-focus);
 }
 
 /* ===== TASK LIST (Phase 2) ===== */
@@ -1359,38 +1820,6 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
-}
-
-/* ===== PRIORITIZE BUTTON ===== */
-.timer-task-header {
-  width: 100%;
-  max-width: 600px;
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0.5em;
-}
-
-.prioritize-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-  padding: 0.5em 1em;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(6, 182, 212, 0.15));
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  border-radius: 8px;
-  color: var(--accent-purple, #a855f7);
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-}
-
-.prioritize-btn:hover {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(6, 182, 212, 0.25));
-  border-color: rgba(168, 85, 247, 0.5);
-  box-shadow: 0 0 16px rgba(168, 85, 247, 0.2);
-  color: #c084fc;
 }
 
 /* ===== PRIORITIZE MODAL ===== */

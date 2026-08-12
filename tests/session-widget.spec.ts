@@ -9,15 +9,45 @@ async function waitForApp(page: Page) {
   await page.locator('button[title="Session"]').first().click();
 }
 
+// The Session tab's TaskList is gone (ticket 03); addTask uses the Tasks tab
+// quick-add, selectTask uses the Session Active Task Card picker.
+async function openTasks(page: Page) {
+  const item = page.locator('button[title="Tasks"]').first();
+  if (!(await item.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  }
+  await item.click();
+  await page.waitForTimeout(300);
+}
+
+async function openSession(page: Page) {
+  await page.locator('button[title="Session"]').first().click();
+  await page.waitForTimeout(300);
+}
+
 async function addTask(page: Page, name: string) {
-  const input = page.locator('input[placeholder*="What are you working on?"]');
-  await input.fill(name);
-  await page.locator('button.add-task-btn').click();
-  await expect(page.locator(`.task-item:has-text("${name}")`)).toBeVisible();
+  await openTasks(page);
+  await page.locator('.quick-add-input').fill(name);
+  await page.locator('form.quick-add-bar').press('Enter');
+  await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
+}
+
+// Visit the Day plan tab and replan so newly-created tasks join the queue
+// (buildTodayList honors a saved plan's taskIds; only a replan re-ranks and
+// picks up new tasks). The Session picker is sourced from the Day plan queue
+// (ticket 05).
+async function replanDay(page: Page) {
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
 }
 
 async function selectTask(page: Page, name: string) {
-  await page.locator(`.task-item:has-text("${name}")`).click();
+  await replanDay(page);
+  await openSession(page);
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
 }
 
 // ==========================================

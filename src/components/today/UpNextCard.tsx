@@ -2,6 +2,7 @@ import { type CSSProperties } from 'react';
 import { ChevronUp } from 'lucide-react';
 import { EISENHOWER_META, type PomodoroTask } from '../../lib/pomodoro-storage';
 import type { KeyResult, Objective } from '../../lib/okr-storage';
+import { formatKrSubtitle } from '../../lib/okr-storage';
 import type { ScoreBreakdown } from '../../lib/today-focus';
 import { todaysSlice } from '../../lib/today-focus';
 
@@ -52,9 +53,7 @@ export default function UpNextCard({
       <div className="today-upnext-body">
         <div className="today-upnext-title">{task.title}</div>
         <div className="today-upnext-kr">
-          {kr
-            ? `${objective ? objective.title + ' → ' : ''}${kr.title}`
-            : 'No key result linked'}
+          {formatKrSubtitle(kr, objective)}
         </div>
       </div>
 

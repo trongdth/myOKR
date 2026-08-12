@@ -3,7 +3,7 @@ import { Timer, Play, X } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import type { KeyResult, Objective } from '../../lib/okr-storage';
 import { EISENHOWER_META } from '../../lib/pomodoro-storage';
-import { CONFIDENCE_META } from '../../lib/okr-storage';
+import { CONFIDENCE_META, formatKrSubtitle } from '../../lib/okr-storage';
 import type { ScoreBreakdown } from '../../lib/today-focus';
 import { getWhyReasons } from '../../lib/today-focus';
 
@@ -59,7 +59,7 @@ export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, 
       {kr && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
           {confidenceColor && <span className="confidence-dot" style={{ background: confidenceColor }} />}
-          <span>{objective ? `${objective.title} → ` : ''}{kr.title}</span>
+          <span>{formatKrSubtitle(kr, objective)}</span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({CONFIDENCE_META[kr.confidence].label})</span>
         </div>
       )}

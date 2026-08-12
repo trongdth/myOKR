@@ -50,7 +50,7 @@ test.describe('Import refreshes the active cycle', () => {
       settings: {
         focusDuration: 25, shortBreakDuration: 5, longBreakDuration: 15,
         pomosBeforeLongBreak: 4, autoStartBreaks: false, autoStartFocus: false,
-        focusMusicEnabled: false,
+        ambientPreset: 'none',
       },
       tasks: [],
       history: [],

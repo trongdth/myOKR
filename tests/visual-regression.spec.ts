@@ -73,11 +73,23 @@ test.describe('Visual regression (1a redesign)', () => {
   // timer ticks in real time (setInterval), so the deterministic running markers
   // are the `live` badge and the Pause control, not the elapsed ring.
   test('timer (running) @1280', async ({ page }) => {
+    // Create the task on the Tasks tab (Session TaskList is gone, ticket 03).
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await page.locator('[title="Tasks"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.quick-add-input').fill('Running Baseline Task');
+    await page.locator('form.quick-add-bar').press('Enter');
+    // Replan the Day plan so the new task joins the queue (the Session picker
+    // is sourced from TodayPlan.taskIds, ticket 05).
+    await page.locator('[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
+    // Select it via the Session Active Task Card picker.
     await page.locator('[title="Session"]').first().click();
     await page.waitForTimeout(300);
-    await page.locator('input[placeholder*="What are you working on?"]').fill('Running Baseline Task');
-    await page.locator('button.add-task-btn').click();
-    await page.locator('.task-item:has-text("Running Baseline Task")').click();
+    await page.locator('.active-task-card').click();
+    await page.locator('.task-picker-item:has-text("Running Baseline Task")').click();
     await page.locator('.timer-section button:has-text("Start")').click();
     await page.waitForTimeout(300);
     await expect(page).toHaveScreenshot('timer-running.png', {

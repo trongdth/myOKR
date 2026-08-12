@@ -18,8 +18,17 @@ async function waitForApp(page: Page) {
   await page.locator('button[title="Session"]').first().click();
 }
 
+// The Session picker is sourced from the Day plan queue (ticket 05); replan so
+// the seeded task joins the queue, then use the Session picker.
 async function selectTask(page: Page, name: string) {
-  await page.locator(`.task-item:has-text("${name}")`).click();
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
+  await page.locator('button[title="Session"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
 }
 
 // The seeded history already holds focus sessions for today (no taskId);

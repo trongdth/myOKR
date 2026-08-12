@@ -26,6 +26,28 @@ test.describe('Focus shell — Day plan tab (ticket 01)', () => {
     await expect(page.locator('.focus-header-title')).toHaveText('Sunday, 24 May');
   });
 
+  test('header shows a FOCUS eyebrow above the date title (ticket 01)', async ({ page }) => {
+    // Mirrors the Plan group's PLAN eyebrow (.plan-header-eyebrow). The eyebrow
+    // is a group marker on the shared FocusHeader, so it shows on all three
+    // Focus-group tabs; this test covers the Day plan tab, and the Session /
+    // Habits variants are covered below.
+    const eyebrow = page.locator('.focus-header .plan-header-eyebrow');
+    await expect(eyebrow).toBeVisible();
+    await expect(eyebrow).toHaveText('FOCUS');
+  });
+
+  test('FOCUS eyebrow also shows on the Session tab', async ({ page }) => {
+    await page.locator('button:has-text("Session")').first().click();
+    await page.waitForTimeout(200);
+    await expect(page.locator('.focus-header .plan-header-eyebrow')).toHaveText('FOCUS');
+  });
+
+  test('FOCUS eyebrow also shows on the Habits tab', async ({ page }) => {
+    await page.locator('button:has-text("Habits")').first().click();
+    await page.waitForTimeout(200);
+    await expect(page.locator('.focus-header .plan-header-eyebrow')).toHaveText('FOCUS');
+  });
+
   test('old "Today\'s Focus" header is gone', async ({ page }) => {
     await expect(page.locator('.today-title')).toHaveCount(0);
   });

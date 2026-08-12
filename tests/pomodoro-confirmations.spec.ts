@@ -10,29 +10,98 @@ async function waitForApp(page: Page) {
   await page.locator('button[title="Session"]').first().click();
 }
 
+// The Session tab's TaskList was removed in ticket 03 (ADR-0016); the Active
+// Task Card's picker (pulled forward into 03) is now the in-Session selection
+// surface. Task creation still happens on the Tasks tab (quick-add lands in
+// Backlog). selectTask opens the card picker on Session and picks the task.
+async function openTasks(page: Page) {
+  const item = page.locator('button[title="Tasks"]').first();
+  if (!(await item.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  }
+  await item.click();
+  await page.waitForTimeout(300);
+}
+
+async function openSession(page: Page) {
+  await page.locator('button[title="Session"]').first().click();
+  await page.waitForTimeout(300);
+}
+
 async function addTask(page: Page, name: string) {
-  const input = page.locator('input[placeholder*="What are you working on?"]');
+  await openTasks(page);
+  // Tasks tab quick-add bar (ticket 03): .quick-add-input + Enter submits the
+  // <form className="quick-add-bar">. New tasks land in the Backlog bucket.
+  const input = page.locator('.quick-add-input');
   await input.fill(name);
-  await page.locator('button.add-task-btn').click();
-  await expect(page.locator(`.task-item:has-text("${name}")`)).toBeVisible();
+  await input.press('Enter');
+  // Board card appears in the Backlog column.
+  await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
+}
+
+// Open the Task detail modal for a task by clicking its board card title on
+// the Tasks tab. The modal (TaskDetailModal.tsx) is the new home of the
+// PomoEstimatePopover and the Complete affordance after the Session TaskList
+// was removed (ticket 03 / ADR-0016).
+async function openTaskDetail(page: Page, name: string) {
+  await openTasks(page);
+  await page.locator(`.board-task-card:has-text("${name}") .card-title`).click();
+  await expect(page.locator('.task-detail-panel')).toBeVisible();
+}
+
+// Mark a task complete via its board card's tick button (Tasks tab). Faster
+// than opening the modal; equivalent to the old .task-checkbox inline click.
+// Tolerant of the task already being completed (e.g. auto-completed by Option
+// C when its estimate was met) — completed tasks leave the board, so the card
+// and its tick are gone; in that case this is a no-op.
+async function completeTaskInline(page: Page, name: string) {
+  await openTasks(page);
+  const tick = page.locator(`.board-task-card:has-text("${name}") .card-tick`);
+  if (await tick.count().catch(() => 0) > 0) {
+    await tick.click();
+  }
 }
 
 async function selectTask(page: Page, name: string) {
-  await page.locator(`.task-item:has-text("${name}")`).click();
+  // Replan the Day plan so newly-created tasks join the queue (the Session
+  // picker is sourced from TodayPlan.taskIds, ticket 05; a saved plan doesn't
+  // re-rank on its own).
+  await page.locator('button[title="Day plan"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  await page.waitForTimeout(500);
+  await openSession(page);
+  await page.locator('.active-task-card').click();
+  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  // When switching while a focus timer is running, setActiveTask stages the
+  // switch behind a "Switch Task" confirmation modal instead of updating the
+  // card immediately — so accept EITHER the card updating OR the modal. Tests
+  // that care about which path they're on assert it themselves afterwards.
+  await expect(async () => {
+    const cardHasName = await page.locator('.active-task-card').textContent().then(t => (t || '').includes(name));
+    const modalUp = await page.locator('.confirm-modal').count().then(c => c > 0);
+    expect(cardHasName || modalUp).toBeTruthy();
+  }).toPass({ timeout: 5000 });
 }
 
-// Bump a task's pomodoro estimate to 2 via the Adjust Total Pomodoros popover.
-// Under Option C a task auto-completes when its estimate is met; new tasks
-// default to estimate=1, so one session would finish them. Tests that need a
-// task to stay NOT-done after a single session bump it to 2 first (1/2).
+// Bump a task's pomodoro estimate to 2 via the Adjust Total Pomodoros popover
+// in the Task detail modal (Tasks tab). Under Option C a task auto-completes
+// when its estimate is met; new tasks default to estimate=1, so one session
+// would finish them. Tests that need a task to stay NOT-done after a single
+// session bump it to 2 first (1/2).
 async function bumpEstimateToTwo(page: Page, name: string) {
-  const pomoBadge = page.locator(`.task-item:has-text("${name}") .task-pomodoros`);
+  await openTaskDetail(page, name);
+  // The modal's pomodoro line renders PomoEstimatePopover with plain readout.
+  const pomoBadge = page.locator('.task-detail-panel .task-pomodoros');
   await pomoBadge.click();
   const popover = page.locator('.pomo-estimate-popover');
   await expect(popover).toBeVisible();
   await popover.locator('button.pomo-counter-btn:has-text("+")').click();
   await popover.locator('button.pomo-popover-confirm').click();
   await expect(popover).toHaveCount(0);
+  // Close the modal via its close button and confirm it's gone.
+  await page.locator('.task-detail-panel .modal-close-btn').click();
+  await expect(page.locator('.task-detail-panel')).toHaveCount(0);
 }
 
 async function openSettings(page: Page) {
@@ -128,12 +197,15 @@ test.describe('Pomodoro: No task selected warning', () => {
 
   test('shows warning when starting focus if active task was completed', async ({ page }) => {
     await addTask(page, 'Task to complete');
+    // Select the task on Session (sets it active), then complete it on Tasks
+    // via the board card's tick (the TaskList + checkbox were removed in
+    // ticket 03 / ADR-0016).
     await selectTask(page, 'Task to complete');
+    await completeTaskInline(page, 'Task to complete');
 
-    // Complete the task manually
-    await page.locator('.task-item:has-text("Task to complete") .task-checkbox').click();
-
-    // Click Start — warning modal should appear because the active task is completed
+    // Return to Session and click Start — warning modal should appear because
+    // the active task is completed.
+    await openSession(page);
     await page.locator('button:has-text("Start")').click();
 
     await expect(page.locator('.confirm-modal')).toBeVisible();
@@ -187,7 +259,7 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
 
     // Select Task Alpha and start focus
     await selectTask(page, 'Task Alpha');
-    await expect(page.locator('text=Working on:')).toContainText('Task Alpha');
+    await expect(page.locator('.active-task-card')).toContainText('Task Alpha');
     await page.locator('button:has-text("Start")').click();
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
@@ -196,7 +268,7 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
 
     // During break, switch to Task Beta
     await selectTask(page, 'Task Beta');
-    await expect(page.locator('text=Working on:')).toContainText('Task Beta');
+    await expect(page.locator('.active-task-card')).toContainText('Task Beta');
 
     // Wait for break to complete
     await waitForSessionTab(page, 'Focus');
@@ -220,11 +292,9 @@ test.describe('Pomodoro: Task changed auto-start confirmation', () => {
     // Wait for focus to complete
     await waitForSessionTab(page, 'Short Break');
 
-    // Complete Task Done (toggle checkbox)
-    const doneCheckbox = page.locator('.task-item:has-text("Task Done") .task-checkbox');
-    if (await doneCheckbox.isVisible()) {
-      await doneCheckbox.click();
-    }
+    // Complete Task Done via the Tasks board card's tick (the TaskList +
+    // checkbox were removed in ticket 03 / ADR-0016).
+    await completeTaskInline(page, 'Task Done');
 
     // Switch to Task Next
     await selectTask(page, 'Task Next');
@@ -324,7 +394,7 @@ test.describe('Pomodoro: Switch task while running', () => {
     // Confirm switch — task changes and timer resumes
     await page.locator('.confirm-modal button:has-text("Switch")').click();
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
-    await expect(page.locator('text=Working on:')).toContainText('Task Two');
+    await expect(page.locator('.active-task-card')).toContainText('Task Two');
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
   });
 
@@ -343,7 +413,7 @@ test.describe('Pomodoro: Switch task while running', () => {
     // Cancel — keep original task, timer resumes
     await page.locator('.confirm-modal button:has-text("Cancel")').click();
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
-    await expect(page.locator('text=Working on:')).toContainText('Task A');
+    await expect(page.locator('.active-task-card')).toContainText('Task A');
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
   });
 
@@ -362,11 +432,13 @@ test.describe('Pomodoro: Switch task while running', () => {
     // Switch task while paused — no confirmation
     await selectTask(page, 'Task Y');
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
-    await expect(page.locator('text=Working on:')).toContainText('Task Y');
+    await expect(page.locator('.active-task-card')).toContainText('Task Y');
   });
 
   test('does NOT show confirmation when no task was previously selected', async ({ page }) => {
     await addTask(page, 'First Task');
+    // addTask ends on Tasks; return to Session to reach the timer controls.
+    await openSession(page);
 
     // Start without task (confirm "Start Anyway")
     await page.locator('button:has-text("Start")').click();
@@ -376,7 +448,7 @@ test.describe('Pomodoro: Switch task while running', () => {
     // Select a task while running — no previous task, so no confirmation
     await selectTask(page, 'First Task');
     await expect(page.locator('.confirm-modal')).toHaveCount(0);
-    await expect(page.locator('text=Working on:')).toContainText('First Task');
+    await expect(page.locator('.active-task-card')).toContainText('First Task');
   });
 
   test('restores running state on startup and remains paused at correct remaining time when clicking Pause', async ({ page }) => {
@@ -478,9 +550,13 @@ test.describe('Pomodoro: Switch task while running', () => {
 
   test('opens the Adjust Total Pomodoros popover and successfully changes estimated pomodoros', async ({ page }) => {
     await addTask(page, 'Test Pomo Adjust');
-    
-    // Locate the pomo count badge '0/1' and click it
-    const pomoBadge = page.locator('.task-item:has-text("Test Pomo Adjust") .task-pomodoros');
+
+    // Open the Task detail modal — the popover's new home after the Session
+    // TaskList was removed (ticket 03 / ADR-0016).
+    await openTaskDetail(page, 'Test Pomo Adjust');
+
+    // Locate the pomodoro readout in the modal and click it to open the popover
+    const pomoBadge = page.locator('.task-detail-panel .task-pomodoros');
     await expect(pomoBadge).toBeVisible();
     await pomoBadge.click();
 
@@ -496,15 +572,17 @@ test.describe('Pomodoro: Switch task while running', () => {
     // Click confirm
     await popover.locator('button.pomo-popover-confirm').click();
 
-    // Verify the popover disappears and the count changes to '0/2'
+    // Verify the popover disappears and the modal readout updates to '0 / 2 planned'
     await expect(popover).toHaveCount(0);
-    await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0/2');
+    await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0 / 2 planned');
   });
 
   test('opens the Adjust Total Pomodoros popover, changes estimated pomodoros, and persists across reload', async ({ page }) => {
     await addTask(page, 'Test Pomo Persist');
-    
-    const pomoBadge = page.locator('.task-item:has-text("Test Pomo Persist") .task-pomodoros');
+
+    // Open the Task detail modal — the popover's new home (ticket 03).
+    await openTaskDetail(page, 'Test Pomo Persist');
+    const pomoBadge = page.locator('.task-detail-panel .task-pomodoros');
     await expect(pomoBadge).toBeVisible();
     await pomoBadge.click();
 
@@ -516,17 +594,18 @@ test.describe('Pomodoro: Switch task while running', () => {
 
     await popover.locator('button.pomo-popover-confirm').click();
     await expect(popover).toHaveCount(0);
-    await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0/2');
+    await expect(pomoBadge.locator('.task-pomo-count')).toHaveText('0 / 2 planned');
 
     // Reload the page to simulate closing and reopening the app
     await page.reload();
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
-    await page.locator('button[title="Session"]').first().click();
+    // The Tasks board is the new home of the pomo count badge (ticket 03).
+    await openTasks(page);
 
-    // Verify it persisted
-    const pomoBadgeReloaded = page.locator('.task-item:has-text("Test Pomo Persist") .task-pomodoros');
-    await expect(pomoBadgeReloaded.locator('.task-pomo-count')).toHaveText('0/2');
+    // Verify it persisted — the board card's .card-pomos shows '0/2'.
+    const cardPomos = page.locator('.board-task-card:has-text("Test Pomo Persist") .card-pomos');
+    await expect(cardPomos).toHaveText('0/2');
   });
 });
 
@@ -560,13 +639,13 @@ test.describe('Pomodoro: Long Break session completion', () => {
     await waitForSessionTab(page, 'Long Break');
 
     // In Long Break session:
-    // 1. Complete Task One manually via checkbox
-    const taskOneCheckbox = page.locator('.task-item:has-text("Task One") .task-checkbox');
-    await taskOneCheckbox.click();
+    // 1. Complete Task One via the Tasks board card's tick (the TaskList +
+    //    checkbox were removed in ticket 03 / ADR-0016).
+    await completeTaskInline(page, 'Task One');
 
     // 2. Select Task Two
     await selectTask(page, 'Task Two');
-    await expect(page.locator('text=Working on:')).toContainText('Task Two');
+    await expect(page.locator('.active-task-card')).toContainText('Task Two');
 
     // 3. Wait for Long Break to complete
     // When Long Break finishes, it MUST transition to Focus session tab
@@ -667,8 +746,11 @@ test.describe('Pomodoro: pomo count = current position during a running focus (d
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
 
     // Focus running; completedPomodoros still 0. Position semantics (A) => 1/2.
-    // Today: badge renders completedPomodoros => 0/2 (RED until A ships).
-    const badge = page.locator('.task-item:has-text("Position Task") .task-pomo-count');
+    // Read the badge on the Tasks board card (the TaskList was removed in
+    // ticket 03); the timer keeps running in the background via the always-
+    // mounted provider.
+    await openTasks(page);
+    const badge = page.locator('.board-task-card:has-text("Position Task") .card-pomos');
     await expect(badge).toHaveText('1/2', { timeout: 5000 });
   });
 });
