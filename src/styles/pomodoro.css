@@ -86,7 +86,10 @@
   grid-template-columns: 1fr 1.5fr 0.8fr;
   gap: 16px;
   padding: 0;
-  margin-top: 16px;
+  /* Match the timer column's internal row gap (.timer-section gap:2em) so the
+     whitespace above the bottom bar equals the whitespace between the Active
+     Task Card and the Start controls (2026-08-13 layout-parity feedback). */
+  margin-top: 2em;
   align-items: stretch;
 }
 

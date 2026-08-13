@@ -239,6 +239,29 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await expect(bar.locator('.session-bottom-bar-stats')).toBeVisible();
   });
 
+  test('vertical gap above the bottom bar equals the gap above the Start controls', async ({ page }) => {
+    // Layout parity (2026-08-13 feedback): the whitespace between the Active
+    // Task Card and the Start/Pause controls must equal the whitespace between
+    // the Start/Pause controls and the bottom utility bar. Measure the actual
+    // rendered geometry (not CSS values) so margin/flex distribution can't hide
+    // a difference. Allow a 1px tolerance for sub-pixel rounding.
+    const gaps = await page.evaluate(() => {
+      const card = document.querySelector('.active-task-card');
+      const controls = document.querySelector('.timer-controls');
+      const bar = document.querySelector('.session-bottom-bar');
+      if (!card || !controls || !bar) return null;
+      const c = card.getBoundingClientRect();
+      const t = controls.getBoundingClientRect();
+      const b = bar.getBoundingClientRect();
+      return {
+        cardToControls: t.top - c.bottom,
+        controlsToBar: b.top - t.bottom,
+      };
+    });
+    expect(gaps).not.toBeNull();
+    expect(Math.abs(gaps!.cardToControls - gaps!.controlsToBar)).toBeLessThanOrEqual(1);
+  });
+
   test('each bottom-bar slot is a rounded card on bg-card (not a flat text row)', async ({ page }) => {
     // The three slots are distinct rounded containers, not a flat row divided
     // by a top border line (ADR-0016 redesign follow-up).
