@@ -35,18 +35,24 @@ async function addTask(page: Page, name: string) {
   await expect(page.locator(`.board-task-card:has-text("${name}")`)).toBeVisible();
 }
 
-// Select a task as active via the Session tab's Active Task Card picker
-// (the TaskList left the Session tab in ticket 03; the picker is sourced from
-// the Day plan queue, ticket 05). Replan so the newly-created task joins the
-// queue.
+// Select a task as active via the Session tab's Task Switcher modal (opened
+// from the Active Task Card's "Change" button — the old inline dropdown picker
+// was replaced by the full-screen Task Switcher, 2026-08-13). Replan so the
+// newly-created task joins the queue.
 async function selectTaskOnTasksAndOpenSession(page: Page, name: string) {
   await page.locator('button[title="Day plan"]').first().click();
   await page.waitForTimeout(300);
   await page.locator('.focus-plan-day-btn').click();
   await page.waitForTimeout(500);
   await openSession(page);
-  await page.locator('.active-task-card').click();
-  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  await page.locator('.active-task-card-change').click();
+  await page.locator(`.switcher-task:has-text("${name}")`).click();
+}
+
+// Open the Task Switcher modal from the Active Task Card's "Change" button.
+async function openTaskSwitcher(page: Page) {
+  await page.locator('.active-task-card-change').click();
+  await expect(page.locator('.task-switcher')).toBeVisible();
 }
 
 test.describe('Focus shell — Session tab (ticket 02)', () => {
@@ -99,8 +105,8 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
 
   test('session-of label shows completed/estimated for the active task', async ({ page }) => {
     // Seed task 'Design new dashboard layout' has completed 3 / estimated 5.
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     const label = page.locator('.timer-session-of');
     await expect(label).toBeVisible();
@@ -113,8 +119,8 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
   });
 
   test('session-of label is hidden during a break', async ({ page }) => {
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     // Switch to Short Break — the label must disappear (breaks aren't task-attributed).
     await page.locator('button.session-tab:has-text("Short Break")').click();
@@ -130,8 +136,8 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
   test('Active Task Card shows the KR subtitle (objective → KR) when the task links to a KR', async ({ page }) => {
     // Seed task 'Design new dashboard layout' (task-1) links to kr-1 (obj-1
     // 'Ship myOKR v2.0'). The subtitle line resolves objective.title → kr.title.
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     const subtitle = page.locator('.active-task-card-subtitle');
     await expect(subtitle).toBeVisible();
@@ -141,32 +147,32 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
 
   test('Active Task Card shows a fallback subtitle when the task has no KR', async ({ page }) => {
     // Seed task 'Write API documentation' (task-3) has no keyResultId.
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Write API documentation")').click();
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Write API documentation")').click();
 
     const subtitle = page.locator('.active-task-card-subtitle');
     await expect(subtitle).toBeVisible();
     // No KR → fallback text (not empty, not the KR title).
-    await expect(subtitle).toContainText(/no key result|unlink/i);
+    await expect(subtitle).toContainText(/no key result/i);
   });
 
   test('Active Task Card has a decorative left icon tile and a cyan Change button', async ({ page }) => {
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     // Decorative square icon tile on the left (no role / aria, pure decoration).
     await expect(page.locator('.active-task-card .active-task-card-icon')).toBeVisible();
-    // Cyan "Change" button on the right edge opens the picker.
+    // Cyan "Change" button on the right edge opens the Task Switcher modal.
     const change = page.locator('.active-task-card .active-task-card-change');
     await expect(change).toBeVisible();
     await expect(change).toHaveText(/change/i);
     await change.click();
-    await expect(page.locator('.task-picker')).toBeVisible();
+    await expect(page.locator('.task-switcher')).toBeVisible();
   });
 
   test('Active Task Card has no left accent border', async ({ page }) => {
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     // The old 3px cyan border-left was removed; the card uses a uniform border.
     const borderLeft = await page.locator('.active-task-card').evaluate(
@@ -179,44 +185,41 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     expect(borderLeft).toBe(borderRight);
   });
 
-  test('Active Task Card picker lists incomplete tasks and selects one', async ({ page }) => {
-    await page.locator('.active-task-card').click();
-    const picker = page.locator('.task-picker');
-    await expect(picker).toBeVisible();
+  test('Task Switcher lists incomplete tasks and selects one', async ({ page }) => {
+    await openTaskSwitcher(page);
+    const modal = page.locator('.task-switcher');
     // Seeded open tasks appear (completed ones are filtered out).
-    await expect(picker.locator('.task-picker-item:has-text("Design new dashboard layout")')).toBeVisible();
+    await expect(modal.locator('.switcher-task:has-text("Design new dashboard layout")')).toBeVisible();
 
-    await page.locator('.task-picker-item:has-text("Write API documentation")').click();
+    await page.locator('.switcher-task:has-text("Write API documentation")').click();
     await expect(page.locator('.active-task-card')).toContainText('Write API documentation');
-    // Picker closes after selection.
-    await expect(page.locator('.task-picker')).toHaveCount(0);
+    // Modal closes after selection.
+    await expect(page.locator('.task-switcher')).toHaveCount(0);
   });
 
-  test('picker uses menu semantics (not listbox) so mixed actions are accessible', async ({ page }) => {
-    // The picker contains task options AND non-option actions (Clear, Plan your
-    // day). A listbox may only hold options; a menu allows mixed menuitems.
-    await page.locator('.active-task-card').click();
-    const picker = page.locator('.task-picker');
-    await expect(picker).toBeVisible();
-    await expect(picker).toHaveAttribute('role', 'menu');
-    // Task items are menuitems.
-    await expect(picker.locator('.task-picker-item').first()).toHaveAttribute('role', 'menuitem');
+  test('Task Switcher is a dialog with option rows (ARIA semantics)', async ({ page }) => {
+    // The switcher is a modal dialog (not a menu): it's a pure list of options,
+    // so role="option" + aria-selected is the correct pattern (the old dropdown
+    // mixed options with Clear / Plan-your-day actions and used a menu).
+    await openTaskSwitcher(page);
+    const modal = page.locator('.task-switcher');
+    await expect(modal).toHaveAttribute('role', 'dialog');
+    await expect(modal).toHaveAttribute('aria-modal', 'true');
+    await expect(modal.locator('.switcher-task').first()).toHaveAttribute('role', 'option');
   });
 
-  test('active task item marks selection via aria-current, not aria-checked (ARIA validity)', async ({ page }) => {
-    // aria-checked is invalid on role="menuitem" (it belongs to
-    // menuitemradio/menuitemcheckbox). The picker mixes task menuitems with
-    // non-option actions (Clear / Plan your day), so it can't become a listbox
-    // or a pure radio group — aria-current="true" is the correct way to mark
-    // the selected menuitem.
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
-    await page.locator('.active-task-card').click(); // reopen
+  test('active task row marks selection via aria-selected (ARIA validity)', async ({ page }) => {
+    // role="option" uses aria-selected to mark the chosen option. aria-current
+    // is not valid on option, so it must be absent (the old dropdown used a
+    // menu + aria-current because it mixed options with actions; this modal is
+    // a pure option list).
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
+    await openTaskSwitcher(page); // reopen
 
-    const activeItem = page.locator('.task-picker-item:has-text("Design new dashboard layout")');
-    await expect(activeItem).toHaveAttribute('aria-current', 'true');
-    // aria-checked must NOT be present on a menuitem.
-    await expect(activeItem).not.toHaveAttribute('aria-checked', /.*/);
+    const activeRow = page.locator('.switcher-task:has-text("Design new dashboard layout")');
+    await expect(activeRow).toHaveAttribute('aria-selected', 'true');
+    await expect(activeRow).not.toHaveAttribute('aria-current', /.*/);
   });
 });
 
@@ -304,8 +307,8 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await page.locator('.focus-plan-day-btn').click();
     await page.waitForTimeout(500);
     await openSession(page);
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item').first().click();
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task').first().click();
     await page.locator('.timer-section button:has-text("Start")').click();
     await page.waitForTimeout(200);
 
@@ -331,8 +334,8 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await page.locator('.focus-plan-day-btn').click();
     await page.waitForTimeout(500);
     await openSession(page);
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     const label = page.locator('.timer-session-of');
     await expect(label).toBeVisible();
@@ -464,8 +467,8 @@ test.describe('Queue widget + Day-plan picker (ticket 05)', () => {
   test('Queue widget shows the NEXT queued task (not the active one) under "UP NEXT IN QUEUE"', async ({ page }) => {
     // The middle card now shows the next task in the Day-plan queue that isn't
     // the active task (behavior change from ticket 05's active-task mirror).
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Design new dashboard layout")').click();
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
 
     const queue = page.locator('.queue-widget');
     await expect(queue).toBeVisible();
@@ -532,8 +535,8 @@ test.describe('Focus completion transitions to short break', () => {
     await page.locator('.focus-plan-day-btn').click();
     await page.waitForTimeout(500);
     await openSession(page);
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item').first().click();
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task').first().click();
     await expect(page.locator('.active-task-card')).not.toContainText('No task');
 
     // Start focus.
@@ -578,5 +581,151 @@ test.describe('Focus completion transitions to short break', () => {
     // Focus completes → Short Break tab activates with the break duration.
     await expect(page.locator('button.session-tab.active:has-text("Short Break")')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('.timer-digits')).toHaveText('01:00');
+  });
+});
+
+// ==========================================
+// Task Switcher modal + click-to-detail (2026-08-13 redesign)
+// ==========================================
+
+test.describe('Task Switcher modal + click-to-detail', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    // Replan so seeded tasks join the Day-plan queue (UP NEXT section source),
+    // and so the Today-bucket tasks are present.
+    await page.locator('button[title="Day plan"]').first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.focus-plan-day-btn').click();
+    await page.waitForTimeout(500);
+    await openSession(page);
+  });
+
+  test('Change button opens the Task Switcher modal with sectioned task rows', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    await expect(modal).toBeVisible();
+    await expect(modal).toHaveAttribute('role', 'dialog');
+
+    // Search header present with placeholder + Esc badge.
+    await expect(modal.locator('.switcher-search-input')).toHaveAttribute('placeholder', 'Search tasks');
+    await expect(modal.locator('.switcher-esc-badge')).toHaveText('Esc');
+
+    // Empty sections are hidden (no header without rows). With no active task,
+    // CURRENT is absent; UP NEXT (and/or TODAY) must be present. At least one
+    // section title renders, and the known header copy appears when its section
+    // has tasks.
+    const titles = modal.locator('.switcher-section-title');
+    await expect(titles.first()).toBeVisible();
+    // The "Up next in queue" header renders (the replan populated the queue).
+    await expect(modal.locator('.switcher-section-title', { hasText: 'Up next in queue' })).toBeVisible();
+
+    // At least one task row is present.
+    await expect(modal.locator('.switcher-task').first()).toBeVisible();
+  });
+
+  test('CURRENT section appears once a task is active', async ({ page }) => {
+    // Stage a task first, then open the switcher — CURRENT now has a row.
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task').first().click();
+    await page.locator('.active-task-card-change').click();
+
+    const modal = page.locator('.task-switcher');
+    await expect(modal.locator('.switcher-section-title', { hasText: 'Current' })).toBeVisible();
+    // The active row lives under CURRENT.
+    const currentSection = modal.locator('.switcher-section', { hasText: 'Current' });
+    await expect(currentSection.locator('.switcher-task.active')).toBeVisible();
+  });
+
+  test('each task row has a category dot, title, and KR subtitle', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    const row = modal.locator('.switcher-task:has-text("Design new dashboard layout")');
+    await expect(row).toBeVisible();
+    await expect(row.locator('.switcher-task-dot')).toBeVisible();
+    await expect(row.locator('.switcher-task-title')).toHaveText('Design new dashboard layout');
+    // task-1 links to kr-1 (Complete 15 feature tickets).
+    await expect(row.locator('.switcher-task-subtitle')).toContainText('Complete 15 feature tickets');
+  });
+
+  test('a task with no KR shows "No key result" subtitle', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    const row = modal.locator('.switcher-task:has-text("Write API documentation")');
+    await expect(row).toBeVisible();
+    await expect(row.locator('.switcher-task-subtitle')).toHaveText(/no key result/i);
+  });
+
+  test('queue / today rows show a session estimate on the right', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    // task-1 has estimatedPomodoros 5 — its row (when not active) shows "5 sessions".
+    const row = modal.locator('.switcher-task:has-text("Design new dashboard layout")');
+    await expect(row.locator('.switcher-task-sessions')).toHaveText(/5 sessions/i);
+  });
+
+  test('overdue task shows an Overdue badge instead of the session estimate', async ({ page }) => {
+    // task-5 'Plan sprint retrospective' has dueDate = yesterday (overdue).
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    const row = modal.locator('.switcher-task:has-text("Plan sprint retrospective")');
+    await expect(row).toBeVisible();
+    await expect(row.locator('.switcher-task-overdue')).toHaveText(/overdue/i);
+  });
+
+  test('the active task row shows a cyan checkmark, not the session estimate', async ({ page }) => {
+    // Stage task-1 as active first, then reopen the switcher.
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
+    await page.locator('.active-task-card-change').click();
+
+    const modal = page.locator('.task-switcher');
+    const row = modal.locator('.switcher-task:has-text("Design new dashboard layout")');
+    await expect(row).toHaveClass(/active/);
+    await expect(row.locator('.switcher-task-check')).toBeVisible();
+    // No session estimate on the active row.
+    await expect(row.locator('.switcher-task-sessions')).toHaveCount(0);
+  });
+
+  test('search filters task rows by title', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    await modal.locator('.switcher-search-input').fill('Write API');
+    await expect(modal.locator('.switcher-task:has-text("Write API documentation")')).toBeVisible();
+    // Non-matching tasks disappear.
+    await expect(modal.locator('.switcher-task:has-text("Design new dashboard layout")')).toHaveCount(0);
+  });
+
+  test('search with no matches shows the empty message', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    const modal = page.locator('.task-switcher');
+    await modal.locator('.switcher-search-input').fill('zzz-nope-zzz');
+    await expect(modal.locator('.switcher-empty')).toHaveText(/no matching tasks/i);
+  });
+
+  test('Esc closes the modal', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    await expect(page.locator('.task-switcher')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.task-switcher')).toHaveCount(0);
+  });
+
+  test('clicking the active task title opens the Task Detail modal', async ({ page }) => {
+    // Stage a task first.
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
+    await expect(page.locator('.active-task-card')).toContainText('Design new dashboard layout');
+
+    // Click the title → opens the same Task Detail modal the Plan/Tasks tab uses.
+    await page.locator('.active-task-card-title').click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+    await expect(page.locator('.task-detail-panel .detail-title')).toHaveText('Design new dashboard layout');
+  });
+
+  test('clicking outside the Task Switcher panel closes it', async ({ page }) => {
+    await page.locator('.active-task-card-change').click();
+    await expect(page.locator('.task-switcher')).toBeVisible();
+    // Click the overlay backdrop (outside the panel).
+    await page.locator('.task-switcher-overlay').click({ position: { x: 5, y: 5 } });
+    await expect(page.locator('.task-switcher')).toHaveCount(0);
   });
 });

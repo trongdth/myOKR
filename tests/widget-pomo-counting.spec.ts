@@ -23,8 +23,8 @@ async function selectTask(page: Page, name: string) {
   await page.locator('.focus-plan-day-btn').click();
   await page.waitForTimeout(500);
   await openSession(page);
-  await page.locator('.active-task-card').click();
-  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  await page.locator('.active-task-card-change').click();
+  await page.locator(`.switcher-task:has-text("${name}")`).click();
   await expect(page.locator('.active-task-card')).toContainText(name);
 }
 

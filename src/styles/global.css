@@ -63,6 +63,10 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  /* Floating modal dialogs (TaskDetail, Command-K, Task Switcher). The rgba
+     black here is a shadow tint, not a color role — color tokens still govern
+     all meaningful color (design-system.md). */
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
 
   /* Spacing scale (see docs/design-system.md) */
   --space-1: 4px;

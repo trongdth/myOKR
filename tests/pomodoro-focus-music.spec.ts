@@ -84,8 +84,8 @@ test.describe('Pomodoro: Ambient sound preset picker (ADR-0015)', () => {
     await page.waitForTimeout(500);
     // Select the task via the Session Active Task Card picker (ticket 03).
     await page.locator('button[title="Session"]').first().click();
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Focus Task")').click();
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task:has-text("Focus Task")').click();
 
     await openSettings(page);
     await page.locator('.ambient-chip', { hasText: 'Forest' }).click();

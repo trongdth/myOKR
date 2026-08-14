@@ -71,8 +71,8 @@ async function selectTask(page: Page, name: string) {
   await page.locator('.focus-plan-day-btn').click();
   await page.waitForTimeout(500);
   await openSession(page);
-  await page.locator('.active-task-card').click();
-  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  await page.locator('.active-task-card-change').click();
+  await page.locator(`.switcher-task:has-text("${name}")`).click();
   // When switching while a focus timer is running, setActiveTask stages the
   // switch behind a "Switch Task" confirmation modal instead of updating the
   // card immediately — so accept EITHER the card updating OR the modal. Tests
