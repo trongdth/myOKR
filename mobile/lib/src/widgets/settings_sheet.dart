@@ -24,10 +24,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
   void initState() {
     super.initState();
     final s = widget.provider.settings;
-    _focusDuration = s['focusDuration'] as int? ?? 25;
-    _shortBreakDuration = s['shortBreakDuration'] as int? ?? 5;
-    _longBreakDuration = s['longBreakDuration'] as int? ?? 15;
-    _pomosBeforeLongBreak = s['pomosBeforeLongBreak'] as int? ?? 4;
+    _focusDuration = (s['focusDuration'] as num?)?.toInt() ?? 25;
+    _shortBreakDuration = (s['shortBreakDuration'] as num?)?.toInt() ?? 5;
+    _longBreakDuration = (s['longBreakDuration'] as num?)?.toInt() ?? 15;
+    _pomosBeforeLongBreak = (s['pomosBeforeLongBreak'] as num?)?.toInt() ?? 4;
     _autoStartBreaks = s['autoStartBreaks'] as bool? ?? true; // posture ii (matches desktop)
     _autoStartFocus = s['autoStartFocus'] as bool? ?? false;
     _focusMusic = s['focusMusicEnabled'] as bool? ?? false;

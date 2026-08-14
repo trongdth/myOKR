@@ -61,7 +61,7 @@ function sessionsLabel(n: number): string {
 }
 
 function categoryColor(category: EisenhowerCategory | undefined): string {
-  return EISENHOWER_META[category ?? 'do'].color;
+  return (category && EISENHOWER_META[category]?.color) || EISENHOWER_META.do.color;
 }
 
 export default function TaskSwitcherModal({

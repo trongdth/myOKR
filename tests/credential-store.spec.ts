@@ -93,4 +93,24 @@ test.describe('credential-store (ticket 28)', () => {
     expect(store.secure.size).toBe(0);
     expect(store.legacy.size).toBe(0);
   });
+
+  test('clearCredentials continues and deletes refresh token even if deleting first key throws', async () => {
+    const store = new FakeStore();
+    store.secure.set('dropbox_refresh_token', 'rt-1');
+    store.legacy.set('dropbox_refresh_token', 'legacy-rt');
+
+    // Simulate secureDelete throwing on dropbox_client_id (e.g. NoEntry error)
+    const origDelete = store.secureDelete.bind(store);
+    store.secureDelete = async (key: string) => {
+      if (key === 'dropbox_client_id') {
+        throw new Error('No entry in keychain');
+      }
+      return origDelete(key);
+    };
+
+    await clearCredentials(store, DROPBOX_KEYS);
+
+    expect(store.secure.get('dropbox_refresh_token')).toBeUndefined();
+    expect(store.legacy.get('dropbox_refresh_token')).toBeUndefined();
+  });
 });

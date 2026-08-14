@@ -46,6 +46,12 @@ num finiteNumber(Object? v, num fallback,
   return fallback;
 }
 
+/// Coerces [v] to an integer, clamped to [min, max]; otherwise [fallback].
+int finiteInt(Object? v, int fallback,
+    [int min = -2147483648, int max = 2147483647]) {
+  return finiteNumber(v, fallback, min, max).toInt();
+}
+
 bool _isStringIn(Object? v, List<String> allowed) =>
     v is String && allowed.contains(v);
 
@@ -57,13 +63,13 @@ Map<String, dynamic> normalizeSettings(Object? raw) {
   final Map src = raw is Map ? raw : <String, dynamic>{};
   return <String, dynamic>{
     'focusDuration':
-        finiteNumber(src['focusDuration'], defaultSettings['focusDuration']!, 1, 120),
-    'shortBreakDuration': finiteNumber(
-        src['shortBreakDuration'], defaultSettings['shortBreakDuration']!, 1, 60),
-    'longBreakDuration': finiteNumber(
-        src['longBreakDuration'], defaultSettings['longBreakDuration']!, 1, 120),
-    'pomosBeforeLongBreak': finiteNumber(
-        src['pomosBeforeLongBreak'], defaultSettings['pomosBeforeLongBreak']!, 1, 10),
+        finiteInt(src['focusDuration'], defaultSettings['focusDuration'] as int, 1, 120),
+    'shortBreakDuration': finiteInt(
+        src['shortBreakDuration'], defaultSettings['shortBreakDuration'] as int, 1, 60),
+    'longBreakDuration': finiteInt(
+        src['longBreakDuration'], defaultSettings['longBreakDuration'] as int, 1, 120),
+    'pomosBeforeLongBreak': finiteInt(
+        src['pomosBeforeLongBreak'], defaultSettings['pomosBeforeLongBreak'] as int, 1, 10),
     'autoStartBreaks': src['autoStartBreaks'] is bool ? src['autoStartBreaks'] : defaultSettings['autoStartBreaks']!,
     'autoStartFocus': src['autoStartFocus'] is bool ? src['autoStartFocus'] : false,
     'focusMusicEnabled':
@@ -90,8 +96,8 @@ Map<String, dynamic>? normalizeTask(Object? t) {
   }
 
   task['title'] = task['title'] is String ? task['title'] : '';
-  task['estimatedPomodoros'] = finiteNumber(task['estimatedPomodoros'], 0);
-  task['completedPomodoros'] = finiteNumber(task['completedPomodoros'], 0);
+  task['estimatedPomodoros'] = finiteInt(task['estimatedPomodoros'], 0);
+  task['completedPomodoros'] = finiteInt(task['completedPomodoros'], 0);
   task['isCompleted'] = task['isCompleted'] is bool ? task['isCompleted'] : false;
 
   if (!_isStringIn(task['bucket'], _kTaskBuckets)) {
@@ -104,7 +110,7 @@ Map<String, dynamic>? normalizeTask(Object? t) {
   }
   // Weekly pomodoro plan (P4): mirrors desktop finiteNumber(_, undefined, 0, 99)
   // — invalid types are dropped (absent stays absent), finite values clamp.
-  final weeklyPlan = finiteNumber(task['weeklyPomodoroPlan'], -1, 0, 99);
+  final weeklyPlan = finiteInt(task['weeklyPomodoroPlan'], -1, 0, 99);
   if (weeklyPlan < 0) {
     task.remove('weeklyPomodoroPlan');
   } else {
@@ -161,9 +167,9 @@ Map<String, dynamic>? normalizeDailyRecord(Object? r) {
   }
   return <String, dynamic>{
     'date': rec['date'] is String ? rec['date'] : '',
-    'completedPomodoros': finiteNumber(rec['completedPomodoros'], 0),
-    'totalFocusMinutes': finiteNumber(rec['totalFocusMinutes'], 0),
-    'tasksCompleted': finiteNumber(rec['tasksCompleted'], 0),
+    'completedPomodoros': finiteInt(rec['completedPomodoros'], 0),
+    'totalFocusMinutes': finiteInt(rec['totalFocusMinutes'], 0),
+    'tasksCompleted': finiteInt(rec['tasksCompleted'], 0),
     'sessions': sessions,
   };
 }
@@ -181,7 +187,7 @@ Map<String, dynamic>? normalizeTimerState(Object? raw) {
   return <String, dynamic>{
     'sessionType':
         _isStringIn(s['sessionType'], _kValidSessionTypes) ? s['sessionType'] : 'focus',
-    'timeLeft': finiteNumber(s['timeLeft'], 0, 0),
+    'timeLeft': finiteInt(s['timeLeft'], 0, 0),
     'isRunning': s['isRunning'] is bool ? s['isRunning'] : false,
     'lastUpdated': s['lastUpdated'] is String
         ? s['lastUpdated']

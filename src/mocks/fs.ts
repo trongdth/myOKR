@@ -10,6 +10,10 @@ export async function exists(path: string, _options?: any): Promise<boolean> {
 }
 
 export async function writeFile(path: string, contents: Uint8Array, _options?: any): Promise<void> {
+  if (typeof window !== 'undefined' && (window as any).__SIMULATE_WRITE_FAILURE) {
+    (window as any).__SIMULATE_WRITE_FAILURE = false;
+    throw new Error('Simulated transient disk write failure (test-only)');
+  }
   // Base64 is more compact and avoids CSV parsing issues
   let binary = '';
   const chunkSize = 0x8000;

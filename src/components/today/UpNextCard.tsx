@@ -35,7 +35,7 @@ export default function UpNextCard({
   // Left accent = the task's Eisenhower category color — the canonical scheme
   // shared with Tasks/Prioritize (EISENHOWER_META). delete-category tasks are
   // filtered out before reaching UP NEXT, so only do/decide/delegate show.
-  const accentVar = EISENHOWER_META[task.category ?? 'decide'].color;
+  const accentVar = (task.category && EISENHOWER_META[task.category]?.color) || EISENHOWER_META.decide.color;
 
   return (
     <div

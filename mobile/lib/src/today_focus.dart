@@ -29,15 +29,15 @@ double urgencyNorm(int daysLeft) {
 }
 
 double momentumNorm(Map<String, dynamic> task) {
-  final completedPomodoros = task['completedPomodoros'] as int? ?? 0;
+  final completedPomodoros = (task['completedPomodoros'] as num?)?.toInt() ?? 0;
   final isCompleted = task['isCompleted'] as bool? ?? false;
   if (completedPomodoros > 0 && !isCompleted) return 1.0;
   return 0.0;
 }
 
 int getDailyPomodoroBudget(Map<String, dynamic> settings) {
-  final focusDuration = settings['focusDuration'] as int? ?? 25;
-  return (dailyFocusMinutes / focusDuration).round();
+  final focusDuration = (settings['focusDuration'] as num?)?.toInt() ?? 25;
+  return (dailyFocusMinutes / (focusDuration > 0 ? focusDuration : 25)).round();
 }
 
 int getMaxTaskBudgetShare(int budget) {
@@ -45,16 +45,16 @@ int getMaxTaskBudgetShare(int budget) {
 }
 
 int todaysSlice(Map<String, dynamic> task, int maxShare) {
-  final estimated = task['estimatedPomodoros'] as int? ?? 1;
-  final completed = task['completedPomodoros'] as int? ?? 0;
+  final estimated = (task['estimatedPomodoros'] as num?)?.toInt() ?? 1;
+  final completed = (task['completedPomodoros'] as num?)?.toInt() ?? 0;
   final remaining = max(0, estimated - completed);
   return min(remaining, maxShare);
 }
 
 int getDaysLeftInCycle(Map<String, dynamic>? cycle) {
   if (cycle == null) return 999;
-  final year = cycle['year'] as int;
-  final month = cycle['month'] as int;
+  final year = (cycle['year'] as num?)?.toInt() ?? DateTime.now().year;
+  final month = (cycle['month'] as num?)?.toInt() ?? DateTime.now().month - 1;
   // Get last day of the month by setting day=0 of next month
   final lastDay = DateTime(year, month + 2, 0);
   final today = DateTime.now();
@@ -119,8 +119,8 @@ List<Map<String, dynamic>> pickForBudget(
   // Phase 1
   for (final c in candidates) {
     if (picked.length >= 5) break;
-    final estimated = c['estimatedPomodoros'] as int? ?? 1;
-    final completed = c['completedPomodoros'] as int? ?? 0;
+    final estimated = (c['estimatedPomodoros'] as num?)?.toInt() ?? 1;
+    final completed = (c['completedPomodoros'] as num?)?.toInt() ?? 0;
     final remaining = max(0, estimated - completed);
     if (remaining > 0 && remaining <= budget - cumActual) {
       picked.push(c);

@@ -1,4 +1,3 @@
-use std::process::Command as OsCommand;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{
@@ -43,16 +42,6 @@ fn update_tray_title(app: tauri::AppHandle, title: String, tooltip: String) {
     }
 }
 
-/// Open a URL using the OS default handler.
-#[tauri::command]
-fn open_external(url: String) -> Result<(), String> {
-    OsCommand::new("open")
-        .arg(&url)
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 /// Reset tray to default state (usually called on unmount).
 #[tauri::command]
 fn reset_tray(app: tauri::AppHandle) {
@@ -88,8 +77,13 @@ fn secure_set(key: String, value: String) -> Result<(), String> {
 /// Removes a credential from the OS keychain (ticket 28).
 #[tauri::command]
 fn secure_delete(key: String) -> Result<(), String> {
-    let entry = keyring::Entry::new("myokr", &key).map_err(|e| e.to_string())?;
-    entry.delete_credential().map_err(|e| e.to_string())
+    match keyring::Entry::new("myokr", &key) {
+        Ok(entry) => match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        },
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -280,7 +274,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             update_tray_title,
             reset_tray,
-            open_external,
             start_timer,
             pause_timer,
             reset_timer_state,

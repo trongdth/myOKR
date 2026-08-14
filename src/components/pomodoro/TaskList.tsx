@@ -47,7 +47,7 @@ function CategoryBadge({ category, onChange }: { category: EisenhowerCategory; o
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, open, () => setOpen(false));
 
-  const meta = EISENHOWER_META[category];
+  const meta = (category && EISENHOWER_META[category]) || EISENHOWER_META.do;
 
   return (
     <div className="category-badge-wrapper" ref={ref}>
@@ -84,7 +84,7 @@ function CategorySelector({ value, onChange }: { value: EisenhowerCategory; onCh
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, open, () => setOpen(false));
 
-  const meta = EISENHOWER_META[value];
+  const meta = (value && EISENHOWER_META[value]) || EISENHOWER_META.do;
 
   return (
     <div className="category-selector-wrapper" ref={ref}>

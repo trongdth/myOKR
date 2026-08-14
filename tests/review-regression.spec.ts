@@ -202,4 +202,29 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
       await expect(page.locator('text=Week has not started yet')).toBeVisible();
     }
   });
+
+  test('renders gracefully and does not crash when cycle data contains null or invalid month/year', async ({ page }) => {
+    await waitForApp(page);
+
+    await page.evaluate(async () => {
+      const updateDoc = (window as any).__updateAutomergeDoc;
+      await updateDoc('Seed corrupted cycle', (d: any) => {
+        d.cycles = [
+          { id: 'corrupt-cycle', name: 'Corrupt Cycle', month: null, year: null, isActive: true },
+        ];
+        d.objectives = [];
+        d.keyResults = [];
+        d.reviews = [];
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    // Navigate to Review screen
+    await page.locator('button[title="Progress"]').click();
+    await page.locator('button[title="Weekly review"]').click();
+
+    // The review header must be visible without throwing RangeError: Invalid time value
+    await expect(page.locator('.review-header-title')).toBeVisible();
+    await expect(page.getByText('Something went wrong')).toHaveCount(0);
+  });
 });

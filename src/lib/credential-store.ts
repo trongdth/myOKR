@@ -68,7 +68,13 @@ export async function clearCredentials(
   keys: readonly string[],
 ): Promise<void> {
   for (const key of keys) {
-    await store.secureDelete(key);
-    store.legacyRemove(key);
+    try {
+      await store.secureDelete(key);
+    } catch {
+      // Ignore missing entry or keychain errors during bulk clear
+    }
+    try {
+      store.legacyRemove(key);
+    } catch {}
   }
 }

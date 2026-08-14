@@ -406,7 +406,17 @@ export function getRecentMondays(count: number = 6): string[] {
 
 /** Returns all Mondays (latest first) whose weeks overlap with the given cycle */
 export function getMondaysForCycle(cycle: { month: number; year: number }): string[] {
-  const firstDay = new Date(Date.UTC(cycle.year, cycle.month, 1));
+  const safeMonth = typeof cycle.month === 'number' && Number.isFinite(cycle.month)
+    ? Math.min(11, Math.max(0, Math.floor(cycle.month)))
+    : new Date().getMonth();
+  const safeYear = typeof cycle.year === 'number' && Number.isFinite(cycle.year)
+    ? Math.min(2100, Math.max(1970, Math.floor(cycle.year)))
+    : new Date().getFullYear();
+
+  const firstDay = new Date(Date.UTC(safeYear, safeMonth, 1));
+  if (isNaN(firstDay.getTime())) {
+    return [];
+  }
   const day = firstDay.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
   const firstMonday = new Date(firstDay);
@@ -415,12 +425,13 @@ export function getMondaysForCycle(cycle: { month: number; year: number }): stri
   const mondays: string[] = [];
   const current = new Date(firstMonday);
 
-  const mm = String(cycle.month + 1).padStart(2, '0');
-  const monthStart = `${cycle.year}-${mm}-01`;
-  const lastDayVal = new Date(Date.UTC(cycle.year, cycle.month + 1, 0)).getUTCDate();
-  const monthEnd = `${cycle.year}-${mm}-${String(lastDayVal).padStart(2, '0')}`;
+  const mm = String(safeMonth + 1).padStart(2, '0');
+  const monthStart = `${safeYear}-${mm}-01`;
+  const lastDayVal = new Date(Date.UTC(safeYear, safeMonth + 1, 0)).getUTCDate();
+  const monthEnd = `${safeYear}-${mm}-${String(lastDayVal).padStart(2, '0')}`;
 
-  while (true) {
+  let maxWeeks = 10;
+  while (maxWeeks-- > 0) {
     const weekStartStr = current.toISOString().slice(0, 10);
     const weekEndStr = getWeekEndFromStart(weekStartStr);
 
@@ -454,10 +465,41 @@ function finiteNumber(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 }
 
-function asObjectArray<T>(xs: unknown): T[] {
-  if (!Array.isArray(xs)) return [];
-  const filtered = xs.filter((x): x is T => !!x && typeof x === 'object');
-  return JSON.parse(JSON.stringify(filtered));
+export function normalizeCycle(c: unknown): OKRCycle | null {
+  if (!c || typeof c !== 'object') return null;
+  const plainC = JSON.parse(JSON.stringify(c));
+  const cy = plainC as Record<string, unknown>;
+  const now = new Date();
+  const rawMonth = cy.month;
+  const rawYear = cy.year;
+  const month = typeof rawMonth === 'number' && Number.isFinite(rawMonth)
+    ? Math.min(11, Math.max(0, Math.floor(rawMonth)))
+    : now.getMonth();
+  const year = typeof rawYear === 'number' && Number.isFinite(rawYear)
+    ? Math.min(2100, Math.max(1970, Math.floor(rawYear)))
+    : now.getFullYear();
+
+  return {
+    ...(cy as unknown as OKRCycle),
+    id: typeof cy.id === 'string' && cy.id.trim() ? cy.id : crypto.randomUUID(),
+    name: typeof cy.name === 'string' ? cy.name : 'Untitled Cycle',
+    month,
+    year,
+    isActive: Boolean(cy.isActive),
+  };
+}
+
+export function normalizeObjective(o: unknown): Objective | null {
+  if (!o || typeof o !== 'object') return null;
+  const plainO = JSON.parse(JSON.stringify(o));
+  const ob = plainO as Record<string, unknown>;
+  return {
+    ...(ob as unknown as Objective),
+    id: typeof ob.id === 'string' && ob.id.trim() ? ob.id : crypto.randomUUID(),
+    cycleId: typeof ob.cycleId === 'string' ? ob.cycleId : '',
+    title: typeof ob.title === 'string' ? ob.title : '',
+    order: finiteNumber(ob.order, 0),
+  };
 }
 
 function normalizeKeyResult(k: unknown): KeyResult | null {
@@ -523,7 +565,10 @@ function normalizeReview(r: unknown): WeeklyReview | null {
 export async function loadCycles(): Promise<OKRCycle[]> {
   try {
     const doc = await getAutomergeDoc();
-    return asObjectArray<OKRCycle>(doc.cycles);
+    const cycles = Array.isArray(doc.cycles)
+      ? doc.cycles.map(normalizeCycle).filter((c): c is OKRCycle => c !== null)
+      : [];
+    return JSON.parse(JSON.stringify(cycles));
   } catch {
     return [];
   }
@@ -554,7 +599,10 @@ export async function ensureCyclesExist(): Promise<OKRCycle[]> {
 export async function loadObjectives(): Promise<Objective[]> {
   try {
     const doc = await getAutomergeDoc();
-    return asObjectArray<Objective>(doc.objectives);
+    const objs = Array.isArray(doc.objectives)
+      ? doc.objectives.map(normalizeObjective).filter((o): o is Objective => o !== null)
+      : [];
+    return JSON.parse(JSON.stringify(objs));
   } catch {
     return [];
   }

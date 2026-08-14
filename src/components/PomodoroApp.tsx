@@ -3,6 +3,9 @@ import '../styles/pomodoro.css';
 import type {
   PomodoroSettings, PomodoroTask, DailyRecord,
 } from '../lib/pomodoro-storage';
+import {
+  normalizeSettings, normalizeTask, normalizeDailyRecord,
+} from '../lib/pomodoro-storage';
 import TasksView from './pomodoro/TasksView';
 import DoneView from './pomodoro/DoneView';
 import CommandKModal from './pomodoro/CommandKModal';
@@ -11,6 +14,7 @@ import Analytics from './pomodoro/Analytics';
 import {
   saveKeyResults, saveCycles, saveObjectives, saveReviews,
   loadCycles, loadObjectives, loadKeyResults, loadReviews,
+  normalizeCycle, normalizeObjective,
   type KeyResult, type OKRCycle, type Objective, type WeeklyReview,
 } from '../lib/okr-storage';
 import ConfirmModal from './ConfirmModal';
@@ -109,11 +113,29 @@ export default function PomodoroApp({
 
   const executeImport = async () => {
     if (!importData) return;
-    await importSessionData({ settings: importData.settings, tasks: importData.tasks, history: importData.history });
-    if (importData.cycles) await saveCycles(importData.cycles);
-    if (importData.objectives) await saveObjectives(importData.objectives);
-    if (importData.keyResults) await saveKeyResults(importData.keyResults);
-    if (importData.reviews) await saveReviews(importData.reviews);
+    const normalizedTasks = Array.isArray(importData.tasks)
+      ? importData.tasks.map(normalizeTask).filter((t): t is PomodoroTask => t !== null)
+      : [];
+    const normalizedSettings = normalizeSettings(importData.settings);
+    const normalizedHistory = Array.isArray(importData.history)
+      ? importData.history.map(normalizeDailyRecord).filter((h): h is DailyRecord => h !== null)
+      : [];
+    await importSessionData({ settings: normalizedSettings, tasks: normalizedTasks, history: normalizedHistory });
+
+    if (importData.cycles && Array.isArray(importData.cycles)) {
+      const normalizedCycles = importData.cycles.map(normalizeCycle).filter((c): c is OKRCycle => c !== null);
+      await saveCycles(normalizedCycles);
+    }
+    if (importData.objectives && Array.isArray(importData.objectives)) {
+      const normalizedObjectives = importData.objectives.map(normalizeObjective).filter((o): o is Objective => o !== null);
+      await saveObjectives(normalizedObjectives);
+    }
+    if (importData.keyResults && Array.isArray(importData.keyResults)) {
+      await saveKeyResults(importData.keyResults);
+    }
+    if (importData.reviews && Array.isArray(importData.reviews)) {
+      await saveReviews(importData.reviews);
+    }
     // Refresh cycle-scoped view data from storage (active cycle, KRs, objectives, …).
     await reload();
     setImportData(null);

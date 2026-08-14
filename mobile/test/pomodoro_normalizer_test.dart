@@ -376,4 +376,45 @@ void main() {
       });
     });
   });
+
+  group('finiteInt and float coercion (Finding 5)', () {
+    test('coerces double to int across all normalizers', () {
+      final s = normalizeSettings({
+        'focusDuration': 25.0,
+        'shortBreakDuration': 5.5,
+        'longBreakDuration': 15.0,
+        'pomosBeforeLongBreak': 4.0,
+      });
+      expect(s['focusDuration'], isA<int>());
+      expect(s['focusDuration'], 25);
+      expect(s['shortBreakDuration'], isA<int>());
+      expect(s['shortBreakDuration'], 5);
+
+      final t = normalizeTask({
+        'title': 'Float Task',
+        'estimatedPomodoros': 3.0,
+        'completedPomodoros': 1.0,
+        'weeklyPomodoroPlan': 5.0,
+      })!;
+      expect(t['estimatedPomodoros'], isA<int>());
+      expect(t['estimatedPomodoros'], 3);
+      expect(t['completedPomodoros'], isA<int>());
+      expect(t['completedPomodoros'], 1);
+      expect(t['weeklyPomodoroPlan'], isA<int>());
+      expect(t['weeklyPomodoroPlan'], 5);
+
+      final d = normalizeDailyRecord({
+        'date': '2026-08-14',
+        'completedPomodoros': 4.0,
+        'totalFocusMinutes': 100.0,
+        'tasksCompleted': 2.0,
+      })!;
+      expect(d['completedPomodoros'], isA<int>());
+      expect(d['completedPomodoros'], 4);
+      expect(d['totalFocusMinutes'], isA<int>());
+      expect(d['totalFocusMinutes'], 100);
+      expect(d['tasksCompleted'], isA<int>());
+      expect(d['tasksCompleted'], 2);
+    });
+  });
 }

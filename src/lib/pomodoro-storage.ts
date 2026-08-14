@@ -288,7 +288,7 @@ function finiteNumber(v: unknown, fallback: number | undefined, min = -Infinity,
   return typeof v === 'number' && Number.isFinite(v) ? Math.min(Math.max(v, min), max) : fallback;
 }
 
-function normalizeSettings(raw: unknown): PomodoroSettings {
+export function normalizeSettings(raw: unknown): PomodoroSettings {
   const plainRaw = raw && typeof raw === 'object' ? JSON.parse(JSON.stringify(raw)) : {};
   const src = plainRaw as Partial<PomodoroSettings>;
   return {
@@ -321,7 +321,7 @@ function resolveAmbientPreset(rawPreset: unknown): AmbientPreset {
     : DEFAULT_SETTINGS.ambientPreset;
 }
 
-function normalizeTask(t: unknown): PomodoroTask | null {
+export function normalizeTask(t: unknown): PomodoroTask | null {
   if (!t || typeof t !== 'object') return null;
   const plainT = JSON.parse(JSON.stringify(t));
   const task = plainT as Record<string, unknown>;
@@ -419,7 +419,7 @@ function normalizeSession(s: unknown): SessionRecord | null {
   return session;
 }
 
-function normalizeDailyRecord(r: unknown): DailyRecord | null {
+export function normalizeDailyRecord(r: unknown): DailyRecord | null {
   if (!r || typeof r !== 'object') return null;
   const plainR = JSON.parse(JSON.stringify(r));
   const rec = plainR as Record<string, unknown>;

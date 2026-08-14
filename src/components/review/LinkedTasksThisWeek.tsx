@@ -33,7 +33,7 @@ export default function LinkedTasksThisWeek({ linkedTasksThisWeek }: Props) {
       {isExpanded && (
         <div className="review-pomo-insight-expand">
           {linkedTasksThisWeek.map(({ task, pomos }) => {
-            const dotColor = task?.category ? EISENHOWER_META[task.category].color : 'var(--text-muted)';
+            const dotColor = (task?.category && EISENHOWER_META[task.category]?.color) || 'var(--text-muted)';
             const icon = <span className="confidence-dot" style={{ background: dotColor }} />;
             const title = task
               ? task.title

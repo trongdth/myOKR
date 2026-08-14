@@ -355,8 +355,8 @@ class StorageProvider extends ChangeNotifier {
       final cycle = cycles.firstWhere((c) => c['id'] == cycleId, orElse: () => {});
       if (cycle.isEmpty) return 0.0;
 
-      final cycleMonth = cycle['month'] as int?;
-      final cycleYear = cycle['year'] as int?;
+      final cycleMonth = (cycle['month'] as num?)?.toInt();
+      final cycleYear = (cycle['year'] as num?)?.toInt();
       if (cycleMonth == null || cycleYear == null) return 0.0;
 
       final ticks = habit['ticks'];
@@ -441,8 +441,8 @@ class StorageProvider extends ChangeNotifier {
       final cycle = cycles.firstWhere((c) => c['id'] == cycleId, orElse: () => {});
       if (cycle.isEmpty) return 0.0;
 
-      final cycleMonth = cycle['month'] as int?;
-      final cycleYear = cycle['year'] as int?;
+      final cycleMonth = (cycle['month'] as num?)?.toInt();
+      final cycleYear = (cycle['year'] as num?)?.toInt();
       if (cycleMonth == null || cycleYear == null) return 0.0;
 
       final ticks = habit['ticks'];
@@ -825,12 +825,11 @@ class StorageProvider extends ChangeNotifier {
   }
 
 
-  // Cycle Management Actions
   Future<void> createNextCycle() async {
     final lastCycle = cycles.isNotEmpty
         ? cycles.reduce((latest, c) {
-            final latestVal = (latest['year'] as int) * 12 + (latest['month'] as int);
-            final cVal = (c['year'] as int) * 12 + (c['month'] as int);
+            final latestVal = (((latest['year'] as num?)?.toInt() ?? 0) * 12) + ((latest['month'] as num?)?.toInt() ?? 0);
+            final cVal = (((c['year'] as num?)?.toInt() ?? 0) * 12) + ((c['month'] as num?)?.toInt() ?? 0);
             return cVal > latestVal ? c : latest;
           })
         : null;
@@ -839,8 +838,8 @@ class StorageProvider extends ChangeNotifier {
     int nextYear;
 
     if (lastCycle != null) {
-      final m = lastCycle['month'] as int;
-      final y = lastCycle['year'] as int;
+      final m = (lastCycle['month'] as num?)?.toInt() ?? 0;
+      final y = (lastCycle['year'] as num?)?.toInt() ?? DateTime.now().year;
       nextMonth = m == 11 ? 0 : m + 1;
       nextYear = m == 11 ? y + 1 : y;
     } else {
@@ -870,13 +869,13 @@ class StorageProvider extends ChangeNotifier {
     if (source == null) return;
 
     final latest = cycles.reduce((acc, c) {
-      final accVal = (acc['year'] as int) * 12 + (acc['month'] as int);
-      final cVal = (c['year'] as int) * 12 + (c['month'] as int);
+      final accVal = (((acc['year'] as num?)?.toInt() ?? 0) * 12) + ((acc['month'] as num?)?.toInt() ?? 0);
+      final cVal = (((c['year'] as num?)?.toInt() ?? 0) * 12) + ((c['month'] as num?)?.toInt() ?? 0);
       return cVal > accVal ? c : acc;
     });
 
-    final m = latest['month'] as int;
-    final y = latest['year'] as int;
+    final m = (latest['month'] as num?)?.toInt() ?? 0;
+    final y = (latest['year'] as num?)?.toInt() ?? DateTime.now().year;
     final nextMonth = m == 11 ? 0 : m + 1;
     final nextYear = m == 11 ? y + 1 : y;
 
@@ -942,7 +941,7 @@ class StorageProvider extends ChangeNotifier {
     final currentMonthIndex = now.year * 12 + (now.month - 1);
 
     final futureEmptyCycles = cycles.where((c) {
-      final idx = (c['year'] as int) * 12 + (c['month'] as int);
+      final idx = (((c['year'] as num?)?.toInt() ?? 0) * 12) + ((c['month'] as num?)?.toInt() ?? 0);
       final isFuture = idx > currentMonthIndex;
       final hasObjectives = objectives.any((o) => o['cycleId'] == c['id']);
       return isFuture && !hasObjectives;

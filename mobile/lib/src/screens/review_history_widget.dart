@@ -46,7 +46,7 @@ List<Map<String, dynamic>> filterLinkedTasks({
       });
     }
   }
-  result.sort((a, b) => (b['pomos'] as int).compareTo(a['pomos'] as int));
+  result.sort((a, b) => ((b['pomos'] as num?)?.toInt() ?? 0).compareTo((a['pomos'] as num?)?.toInt() ?? 0));
   return result;
 }
 
