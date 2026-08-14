@@ -24,7 +24,11 @@ async function openTasks(page: Page) {
 }
 
 async function openSession(page: Page) {
-  await page.locator('button[title="Session"]').first().click();
+  const sessionItem = page.locator('button[title="Session"]').first();
+  if (!(await sessionItem.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  }
+  await sessionItem.click();
   await page.waitForTimeout(300);
 }
 
@@ -66,47 +70,64 @@ async function selectTask(page: Page, name: string) {
   // Replan the Day plan so newly-created tasks join the queue (the Session
   // picker is sourced from TodayPlan.taskIds, ticket 05; a saved plan doesn't
   // re-rank on its own).
-  await page.locator('button[title="Day plan"]').first().click();
+  const dayPlanItem = page.locator('button[title="Day plan"]').first();
+  if (!(await dayPlanItem.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  }
+  await dayPlanItem.click();
   await page.waitForTimeout(300);
   await page.locator('.focus-plan-day-btn').click();
   await page.waitForTimeout(500);
   await openSession(page);
+
+  // Dismiss any leftover session confirm (Task Changed / No Task) from a break
+  // that ended while navigating away — it would sit on top of the Task Switcher
+  // overlay and intercept the row click. Use Continue (Task Changed) / Start
+  // Anyway (No Task); never touch a "Switch Task?" confirm (that's the expected
+  // pick-time guard, handled by the caller).
+  const blocker = page.locator(
+    '.confirm-modal:visible:not(:has(.prioritize-title:has-text("Switch Task")))'
+  );
+  if (await blocker.count().then(c => c > 0)) {
+    await blocker.locator(
+      'button:has-text("Continue"), button:has-text("Start Anyway")'
+    ).first().click().catch(() => {});
+    await page.waitForTimeout(100);
+  }
+
+  // Race guard: if a SHORT/LONG BREAK is running, it can auto-complete into the
+  // next focus while we're picking, surfacing a Task Changed confirm on top of
+  // the switcher and blocking the row click. Pause the break for the pick — a
+  // paused session can't tick into completion — then resume it afterwards so
+  // the caller's break→focus transition still happens. (Focus is left as-is so
+  // the "switch while running" tests still exercise the Switch Task? guard.)
+  const activeTab = await page.locator('button.session-tab.active').textContent().catch(() => '');
+  const wasBreakRunning = !!activeTab && /Break/i.test(activeTab)
+    && await page.locator('.timer-controls button:has-text("Pause")').count().then(c => c > 0);
+  if (wasBreakRunning) {
+    await page.locator('.timer-controls button:has-text("Pause")').click();
+  }
+
   await page.locator('.active-task-card-change').click();
-  // Picking a task while a focus is running stages the switch behind a "Switch
-  // Task?" confirm (setActiveTask guard) — that's expected, and tests that care
-  // assert/cancel it themselves. BUT on slower runners the surrounding break
-  // can end mid-pick, surfacing a Task Changed / No Task confirm that stacks on
-  // top of the Task Switcher overlay and intercepts the row click. Retry the
-  // pick; if a NON-switch confirm is blocking, dismiss it (Continue / Start
-  // Anyway) so the pick can land. Leave the "Switch Task?" confirm untouched.
-  await expect(async () => {
-    // A leftover non-switch confirm blocking the overlay — dismiss it.
-    const blocker = page.locator(
-      '.confirm-modal:visible:not(:has(.prioritize-title:has-text("Switch Task")))'
-    );
-    if (await blocker.count().then(c => c > 0)) {
-      await blocker.locator(
-        'button:has-text("Continue"), button:has-text("Start Anyway")'
-      ).first().click({ timeout: 1000 }).catch(() => {});
-      await page.waitForTimeout(100);
-      return;
-    }
-    // Switch Task? confirm already staged by a prior pick attempt — done.
-    const switchConfirmUp = await page.locator(
-      '.confirm-modal:visible .prioritize-title:has-text("Switch Task")'
-    ).count().then(c => c > 0);
-    if (switchConfirmUp) return;
-    const cardHasName = await page.locator('.active-task-card').textContent().then(t => (t || '').includes(name));
-    if (cardHasName) return;
-    // Nothing blocking — click the row.
-    await page.locator(`.switcher-task:has-text("${name}")`).click({ timeout: 1000 }).catch(() => {});
-  }).toPass({ timeout: 10000 });
-  // Final tolerant accept: card updated, or the Switch Task? confirm staged.
+  await page.locator(`.switcher-task:has-text("${name}")`).click();
+  // When switching while a focus timer is running, setActiveTask stages the
+  // switch behind a "Switch Task?" confirmation modal instead of updating the
+  // card immediately — so accept EITHER the card updating OR the modal. Tests
+  // that care about which path they're on assert it themselves afterwards.
   await expect(async () => {
     const cardHasName = await page.locator('.active-task-card').textContent().then(t => (t || '').includes(name));
     const modalUp = await page.locator('.confirm-modal').count().then(c => c > 0);
     expect(cardHasName || modalUp).toBeTruthy();
   }).toPass({ timeout: 5000 });
+
+  // Resume the break we paused so its natural completion (and any Task Changed
+  // confirm the caller expects) still fires.
+  if (wasBreakRunning) {
+    const startBtn = page.locator('.timer-controls button:has-text("Start")');
+    if (await startBtn.count().then(c => c > 0)) {
+      await startBtn.click().catch(() => {});
+    }
+  }
 }
 
 // Bump a task's pomodoro estimate to 2 via the Adjust Total Pomodoros popover
