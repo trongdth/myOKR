@@ -48,11 +48,11 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   void _resetToCurrentSession() {
     final settings = widget.provider.settings;
     if (_sessionType == 'focus') {
-      _timeLeft = (settings['focusDuration'] as int? ?? 25) * 60;
+      _timeLeft = ((settings['focusDuration'] as num?)?.toInt() ?? 25) * 60;
     } else if (_sessionType == 'shortBreak') {
-      _timeLeft = (settings['shortBreakDuration'] as int? ?? 5) * 60;
+      _timeLeft = ((settings['shortBreakDuration'] as num?)?.toInt() ?? 5) * 60;
     } else {
-      _timeLeft = (settings['longBreakDuration'] as int? ?? 15) * 60;
+      _timeLeft = ((settings['longBreakDuration'] as num?)?.toInt() ?? 15) * 60;
     }
   }
 
@@ -128,7 +128,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
 
     if (_sessionType == 'focus') {
       _completedPomos++;
-      final pomosBeforeLong = settings['pomosBeforeLongBreak'] as int? ?? 4;
+      final pomosBeforeLong = (settings['pomosBeforeLongBreak'] as num?)?.toInt() ?? 4;
       final isLongBreak = _completedPomos % pomosBeforeLong == 0;
       
       // Update active task focus counts
@@ -137,7 +137,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
         final updatedTasks = widget.provider.tasks.map((t) {
           if (t['id'] == activeId) {
             final updated = Map<String, dynamic>.from(t);
-            updated['completedPomodoros'] = (updated['completedPomodoros'] as int? ?? 0) + 1;
+            updated['completedPomodoros'] = ((updated['completedPomodoros'] as num?)?.toInt() ?? 0) + 1;
             return updated;
           }
           return t;
@@ -243,9 +243,9 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     final settings = widget.provider.settings;
     
     int totalSeconds = 25 * 60;
-    if (_sessionType == 'focus') totalSeconds = (settings['focusDuration'] as int? ?? 25) * 60;
-    if (_sessionType == 'shortBreak') totalSeconds = (settings['shortBreakDuration'] as int? ?? 5) * 60;
-    if (_sessionType == 'longBreak') totalSeconds = (settings['longBreakDuration'] as int? ?? 15) * 60;
+    if (_sessionType == 'focus') totalSeconds = ((settings['focusDuration'] as num?)?.toInt() ?? 25) * 60;
+    if (_sessionType == 'shortBreak') totalSeconds = ((settings['shortBreakDuration'] as num?)?.toInt() ?? 5) * 60;
+    if (_sessionType == 'longBreak') totalSeconds = ((settings['longBreakDuration'] as num?)?.toInt() ?? 15) * 60;
 
     final progress = totalSeconds > 0 ? (totalSeconds - _timeLeft) / totalSeconds : 0.0;
     final minutes = _timeLeft ~/ 60;

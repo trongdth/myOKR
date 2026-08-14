@@ -24,7 +24,8 @@ export function sanitizeForAutomerge<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeForAutomerge) as unknown as T;
   const result: any = {};
-  for (const key in obj) {
+  for (const key of Object.keys(obj as object)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     if ((obj as any)[key] !== undefined) {
       result[key] = sanitizeForAutomerge((obj as any)[key]);
     }
@@ -130,7 +131,24 @@ function compactDoc(
   });
 }
 
-export async function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>> {
+let initPromise: Promise<AutomergeType.Doc<AppState>> | null = null;
+
+export function initAndMigrateData(): Promise<AutomergeType.Doc<AppState>> {
+  if (currentDoc) return Promise.resolve(currentDoc);
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    try {
+      return await doInitAndMigrateData();
+    } finally {
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
+}
+
+async function doInitAndMigrateData(): Promise<AutomergeType.Doc<AppState>> {
   if (currentDoc) return currentDoc;
 
   let hasAutomerge = false;
@@ -358,12 +376,28 @@ async function processQueue() {
   drainFlushResolvers();
 }
 
+let requiresFullSave = false;
+
 // Append an incremental chunk (the new changes since the last save) to the
 // persisted file. Returns the chunk, or null if there were no new changes.
 async function appendIncremental(
   Automerge: typeof import('@automerge/automerge'),
   doc: AutomergeType.Doc<AppState>,
 ): Promise<Uint8Array | null> {
+  if (requiresFullSave || !persistedBuffer) {
+    const snapshot = timed('save(full-heal)', () => Automerge.save(doc));
+    try {
+      await writeFile(AUTOMERGE_FILE, snapshot, { baseDir: BaseDirectory.AppData });
+      persistedBuffer = snapshot;
+      requiresFullSave = false;
+      return snapshot;
+    } catch (e) {
+      console.error('Failed to write full Automerge snapshot to file:', e);
+      requiresFullSave = true;
+      throw e;
+    }
+  }
+
   const inc = timed('saveIncremental', () => Automerge.saveIncremental(doc));
   if (inc.length === 0) return null;
   const base = persistedBuffer ?? new Uint8Array();
@@ -373,6 +407,8 @@ async function appendIncremental(
     persistedBuffer = next;
   } catch (e) {
     console.error('Failed to append Automerge changes to file:', e);
+    requiresFullSave = true;
+    throw e;
   }
   return inc;
 }
@@ -489,6 +525,16 @@ export function mergeExternalBinary(remoteBinary: Uint8Array): Promise<Uint8Arra
           console.error('Failed to load remote Automerge binary:', loadErr);
           throw new Error('The remote sync file is corrupted or invalid. You can overwrite the cloud file with your local data to resolve this.');
         }
+
+        // Back up local state before overwriting with merged doc
+        if (persistedBuffer && persistedBuffer.length > 0) {
+          try {
+            await writeFile(BACKUP_FILE, persistedBuffer, { baseDir: BaseDirectory.AppData });
+          } catch (backupErr) {
+            console.warn('Failed to write pre-merge backup:', backupErr);
+          }
+        }
+
         const merged = Automerge.merge(localDoc, remoteDoc);
         currentDoc = merged;
         // Persist as ONE full snapshot, not appended incremental chunks: a

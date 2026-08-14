@@ -52,8 +52,8 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
 
     _category = widget.task['category'] ?? 'do';
     _keyResultId = widget.task['keyResultId'];
-    _estimatedPomodoros = widget.task['estimatedPomodoros'] as int? ?? 1;
-    _completedPomodoros = widget.task['completedPomodoros'] as int? ?? 0;
+    _estimatedPomodoros = (widget.task['estimatedPomodoros'] as num?)?.toInt() ?? 1;
+    _completedPomodoros = (widget.task['completedPomodoros'] as num?)?.toInt() ?? 0;
     // as num → toInt: the normalizer preserves non-integer finite values, and
     // a direct `as int?` would throw on a fractional plan from foreign data.
     _weeklyPomodoroPlan =
@@ -512,7 +512,7 @@ class _TaskDetailsSheetState extends State<TaskDetailsSheet> {
                                 TextButton(
                                   onPressed: () {
                                     setState(() {
-                                      _weeklyPomodoroPlan = widget.task['weeklyPomodoroPlan'] as int? ??
+                                      _weeklyPomodoroPlan = (widget.task['weeklyPomodoroPlan'] as num?)?.toInt() ??
                                           _estimatedPomodoros;
                                       _editingWeeklyPlan = true;
                                     });

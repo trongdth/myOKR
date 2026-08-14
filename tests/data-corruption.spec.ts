@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'fs';
 import * as Automerge from '@automerge/automerge';
 
 const MAIN_KEY = 'mock_fs_myokr-data.automerge';
@@ -127,5 +128,115 @@ test.describe('Data file corruption resilience', () => {
     const mainAfter = await readMockFile(page, MAIN_KEY);
     expect(mainAfter).not.toBeNull();
     expect(Buffer.from(mainAfter!).toString('base64')).toBe(Buffer.from(mainBytes).toString('base64'));
+  });
+
+  test('transient write failure during appendIncremental recovers on next write without corrupting the document chain', async ({ page }) => {
+    await waitForApp(page);
+
+    // Initial state: 1 task
+    await page.evaluate(async () => {
+      await (window as any).__updateAutomergeDoc('Add task 1', (d: any) => {
+        d.tasks = [{ id: 'task-1', title: 'Task 1' }];
+      });
+    });
+
+    // Simulate write failure on mutation 2
+    await page.evaluate(() => {
+      (window as any).__SIMULATE_WRITE_FAILURE = true;
+    });
+
+    // Attempt mutation 2 (this write fails transiently)
+    await page.evaluate(async () => {
+      try {
+        await (window as any).__updateAutomergeDoc('Add task 2', (d: any) => {
+          d.tasks.push({ id: 'task-2', title: 'Task 2' });
+        });
+      } catch {
+        // Expected transient failure
+      }
+    });
+
+    // Mutation 3 occurs when write succeeds
+    await page.evaluate(async () => {
+      await (window as any).__updateAutomergeDoc('Add task 3', (d: any) => {
+        d.tasks.push({ id: 'task-3', title: 'Task 3' });
+      });
+    });
+
+    // Read the persisted file on disk
+    const mainFile = await readMockFile(page, MAIN_KEY);
+    expect(mainFile).not.toBeNull();
+
+    // The file on disk must be fully loadable by Automerge.load without throwing missing heads errors!
+    let loadedDoc: any;
+    expect(() => {
+      loadedDoc = Automerge.load(mainFile!);
+    }).not.toThrow();
+
+    // Verify tasks are present
+    expect(loadedDoc.tasks.map((t: any) => t.id)).toEqual(['task-1', 'task-2', 'task-3']);
+  });
+
+  test('concurrent initial calls to getAutomergeDoc/initAndMigrateData share a singleton promise and preserve file data', async ({ page }) => {
+    // Seed a valid Automerge file on disk containing user tasks and cycles
+    const main = Automerge.change(Automerge.init<any>(), (d: any) => {
+      d.tasks = [{ id: 'task-100', title: 'Critical Task', completedPomodoros: 5 }];
+      d.cycles = [{ id: 'cycle-100', name: 'August 2026', month: 7, year: 2026, isActive: true }];
+    });
+    const mainBytes = Automerge.save(main);
+
+    await page.addInitScript(([key, value]) => {
+      localStorage.setItem(key, value);
+    }, [MAIN_KEY, Buffer.from(mainBytes).toString('base64')]);
+
+    await waitForApp(page);
+
+    // Call getAutomergeDoc / initAndMigrateData concurrently from multiple callers
+    const result = await page.evaluate(async () => {
+      const getDoc = (window as any).__getAutomergeDoc;
+      const results = await Promise.all([
+        getDoc(),
+        getDoc(),
+        getDoc(),
+        getDoc(),
+        getDoc(),
+      ]);
+      return {
+        taskCount: results[0]?.tasks?.length ?? 0,
+        cycleCount: results[0]?.cycles?.length ?? 0,
+      };
+    });
+
+    expect(result.taskCount).toBe(1);
+    expect(result.cycleCount).toBe(1);
+
+    // Ensure .corrupt stash was NOT written
+    const stashed = await page.evaluate((k) => localStorage.getItem(k), CORRUPT_KEY);
+    expect(stashed).toBeNull();
+  });
+
+  // Regression for the 2026-08-14 "all data gone" incident: the Tauri CSP was
+  // tightened from `null` to a policy without `script-src 'wasm-unsafe-eval'`,
+  // which blocks Automerge's WASM (instantiated via WebAssembly.instantiate by
+  // vite-plugin-wasm). The webview then refuses to compile/instantiate the
+  // module, getAutomerge()'s dynamic import rejects, SessionProvider's init()
+  // never resolves, and the app boots to an empty screen — even though the data
+  // file on disk is perfectly intact. The Playwright suite runs against a plain
+  // Vite dev server (no CSP), so this only reproduced under `tauri dev`/build.
+  // This reads the committed CSP and asserts it permits WASM. Proven red on the
+  // broken policy (no wasm-unsafe-eval), green after the fix.
+  test('Tauri CSP permits WebAssembly (script-src includes wasm-unsafe-eval)', () => {
+    const conf = JSON.parse(
+      readFileSync('src-tauri/tauri.conf.json', 'utf-8'),
+    ) as { app: { security: { csp?: string | null } } };
+    const csp = conf.app?.security?.csp;
+    // A null/absent CSP imposes no restriction (the historical default) and is safe.
+    if (csp === null || csp === undefined) return;
+
+    expect(typeof csp).toBe('string');
+    // Either an explicit script-src with wasm-unsafe-eval, or the token anywhere
+    // in the policy (e.g. via default-src fallback). Without it, Automerge's WASM
+    // fails to instantiate and the app boots empty.
+    expect(csp).toContain('wasm-unsafe-eval');
   });
 });

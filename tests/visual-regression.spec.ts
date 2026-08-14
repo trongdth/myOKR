@@ -88,8 +88,8 @@ test.describe('Visual regression (1a redesign)', () => {
     // Select it via the Session Active Task Card picker.
     await page.locator('[title="Session"]').first().click();
     await page.waitForTimeout(300);
-    await page.locator('.active-task-card').click();
-    await page.locator('.task-picker-item:has-text("Running Baseline Task")').click();
+    await page.locator('.active-task-card-change').click();
+    await page.locator('.switcher-task:has-text("Running Baseline Task")').click();
     await page.locator('.timer-section button:has-text("Start")').click();
     await page.waitForTimeout(300);
     await expect(page).toHaveScreenshot('timer-running.png', {

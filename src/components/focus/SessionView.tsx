@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Pause, Play, RotateCcw, Settings, CheckCircle2 } from 'lucide-react';
 import ConfirmModal from '../ConfirmModal';
 import NumberInput from '../NumberInput';
 import LoadingState from '../shared/LoadingState';
 import AmbientPresetPicker from '../shared/AmbientPresetPicker';
 import AmbientAudioWidget from '../shared/AmbientAudioWidget';
+import TaskDetailModal from '../pomodoro/TaskDetailModal';
+import TaskSwitcherModal from './TaskSwitcherModal';
 import { useSession } from '../session/SessionProvider';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { loadHistory, todayKey } from '../../lib/pomodoro-storage';
@@ -47,10 +49,12 @@ export default function SessionView({
     settings, tasks, sessionType, isRunning, activeTask, activeTaskId,
     isLoading, pulse, progress, minutes, seconds,
     toggleTimer, resetTimer, switchSession, setActiveTask, updateSetting,
+    handleTasksChange,
   } = useSession();
 
   const [showSettings, setShowSettings] = useState(false);
   const [showTaskPicker, setShowTaskPicker] = useState(false);
+  const [selectedDetailTask, setSelectedDetailTask] = useState<PomodoroTask | null>(null);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
 
   // Day plan queue (ADR-0017): SessionView reads TodayPlan directly so the
@@ -106,6 +110,17 @@ export default function SessionView({
   // Resolve the active task's KR/objective for the card subtitle.
   const activeKr = activeTask?.keyResultId ? krMap.get(activeTask.keyResultId) : undefined;
   const activeObj = activeKr ? objMap.get(activeKr.objectiveId) : undefined;
+
+  // TODAY bucket tasks (incomplete) — feeds the Task Switcher's TODAY section.
+  // Derived from the live tasks list, no extra fetch. Sorted by importance so
+  // the section reads in priority order (same heuristic as the Tasks board).
+  const todayTasks = useMemo(
+    () => tasks.filter(t => !t.isCompleted && t.bucket === 'today'),
+    [tasks],
+  );
+
+  // KR list for the Task Detail modal's KEY RESULT select (array view of krMap).
+  const keyResultsList = useMemo(() => Array.from(krMap.values()), [krMap]);
 
   // Consume requestedTaskId — e.g. "Start focus" staged from the Day plan.
   useEffect(() => {
@@ -168,16 +183,40 @@ export default function SessionView({
         activeTask={activeTask}
         kr={activeKr}
         objective={activeObj}
-        onPick={() => setShowTaskPicker(s => !s)}
+        onPick={() => setShowTaskPicker(true)}
+        onOpenDetail={() => activeTask && setSelectedDetailTask(activeTask)}
         pickerOpen={showTaskPicker}
       />
       {showTaskPicker && (
-        <TaskPicker
-          tasks={queuedTasks}
-          activeTaskId={activeTaskId}
+        <TaskSwitcherModal
+          activeTask={activeTask}
+          queuedTasks={queuedTasks}
+          todayTasks={todayTasks}
+          krMap={krMap}
+          objMap={objMap}
           onPick={(id) => { setActiveTask(id); setShowTaskPicker(false); }}
-          onClear={() => { setActiveTask(null); setShowTaskPicker(false); }}
-          onPlanDay={() => { setShowTaskPicker(false); navigateToSection('day-plan'); }}
+          onClose={() => setShowTaskPicker(false)}
+        />
+      )}
+      {selectedDetailTask && (
+        <TaskDetailModal
+          task={selectedDetailTask}
+          onUpdate={(updated) => {
+            handleTasksChange(tasks.map(t => t.id === updated.id ? updated : t));
+            setSelectedDetailTask(updated);
+          }}
+          onDelete={(id) => {
+            if (activeTaskId === id) setActiveTask(null);
+            handleTasksChange(tasks.filter(t => t.id !== id));
+            setSelectedDetailTask(null);
+          }}
+          onClose={() => setSelectedDetailTask(null)}
+          keyResults={keyResultsList}
+          onStartFocus={(t) => {
+            setActiveTask(t.id);
+            setSelectedDetailTask(null);
+            navigateToSection('session');
+          }}
         />
       )}
 
@@ -275,9 +314,15 @@ export default function SessionView({
  * The Active Task Card (Row 3, ADR-0016). A centered card showing the task a
  * focus session is attributed to. Layout (mockup 2026-08-12): a decorative
  * square icon tile on the left, a stacked title + KR subtitle in the middle,
- * and a cyan "Change" button on the right edge. The whole card remains
- * clickable to open the picker; "Change" is a redundant visual affordance for
- * the same action.
+ * and a cyan "Change" button on the right edge.
+ *
+ * Two click targets (2026-08-13 redesign):
+ * - The **title** opens the Task Detail modal (same component as the Plan/Tasks
+ *   buckets) — `onOpenDetail`. Only active when a task is set.
+ * - The **"Change" button** opens the Task Switcher modal — `onPick`.
+ * The card body is no longer a single click target: detail and switch are
+ * distinct intents, so they have distinct affordances. The empty-state card
+ * (no active task) makes the whole card a "pick one" trigger via Change.
  *
  * The subtitle resolves the KR the task links to (objective.title → kr.title),
  * matching NowCard / FocusCard / UpNextCard. Falls back to "No key result
@@ -288,24 +333,21 @@ function ActiveTaskCard({
   kr,
   objective,
   onPick,
+  onOpenDetail,
   pickerOpen,
 }: {
   activeTask: PomodoroTask | null;
   kr?: KeyResult;
   objective?: Objective;
   onPick: () => void;
+  onOpenDetail: () => void;
   pickerOpen: boolean;
 }) {
   const subtitle = formatKrSubtitle(kr, objective);
   return (
     <div
       className={`active-task-card${activeTask ? '' : ' empty'}${pickerOpen ? ' picker-open' : ''}`}
-      role="button"
-      tabIndex={0}
-      onClick={onPick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(); } }}
-      aria-label={activeTask ? `Active task: ${activeTask.title}. Click to change.` : 'No active task. Click to pick one.'}
-      title="Click to change the active task"
+      aria-label={activeTask ? `Active task: ${activeTask.title}` : 'No active task. Click Change to pick one.'}
     >
       {/* Decorative square icon tile (no behavior). */}
       <span className="active-task-card-icon" aria-hidden="true">
@@ -314,7 +356,16 @@ function ActiveTaskCard({
       <div className="active-task-card-body">
         <span className="active-task-card-label">Working on</span>
         {activeTask ? (
-          <strong className="active-task-card-title">{activeTask.title}</strong>
+          <strong
+            className="active-task-card-title"
+            role="button"
+            tabIndex={0}
+            onClick={onOpenDetail}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail(); } }}
+            title="View task details"
+          >
+            {activeTask.title}
+          </strong>
         ) : (
           <span className="active-task-card-empty">No task — pick one</span>
         )}
@@ -322,71 +373,15 @@ function ActiveTaskCard({
           <span className="active-task-card-subtitle">{subtitle}</span>
         )}
       </div>
-      {/* Cyan "Change" button — opens the same picker as the card click. */}
+      {/* Cyan "Change" button — opens the Task Switcher modal. */}
       <button
         type="button"
         className="active-task-card-change"
-        onClick={(e) => { e.stopPropagation(); onPick(); }}
+        onClick={onPick}
         aria-label="Change active task"
       >
         Change
       </button>
-    </div>
-  );
-}
-
-/**
- * Lightweight task picker for the Active Task Card. Lists the Day plan's queued
- * tasks in order (NOW first), plus a "Clear" option. When the queue is empty
- * (no TodayPlan, or all tasks completed/skipped), offers a "Plan your day →"
- * handoff that navigates to the Day plan tab (ADR-0017).
- */
-function TaskPicker({
-  tasks,
-  activeTaskId,
-  onPick,
-  onClear,
-  onPlanDay,
-}: {
-  tasks: PomodoroTask[];
-  activeTaskId: string | null;
-  onPick: (id: string) => void;
-  onClear: () => void;
-  onPlanDay: () => void;
-}) {
-  // tasks is already filtered to incomplete + queue-ordered by the caller.
-  const choices = tasks;
-  // role="menu" (not listbox): the picker mixes task options with non-option
-  // actions (Clear, Plan your day), which a listbox forbids. A menu allows
-  // mixed menuitem children, matching the dropdown's actual behavior.
-  return (
-    <div className="task-picker" role="menu" aria-label="Pick active task">
-      {choices.length === 0 && (
-        <div className="task-picker-empty">
-          <span>Nothing queued for today.</span>
-          <button type="button" role="menuitem" className="task-picker-plan-link" onClick={onPlanDay}>
-            Plan your day →
-          </button>
-        </div>
-      )}
-      {choices.map(t => (
-        <button
-          key={t.id}
-          type="button"
-          role="menuitem"
-          aria-current={t.id === activeTaskId ? 'true' : undefined}
-          className={`task-picker-item${t.id === activeTaskId ? ' active' : ''}`}
-          onClick={() => onPick(t.id)}
-        >
-          <span className="task-picker-item-title">{t.title}</span>
-          <span className="task-picker-item-pomos">{t.completedPomodoros}/{t.estimatedPomodoros}</span>
-        </button>
-      ))}
-      {activeTaskId && (
-        <button type="button" role="menuitem" className="task-picker-clear" onClick={onClear}>
-          Clear active task
-        </button>
-      )}
     </div>
   );
 }

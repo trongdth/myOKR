@@ -47,6 +47,11 @@ export default function Markdown({ children, showLinkCopy = false }: { children:
             )}
           </span>
         ),
+        img: ({ alt, src }) => (
+          <span className="md-image-placeholder text-xs text-[var(--text-muted)] italic">
+            [Image: {alt || src || 'embedded image'}]
+          </span>
+        ),
       }}
     >
       {hardBreaks(children)}

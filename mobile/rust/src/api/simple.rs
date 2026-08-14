@@ -165,7 +165,6 @@ pub fn automerge_get_property(binary: Vec<u8>, key: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use automerge::transaction::Transactable;
     use automerge::{AutoCommit, ReadDoc, ROOT};
 
     fn valid_doc_binary() -> Vec<u8> {

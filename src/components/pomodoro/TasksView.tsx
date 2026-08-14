@@ -804,7 +804,7 @@ function BoardTaskCard({
   onToggleMove: () => void;
   onMoveBucket: (b: TaskBucket) => void;
 }) {
-  const meta = task.category ? EISENHOWER_META[task.category] : null;
+  const meta = task.category ? EISENHOWER_META[task.category] || null : null;
   const linkedKr = keyResults.find(k => k.id === task.keyResultId);
   const accentVar = meta?.color ?? '#6b7280';
   const due = formatDueLabel(task.dueDate);

@@ -46,8 +46,8 @@ async function replanDay(page: Page) {
 async function selectTask(page: Page, name: string) {
   await replanDay(page);
   await openSession(page);
-  await page.locator('.active-task-card').click();
-  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  await page.locator('.active-task-card-change').click();
+  await page.locator(`.switcher-task:has-text("${name}")`).click();
 }
 
 // ==========================================

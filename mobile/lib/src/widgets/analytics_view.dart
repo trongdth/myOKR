@@ -248,8 +248,8 @@ class AnalyticsView extends StatelessWidget {
       (r) => r['date'] == todayStr,
       orElse: () => <String, dynamic>{},
     );
-    final todayCompleted = todayRec['completedPomodoros'] as int? ?? 0;
-    final todayMinutes = todayRec['totalFocusMinutes'] as int? ?? 0;
+    final todayCompleted = (todayRec['completedPomodoros'] as num?)?.toInt() ?? 0;
+    final todayMinutes = (todayRec['totalFocusMinutes'] as num?)?.toInt() ?? 0;
 
     // Streak
     int streak = 0;
@@ -260,7 +260,7 @@ class AnalyticsView extends StatelessWidget {
         (r) => r['date'] == key,
         orElse: () => <String, dynamic>{},
       );
-      final completed = rec['completedPomodoros'] as int? ?? 0;
+      final completed = (rec['completedPomodoros'] as num?)?.toInt() ?? 0;
       if (rec.isNotEmpty && completed > 0) {
         streak++;
         d = d.subtract(const Duration(days: 1));
@@ -270,8 +270,8 @@ class AnalyticsView extends StatelessWidget {
     }
 
     // Totals
-    final totalPomodoros = provider.history.fold<int>(0, (sum, r) => sum + (r['completedPomodoros'] as int? ?? 0));
-    final totalFocusHours = (provider.history.fold<int>(0, (sum, r) => sum + (r['totalFocusMinutes'] as int? ?? 0)) / 60).toStringAsFixed(1);
+    final totalPomodoros = provider.history.fold<int>(0, (sum, r) => sum + ((r['completedPomodoros'] as num?)?.toInt() ?? 0));
+    final totalFocusHours = (provider.history.fold<int>(0, (sum, r) => sum + ((r['totalFocusMinutes'] as num?)?.toInt() ?? 0)) / 60).toStringAsFixed(1);
     final totalTasksDone = provider.tasks.where((t) => t['completed'] == true).length;
 
     // Weekly bar chart (last 7 days)
@@ -286,7 +286,7 @@ class AnalyticsView extends StatelessWidget {
       );
       weekData.add({
         'label': dayNames[dt.weekday % 7],
-        'value': rec['completedPomodoros'] as int? ?? 0,
+        'value': (rec['completedPomodoros'] as num?)?.toInt() ?? 0,
       });
     }
     final maxWeekValue = weekData.map<int>((w) => w['value'] as int).fold<int>(1, (m, val) => max(m, val));
@@ -305,7 +305,7 @@ class AnalyticsView extends StatelessWidget {
         (r) => r['date'] == key,
         orElse: () => <String, dynamic>{},
       );
-      final count = rec['completedPomodoros'] as int? ?? 0;
+      final count = (rec['completedPomodoros'] as num?)?.toInt() ?? 0;
       int level = 0;
       if (count >= 8) {
         level = 4;

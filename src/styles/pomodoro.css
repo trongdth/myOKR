@@ -482,6 +482,16 @@
   color: var(--text-primary);
   line-height: 1.3;
   word-break: break-word;
+  /* The title is the click-to-open-detail affordance (2026-08-13): hint it is
+     interactive on hover, without pulling focus from the "Change" button. */
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.active-task-card-title:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--color-focus);
+  text-underline-offset: 3px;
 }
 
 .active-task-card-subtitle {
@@ -530,86 +540,198 @@
   font-style: italic;
 }
 
-/* Lightweight task picker dropdown for the Active Task Card. Matches the
-   card's width (width:100% / max-width:560px, no hard min-width). */
-.task-picker {
+/* Task Switcher modal (replaces the old inline .task-picker dropdown, 2026-08-13).
+   A command-palette-style dialog opened from the Active Task Card's "Change"
+   button. Reuses .app-modal-overlay / .app-modal-content for backdrop +
+   centering; .task-switcher supplies the panel look. Tokens only (no raw hex),
+   per design-system.md. */
+.task-switcher {
   width: 100%;
   max-width: 560px;
-  max-height: 280px;
-  overflow-y: auto;
-  background: var(--bg-secondary);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 0.35em;
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: modalSlideUp 250ms ease;
+}
+
+/* Search header — icon + input on the left, Esc badge on the right. */
+.switcher-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.85em 1em;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.switcher-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.switcher-search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+}
+
+.switcher-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.switcher-esc-badge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.15em 0.5em;
+  line-height: 1.4;
+}
+
+/* Scrollable sectioned body. */
+.switcher-body {
+  overflow-y: auto;
+  padding: 0.5em 0.6em 0.7em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.switcher-section {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  box-shadow: var(--shadow-card);
 }
 
-.task-picker-empty {
-  padding: 0.75em 1em;
+.switcher-section-title {
+  margin: 0.5em 0.5em 0.25em;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  font-size: 0.85rem;
-  text-align: center;
 }
 
-.task-picker-item {
+.switcher-empty {
+  margin: 1.5em 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+/* Task row: [category dot] [title + subtitle] [right meta]. */
+.switcher-task {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 0.75em;
-  padding: 0.5em 0.75em;
+  width: 100%;
+  padding: 0.55em 0.65em;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 10px;
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+  transition: background-color 200ms ease, border-color 200ms ease;
 }
 
-.task-picker-item:hover {
+.switcher-task:hover,
+.switcher-task:focus-visible {
   background: var(--bg-tertiary);
+  outline: none;
 }
 
-.task-picker-item.active {
-  background: color-mix(in srgb, var(--color-focus) 14%, transparent);
-  border-color: var(--color-focus);
+.switcher-task.active {
+  background: color-mix(in srgb, var(--color-focus) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-focus) 45%, transparent);
 }
 
-.task-picker-item-title {
+.switcher-task-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  /* backgroundColor is set inline from EISENHOWER_META color. */
+}
+
+.switcher-task-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
   flex: 1;
+  min-width: 0;
+}
+
+.switcher-task-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.task-picker-item-pomos {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
+.switcher-task-subtitle {
+  font-size: 0.76rem;
   color: var(--text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switcher-task-meta {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
 }
 
-.task-picker-clear {
-  margin-top: 2px;
-  padding: 0.5em 0.75em;
-  background: transparent;
-  border: none;
+/* Active task: cyan checkmark in a highlighted container. */
+.switcher-task-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   border-radius: 7px;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 0.82rem;
-  text-align: left;
-  cursor: pointer;
+  background: color-mix(in srgb, var(--color-focus) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-focus) 50%, transparent);
+  color: var(--color-focus);
 }
 
-.task-picker-clear:hover {
-  color: var(--text-secondary);
-  background: var(--bg-tertiary);
+/* Queue / today estimate: muted mono count. */
+.switcher-task-sessions {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* Overdue badge: soft red (design-system: overdue = risk/red, never amber). */
+.switcher-task-overdue {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-risk);
+  background: color-mix(in srgb, var(--color-risk) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-risk) 40%, transparent);
+  border-radius: 6px;
+  padding: 0.15em 0.5em;
+  line-height: 1.4;
 }
 
 .timer-controls .btn {

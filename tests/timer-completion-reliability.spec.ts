@@ -27,8 +27,8 @@ async function selectTask(page: Page, name: string) {
   await page.waitForTimeout(500);
   await page.locator('button[title="Session"]').first().click();
   await page.waitForTimeout(300);
-  await page.locator('.active-task-card').click();
-  await page.locator(`.task-picker-item:has-text("${name}")`).click();
+  await page.locator('.active-task-card-change').click();
+  await page.locator(`.switcher-task:has-text("${name}")`).click();
 }
 
 // The seeded history already holds focus sessions for today (no taskId);

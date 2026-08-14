@@ -20,7 +20,7 @@ interface FocusCardProps {
 
 export default function FocusCard({ task, kr, objective, rank, isTop, maxShare, onStart, onSkip }: FocusCardProps) {
   const [showWhy, setShowWhy] = useState(false);
-  const catMeta = task.category ? EISENHOWER_META[task.category] : null;
+  const catMeta = task.category ? EISENHOWER_META[task.category] || null : null;
   const confidenceColor = kr ? CONFIDENCE_META[kr.confidence].color : undefined;
   const remaining = Math.max(0, (task.estimatedPomodoros || 1) - task.completedPomodoros);
   const spansDays = remaining > maxShare;
