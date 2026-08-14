@@ -72,11 +72,36 @@ async function selectTask(page: Page, name: string) {
   await page.waitForTimeout(500);
   await openSession(page);
   await page.locator('.active-task-card-change').click();
-  await page.locator(`.switcher-task:has-text("${name}")`).click();
-  // When switching while a focus timer is running, setActiveTask stages the
-  // switch behind a "Switch Task" confirmation modal instead of updating the
-  // card immediately — so accept EITHER the card updating OR the modal. Tests
-  // that care about which path they're on assert it themselves afterwards.
+  // Picking a task while a focus is running stages the switch behind a "Switch
+  // Task?" confirm (setActiveTask guard) — that's expected, and tests that care
+  // assert/cancel it themselves. BUT on slower runners the surrounding break
+  // can end mid-pick, surfacing a Task Changed / No Task confirm that stacks on
+  // top of the Task Switcher overlay and intercepts the row click. Retry the
+  // pick; if a NON-switch confirm is blocking, dismiss it (Continue / Start
+  // Anyway) so the pick can land. Leave the "Switch Task?" confirm untouched.
+  await expect(async () => {
+    // A leftover non-switch confirm blocking the overlay — dismiss it.
+    const blocker = page.locator(
+      '.confirm-modal:visible:not(:has(.prioritize-title:has-text("Switch Task")))'
+    );
+    if (await blocker.count().then(c => c > 0)) {
+      await blocker.locator(
+        'button:has-text("Continue"), button:has-text("Start Anyway")'
+      ).first().click({ timeout: 1000 }).catch(() => {});
+      await page.waitForTimeout(100);
+      return;
+    }
+    // Switch Task? confirm already staged by a prior pick attempt — done.
+    const switchConfirmUp = await page.locator(
+      '.confirm-modal:visible .prioritize-title:has-text("Switch Task")'
+    ).count().then(c => c > 0);
+    if (switchConfirmUp) return;
+    const cardHasName = await page.locator('.active-task-card').textContent().then(t => (t || '').includes(name));
+    if (cardHasName) return;
+    // Nothing blocking — click the row.
+    await page.locator(`.switcher-task:has-text("${name}")`).click({ timeout: 1000 }).catch(() => {});
+  }).toPass({ timeout: 10000 });
+  // Final tolerant accept: card updated, or the Switch Task? confirm staged.
   await expect(async () => {
     const cardHasName = await page.locator('.active-task-card').textContent().then(t => (t || '').includes(name));
     const modalUp = await page.locator('.confirm-modal').count().then(c => c > 0);
