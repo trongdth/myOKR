@@ -37,6 +37,7 @@ meaning aligns (cyan = primary action = focus).
 |---|---|---|
 | `--color-primary` | `#22D3EE` | THE single primary action per screen (e.g. the one Start / Save CTA) |
 | `--color-focus` | `#22D3EE` | Focus-session / timer semantics (same hue as primary) |
+| `--color-focus-border` | `#1a4b54` | Subtle teal border for session-timer surfaces (the global Session widget card) |
 | `--color-objective` | `#a855f7` (violet) | OKR Objectives |
 | `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else. **One carve-out:** the Habits analytics weak-day insight banner (2026-08-08, Habits tracker) — an insight derived from streak data, documented in the Habits section below |
 | `--color-risk` | `#f43f5e` (rose) | At-risk / warning |
@@ -179,6 +180,14 @@ Today follows the `okr.css` / `review.css` precedent: semantic colors via
   SVGs are already Lucide paths and migrate to Lucide components.
 - **Size/stroke:** 16px nav/content icons (the review's "16px stroke icon set"),
   18px for top-level nav glyphs, `strokeWidth` 1.5–2, round caps.
+- **Timer action icons are solid, not outline (2026-08-15):** every pause/start
+  action button — the Session tab's Pause/Start, the global Session widget's
+  ring button, Task detail's "Start focus", and the Day plan NOW card's "Start
+  focus" (the original precedent) — renders its Lucide `Play`/`Pause` with
+  `fill="currentColor"`: a solid play triangle / two solid pause bars. At
+  action-button size a stroked outline reads as a disabled ghost. Guarded by
+  fill-attribute assertions in `tests/focus-session.spec.ts` and
+  `tests/session-widget.spec.ts`.
 - **No emoji for UI affordances.** Emoji are replaced by Lucide components
   (🍅→Timer/Play, 🏆→Trophy, 🔥→Flame, 📊→ChartBar, 📅→Calendar, 📖→BookOpen, …).
 - **Logo:** the 🎯 emoji becomes a gradient-filled Lucide `Target` — the one

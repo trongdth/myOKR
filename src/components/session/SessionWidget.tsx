@@ -1,6 +1,5 @@
 import { Pause, Play } from 'lucide-react';
 import { useSession } from './SessionProvider';
-import { displayedPomoCount } from '../../lib/pomodoro-storage';
 import './SessionWidget.css';
 
 /**
@@ -19,7 +18,7 @@ export default function SessionWidget({
 }) {
   const {
     sessionType, isRunning, minutes, seconds, progress,
-    activeTask, activeFocusTaskId, toggleTimer,
+    activeTask, toggleTimer,
   } = useSession();
 
   // Rider a: hide on the Session tab (the full timer is already on screen).
@@ -29,13 +28,6 @@ export default function SessionWidget({
 
   const isFocus = sessionType === 'focus';
   const phaseLabel = isFocus ? 'Focus' : sessionType === 'shortBreak' ? 'Short Break' : 'Long Break';
-
-  // Decision A position count for the active task (pomo you're ON while a focus
-  // runs; the count finished while on a break — self-consistent via the formula).
-  const pomoN = activeTask
-    ? displayedPomoCount(activeTask.completedPomodoros, activeTask.estimatedPomodoros, activeFocusTaskId === activeTask.id)
-    : 0;
-  const pomoM = activeTask ? (activeTask.estimatedPomodoros || 1) : 0;
 
   // Mini ring geometry.
   const R = 18;
@@ -58,12 +50,13 @@ export default function SessionWidget({
         <div className="sw-time">
           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
         </div>
+        {/* With a task staged, the subtext is its title alone — the phase
+            label and pomo count are dropped so the name gets the room to be
+            read; the phase label is the fallback only when a session runs
+            without a task. */}
         <div className="sw-sub" title={activeTask?.title}>
-          {phaseLabel}
-          {activeTask && <span className="sw-dot">·</span>}
+          {!activeTask && phaseLabel}
           {activeTask && <span className="sw-task">{activeTask.title}</span>}
-          {activeTask && <span className="sw-dot">·</span>}
-          {activeTask && <span className="sw-pomo">pomo {pomoN} of {pomoM}</span>}
         </div>
       </div>
 
@@ -74,7 +67,7 @@ export default function SessionWidget({
           title={isRunning ? 'Pause' : 'Start'}
           aria-label={isRunning ? 'Pause session' : 'Start session'}
         >
-          {isRunning ? <Pause size={15} /> : <Play size={15} />}
+          {isRunning ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
         </button>
         <button className="sw-btn sw-open" onClick={onOpen} title="Open timer">
           Open

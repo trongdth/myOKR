@@ -14,7 +14,7 @@
   padding: 10px 12px;
   max-width: 380px;
   background: var(--bg-secondary);
-  border: 1px solid var(--bg-tertiary);
+  border: 1px solid var(--color-focus-border);
   border-radius: 14px;
   box-shadow: var(--shadow-card);
   color: var(--text-primary);
@@ -76,20 +76,10 @@
   white-space: nowrap;
 }
 
-.sw-dot {
-  color: var(--text-muted);
-}
-
 .sw-task {
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
-}
-
-.sw-pomo {
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  flex-shrink: 0;
+  max-width: 220px;
 }
 
 .sw-actions {
@@ -128,6 +118,7 @@
 }
 
 .sw-open {
+  height: 32px;
   padding: 6px 11px;
   background: transparent;
   border: 1px solid var(--bg-tertiary);

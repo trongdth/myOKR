@@ -321,7 +321,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
                     onClose();
                   }}
                 >
-                  <Play size={14} />
+                  <Play size={14} fill="currentColor" />
                   <span>Start focus</span>
                 </button>
               )}
