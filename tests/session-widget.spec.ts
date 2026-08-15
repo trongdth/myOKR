@@ -73,7 +73,7 @@ test.describe('Session Widget', () => {
     await expect(page.locator('.session-widget')).toHaveCount(0);
   });
 
-  test('appears on a non-session page with the active task + pomo count', async ({ page }) => {
+  test('appears on a non-session page with the active task', async ({ page }) => {
     await addTask(page, 'Widget Task');
     await selectTask(page, 'Widget Task');
 
@@ -82,9 +82,7 @@ test.describe('Session Widget', () => {
 
     const widget = page.locator('.session-widget');
     await expect(widget).toBeVisible();
-    // Staged (not running): position formula reads completed -> "pomo 0 of 1".
-    await expect(widget).toContainText('Widget Task');
-    await expect(widget).toContainText('pomo 0 of 1');
+    await expect(widget.locator('.sw-sub')).toHaveText('Widget Task');
   });
 
   test('Open navigates to the Session tab and hides the widget', async ({ page }) => {
@@ -113,8 +111,91 @@ test.describe('Session Widget', () => {
 
     // Running -> the control flips to Pause.
     await expect(widget.locator('.sw-play')).toHaveAttribute('title', 'Pause', { timeout: 5000 });
-    // Decision A: while the focus runs, the count is the pomo you're ON (1 of 1).
-    await expect(widget).toContainText('pomo 1 of 1');
+    // The subtext still shows just the task title while the focus runs.
+    await expect(widget.locator('.sw-sub')).toHaveText('Run Task');
+  });
+
+  test('play/pause icon is solid filled, not a hollow outline', async ({ page }) => {
+    await addTask(page, 'Fill Icon Task');
+    await selectTask(page, 'Fill Icon Task');
+    await page.locator('button[title="Day plan"]').first().click();
+
+    const widget = page.locator('.session-widget');
+    await expect(widget).toBeVisible();
+
+    // Start state — solid filled play triangle (fill="currentColor", the
+    // NowCard precedent); the hollow Lucide outline read as a disabled ghost.
+    await expect(widget.locator('.sw-play svg')).toHaveAttribute('fill', 'currentColor');
+
+    // Pause state — two solid filled rectangles.
+    await widget.locator('.sw-play').click();
+    await expect(widget.locator('.sw-play')).toHaveAttribute('title', 'Pause', { timeout: 5000 });
+    await expect(widget.locator('.sw-play svg')).toHaveAttribute('fill', 'currentColor');
+  });
+
+  test('subtext shows only the task title — no phase prefix, no pomo count', async ({ page }) => {
+    const name = 'Refactor the auth module A';
+    await addTask(page, name);
+    await selectTask(page, name);
+    await page.locator('button[title="Day plan"]').first().click();
+
+    const widget = page.locator('.session-widget');
+    await expect(widget).toBeVisible();
+
+    // Subtext reads exactly "<Task Title>" — the phase label and pomo count
+    // are dropped so the task name gets all the room to be read.
+    const sub = widget.locator('.sw-sub');
+    await expect(sub).toHaveText(name);
+    await expect(sub).not.toContainText('pomo');
+    await expect(sub).not.toContainText('Focus');
+  });
+
+  test('styling: teal accent border, room for a 20+ char task title, centered row', async ({ page }) => {
+    await addTask(page, 'Styling Task');
+    await selectTask(page, 'Styling Task');
+    await page.locator('button[title="Day plan"]').first().click();
+
+    const widget = page.locator('.session-widget');
+    await expect(widget).toBeVisible();
+
+    const styles = await widget.evaluate((el) => {
+      const ws = getComputedStyle(el);
+      const task = el.querySelector('.sw-task');
+      const ts = task ? getComputedStyle(task) : null;
+      return {
+        borderColor: ws.borderColor,
+        gap: ws.gap,
+        alignItems: ws.alignItems,
+        taskMaxWidth: ts ? ts.maxWidth : '',
+      };
+    });
+
+    // 1. Subtle teal accent border around the container card (#1a4b54 token).
+    expect(styles.borderColor).toBe('rgb(26, 75, 84)');
+    // 2. The task title gets at least ~20 characters of room before ellipsis.
+    expect(parseFloat(styles.taskMaxWidth)).toBeGreaterThanOrEqual(200);
+    // 3. Ring, text block, and buttons share one centered row with 12–16px gaps.
+    expect(styles.alignItems).toBe('center');
+    const gap = parseFloat(styles.gap);
+    expect(gap).toBeGreaterThanOrEqual(12);
+    expect(gap).toBeLessThanOrEqual(16);
+  });
+
+  test('pause and Open buttons render at the same height', async ({ page }) => {
+    await addTask(page, 'Height Task');
+    await selectTask(page, 'Height Task');
+    await page.locator('button[title="Day plan"]').first().click();
+
+    const widget = page.locator('.session-widget');
+    await expect(widget).toBeVisible();
+
+    const play = await widget.locator('.sw-play').boundingBox();
+    const open = await widget.locator('.sw-open').boundingBox();
+    expect(play && open).toBeTruthy();
+    // The two action buttons must match heights exactly (and stay vertically
+    // aligned), so the row reads as one even control cluster.
+    expect(play!.height).toBe(open!.height);
+    expect(Math.abs(play!.y - open!.y)).toBeLessThan(0.5);
   });
 
   test('is anchored to the bottom-right corner of the viewport', async ({ page }) => {

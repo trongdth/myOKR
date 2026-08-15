@@ -77,6 +77,22 @@ test.describe('Focus shell — Session tab (ticket 02)', () => {
     await expect(page.locator('.focus-tab-live')).toContainText('live');
   });
 
+  test('Pause/Start action icon is solid filled, not a hollow outline', async ({ page }) => {
+    // Design rule: the timer action button's Play/Pause renders solid
+    // (fill="currentColor", the NowCard precedent) — the hollow Lucide
+    // outline read as a disabled ghost at button size.
+    await addTask(page, 'Fill Icon Task');
+    await selectTaskOnTasksAndOpenSession(page, 'Fill Icon Task');
+
+    const toggle = page.locator('.timer-controls button.btn');
+    await expect(toggle).toHaveText(/Start/);
+    await expect(toggle.locator('svg')).toHaveAttribute('fill', 'currentColor');
+
+    await toggle.click();
+    await expect(toggle).toHaveText(/Pause/);
+    await expect(toggle.locator('svg')).toHaveAttribute('fill', 'currentColor');
+  });
+
   test('Start focus from Day plan opens the Session tab in the Focus shell, task staged', async ({ page }) => {
     await page.locator('button:has-text("Day plan")').first().click();
     await page.waitForTimeout(300);
@@ -143,6 +159,19 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     await expect(subtitle).toBeVisible();
     await expect(subtitle).toContainText('Ship myOKR v2.0');
     await expect(subtitle).toContainText('Complete 15 feature tickets');
+  });
+
+  test('Task detail modal Start focus icon is solid filled, not a hollow outline', async ({ page }) => {
+    // Click-to-detail on the Active Task Card title opens the Task Detail
+    // modal (2026-08-13). Its Start focus action icon follows the solid-fill
+    // rule (fill="currentColor", the NowCard precedent).
+    await openTaskSwitcher(page);
+    await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
+
+    await page.locator('.active-task-card-title').click();
+    const startFocus = page.locator('.start-focus-btn');
+    await expect(startFocus).toBeVisible();
+    await expect(startFocus.locator('svg')).toHaveAttribute('fill', 'currentColor');
   });
 
   test('Active Task Card shows a fallback subtitle when the task has no KR', async ({ page }) => {

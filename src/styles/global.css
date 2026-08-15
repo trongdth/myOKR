@@ -31,6 +31,7 @@
   --color-primary: #22d3ee;   /* THE single primary action per screen */
   --color-on-primary: #04222a; /* text/icon color on primary-action surfaces */
   --color-focus: var(--color-primary); /* focus-session / timer semantics */
+  --color-focus-border: #1a4b54; /* subtle teal border for session-widget surfaces */
   --color-objective: #a855f7; /* OKR Objectives (violet) */
   --color-streak: #f59e0b;    /* streaks — amber means streak, nothing else */
   --color-risk: #f43f5e;      /* at-risk / warning (rose) */

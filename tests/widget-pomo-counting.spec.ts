@@ -89,7 +89,11 @@ test.describe('Session widget pomo counting', () => {
     const widget = page.locator('.session-widget');
     await expect(widget).toBeVisible();
     await expect(widget).toContainText('Design new dashboard layout');
-    await expect(widget).toContainText('pomo 3 of 5'); // staged: finished count
+    // Staged count (3/5) is read from the task card — the widget subtext is
+    // title-only now.
+    await expect(
+      page.locator('.board-task-card:has-text("Design new dashboard layout") .card-pomos')
+    ).toContainText('3/5');
 
     await speedUpTimers(page);
 
@@ -104,12 +108,9 @@ test.describe('Session widget pomo counting', () => {
     await expect(widget.locator('.sw-play')).toHaveAttribute('title', 'Pause');
 
     // Focus (1 min) completes → transitions to Short Break.
-    await expect(widget).toContainText('Short Break', { timeout: 30000 });
+    await expect(widget).toHaveAttribute('aria-label', 'Session timer — Short Break', { timeout: 30000 });
 
-    // The completed pomo is counted: staged display now reads 4/5.
-    await expect(widget).toContainText('pomo 4 of 5');
-
-    // The task card on the Tasks board reflects the increment.
+    // The completed pomo is counted — the task card on the board reflects it.
     const card = page.locator('.board-task-card:has-text("Design new dashboard layout")');
     await expect(card.locator('.card-pomos')).toContainText('4/5');
 
@@ -145,8 +146,7 @@ test.describe('Session widget pomo counting', () => {
     await widget.locator('.sw-play').click();
     await expect(widget.locator('.sw-play')).toHaveAttribute('title', 'Pause');
 
-    await expect(widget).toContainText('Short Break', { timeout: 30000 });
-    await expect(widget).toContainText('pomo 4 of 5');
+    await expect(widget).toHaveAttribute('aria-label', 'Session timer — Short Break', { timeout: 30000 });
 
     const card = page.locator('.board-task-card:has-text("Design new dashboard layout")');
     await expect(card.locator('.card-pomos')).toContainText('4/5');
