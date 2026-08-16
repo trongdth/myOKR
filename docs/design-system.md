@@ -242,6 +242,23 @@ the Today screen (1b).
 | Session | `live` | Shown while `isRunning` — any phase, focus or break; hidden when idle. |
 | Habits | `4/21` | **This week's** completion ratio — `{completed scheduled cells}/{scheduled cells this week}` (habits × 7, implicit every-day scheduling). Same math as the week matrix. **Hidden when there are no habits** (no `0/0`). *(2026-08-08: was the daily `2/3` ratio; the tracker made the badge weekly.)* |
 
+### NOW card status pill (2026-08-16)
+
+Decided in the NOW-pill grilling session. The Day plan NOW card's status pill
+**mirrors the linked KR's confidence, verbatim** (`CONFIDENCE_META` labels) —
+KR health, never day-scoped task progress (the pomodoro segments one row below
+already carry that). Three visual states: green `on-track` (`--okr-on-track`)
+for `on_track`, red `at-risk` (`--color-risk`) for `at_risk`/`off_track`, and
+**neutral gray `not-set`** (`--text-muted` + `color-mix()` tint) for
+`not_set` — unknown ≠ healthy, so "Not Set" never wears green. (`at_risk` and
+`off_track` deliberately collapse to the one red here, unlike the OKR screen's
+confidence table, which keeps their two hexes distinct.) A task with
+**no KR link shows no pill at all**: "On Track" with nothing to be on track
+against is a false positive (the old code's unreachable `At Risk` fallback
+always printed "On Track"). The pill is non-interactive, and UP NEXT rows
+stay label-free — only the current commitment carries a status. Guarded by
+class/text/color assertions in `tests/focus-shell.spec.ts`.
+
 ### Session tab ↔ global SessionWidget
 
 No change to the existing architecture. The global `SessionWidget` already hides

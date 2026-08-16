@@ -16,6 +16,31 @@ async function openDayPlan(page: import('@playwright/test').Page) {
   await page.waitForTimeout(300);
 }
 
+// Rewrite the day-plan lock so the given taskIds are the day's picked order,
+// then trigger DayPlanBody's recompute via the sync event. Goes through the
+// app's own saveTodayPlan/getLocalDateString so a key/shape change upstream
+// fails here loudly instead of silently turning the lock into a no-op.
+async function lockDayPlanTo(page: import('@playwright/test').Page, taskIds: string[]) {
+  await page.evaluate(async (ids) => {
+    const { getLocalDateString } = await import('/src/lib/pomodoro-storage.ts');
+    const { saveTodayPlan } = await import('/src/lib/today-focus.ts');
+    saveTodayPlan({ date: getLocalDateString(), taskIds: ids, skippedIds: [] });
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  }, taskIds);
+  await page.waitForTimeout(300);
+}
+
+// Assert the NOW pill's text, class, and computed color in one shot.
+async function expectNowPill(
+  page: import('@playwright/test').Page,
+  expected: { text: string; cls: string; rgb: string },
+) {
+  const pill = page.locator('.today-now-status-pill');
+  await expect(pill).toHaveText(expected.text);
+  await expect(pill).toHaveClass(new RegExp(expected.cls));
+  expect(await pill.evaluate(el => getComputedStyle(el).color)).toBe(expected.rgb);
+}
+
 test.describe('Focus shell — Day plan tab (ticket 01)', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
@@ -96,6 +121,55 @@ test.describe('Focus shell — Day plan tab (ticket 01)', () => {
   test('Day plan dashboard body still renders (NOW card)', async ({ page }) => {
     // The reused body keeps its classes — only the shell around it changed.
     await expect(page.locator('.today-body')).toBeVisible();
+  });
+
+  test('NOW status pill mirrors the linked KR confidence — at_risk shows red "At Risk"', async ({ page }) => {
+    // Seed default: NOW is task-6 "Refactor auth module" → kr-2 (at_risk).
+    await expect(page.locator('.today-now-title')).toHaveText('Refactor auth module');
+    await expectNowPill(page, { text: 'At Risk', cls: 'at-risk', rgb: 'rgb(244, 63, 94)' }); // var(--color-risk)
+  });
+
+  test('NOW status pill — on_track KR shows green "On Track"', async ({ page }) => {
+    // Lock the day plan to task-1 → kr-1 (on_track). The plan lock is plain
+    // localStorage; the sync event makes DayPlanBody recompute from it.
+    await lockDayPlanTo(page, ['task-1']);
+    await expect(page.locator('.today-now-title')).toHaveText('Design new dashboard layout');
+    await expectNowPill(page, { text: 'On Track', cls: 'on-track', rgb: 'rgb(34, 197, 94)' }); // var(--okr-on-track)
+  });
+
+  test('NOW status pill — not_set KR shows a neutral gray "Not Set"', async ({ page }) => {
+    // Add a task linked to kr-6 (seeded not_set) through the real storage
+    // layer, then lock the plan to it. "Not Set" must NOT wear green.
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      const tasks = await storage.loadTasks();
+      tasks.push({
+        id: 'task-ns',
+        title: 'Draft blog launch post',
+        estimatedPomodoros: 3,
+        completedPomodoros: 0,
+        isCompleted: false,
+        category: 'do',
+        keyResultId: 'kr-6',
+        createdAt: '2026-05-20T09:00:00.000Z',
+        todos: [],
+        comments: [],
+      });
+      await storage.saveTasks(tasks);
+    });
+    await lockDayPlanTo(page, ['task-ns']);
+    await expect(page.locator('.today-now-title')).toHaveText('Draft blog launch post');
+    await expectNowPill(page, { text: 'Not Set', cls: 'not-set', rgb: 'rgb(113, 113, 122)' }); // var(--text-muted)
+  });
+
+  test('NOW status pill — task without a KR link shows no pill at all', async ({ page }) => {
+    // task-3 has no keyResultId. "On Track" with nothing to be on track
+    // against is a false positive — the pill is hidden entirely.
+    await lockDayPlanTo(page, ['task-3']);
+    await expect(page.locator('.today-now-title')).toHaveText('Write API documentation');
+    await expect(page.locator('.today-now-status-pill')).toHaveCount(0);
+    // The rank badge stays.
+    await expect(page.locator('.today-now-rank-pill')).toHaveText('NOW · #1');
   });
 
   test('padding parity with the Plan-group shell across responsive tiers', async ({ page }) => {

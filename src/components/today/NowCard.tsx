@@ -1,9 +1,18 @@
 import { Play } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
-import type { KeyResult, Objective } from '../../lib/okr-storage';
+import type { KeyResult, Objective, Confidence } from '../../lib/okr-storage';
 import { CONFIDENCE_META, formatKrSubtitle } from '../../lib/okr-storage';
 import type { ScoreBreakdown } from '../../lib/today-focus';
 import { todaysSlice } from '../../lib/today-focus';
+
+// The pill visual per confidence. at_risk and off_track share the red state;
+// not_set is neutral gray (unknown ≠ healthy); no KR link → no pill at all.
+const PILL_CLASS: Record<Confidence, string> = {
+  on_track: 'on-track',
+  at_risk: 'at-risk',
+  off_track: 'at-risk',
+  not_set: 'not-set',
+};
 
 interface NowCardProps {
   task: PomodoroTask & { _score: ScoreBreakdown };
@@ -20,10 +29,7 @@ export default function NowCard({ task, kr, objective, maxShare, onStart, onSkip
   const slice = todaysSlice(task, maxShare);
   const targetForDisplay = Math.min(estimated, completed + slice);
 
-  const confidenceLabel = kr ? CONFIDENCE_META[kr.confidence].label : '';
-  const isAtRisk = kr?.confidence === 'at_risk' || kr?.confidence === 'off_track';
   const krText = formatKrSubtitle(kr, objective);
-  const statusLabel = kr ? confidenceLabel : (isAtRisk ? 'At Risk' : 'On Track');
 
   // Render max 8 pomo segments for compact visualization
   const maxSegments = Math.min(8, Math.max(1, targetForDisplay));
@@ -35,9 +41,11 @@ export default function NowCard({ task, kr, objective, maxShare, onStart, onSkip
         {/* Row 1: NOW · #1 + Status Pill */}
         <div className="today-now-badge-row">
           <span className="today-now-rank-pill">NOW · #1</span>
-          <span className={`today-now-status-pill ${isAtRisk ? 'at-risk' : 'on-track'}`}>
-            {statusLabel}
-          </span>
+          {kr && (
+            <span className={`today-now-status-pill ${PILL_CLASS[kr.confidence]}`}>
+              {CONFIDENCE_META[kr.confidence].label}
+            </span>
+          )}
         </div>
 
         {/* Row 2: Task Title & KR Link */}
