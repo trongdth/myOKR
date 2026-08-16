@@ -84,6 +84,16 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
   const [overflow, setOverflow] = useState<ScoredTask[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
+  // "No changes" flash: the ranking is deterministic, so Re-rank on untied,
+  // unedited data recomputes the identical list — say so instead of looking dead.
+  const [noChangeFlash, setNoChangeFlash] = useState(false);
+  const flashTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+    },
+    [],
+  );
   const menuBtnRef = useRef<HTMLButtonElement | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   // Kept in a ref so the load effect below runs exactly once — a plain dep on
@@ -106,6 +116,7 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
     setOverflow(split.overflow);
     setSelectedId(null);
     setMenuTaskId(null);
+    return split;
   }, []);
 
   // Snapshot on open (PrioritizeModal precedent — no live re-sync while open).
@@ -230,7 +241,20 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
   };
 
   const handleRerank = () => {
-    if (data) applyFreshRanking(data, { shuffleTies: true });
+    if (!data) return;
+    const split = applyFreshRanking(data, { shuffleTies: true });
+    const idsOf = (ts: ScoredTask[]) => ts.map(t => t.id).join('\n');
+    const unchanged =
+      idsOf(split.inCapacity) === idsOf(inCapacity) &&
+      idsOf(split.overflow) === idsOf(overflow);
+    if (unchanged) {
+      if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+      setNoChangeFlash(true);
+      flashTimer.current = window.setTimeout(() => {
+        setNoChangeFlash(false);
+        flashTimer.current = null;
+      }, 1600);
+    }
   };
 
   const handleAccept = () => {
@@ -301,12 +325,12 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
           <div className="planday-header-actions">
             <button
               type="button"
-              className="planday-rerank-btn"
+              className={`planday-rerank-btn${noChangeFlash ? ' is-unchanged' : ''}`}
               onClick={handleRerank}
               title="Recompute the ranking — discards edits made in this modal"
             >
               <RefreshCw size={12} />
-              <span>Re-rank</span>
+              <span>{noChangeFlash ? 'No changes' : 'Re-rank'}</span>
             </button>
             <button
               type="button"

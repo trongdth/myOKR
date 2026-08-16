@@ -105,6 +105,17 @@
   color: var(--text-primary);
 }
 
+/* Transient "recomputed, nothing moved" state — muted, inert-looking. */
+.planday-rerank-btn.is-unchanged {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.planday-rerank-btn.is-unchanged:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .planday-close-btn {
   display: inline-flex;
   align-items: center;

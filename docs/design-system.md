@@ -257,7 +257,9 @@ Decided in the plan-day grilling session:
 
 - **Open = fresh deterministic ranking** (reset semantics, no exclusions —
   previously-skipped tasks reappear); the tie-shuffle lives on the modal's
-  explicit **Re-rank** action. The saved plan is untouched until **Accept**;
+  explicit **Re-rank** action, which also discards manual edits. With no
+  genuine ties and no edits the recompute is identical — the button flashes
+  **"No changes"** rather than looking dead. The saved plan is untouched until **Accept**;
   X/Esc/overlay-click are true cancels. Snapshot-on-open — no live re-sync.
 - **Accept writes only `TodayPlan`** (localStorage): `taskIds` = in-capacity
   order, `skippedIds` = declined candidates, so the dashboard's budget top-up

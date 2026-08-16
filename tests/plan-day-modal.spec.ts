@@ -185,11 +185,51 @@ test.describe('Plan day modal', () => {
 
     await modal.locator('.planday-rerank-btn').click();
 
-    // Seed has no genuine ties → the deterministic ranking is restored
+    // Untied prefix is deterministic: task-6 (do, at-risk) then task-1 (do,
+    // on-track). task-3/task-5 are genuinely tied, so their relative order is
+    // reshuffle-random — only assert task-1 left the manually-forced index 2.
     await expect(cards.nth(0)).toContainText('Refactor auth module');
     await expect(cards.nth(1)).toContainText('Design new dashboard layout');
-    await expect(cards.nth(2)).toContainText('Write API documentation');
+    await expect(cards.nth(2)).not.toContainText('Design new dashboard layout');
     await expect(modal.locator('.planday-card.is-picked')).toHaveCount(0);
+  });
+
+  test('Re-rank flashes "No changes" when the recomputed ranking is identical', async ({ page }) => {
+    // Untied fixture (distinct categories → deterministic ranking, no ties to
+    // reshuffle): Re-rank on unedited data recomputes the same list — the
+    // button must say so instead of looking dead.
+    await page.evaluate(async () => {
+      const anyWin = window as unknown as { __updateAutomergeDoc: (msg: string, fn: (d: unknown) => void) => Promise<void> };
+      await anyWin.__updateAutomergeDoc('untied tasks', (doc) => {
+        const d = doc as Record<string, unknown>;
+        d.tasks = [
+          ['do', 'Untied do task', 4],
+          ['decide', 'Untied decide task', 2],
+          ['delegate', 'Untied delegate task', 3],
+        ].map(([category, title, est], i) => ({
+          id: `u-${category}`, title: title as string, estimatedPomodoros: est as number,
+          completedPomodoros: 0, isCompleted: false, category: category as string,
+          createdAt: `2026-05-20T0${i + 1}:00:00.000Z`, todos: [], comments: [],
+        }));
+        d.keyResults = [];
+        d.objectives = [];
+        d.history = [];
+      });
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
+
+    const modal = await openModal(page);
+    const rerank = modal.locator('.planday-rerank-btn');
+    await expect(rerank).toContainText('Re-rank');
+
+    await rerank.click();
+    await expect(rerank).toContainText('No changes');
+    await expect(modal.locator('.planday-card').nth(0)).toContainText('Untied do task');
+
+    // The flash is transient — the label reverts
+    await expect(rerank).toContainText('Re-rank', { timeout: 5000 });
   });
 
   test('Add anyway moves an overflow task in and flags over-capacity', async ({ page }) => {
