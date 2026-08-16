@@ -67,6 +67,26 @@ test.describe('Focus shell — Day plan tab (ticket 01)', () => {
     await expect(page.locator('.focus-plan-day-btn')).toContainText('Plan day');
   });
 
+  test('"Plan day" button uses the cyan-outlined revamp (2026-08-16)', async ({ page }) => {
+    const btn = page.locator('.focus-plan-day-btn');
+    // Dashed-circle loader icon (not the old recycle/refresh arrow)
+    await expect(btn.locator('svg.lucide-loader-circle')).toHaveCount(1);
+    await expect(btn.locator('svg.lucide-refresh-cw')).toHaveCount(0);
+
+    // Bright cyan text (--color-primary #22D3EE), semibold, tight icon-text gap
+    const styles = await btn.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { color: s.color, fontWeight: s.fontWeight, gap: s.columnGap };
+    });
+    expect(styles.color).toBe('rgb(34, 211, 238)');
+    expect(Number(styles.fontWeight)).toBeGreaterThanOrEqual(600);
+    expect(styles.gap).toBe('8px');
+
+    // Cyan border, not the old muted border token (#27272a)
+    const borderColor = await btn.evaluate((el) => getComputedStyle(el).borderColor);
+    expect(borderColor).not.toBe('rgb(39, 39, 42)');
+  });
+
   test('cycle slot is static text (no dropdown)', async ({ page }) => {
     const strip = page.locator('.plan-tab-strip.focus-tabs');
     await expect(strip.locator('select')).toHaveCount(0);
