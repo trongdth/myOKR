@@ -3,8 +3,10 @@ import DayPlanBody from './DayPlanBody';
 import SessionView from './focus/SessionView';
 import HabitsApp from './HabitsApp';
 import FocusTabStrip, { FocusHeader, type FocusTab } from './focus/FocusTabStrip';
+import PlanDayModal from './focus/PlanDayModal';
 import { cycleWeekLabel } from './pomodoro/PlanTabStrip';
 import { getActiveCycle, type OKRCycle } from '../lib/okr-storage';
+import { saveTodayPlan, type TodayPlan } from '../lib/today-focus';
 import '../styles/focus.css';
 
 interface FocusAppProps {
@@ -19,11 +21,13 @@ interface FocusAppProps {
 /**
  * Focus-group shell — Day plan / Session / Habits behind one tab strip, mirroring
  * the Plan group's one-screen-tabbed structure (ADR-0014). A header + tab strip
- * wrap the existing screen bodies. This ticket wires only the Day plan tab;
- * Session and Habits tabs land in tickets 02/03.
+ * wrap the existing screen bodies. "Plan day" opens the preview-and-commit
+ * modal (2026-08-16); the shell persists the accepted plan and signals the
+ * Day plan body to reload from it.
  */
 export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed, onStartTask, onGoToTasks }: FocusAppProps) {
-  const [replanSignal, setReplanSignal] = useState(0);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [acceptSignal, setAcceptSignal] = useState(0);
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
 
   useEffect(() => {
@@ -35,7 +39,13 @@ export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed
     return () => window.removeEventListener('myokr-data-synced', load);
   }, []);
 
-  const handlePlanDay = () => setReplanSignal((n) => n + 1);
+  const handlePlanDay = () => setPlanModalOpen(true);
+
+  const handleAcceptPlan = (plan: TodayPlan) => {
+    saveTodayPlan(plan);
+    setAcceptSignal(n => n + 1);
+    setPlanModalOpen(false);
+  };
 
   return (
     <div className="pomodoro-container focus-shell">
@@ -44,7 +54,7 @@ export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed
         <FocusTabStrip active={tab} cycleLabel={cycleWeekLabel(activeCycle)} />
         {tab === 'day-plan' && (
           <DayPlanBody
-            replanSignal={replanSignal}
+            acceptSignal={acceptSignal}
             onStartTask={onStartTask}
             onGoToTasks={onGoToTasks}
           />
@@ -53,6 +63,16 @@ export default function FocusApp({ tab, requestedTaskId, onRequestedTaskConsumed
           <SessionView requestedTaskId={requestedTaskId} onRequestedTaskConsumed={onRequestedTaskConsumed} />
         )}
         {tab === 'habits' && <HabitsApp />}
+        {planModalOpen && (
+          <PlanDayModal
+            onClose={() => setPlanModalOpen(false)}
+            onAccept={handleAcceptPlan}
+            onGoToTasks={() => {
+              setPlanModalOpen(false);
+              onGoToTasks();
+            }}
+          />
+        )}
       </div>
     </div>
   );

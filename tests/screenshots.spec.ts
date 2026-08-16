@@ -41,6 +41,21 @@ test.describe('App Screenshots', () => {
     });
   });
 
+  test('capture plan day modal', async ({ page }) => {
+    await page.locator('button:has-text("Day plan")').first().click();
+    await page.waitForTimeout(500);
+
+    await page.locator('.focus-plan-day-btn').click();
+    await expect(page.locator('.planday-modal')).toBeVisible();
+    await expect(page.locator('.planday-card').first()).toBeVisible();
+    await page.waitForTimeout(300);
+
+    await page.screenshot({
+      path: `${SCREENSHOTS_DIR}/plan-day-modal.png`,
+      fullPage: false,
+    });
+  });
+
 async function navTo(page: Page, title: string) {
   const btn = page.locator(`button[title="${title}"], button:has-text("${title}")`).first();
   if (!await btn.isVisible()) {

@@ -40,7 +40,7 @@ export function FocusHeader({ onPlanDay, showPlanDay }: { onPlanDay: () => void;
             type="button"
             onClick={onPlanDay}
             className="focus-plan-day-btn"
-            title="Recompute today's plan from scratch"
+            title="Preview and commit today's plan"
           >
             <RefreshCw size={13} />
             <span>Plan day</span>
