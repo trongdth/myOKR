@@ -190,8 +190,6 @@ export interface CapacitySplit {
   inCapacity: ScoredTask[];
   /** Ranked candidates that did not fit the budget — "Add anyway" pool. */
   overflow: ScoredTask[];
-  /** Pomodoros committed by the in-capacity list (sum of slices). */
-  used: number;
 }
 
 /**
@@ -210,9 +208,7 @@ export function splitByCapacity(
 ): CapacitySplit {
   const inCapacity: ScoredTask[] = [];
   const overflow: ScoredTask[] = [];
-  let used = 0;
-
-  for (const c of ranked) {
+  let used = 0;  for (const c of ranked) {
     const slice = todaysSlice(c, maxShare);
     if (slice === 0) continue;
     if (inCapacity.length === 0 || slice <= budget - used) {
@@ -223,7 +219,7 @@ export function splitByCapacity(
     }
   }
 
-  return { inCapacity, overflow, used };
+  return { inCapacity, overflow };
 }
 
 // ===== DAILY PLAN PERSISTENCE =====

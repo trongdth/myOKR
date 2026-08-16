@@ -136,6 +136,21 @@ test.describe('Plan day modal', () => {
     await expect(modal).toHaveCount(0);
   });
 
+  test('✕ close button also cancels without touching the saved plan', async ({ page }) => {
+    const modal = await openModal(page);
+    const cards = modal.locator('.planday-card');
+
+    await cards.nth(1).locator('.planday-grip').click();
+    await cards.nth(3).click();
+    await expect(cards.nth(2)).toContainText('Design new dashboard layout');
+
+    await modal.locator('.planday-close-btn').click();
+    await expect(modal).toHaveCount(0);
+
+    await expect(page.locator('.focus-card').nth(0)).toContainText('Refactor auth module');
+    await expect(page.locator('.focus-card').nth(1)).toContainText('Design new dashboard layout');
+  });
+
   test('row menu: Pin to top and Move to overflow', async ({ page }) => {
     const modal = await openModal(page);
     const cards = modal.locator('.planday-card');

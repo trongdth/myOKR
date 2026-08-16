@@ -7,6 +7,7 @@ import {
   getLocalDateString,
   EISENHOWER_META,
   displayedPomoCount,
+  type EisenhowerCategory,
   type PomodoroTask,
   type PomodoroSettings,
 } from '../../lib/pomodoro-storage';
@@ -68,6 +69,10 @@ interface PlanDayData {
   completedToday: number;
 }
 
+/** Category meta with the storage-default fallback in one place. */
+const eisenhowerMeta = (task: PomodoroTask) =>
+  EISENHOWER_META[(task.category ?? 'decide') as EisenhowerCategory];
+
 const RANKED_BY_NOTE =
   'Ranked by priority, then remaining effort vs cycle time, then key-result confidence. Override from the row menu.';
 
@@ -81,6 +86,11 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
   const menuBtnRef = useRef<HTMLButtonElement | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  // Kept in a ref so the load effect below runs exactly once — a plain dep on
+  // the prop would re-run it whenever FocusApp re-renders (fresh closures),
+  // silently reloading data and wiping in-modal edits mid-session.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const applyFreshRanking = useCallback((d: PlanDayData, opts: { shuffleTies?: boolean } = {}) => {
     // No exclusions: previously-skipped tasks reappear as candidates —
@@ -115,7 +125,7 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
         const activeObjIds = new Set(
           objs.filter((o: Objective) => !cyc || o.cycleId === cyc.id).map((o: Objective) => o.id),
         );
-        const d: PlanDayData = {
+        const snapshot: PlanDayData = {
           tasks,
           krs: krs.filter((kr: KeyResult) => activeObjIds.has(kr.objectiveId)),
           cycle: cyc,
@@ -123,37 +133,31 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
           completedToday:
             history.find(r => r.date === getLocalDateString())?.completedPomodoros ?? 0,
         };
-        setData(d);
-        applyFreshRanking(d);
+        setData(snapshot);
+        applyFreshRanking(snapshot);
       } catch (err) {
         console.error('Failed to load plan-day data:', err);
-        if (!cancelled) onClose();
+        if (!cancelled) onCloseRef.current();
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [applyFreshRanking, onClose]);
+  }, [applyFreshRanking]);
 
-  // Scroll-lock only; Esc is layered — it cancels a pick / closes the menu
-  // before it closes the modal (useModalEffects' handler can't know about those).
-  useModalEffects();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (selectedId) {
-        setSelectedId(null);
-        return;
-      }
-      if (menuTaskId) {
-        setMenuTaskId(null);
-        return;
-      }
-      onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [selectedId, menuTaskId, onClose]);
+  // Esc is layered: it cancels a pick / closes the row menu before it closes
+  // the modal. Routed through useModalEffects' handler so there's one listener.
+  useModalEffects(() => {
+    if (selectedId) {
+      setSelectedId(null);
+      return;
+    }
+    if (menuTaskId) {
+      setMenuTaskId(null);
+      return;
+    }
+    onCloseRef.current();
+  });
 
   // Fixed-position row menu (an absolutely-positioned one would be clipped by
   // the scrolling list). Anchored to the button's viewport rect on open.
@@ -241,8 +245,7 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
 
   const subLine = (task: ScoredTask): string => {
     const kr = task.keyResultId ? krMap.get(task.keyResultId) : undefined;
-    const category = EISENHOWER_META[(task.category ?? 'decide') as keyof typeof EISENHOWER_META];
-    return `${kr ? kr.title : 'No key result'} · ${category.label}`;
+    return `${kr ? kr.title : 'No key result'} · ${eisenhowerMeta(task).label}`;
   };
 
   if (!data) {
@@ -341,7 +344,7 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
                 <div
                   key={task.id}
                   className={`planday-card${isSelected ? ' is-picked' : ''}`}
-                  style={{ '--planday-accent': EISENHOWER_META[task.category ?? 'decide'].color } as React.CSSProperties}
+                  style={{ '--planday-accent': eisenhowerMeta(task).color } as React.CSSProperties}
                   onClick={() => handleCardClick(task.id)}
                 >
                   <span className="planday-idx">{idx + 1}</span>
@@ -407,7 +410,7 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
             <>
               <div className="planday-divider">
                 <span className="planday-divider-label">
-                  Capacity reached — {budget} pomodoros
+                  Capacity reached — {budget} pomodoro{budget === 1 ? '' : 's'}
                 </span>
               </div>
               <div className="planday-overflow">

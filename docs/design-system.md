@@ -249,6 +249,37 @@ when `activeSection === 'session'` (the full timer is on screen) and its "Open"
 button navigates to the Session tab; the Session tab's `live` badge mirrors the
 same `isRunning` flag the widget uses.
 
+### Plan-day modal (2026-08-16)
+
+The Day plan tab's **"Plan day"** header action opens a preview-and-commit modal
+(`PlanDayModal`, ~640px, 86vh, internal scroll) instead of silently replanning.
+Decided in the plan-day grilling session:
+
+- **Open = fresh deterministic ranking** (reset semantics, no exclusions —
+  previously-skipped tasks reappear); the tie-shuffle lives on the modal's
+  explicit **Re-rank** action. The saved plan is untouched until **Accept**;
+  X/Esc/overlay-click are true cancels. Snapshot-on-open — no live re-sync.
+- **Accept writes only `TodayPlan`** (localStorage): `taskIds` = in-capacity
+  order, `skippedIds` = declined candidates, so the dashboard's budget top-up
+  can't silently re-add a task the user saw in overflow and passed on. No
+  bucket/CRDT writes — the source-bucket badges (TODAY dark, THIS WEEK /
+  FROM BACKLOG slate — **not amber**, amber is streak-only) are display-only.
+- **Capacity bar** = committed pomos (`completedToday + Σ in-list slices`) over
+  the daily budget; fill is solid `--color-primary` (no gradient), caps at
+  100%, and switches to `--color-risk` when over. The CAPACITY REACHED divider
+  (risk color, dashed flanks) is the in/overflow boundary, hidden with no
+  overflow. The in-capacity list is **budget-bounded — `MAX_CARDS` does not
+  apply** (it stays a dashboard auto-fill constraint).
+- **PINNED** (cyan) is display-only on row 1 — the future NOW task. Card ratios
+  use the canonical `displayedPomoCount` position derivation. **Reorder is
+  click-select** (grip pick-up → row click places above → Esc cancels the pick
+  before closing the modal) — same WKWebView constraint as sub-tasks. Row menu:
+  *Pin to top* · *Move to overflow*. Overflow cards: title + KR/priority line +
+  *Add anyway* only.
+- Footer note names the real algorithm: "Ranked by priority, then remaining
+  effort vs cycle time, then key-result confidence." (the algorithm itself is
+  unchanged — no due-date tie-break exists).
+
 ### Responsive
 
 The bodies inherit their existing rules — Day plan from the
