@@ -77,6 +77,10 @@ async function selectTask(page: Page, name: string) {
   await dayPlanItem.click();
   await page.waitForTimeout(300);
   await page.locator('.focus-plan-day-btn').click();
+  // "Plan day" opens the preview-and-commit modal (was a silent replan);
+  // Accept commits the fresh ranking so the queue updates.
+  await page.locator('.planday-accept-btn').click();
+  await page.locator('.planday-overlay').waitFor({ state: 'detached' });
   await page.waitForTimeout(500);
   await openSession(page);
 

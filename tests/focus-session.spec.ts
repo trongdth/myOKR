@@ -43,6 +43,10 @@ async function selectTaskOnTasksAndOpenSession(page: Page, name: string) {
   await page.locator('button[title="Day plan"]').first().click();
   await page.waitForTimeout(300);
   await page.locator('.focus-plan-day-btn').click();
+  // "Plan day" opens the preview-and-commit modal (was a silent replan);
+  // Accept commits the fresh ranking so the queue updates.
+  await page.locator('.planday-accept-btn').click();
+  await page.locator('.planday-overlay').waitFor({ state: 'detached' });
   await page.waitForTimeout(500);
   await openSession(page);
   await page.locator('.active-task-card-change').click();
@@ -115,6 +119,10 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     await openSession(page);
   });
@@ -334,6 +342,10 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     await openSession(page);
     await page.locator('.active-task-card-change').click();
@@ -361,6 +373,10 @@ test.describe('Bottom utility bar + Stats widget (ticket 04)', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     await openSession(page);
     await page.locator('.active-task-card-change').click();
@@ -489,6 +505,10 @@ test.describe('Queue widget + Day-plan picker (ticket 05)', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     await openSession(page);
   });
@@ -562,6 +582,10 @@ test.describe('Focus completion transitions to short break', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     await openSession(page);
     await page.locator('.active-task-card-change').click();
@@ -625,6 +649,10 @@ test.describe('Task Switcher modal + click-to-detail', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     await openSession(page);
   });

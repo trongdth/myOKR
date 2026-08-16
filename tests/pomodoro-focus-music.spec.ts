@@ -81,6 +81,10 @@ test.describe('Pomodoro: Ambient sound preset picker (ADR-0015)', () => {
     await page.locator('button[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
+    // "Plan day" opens the preview-and-commit modal (was a silent replan);
+    // Accept commits the fresh ranking so the queue updates.
+    await page.locator('.planday-accept-btn').click();
+    await page.locator('.planday-overlay').waitFor({ state: 'detached' });
     await page.waitForTimeout(500);
     // Select the task via the Session Active Task Card picker (ticket 03).
     await page.locator('button[title="Session"]').first().click();
