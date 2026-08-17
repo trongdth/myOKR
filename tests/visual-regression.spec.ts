@@ -79,12 +79,17 @@ test.describe('Visual regression (1a redesign)', () => {
     await page.waitForTimeout(300);
     await page.locator('.quick-add-input').fill('Running Baseline Task');
     await page.locator('form.quick-add-bar').press('Enter');
-    // Replan the Day plan so the new task joins the queue (the Session picker
-    // is sourced from TodayPlan.taskIds, ticket 05).
+    // Re-plan the day so the new task joins the queue (the Session picker
+    // is sourced from TodayPlan.taskIds, ticket 05). Plan day opens the
+    // preview modal now — the replan only happens on Accept.
     await page.locator('[title="Day plan"]').first().click();
     await page.waitForTimeout(300);
     await page.locator('.focus-plan-day-btn').click();
-    await page.waitForTimeout(500);
+    const planModal = page.locator('.planday-modal');
+    await expect(planModal).toBeVisible();
+    await expect(planModal.locator('.planday-card').first()).toBeVisible();
+    await planModal.locator('.planday-accept-btn').click();
+    await expect(planModal).toHaveCount(0);
     // Select it via the Session Active Task Card picker.
     await page.locator('[title="Session"]').first().click();
     await page.waitForTimeout(300);

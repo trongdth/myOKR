@@ -40,6 +40,10 @@ async function replanDay(page: Page) {
   await page.locator('button[title="Day plan"]').first().click();
   await page.waitForTimeout(300);
   await page.locator('.focus-plan-day-btn').click();
+  // "Plan day" opens the preview-and-commit modal (was a silent replan);
+  // Accept commits the fresh ranking so the queue updates.
+  await page.locator('.planday-accept-btn').click();
+  await page.locator('.planday-overlay').waitFor({ state: 'detached' });
   await page.waitForTimeout(500);
 }
 
@@ -188,6 +192,11 @@ test.describe('Session Widget', () => {
 
     const widget = page.locator('.session-widget');
     await expect(widget).toBeVisible();
+    // Measure only after the 160ms sw-pop entrance animation settles: the two
+    // sequential boundingBox() calls can otherwise sample different translateY
+    // frames mid-flight and fake a ~1px y-offset (seen 1-in-10 locally and on
+    // both CI attempts with different deltas — the layout itself is correct).
+    await widget.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
 
     const play = await widget.locator('.sw-play').boundingBox();
     const open = await widget.locator('.sw-open').boundingBox();

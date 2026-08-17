@@ -154,6 +154,12 @@
   background: rgba(52, 211, 153, 0.12);
 }
 
+/* Unknown confidence is not "healthy" — neutral gray, never green. */
+.today-now-status-pill.not-set {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
 .today-now-title-block {
   display: flex;
   flex-direction: column;

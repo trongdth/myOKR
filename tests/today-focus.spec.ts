@@ -101,9 +101,10 @@ test.describe('Today Focus', () => {
     await expect(items.nth(1)).toContainText('Design new dashboard layout');
   });
 
-  test('Replan reshuffles tasks tied on category + urgency + confidence', async ({ page }) => {
+  test('Plan day: Accept commits a fresh reshuffled ranking for tied tasks', async ({ page }) => {
     // Fixture: 4 'decide' tasks, equal effort (same urgency), no KR (same
-    // confidence). They're genuinely tied, so Replan must reshuffle their order.
+    // confidence). They're genuinely tied, so the modal's Re-rank action must
+    // reshuffle their order, and Accept commits it.
     await page.evaluate(async () => {
       const anyWin = window as unknown as { __updateAutomergeDoc: (msg: string, fn: (d: unknown) => void) => Promise<void> };
       await anyWin.__updateAutomergeDoc('tied tasks', (doc) => {
@@ -130,11 +131,15 @@ test.describe('Today Focus', () => {
       page.locator('.today-upnext-title').allTextContents();
 
     const initial = await upNextTitles();
-    // 4 tied tasks → P(unchanged per Replan) ≈ 1/24; loop so this is robust.
+    // 4 tied tasks → P(unchanged per Re-rank + Accept) ≈ 1/24; loop so this is robust.
     let changed = false;
     for (let i = 0; i < 5; i++) {
       await page.locator('.focus-plan-day-btn').click();
-      await page.waitForTimeout(200);
+      const modal = page.locator('.planday-modal');
+      await expect(modal).toBeVisible();
+      await page.locator('.planday-rerank-btn').click();
+      await page.locator('.planday-accept-btn').click();
+      await expect(modal).toHaveCount(0);
       const next = await upNextTitles();
       if (JSON.stringify(next) !== JSON.stringify(initial)) { changed = true; break; }
     }
@@ -190,12 +195,19 @@ test.describe('Today Focus', () => {
     }
   });
 
-  test('Replan clears skips and recomputes from scratch', async ({ page }) => {
+  test('Plan day: skipped task reappears in the modal; Accept recomputes from scratch', async ({ page }) => {
     const cards = page.locator('.focus-card');
     await cards.nth(0).locator('button:has-text("Skip")').click();
     await expect(cards.nth(0)).toContainText('Design new dashboard layout');
 
+    // The skipped task is back as a candidate — "Plan day" replans from scratch
     await page.locator('.focus-plan-day-btn').click();
+    const modal = page.locator('.planday-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('.planday-card').first()).toContainText('Refactor auth module');
+
+    await page.locator('.planday-accept-btn').click();
+    await expect(modal).toHaveCount(0);
 
     // Skipped task-6 returns to the top
     await expect(cards.nth(0)).toContainText('Refactor auth module');

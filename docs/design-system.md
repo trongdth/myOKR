@@ -230,7 +230,7 @@ the Today screen (1b).
 | Slot | Rule |
 |---|---|
 | Header title | **Today's date, day-first**, real (never hardcoded): `{Weekday}, {D} {Mon-short}` → "Tuesday, 4 Aug". The old "Today's Focus" label is dropped. (Today's code builds this `en-US`, which prints month-first "Aug 3"; switch to day-first.) |
-| Header action | **"Plan day"** button (renamed from "Replan day"; same recompute-the-plan action). **Secondary/outlined** so the NOW card's "Start focus" stays the single primary CTA (`--color-primary`) on the Day plan screen. **Day plan tab only** (2026-08-08 feedback): Session/Habits keep the date title with an empty right side. |
+| Header action | **"Plan day"** button (renamed from "Replan day"; opens the preview-and-commit modal). **Cyan-outlined accent** (2026-08-16 revamp): `Asterisk` icon (six-spoke starburst, per the 2026-08-17 reference), `--color-primary` border/text, semibold, gap-2 — still **outlined, never solid**, so the NOW card's "Start focus" remains the single primary CTA (`--color-primary`) on the Day plan screen. **Day plan tab only** (2026-08-08 feedback): Session/Habits keep the date title with an empty right side. |
 | Tab strip | `Day plan` · `Session` · `Habits`, reusing the `.plan-tab-strip` / `.plan-tab` styles for parity with the Plan group. |
 | Cycle slot (right of tabs) | **Static text** "May cycle · week N of M" via `cycleWeekLabel()`. **Not a dropdown** — Day plan is today-scoped, so there is nothing to filter (unlike the Plan group's cycle-week dropdown). |
 
@@ -242,12 +242,62 @@ the Today screen (1b).
 | Session | `live` | Shown while `isRunning` — any phase, focus or break; hidden when idle. |
 | Habits | `4/21` | **This week's** completion ratio — `{completed scheduled cells}/{scheduled cells this week}` (habits × 7, implicit every-day scheduling). Same math as the week matrix. **Hidden when there are no habits** (no `0/0`). *(2026-08-08: was the daily `2/3` ratio; the tracker made the badge weekly.)* |
 
+### NOW card status pill (2026-08-16)
+
+Decided in the NOW-pill grilling session. The Day plan NOW card's status pill
+**mirrors the linked KR's confidence, verbatim** (`CONFIDENCE_META` labels) —
+KR health, never day-scoped task progress (the pomodoro segments one row below
+already carry that). Three visual states: green `on-track` (`--okr-on-track`)
+for `on_track`, red `at-risk` (`--color-risk`) for `at_risk`/`off_track`, and
+**neutral gray `not-set`** (`--text-muted` + `color-mix()` tint) for
+`not_set` — unknown ≠ healthy, so "Not Set" never wears green. (`at_risk` and
+`off_track` deliberately collapse to the one red here, unlike the OKR screen's
+confidence table, which keeps their two hexes distinct.) A task with
+**no KR link shows no pill at all**: "On Track" with nothing to be on track
+against is a false positive (the old code's unreachable `At Risk` fallback
+always printed "On Track"). The pill is non-interactive, and UP NEXT rows
+stay label-free — only the current commitment carries a status. Guarded by
+class/text/color assertions in `tests/focus-shell.spec.ts`.
+
 ### Session tab ↔ global SessionWidget
 
 No change to the existing architecture. The global `SessionWidget` already hides
 when `activeSection === 'session'` (the full timer is on screen) and its "Open"
 button navigates to the Session tab; the Session tab's `live` badge mirrors the
 same `isRunning` flag the widget uses.
+
+### Plan-day modal (2026-08-16)
+
+The Day plan tab's **"Plan day"** header action opens a preview-and-commit modal
+(`PlanDayModal`, ~640px, 86vh, internal scroll) instead of silently replanning.
+Decided in the plan-day grilling session:
+
+- **Open = fresh deterministic ranking** (reset semantics, no exclusions —
+  previously-skipped tasks reappear); the tie-shuffle lives on the modal's
+  explicit **Re-rank** action, which also discards manual edits. With no
+  genuine ties and no edits the recompute is identical — the button flashes
+  **"No changes"** rather than looking dead. The saved plan is untouched until **Accept**;
+  X/Esc/overlay-click are true cancels. Snapshot-on-open — no live re-sync.
+- **Accept writes only `TodayPlan`** (localStorage): `taskIds` = in-capacity
+  order, `skippedIds` = declined candidates, so the dashboard's budget top-up
+  can't silently re-add a task the user saw in overflow and passed on. No
+  bucket/CRDT writes — the source-bucket badges (TODAY dark, THIS WEEK /
+  FROM BACKLOG slate — **not amber**, amber is streak-only) are display-only.
+- **Capacity bar** = committed pomos (`completedToday + Σ in-list slices`) over
+  the daily budget; fill is solid `--color-primary` (no gradient), caps at
+  100%, and switches to `--color-risk` when over. The CAPACITY REACHED divider
+  (risk color, dashed flanks) is the in/overflow boundary, hidden with no
+  overflow. The in-capacity list is **budget-bounded — `MAX_CARDS` does not
+  apply** (it stays a dashboard auto-fill constraint).
+- **PINNED** (cyan) is display-only on row 1 — the future NOW task. Card ratios
+  use the canonical `displayedPomoCount` position derivation. **Reorder is
+  click-select** (grip pick-up → row click places above → Esc cancels the pick
+  before closing the modal) — same WKWebView constraint as sub-tasks. Row menu:
+  *Pin to top* · *Move to overflow*. Overflow cards: title + KR/priority line +
+  *Add anyway* only.
+- Footer note names the real algorithm: "Ranked by priority, then remaining
+  effort vs cycle time, then key-result confidence." (the algorithm itself is
+  unchanged — no due-date tie-break exists).
 
 ### Responsive
 

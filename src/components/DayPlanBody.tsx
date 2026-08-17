@@ -37,15 +37,17 @@ import { EmptyState } from './shared/EmptyState';
 import '../styles/today.css';
 
 interface DayPlanBodyProps {
-  /** Incremented by the Focus shell's "Plan day" button to trigger a replan. */
-  replanSignal: number;
+  /** Incremented by the Focus shell when the Plan-day modal commits — the
+   *  modal has already saved the new TodayPlan; this reloads from it (no
+   *  reset, so the accepted order is honored exactly). */
+  acceptSignal: number;
   onStartTask: (taskId: string) => void;
   onGoToTasks: () => void;
 }
 
 /** The Day plan tab body — the daily dashboard. Rendered inside the Focus shell
  *  (header + tab strip live in FocusApp); this owns the dashboard data + logic. */
-export default function DayPlanBody({ replanSignal, onStartTask, onGoToTasks }: DayPlanBodyProps) {
+export default function DayPlanBody({ acceptSignal, onStartTask, onGoToTasks }: DayPlanBodyProps) {
   const [displayed, setDisplayed] = useState<ScoredTask[]>([]);
   const [activeTaskCount, setActiveTaskCount] = useState(0);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
@@ -114,14 +116,15 @@ export default function DayPlanBody({ replanSignal, onStartTask, onGoToTasks }: 
     return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, [compute]);
 
-  // "Plan day" (Focus shell header) triggers a full replan from scratch.
+  // "Plan day" modal committed — it already saved the plan; reload from it.
+  // No reset/shuffle: the accepted order is the plan, exactly as committed.
   useEffect(() => {
-    if (replanSignal > 0) {
-      compute({ reset: true, shuffleTies: true }).catch(err => {
-        console.error('Failed to replan day:', err);
+    if (acceptSignal > 0) {
+      compute().catch(err => {
+        console.error('Failed to reload day plan after accept:', err);
       });
     }
-  }, [replanSignal, compute]);
+  }, [acceptSignal, compute]);
 
   const handleStart = (taskId: string) => {
     onStartTask(taskId);

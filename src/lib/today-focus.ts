@@ -184,6 +184,45 @@ function fillBudget(
   return picked;
 }
 
+// ===== PLAN-DAY MODAL SPLIT =====
+
+export interface CapacitySplit {
+  inCapacity: ScoredTask[];
+  /** Ranked candidates that did not fit the budget — "Add anyway" pool. */
+  overflow: ScoredTask[];
+}
+
+/**
+ * Split ranked candidates at the day's capacity for the Plan-day modal.
+ * Unlike fillBudget (the dashboard's auto-fill) there is no MAX_CARDS cap —
+ * the modal IS the capacity view, so membership is bounded by the pomodoro
+ * budget alone. Greedy in rank order: a task joins when its whole slice fits
+ * the remaining budget (the first task always joins — its slice is capped at
+ * maxShare ≤ budget, mirroring fillBudget); everything else overflows in rank
+ * order. Tasks with nothing remaining are skipped: there is nothing to plan.
+ */
+export function splitByCapacity(
+  ranked: ScoredTask[],
+  budget: number,
+  maxShare: number,
+): CapacitySplit {
+  const inCapacity: ScoredTask[] = [];
+  const overflow: ScoredTask[] = [];
+  let used = 0;
+  for (const c of ranked) {
+    const slice = todaysSlice(c, maxShare);
+    if (slice === 0) continue;
+    if (inCapacity.length === 0 || slice <= budget - used) {
+      inCapacity.push(c);
+      used += slice;
+    } else {
+      overflow.push(c);
+    }
+  }
+
+  return { inCapacity, overflow };
+}
+
 // ===== DAILY PLAN PERSISTENCE =====
 
 export interface TodayPlan {

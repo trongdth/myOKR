@@ -1,0 +1,516 @@
+/*
+  Plan-day modal — the "Plan day" preview surface (2026-08-16 plan-day-modal
+  session). Structural parity with the mockup, tokens only (design-system.md):
+  surfaces are --bg-card / --bg-tertiary, the single primary action is the
+  Accept CTA, the capacity fill is solid --color-primary (no gradient — the
+  cyan→violet gradient is logo-only) and switches to --color-risk when the
+  plan over-commits. Source-bucket badges are neutral (amber means streak);
+  cyan marks the PINNED (next-NOW) task only. Numbers use --font-mono.
+*/
+
+.planday-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: planday-fade-in 200ms ease;
+  padding: 1em;
+}
+
+@keyframes planday-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.planday-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: min(680px, 86vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+  animation: planday-slide-up 250ms ease;
+}
+
+@keyframes planday-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.planday-loading {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.planday-empty {
+  padding: 24px;
+}
+
+/* Header */
+.planday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1em;
+  padding: 24px 24px 20px;
+}
+
+.planday-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.planday-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.planday-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.planday-rerank-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.planday-rerank-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Transient "recomputed, nothing moved" state — muted, inert-looking. */
+.planday-rerank-btn.is-unchanged {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.planday-rerank-btn.is-unchanged:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.planday-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.planday-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Capacity bar */
+.planday-capacity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.planday-capacity-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.planday-capacity-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.planday-capacity-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width var(--transition-fast);
+}
+
+.planday-capacity-fill.is-over {
+  background: var(--color-risk);
+}
+
+.planday-capacity-count {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.planday-capacity-count strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* Scrollable task list */
+.planday-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.planday-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.planday-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  /* left accent stripe — the task's Eisenhower category color, set inline
+     via the --planday-accent custom property (same scheme as UP NEXT). */
+  box-shadow: inset 3px 0 0 var(--planday-accent, var(--border-color));
+  user-select: none;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.planday-list.is-picking .planday-card {
+  cursor: pointer;
+}
+
+.planday-list.is-picking .planday-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--border-color));
+}
+
+.planday-card.is-picked {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--bg-tertiary), var(--color-primary) 10%);
+}
+
+.planday-idx {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  width: 24px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.planday-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planday-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.planday-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planday-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.planday-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.planday-badge.is-pinned {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.planday-badge.is-today {
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+
+.planday-badge.is-week,
+.planday-badge.is-backlog {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
+.planday-card-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planday-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.planday-ratio {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.planday-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: grab;
+  transition: color var(--transition-fast);
+}
+
+.planday-grip:hover,
+.planday-grip.is-active {
+  color: var(--color-primary);
+}
+
+.planday-menu-wrap {
+  position: relative;
+}
+
+.planday-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.planday-menu-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Row menu — fixed-position (an absolute one would be clipped by the
+   scrolling .planday-scroll region), anchored to the button's rect in JS. */
+.planday-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+}
+
+.planday-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 170px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.planday-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.planday-menu-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Capacity-reached divider + overflow list */
+.planday-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.planday-divider::before,
+.planday-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed color-mix(in srgb, var(--color-risk) 45%, transparent);
+}
+
+.planday-divider-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-risk) 80%, var(--text-primary));
+  white-space: nowrap;
+}
+
+.planday-overflow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.planday-overflow-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  opacity: 0.75;
+}
+
+.planday-overflow-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planday-overflow-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planday-overflow-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planday-add-anyway {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.planday-add-anyway:hover {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+/* Footer */
+.planday-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.planday-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.planday-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.planday-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.planday-accept-btn {
+  border-radius: 12px;
+  padding: 10px 24px;
+}
