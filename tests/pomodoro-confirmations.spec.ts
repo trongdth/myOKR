@@ -720,6 +720,15 @@ test.describe('Pomodoro: Long Break session completion', () => {
 
     // 2. Select Task Two
     await selectTask(page, 'Task Two');
+    // If the long break ended mid-pick (CI timing), auto-start began a focus
+    // and the pick landed behind the "Switch Task?" guard — selectTask returns
+    // with the switch still pending. Commit it so Task Two is active.
+    const switchConfirm = page.locator(
+      '.confirm-modal:has(.prioritize-title:has-text("Switch Task"))'
+    );
+    if (await switchConfirm.count().then(c => c > 0)) {
+      await switchConfirm.locator('button:has-text("Switch")').first().click().catch(() => {});
+    }
     await expect(page.locator('.active-task-card')).toContainText('Task Two');
 
     // 3. Wait for Long Break to complete
