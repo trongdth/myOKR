@@ -109,7 +109,32 @@ async function selectTask(page: Page, name: string) {
   const wasBreakRunning = !!activeTab && /Break/i.test(activeTab)
     && await page.locator('.timer-controls button:has-text("Pause")').count().then(c => c > 0);
   if (wasBreakRunning) {
-    await page.locator('.timer-controls button:has-text("Pause")').click();
+    // The break can also complete BETWEEN the single blocker-dismiss above and
+    // the pause click — its Task Changed / No Task confirm then intercepts the
+    // click and the test hangs (seen on CI). Retry the pair, and treat "the
+    // break already ended" as success: auto-start may have begun a focus, and
+    // a running focus is never paused here.
+    await expect(async () => {
+      const blocker = page.locator(
+        '.confirm-modal:visible:not(:has(.prioritize-title:has-text("Switch Task")))'
+      );
+      if (await blocker.count().then(c => c > 0)) {
+        await blocker.locator(
+          'button:has-text("Continue"), button:has-text("Start Anyway")'
+        ).first().click().catch(() => {});
+        await page.waitForTimeout(100);
+      }
+      const active = (await page.locator('button.session-tab.active').textContent().catch(() => '')) || '';
+      const pause = page.locator('.timer-controls button:has-text("Pause")');
+      if (/Break/i.test(active) && (await pause.count().then(c => c > 0))) {
+        await pause.click();
+      }
+      const stillBreak = /Break/i.test(
+        (await page.locator('button.session-tab.active').textContent().catch(() => '')) || ''
+      );
+      const stillPause = await pause.count().then(c => c > 0);
+      expect(stillBreak && stillPause).toBeFalsy();
+    }).toPass({ timeout: 10000 });
   }
 
   await page.locator('.active-task-card-change').click();
