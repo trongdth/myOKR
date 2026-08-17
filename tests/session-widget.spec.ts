@@ -192,6 +192,11 @@ test.describe('Session Widget', () => {
 
     const widget = page.locator('.session-widget');
     await expect(widget).toBeVisible();
+    // Measure only after the 160ms sw-pop entrance animation settles: the two
+    // sequential boundingBox() calls can otherwise sample different translateY
+    // frames mid-flight and fake a ~1px y-offset (seen 1-in-10 locally and on
+    // both CI attempts with different deltas — the layout itself is correct).
+    await widget.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
 
     const play = await widget.locator('.sw-play').boundingBox();
     const open = await widget.locator('.sw-open').boundingBox();

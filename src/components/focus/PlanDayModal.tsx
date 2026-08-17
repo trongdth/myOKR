@@ -346,7 +346,15 @@ export default function PlanDayModal({ onClose, onAccept, onGoToTasks }: PlanDay
         {/* Capacity bar */}
         <div className="planday-capacity">
           <span className="planday-capacity-label">Capacity</span>
-          <div className="planday-capacity-track" role="progressbar">
+          <div
+            className="planday-capacity-track"
+            role="progressbar"
+            aria-label="Daily pomodoro capacity"
+            aria-valuenow={fillPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuetext={`${committed} of ${budget} pomodoros`}
+          >
             <div
               className={`planday-capacity-fill${over ? ' is-over' : ''}`}
               style={{ width: `${fillPct}%` }}

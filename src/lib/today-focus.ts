@@ -208,7 +208,8 @@ export function splitByCapacity(
 ): CapacitySplit {
   const inCapacity: ScoredTask[] = [];
   const overflow: ScoredTask[] = [];
-  let used = 0;  for (const c of ranked) {
+  let used = 0;
+  for (const c of ranked) {
     const slice = todaysSlice(c, maxShare);
     if (slice === 0) continue;
     if (inCapacity.length === 0 || slice <= budget - used) {

@@ -48,6 +48,13 @@ test.describe('Plan day modal', () => {
     // 3 completed today + 5 slices × 2 pomos = 13 of budget 13 — full, not over
     await expect(modal.locator('.planday-capacity-count')).toHaveText('13/13');
     await expect(modal.locator('.planday-capacity-fill')).not.toHaveClass(/is-over/);
+
+    // Progressbar semantics (PR #75 review): screen readers need the values
+    const track = modal.locator('.planday-capacity-track');
+    await expect(track).toHaveAttribute('role', 'progressbar');
+    await expect(track).toHaveAttribute('aria-valuenow', '100');
+    await expect(track).toHaveAttribute('aria-valuemin', '0');
+    await expect(track).toHaveAttribute('aria-valuemax', '100');
   });
 
   test('badges: PINNED marks row 1; source bucket is labeled per card', async ({ page }) => {
