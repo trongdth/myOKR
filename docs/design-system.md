@@ -230,7 +230,7 @@ the Today screen (1b).
 | Slot | Rule |
 |---|---|
 | Header title | **Today's date, day-first**, real (never hardcoded): `{Weekday}, {D} {Mon-short}` → "Tuesday, 4 Aug". The old "Today's Focus" label is dropped. (Today's code builds this `en-US`, which prints month-first "Aug 3"; switch to day-first.) |
-| Header action | **"Plan day"** button (renamed from "Replan day"; opens the preview-and-commit modal). **Cyan-outlined accent** (2026-08-16 revamp): dashed `LoaderCircle` icon, `--color-primary` border/text, semibold, gap-2 — still **outlined, never solid**, so the NOW card's "Start focus" remains the single primary CTA (`--color-primary`) on the Day plan screen. **Day plan tab only** (2026-08-08 feedback): Session/Habits keep the date title with an empty right side. |
+| Header action | **"Plan day"** button (renamed from "Replan day"; opens the preview-and-commit modal). **Cyan-outlined accent** (2026-08-16 revamp): `Asterisk` icon (six-spoke starburst, per the 2026-08-17 reference), `--color-primary` border/text, semibold, gap-2 — still **outlined, never solid**, so the NOW card's "Start focus" remains the single primary CTA (`--color-primary`) on the Day plan screen. **Day plan tab only** (2026-08-08 feedback): Session/Habits keep the date title with an empty right side. |
 | Tab strip | `Day plan` · `Session` · `Habits`, reusing the `.plan-tab-strip` / `.plan-tab` styles for parity with the Plan group. |
 | Cycle slot (right of tabs) | **Static text** "May cycle · week N of M" via `cycleWeekLabel()`. **Not a dropdown** — Day plan is today-scoped, so there is nothing to filter (unlike the Plan group's cycle-week dropdown). |
 

@@ -27,8 +27,8 @@
 
 /* "Plan day" stays an OUTLINED accent action (never solid cyan) so the NOW
    card's "Start focus" remains the single primary CTA on the Day plan screen
-   (design-system.md). 2026-08-16 revamp: cyan-outlined treatment — dashed
-   LoaderCircle icon, --color-primary border/text, semibold, gap-2 rhythm. */
+   (design-system.md). 2026-08-16 revamp: cyan-outlined treatment — Asterisk
+   icon, --color-primary border/text, semibold, gap-2 rhythm. */
 .focus-plan-day-btn {
   display: inline-flex;
   align-items: center;

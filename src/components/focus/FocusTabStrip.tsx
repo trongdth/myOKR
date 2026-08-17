@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { Asterisk } from 'lucide-react';
 import { navigateToSection } from '../../lib/navigation';
 import { useSession } from '../session/SessionProvider';
 import { loadHabits, buildHabitWeekMatrix, getMondayOf, type Habit } from '../../lib/habit-storage';
@@ -42,7 +42,7 @@ export function FocusHeader({ onPlanDay, showPlanDay }: { onPlanDay: () => void;
             className="focus-plan-day-btn"
             title="Preview and commit today's plan"
           >
-            <LoaderCircle size={13} />
+            <Asterisk size={13} />
             <span>Plan day</span>
           </button>
         )}

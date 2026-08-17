@@ -94,8 +94,10 @@ test.describe('Focus shell — Day plan tab (ticket 01)', () => {
 
   test('"Plan day" button uses the cyan-outlined revamp (2026-08-16)', async ({ page }) => {
     const btn = page.locator('.focus-plan-day-btn');
-    // Dashed-circle loader icon (not the old recycle/refresh arrow)
-    await expect(btn.locator('svg.lucide-loader-circle')).toHaveCount(1);
+    // Asterisk icon (six-spoke starburst, 2026-08-17) — not the old
+    // loader/recycle glyphs
+    await expect(btn.locator('svg.lucide-asterisk')).toHaveCount(1);
+    await expect(btn.locator('svg.lucide-loader-circle')).toHaveCount(0);
     await expect(btn.locator('svg.lucide-refresh-cw')).toHaveCount(0);
 
     // Bright cyan text (--color-primary #22D3EE), semibold, tight icon-text gap
