@@ -14,41 +14,31 @@
   padding: 1.25rem;
 }
 
-/* ===== OKR HEADER ===== */
-.okr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2em;
-  gap: 1em;
-  flex-wrap: wrap;
+/* ===== CYCLE COUNTDOWN (P7 revamp — the selector moved inline with the title) ===== */
+.okr-cycle-countdown {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0.35rem 0 0.9rem;
 }
 
-.okr-header-left {
+/* ===== CYCLE PROGRESS (P7 revamp — inline text + violet bar, no box) ===== */
+.okr-cycle-progress {
   display: flex;
-  align-items: center;
-  gap: 1em;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  min-width: 150px;
 }
 
-.okr-header-title {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.okr-overall-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.75em;
-  padding: 0.6em 1.25em;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+.okr-cycle-progress-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .okr-overall-bar {
-  width: 140px;
+  width: 150px;
   height: 6px;
   background: var(--bg-tertiary);
   border-radius: 3px;
@@ -57,18 +47,16 @@
 
 .okr-overall-fill {
   height: 100%;
-  background: var(--accent-gradient);
+  background: var(--color-objective);
   border-radius: 3px;
   transition: width 500ms ease;
 }
 
 .okr-overall-text {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-primary);
-  min-width: 40px;
-  text-align: right;
 }
 
 /* ===== CYCLE SELECTOR ===== */
@@ -221,84 +209,169 @@
   color: var(--accent-cyan);
 }
 
-/* ===== EMPTY STATE ===== */
-.okr-empty {
-  text-align: center;
-  padding: 4em 2em;
-  color: var(--text-muted);
-}
-
-.okr-empty-icon {
-  font-size: 3rem;
-  margin-bottom: 0.75em;
-  opacity: 0.5;
-}
-
-.okr-empty-text {
-  font-size: 1rem;
-  margin-bottom: 0.5em;
-  color: var(--text-secondary);
-}
-
-.okr-empty-hint {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-/* ===== ADD OBJECTIVE ===== */
-.okr-add-objective {
+/* ===== NEW OBJECTIVE INLINE FORM (P7 revamp) ===== */
+.okr-new-obj-form {
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 80%, transparent);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.25em;
   display: flex;
-  gap: 0.5em;
-  margin-top: 1.5em;
+  flex-direction: column;
+  gap: 0.9rem;
+  animation: slideDown 200ms ease;
 }
 
-.okr-add-objective input {
+.okr-new-obj-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.okr-new-obj-field-row {
+  flex-wrap: wrap;
+}
+
+.okr-form-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  min-width: 8rem;
+  flex-shrink: 0;
+}
+
+.okr-form-optional-tag {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.okr-new-obj-title-input {
   flex: 1;
-  padding: 0.75em 1em;
+  min-width: 0;
+  padding: 0.6em 0.9em;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   color: var(--text-primary);
   font-size: 0.95rem;
+  font-weight: 700;
   font-family: inherit;
 }
 
-.okr-add-objective input:focus {
+.okr-new-obj-title-input:focus {
   outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
-.okr-add-objective input::placeholder {
+.okr-new-obj-title-input::placeholder,
+.okr-new-obj-reward-wrap input::placeholder,
+.okr-new-obj-kr-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.okr-new-obj-reward-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55em 0.9em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
   color: var(--text-muted);
 }
 
-.okr-add-btn {
-  padding: 0.75em 1.5em;
-  background: var(--accent-gradient);
+.okr-new-obj-reward-wrap:focus-within {
+  border-color: var(--color-primary);
+}
+
+.okr-new-obj-reward-wrap input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
   border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.okr-new-obj-kr-input {
+  flex: 1;
+  min-width: 10rem;
+  padding: 0.55em 0.9em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  color: white;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.okr-new-obj-kr-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.okr-new-obj-actions {
+  gap: 0.75rem;
+}
+
+.okr-new-obj-create-btn {
+  height: 34px;
+  padding: 0 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.8rem;
   font-weight: 600;
   font-family: inherit;
-  font-size: 0.92rem;
   cursor: pointer;
-  transition:
-    transform 200ms ease,
-    box-shadow 200ms ease;
   white-space: nowrap;
 }
 
-.okr-add-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.25);
+.okr-new-obj-create-btn:not(:disabled):hover { filter: brightness(1.08); }
+
+.okr-new-obj-create-btn:disabled {
+  background: color-mix(in srgb, var(--color-primary) 25%, var(--bg-tertiary));
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.okr-new-obj-cancel-btn {
+  height: 34px;
+  padding: 0 1rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.okr-new-obj-cancel-btn:hover {
+  border-color: var(--text-muted);
+}
+
+.okr-new-obj-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* ===== OBJECTIVE CARD ===== */
 .objective-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-left: 3px solid var(--accent-cyan);
   border-radius: 16px;
   margin-bottom: 1.25em;
   transition:
@@ -312,7 +385,6 @@
 
 .objective-card:hover {
   border-color: var(--border-glow);
-  border-left-color: var(--accent-cyan);
 }
 
 .objective-header {
@@ -340,13 +412,24 @@
   transform: rotate(90deg);
 }
 
+/* Static violet dot — the objective semantic color (no category field, P7 revamp) */
+.objective-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-objective);
+  flex-shrink: 0;
+}
+
 .objective-title {
   flex: 1;
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   min-width: 0;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .objective-title-input {
@@ -385,7 +468,7 @@
 
 .objective-progress-fill {
   height: 100%;
-  background: var(--accent-gradient);
+  background: var(--color-objective);
   border-radius: 2px;
   transition: width 500ms ease;
 }
@@ -461,24 +544,24 @@
   animation: slideDown 200ms ease;
 }
 
-/* ===== KEY RESULT ROW ===== */
+/* ===== KEY RESULT ROW (P7 revamp — 4-column grid:
+   info | value badge | /target + bar | status pill | delete) ===== */
 .kr-list {
   display: flex;
   flex-direction: column;
-  margin-left: 1em;
   border: 1px solid var(--border-color);
   border-radius: 10px;
 }
 
 .kr-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35em;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(140px, 220px) auto 24px;
+  align-items: center;
+  gap: 0.9em;
   padding: 0.75em 1em;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   transition: background 200ms ease;
-  position: relative;
 }
 
 .kr-empty-state {
@@ -496,31 +579,66 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.kr-row-top {
+/* Column 1: title + subtitle */
+.kr-info {
   display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  min-width: 0;
+}
+
+.kr-subtitle {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75em;
+  align-self: flex-start;
+  padding: 0.05em 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 150ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.kr-row-bottom {
-  padding-left: 2.25em;
+.kr-subtitle:hover {
+  color: var(--text-secondary);
 }
 
-.kr-confidence {
-  display: flex;
+.kr-subtitle.unserved {
+  color: var(--color-risk);
+}
+
+/* Column 2: current value badge */
+.kr-value-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  min-width: 2.6em;
+  padding: 0.25em 0.55em;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  border-radius: 50%;
-  transition: transform 200ms ease;
-  flex-shrink: 0;
+  transition: border-color 150ms ease;
 }
 
-.kr-confidence:hover {
-  transform: scale(1.2);
+.kr-value-badge:hover {
+  border-color: var(--color-primary);
+}
+
+/* Column 3: / target + bar + percent */
+.kr-target-group {
+  min-width: 0;
 }
 
 .kr-title {
@@ -548,10 +666,11 @@
 .kr-progress-line {
   display: flex;
   align-items: center;
-  gap: 0.75em;
+  gap: 0.6em;
+  min-width: 0;
 }
 
-.kr-progress-text {
+.kr-target-text {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -593,7 +712,7 @@
   background: var(--okr-off-track);
 }
 .kr-progress-fill.not-set {
-  background: var(--accent-gradient);
+  background: var(--okr-not-set);
 }
 
 .kr-value {
@@ -605,32 +724,9 @@
   text-align: right;
 }
 
-/* Mode badge with icon + label */
-.kr-mode-badge-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3em;
-  padding: 0.2em 0.6em;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition:
-    color 200ms ease,
-    background-color 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease,
-    opacity 200ms ease,
-    transform 200ms ease;
+/* Status pill cell (far right) */
+.kr-status-cell {
   flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.kr-mode-badge-label:hover {
-  border-color: var(--accent-cyan);
-  color: var(--text-secondary);
 }
 
 /* Value popover */
@@ -769,19 +865,14 @@
   transition:
     color 200ms ease,
     background-color 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease,
-    opacity 200ms ease,
-    transform 200ms ease;
+    opacity 200ms ease;
   font-size: 1.2rem;
   flex-shrink: 0;
   opacity: 0;
-  position: absolute;
-  top: 0em;
-  right: 0em;
 }
 
-.kr-row:hover .kr-delete-btn {
+.kr-row:hover .kr-delete-btn,
+.kr-row:focus-within .kr-delete-btn {
   opacity: 1;
 }
 
@@ -790,17 +881,63 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
-/* Add Key Result */
-.kr-add-row {
+/* Habit link row — spans the full grid width under the columns */
+.kr-habit-link-row {
+  grid-column: 1 / -1;
   display: flex;
-  gap: 0.5em;
-  margin-top: 0.5em;
-  margin-left: 1em;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.kr-add-row input {
+.kr-habit-link-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.kr-habit-link-row select {
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  font-family: inherit;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Add Key Result — collapsed toggle + expanded row (P7 revamp) */
+.kr-add-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-top: 0.6em;
+  padding: 0.3em 0.5em;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.kr-add-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.kr-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.6em;
+}
+
+.kr-add-row input[type='text'] {
   flex: 1;
-  padding: 0.75em 0.85em;
+  min-width: 12rem;
+  padding: 0.6em 0.85em;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -809,38 +946,97 @@
   font-family: inherit;
 }
 
-.kr-add-row input:focus {
+.kr-add-row input[type='text']:focus {
   outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
-.kr-add-row input::placeholder {
+.kr-add-row input[type='text']::placeholder {
   color: var(--text-muted);
 }
 
-.kr-add-btn {
-  padding: 0.75em 1em;
+/* Numeric current/target inputs (add-KR row + creation form) */
+.kr-num-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  flex-shrink: 0;
+}
+
+.kr-num-input {
+  width: 4.5em;
+  padding: 0.55em 0.5em;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: var(--text-secondary);
-  font-family: inherit;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
   font-size: 0.85rem;
+  text-align: center;
+  outline: none;
+}
+
+.kr-num-input:focus {
+  border-color: var(--color-primary);
+}
+
+.kr-num-input:disabled {
+  color: var(--text-muted);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kr-num-sep {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.kr-add-btn.primary {
+  height: 34px;
+  padding: 0 1.1rem;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 8px;
+  color: var(--color-on-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
-  transition:
-    color 200ms ease,
-    background-color 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease,
-    opacity 200ms ease,
-    transform 200ms ease;
   white-space: nowrap;
 }
 
-.kr-add-btn:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+.kr-add-btn.primary:not(:disabled):hover { filter: brightness(1.08); }
+
+.kr-add-btn.primary:disabled {
+  background: color-mix(in srgb, var(--color-primary) 25%, var(--bg-tertiary));
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.kr-add-cancel-btn {
+  height: 34px;
+  padding: 0 0.9rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.kr-add-cancel-btn:hover {
+  border-color: var(--text-muted);
+}
+
+.kr-add-helper {
+  flex-basis: 100%;
+  margin-top: 0.15em;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 /* ===== CONFIDENCE POPUP ===== */
@@ -956,21 +1152,46 @@
   box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  .okr-header {
-    flex-direction: column;
-    align-items: flex-start;
+/* ===== RESPONSIVE (P7 revamp) ===== */
+/* ≤1100: truncate the objective header extras, slim the KR target column */
+@media (max-width: 1100px) {
+  .objective-reward-pill {
+    max-width: 160px;
   }
 
-  .okr-overall-progress {
-    width: 100%;
+  .kr-row {
+    grid-template-columns: minmax(0, 1fr) auto minmax(100px, 160px) auto 24px;
+  }
+}
+
+/* ≤900: KR row re-stacks to two lines (info on top, metrics below);
+   the delete ✕ is always visible (touch devices have no hover) */
+@media (max-width: 900px) {
+  .kr-row {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
   }
 
+  .kr-info {
+    grid-column: 1 / -1;
+  }
+
+  .kr-delete-btn {
+    opacity: 1;
+  }
+
+  .kr-add-row input[type='text'] {
+    min-width: 8rem;
+  }
+}
+
+/* <700: the cycle-progress bar hides, the percentage text stays */
+@media (max-width: 700px) {
   .okr-overall-bar {
-    flex: 1;
+    display: none;
   }
+}
 
+@media (max-width: 768px) {
   .cycle-dropdown {
     right: 0;
     left: auto;
@@ -984,18 +1205,6 @@
     overflow-y: auto;
   }
 
-  .kr-row-top {
-    padding-right: 1.5em;
-  }
-
-  .kr-row-bottom {
-    padding-left: 0;
-  }
-
-  .kr-row-top > div:nth-child(3) {
-    margin-left: 0.5em;
-  }
-
   .kr-progress-bar {
     max-width: none;
   }
@@ -1007,298 +1216,94 @@
   }
 }
 
+/* ≤640: the objective header wraps — title keeps its line, the reward pill,
+   progress badge and actions flow onto a second row instead of being hidden */
 @media (max-width: 640px) {
-  .okr-add-objective {
-    flex-direction: column;
+  .objective-header {
+    flex-wrap: wrap;
   }
 
-  .kr-add-row {
-    flex-direction: column;
+  .objective-title {
+    white-space: normal;
+    word-break: break-word;
   }
 
-  .objective-progress-badge {
-    display: none;
+  .okr-new-obj-form {
+    padding: 1rem;
+  }
+
+  .okr-form-label {
+    min-width: 100%;
   }
 }
 
-/* ===== OBJECTIVE REWARD ===== */
-.objective-reward-container {
-  margin: 0 0 1.25em 1.1em;
-}
-
-.objective-reward-input-wrap {
-  display: flex;
+/* ===== OBJECTIVE REWARD PILL (P7 revamp — lives in the card header, no body box) ===== */
+.objective-reward-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 0.6em;
+  gap: 0.4em;
+  max-width: 260px;
+  padding: 0.25em 0.7em;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 0.5em 0.8em;
-}
-
-.objective-reward-icon-prefix {
-  font-size: 1.15rem;
-  flex-shrink: 0;
-}
-
-.objective-reward-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  outline: none;
-  font-family: inherit;
-  min-width: 0;
-}
-
-.objective-reward-input::placeholder {
-  color: var(--text-muted);
-  opacity: 0.8;
-}
-
-.objective-reward-save-btn,
-.objective-reward-cancel-btn {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  border-radius: 999px;
   color: var(--text-secondary);
-  border-radius: 6px;
-  padding: 0.35em 0.75em;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-family: inherit;
   cursor: pointer;
+  flex-shrink: 0;
   transition:
     color 150ms ease,
-    background-color 150ms ease,
     border-color 150ms ease,
-    box-shadow 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
+    background-color 150ms ease;
+}
+
+.objective-reward-pill:hover {
+  border-color: var(--border-glow);
+  color: var(--text-primary);
+}
+
+.objective-reward-pill.ghost {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.objective-reward-pill.unlocked {
+  color: var(--color-objective);
+  border-color: color-mix(in srgb, var(--color-objective) 45%, transparent);
+  background: color-mix(in srgb, var(--color-objective) 10%, transparent);
+}
+
+.objective-reward-pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.objective-reward-save-btn {
-  background: rgba(6, 182, 212, 0.15);
-  border-color: rgba(6, 182, 212, 0.3);
-  color: var(--accent-cyan);
+.objective-reward-pill.ghost .objective-reward-pill-text {
+  font-style: italic;
 }
 
-.objective-reward-save-btn:hover {
-  background: rgba(6, 182, 212, 0.25);
-  border-color: var(--accent-cyan);
-  color: #fff;
-}
-
-.objective-reward-cancel-btn:hover {
+/* Inline edit state — the pill swaps to this input in the header row */
+.objective-reward-edit-input {
+  max-width: 260px;
+  min-width: 10rem;
+  padding: 0.25em 0.7em;
   background: var(--bg-secondary);
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
   color: var(--text-primary);
+  font-size: 0.75rem;
+  font-family: inherit;
+  outline: none;
+  flex-shrink: 1;
 }
 
-/* Reward Card - General */
-.objective-reward-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1em;
-  padding: 0.8em 1.2em;
-  border-radius: 12px;
-  position: relative;
-  overflow: hidden;
-  transition:
-    color 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Locked Reward Card */
-.objective-reward-card.locked {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px dashed var(--border-color);
-}
-
-.objective-reward-card.locked:hover {
-  border-color: var(--border-glow);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* Unlocked Reward Card - Golden Shine */
-.objective-reward-card.unlocked {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  box-shadow: 0 0 16px rgba(217, 119, 6, 0.4);
-  animation: rewardPulse 3s infinite ease-in-out;
-}
-
-.objective-reward-card.unlocked::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -60%;
-  width: 30%;
-  height: 200%;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  transform: rotate(25deg);
-  animation: rewardShine 6s infinite ease-in-out;
-}
-
-@keyframes rewardShine {
-  0% {
-    left: -60%;
-  }
-  15% {
-    left: 130%;
-  }
-  100% {
-    left: 130%;
-  }
-}
-
-@keyframes rewardPulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 16px rgba(217, 119, 6, 0.4);
-  }
-  50% {
-    transform: scale(1.015);
-    box-shadow: 0 0 24px rgba(217, 119, 6, 0.6);
-  }
-}
-
-.objective-reward-content {
-  display: flex;
-  align-items: center;
-  gap: 0.9em;
-  min-width: 0;
-}
-
-.objective-reward-icon {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.objective-reward-text-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15em;
-  min-width: 0;
-}
-
-.objective-reward-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-
-.locked .objective-reward-label {
+.objective-reward-edit-input::placeholder {
   color: var(--text-muted);
 }
 
-.unlocked .objective-reward-label {
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.objective-reward-text {
-  font-size: 0.95rem;
-  font-weight: 600;
-  word-break: break-word;
-}
-
-.locked .objective-reward-text {
-  color: var(--text-secondary);
-}
-
-.unlocked .objective-reward-text {
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.objective-reward-edit-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition:
-    color 150ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
-  flex-shrink: 0;
-}
-
-.locked .objective-reward-edit-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.unlocked .objective-reward-edit-btn {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.unlocked .objective-reward-edit-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-/* Media query adaptations */
-@media (max-width: 640px) {
-  .objective-reward-container {
-    margin-left: 0.5em;
-  }
-
-  .objective-reward-input-wrap {
-    flex-wrap: wrap;
-    gap: 0.5em;
-  }
-
-  .objective-reward-input {
-    width: 100%;
-    flex: none;
-  }
-
-  .objective-reward-save-btn,
-  .objective-reward-cancel-btn {
-    flex: 1;
-    text-align: center;
-  }
-
-  .objective-reward-card {
-    padding: 0.7em 0.9em;
-  }
-}
-
-/* --- P7: cycle countdown + New objective button + header right --- */
-.okr-header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.okr-cycle-countdown {
-  display: block;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 0.3rem;
-}
+/* --- P7: New objective button --- */
 .okr-new-objective-btn {
   display: flex;
   align-items: center;
@@ -1328,16 +1333,4 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-}
-
-/* --- P7: KR recency line ("updated 2 days ago · N tasks linked") --- */
-.kr-flag-line {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-.kr-flag-line .kr-recency {
-  font-size: 0.75rem;
-  color: var(--text-muted);
 }

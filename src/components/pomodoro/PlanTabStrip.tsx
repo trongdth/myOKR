@@ -4,15 +4,26 @@ import { navigateToSection } from '../../lib/navigation';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** "{Mon} cycle" — the Objectives screen's title (the cycle entity lives in the selector chip). */
+export function cycleTitleLabel(cycle: { month: number }): string {
+  return `${MONTHS[cycle.month]} cycle`;
+}
+
 /**
  * Plan-group screen header (P1/P5/P7): Eyebrow "PLAN" above the cycle name title
  * on the left, controls on the right (matching redesign 08.53.52.png).
+ * `title` overrides the cycle-name title and `afterTitle` renders inline after it
+ * (the Objectives screen puts its cycle selector there, P7 revamp).
  */
 export function PlanHeader({
   activeCycle,
+  title,
+  afterTitle,
   right,
 }: {
   activeCycle?: { name?: string; month: number; year: number } | null;
+  title?: string;
+  afterTitle?: ReactNode;
   right?: ReactNode;
 }) {
   const cycleTitle = activeCycle
@@ -23,7 +34,10 @@ export function PlanHeader({
     <div className="tasks-view-header">
       <div className="tasks-header-left">
         <h2 className="plan-header-eyebrow tasks-title">PLAN</h2>
-        <h1 className="plan-header-title">{cycleTitle}</h1>
+        <div className="plan-header-title-row">
+          <h1 className="plan-header-title">{title ?? cycleTitle}</h1>
+          {afterTitle}
+        </div>
       </div>
       {right && <div className="tasks-header-right">{right}</div>}
     </div>

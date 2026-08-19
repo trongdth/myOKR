@@ -23,6 +23,24 @@ export const COMPLETION_MODE_META: Record<CompletionMode, {
   habit:             { label: 'Habit Ticks',      unit: 'ticks' },
 };
 
+// Target a new KR starts with when the type is picked (P7 creation form / add-KR row).
+export const DEFAULT_KR_TARGET: Record<CompletionMode, number> = {
+  manual: 100,
+  focus_hours: 10,
+  focus_pomodoros: 20,
+  completed_tasks: 5,
+  habit: 10,
+};
+
+// One-line explainer shown under the KR type selector (P7 add-KR row).
+export const COMPLETION_MODE_HELPER: Record<CompletionMode, string> = {
+  manual: 'Manual — you update the current value yourself, whenever there\'s news.',
+  focus_hours: 'Focus Hours counts sessions logged against tasks linked to this key result. Nothing to update by hand.',
+  focus_pomodoros: 'Pomodoros counts completed focus sessions on tasks linked to this key result. Nothing to update by hand.',
+  completed_tasks: 'Completed Tasks counts tasks linked to this key result that you finish. Nothing to update by hand.',
+  habit: 'Habit Ticks counts the ticks of the linked habit. Link a habit after adding if none is set yet.',
+};
+
 export const CONFIDENCE_META: Record<Confidence, {
   label: string;
   color: string;
