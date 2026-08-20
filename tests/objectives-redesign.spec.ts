@@ -60,6 +60,10 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
   });
 
   test('KR grid: value badge, / target, percent, status pill, subtitle linkage via mode popup', async ({ page }) => {
+    // Let the objective-body slideDown entrance settle — popup anchors under
+    // the subtitle mis-position if clicked mid-animation (same race as the
+    // hover-reveal test below)
+    await page.waitForTimeout(350);
     const kr = page.locator('.kr-row', { hasText: 'Complete 15 feature tickets' });
     await expect(kr).toBeVisible();
 
@@ -109,6 +113,30 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await popover.locator('.kr-counter-btn', { hasText: '+' }).click(); // 9 → 10
     await popover.locator('.kr-popover-confirm').click();
     await expect(kr.locator('.kr-value-badge')).toHaveText('10');
+  });
+
+  test('derived modes adjust the target only — current stays automatic (Focus Hours included)', async ({ page }) => {
+    // Focus Hours KR (seed kr-3, target 40): the popover opens and adjusts the
+    // target — previously this mode had no popover at all and its target was
+    // stuck at the creation value forever.
+    const kr = page.locator('.kr-row', { hasText: 'Complete 40 focus hours' });
+    await kr.locator('.kr-value-badge').click();
+    const popover = page.locator('.kr-value-popover');
+    await expect(popover).toBeVisible();
+    await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
+    // No Current field — the current value is derived from linked tasks, never hand-set
+    await expect(popover.locator('.kr-popover-field', { hasText: 'Current' })).toHaveCount(0);
+    await popover.locator('.kr-counter-btn', { hasText: '+' }).click(); // 40 → 41
+    await popover.locator('.kr-popover-confirm').click();
+    await expect(kr.locator('.kr-target-text')).toHaveText('/ 41');
+    // The current badge is untouched by a target change
+    await expect(kr.locator('.kr-value-badge')).toHaveText('0');
+
+    // Same posture for Pomodoros (seed kr-4, target 25)
+    const pomo = page.locator('.kr-row', { hasText: 'Finish 25 Pomodoro sessions' });
+    await pomo.locator('.kr-value-badge').click();
+    await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
+    await expect(popover.locator('.kr-popover-field', { hasText: 'Current' })).toHaveCount(0);
   });
 
   test('add-KR row: toggle expands, helper text follows the type, Esc collapses, Add keeps the row open', async ({ page }) => {

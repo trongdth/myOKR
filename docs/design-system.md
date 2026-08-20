@@ -657,7 +657,9 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   {habit}`; unserved shows `no tasks serving this KR` in risk color;
   **recency line dropped**); the subtitle **click opens the mode-change popup**.
   Col 2: current value in an outlined mono badge (click opens the existing
-  value popover). Col 3: `/ {target}` mono + bar in **confidence colors**
+  value popover — **Manual adjusts the hand-set current; every derived mode
+  adjusts its target** (Focus Hours included); derived currents are computed
+  from linked tasks/habits and are never hand-written). Col 3: `/ {target}` mono + bar in **confidence colors**
   (green/rose/red per `CONFIDENCE_META`; `not_set` = grey `--okr-not-set`,
   never the gradient) + percent. Col 4: confidence pill, far right. Delete ✕
   is **hover-reveal** (always visible ≤900px — touch rule). Habit KRs keep the

@@ -50,11 +50,11 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const progress = kr.targetValue > 0 ? Math.min(100, (effectiveCurrent / kr.targetValue) * 100) : 0;
   const meta = CONFIDENCE_META[kr.confidence];
   const modeMeta = COMPLETION_MODE_META[mode];
-  // Focus Hours has no hand-adjustable value at all (current is derived, target
-  // managed on tasks) — every other mode opens the popover.
-  const canShowPopover = mode === 'manual' || mode === 'focus_pomodoros' || mode === 'completed_tasks' || mode === 'habit';
+  // Every mode opens the value popover: Manual adjusts the hand-set current;
+  // all derived modes (Focus Hours included) adjust their target — their
+  // current is computed from linked tasks/habits and is never hand-written.
   const showCurrentAdjuster = mode === 'manual';
-  const showTargetAdjuster = mode === 'focus_pomodoros' || mode === 'completed_tasks' || mode === 'habit';
+  const showTargetAdjuster = mode !== 'manual';
 
   // Hold-repeat handlers for current value stepper
   const holdCurrentDec = useHoldRepeat(
@@ -191,9 +191,8 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
       {/* Column 2: current value badge (click opens the value popover) */}
       <button
         className="kr-value-badge"
-        onClick={e => { e.stopPropagation(); if (canShowPopover) openValuePopover(); }}
-        style={{ cursor: canShowPopover ? 'pointer' : 'default' }}
-        title={canShowPopover ? 'Adjust value' : undefined}
+        onClick={e => { e.stopPropagation(); openValuePopover(); }}
+        title="Adjust value"
         aria-label={`Current value ${effectiveCurrent} of ${kr.targetValue}`}
       >
         {effectiveCurrent}
@@ -203,8 +202,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
       <div className="kr-target-group" style={{ position: 'relative' }} ref={valueRef}>
         <div
           className="kr-progress-line"
-          onClick={e => { e.stopPropagation(); if (canShowPopover) openValuePopover(); }}
-          style={{ cursor: canShowPopover ? 'pointer' : 'default' }}
+          onClick={e => { e.stopPropagation(); openValuePopover(); }}
         >
           <span className="kr-target-text">/ {kr.targetValue}</span>
           <div className="kr-progress-bar">
@@ -217,7 +215,7 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
             {progress.toFixed(1)}%
           </span>
         </div>
-        {showValuePopover && canShowPopover && (
+        {showValuePopover && (
           <div className="kr-value-popover" onClick={e => e.stopPropagation()}>
             <div className="kr-popover-title">
               {showCurrentAdjuster ? 'Adjust Current' : 'Adjust Target'}
