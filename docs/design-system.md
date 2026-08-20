@@ -634,7 +634,10 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
 
 - **Header**: eyebrow `PLAN`, h1 `{Mon} cycle` (e.g. "May cycle"), the
   `CycleSelector` chip **inline right of the h1** (not stacked below), countdown
-  line (`N days left in cycle · X objectives · Y key results`) beneath. Right
+  line (`N days left in cycle · X objectives · Y key results`) beneath; the
+  tab strip keeps the Plan-group's **1.25rem gap** above the first card
+  (2026-08-19 polish — `okr-container` isn't flex, so the gap is a scoped
+  `margin-bottom` on the strip). Right
   side: **inline `Cycle progress {N}%`** label + violet (`--color-objective`)
   bar — replacing the boxed "Overall" widget (whose logo-only gradient fill was
   a violation) — then the **"+ New objective"** button. **No Search ⌘K button**
@@ -661,7 +664,11 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   adjusts its target** (Focus Hours included); derived currents are computed
   from linked tasks/habits and are never hand-written). Col 3: `/ {target}` mono + bar in **confidence colors**
   (green/rose/red per `CONFIDENCE_META`; `not_set` = grey `--okr-not-set`,
-  never the gradient) + percent. Col 4: confidence pill, far right. Delete ✕
+  never the gradient). **No percent readout** after the bar (2026-08-19 polish
+  round — the badge/target carry the numbers); the bar is a **fixed width**
+  (140px base; 90px ≤1100; flex only in the ≤900 re-stack) and the pills are
+  **equal-width** (`min-width` + centered) so On Track / At Risk / Off Track
+  align down the column. Col 4: confidence pill, far right. Delete ✕
   is **hover-reveal** (always visible ≤900px — touch rule). Habit KRs keep the
   habit-link select on a full-width nested line.
 - **Add-KR row**: collapsed **"+ Add key result"** text button; click expands

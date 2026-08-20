@@ -211,9 +211,6 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="kr-progress-percent">
-            {progress.toFixed(1)}%
-          </span>
         </div>
         {showValuePopover && (
           <div className="kr-value-popover" onClick={e => e.stopPropagation()}>

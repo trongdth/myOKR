@@ -69,9 +69,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
 
     // Column 2: current value in the outlined badge
     await expect(kr.locator('.kr-value-badge')).toHaveText('9');
-    // Column 3: "/ 15" target + bar + percent
+    // Column 3: "/ 15" target + bar (no percent readout — UI-polish round dropped it)
     await expect(kr.locator('.kr-target-text')).toHaveText('/ 15');
-    await expect(kr.locator('.kr-progress-percent')).toContainText('60.0%');
     // Column 4: status pill far right
     await expect(kr.locator('.kr-confidence-pill')).toContainText('On Track');
     // Column 1 subtitle: mode label for a manual KR
@@ -195,6 +194,47 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     const kr = card.locator('.kr-row', { hasText: 'Hold 40 focus hours a month' });
     await expect(kr.locator('.kr-subtitle')).toContainText('Focus Hours');
     await expect(kr.locator('.kr-target-text')).toHaveText('/ 10');
+  });
+
+  test('UI polish: tab strip to first card keeps the Plan-group gap', async ({ page }) => {
+    // Tasks/Done space their content with the container's 1.25rem (20px) flex
+    // gap — Objectives must not glue the first card to the tab strip
+    const strip = await page.locator('.okr-container .plan-tab-strip').boundingBox();
+    const card = await page.locator('.objective-card').first().boundingBox();
+    expect(strip).not.toBeNull();
+    expect(card).not.toBeNull();
+    const gap = card!.y - (strip!.y + strip!.height);
+    expect(gap).toBeGreaterThanOrEqual(18);
+  });
+
+  test('UI polish: KR rows drop the percent; pills and bars are equal-width', async ({ page }) => {
+    await page.waitForTimeout(350); // settle the slideDown entrance (popup positioning)
+
+    // No percentage text after the bar
+    await expect(page.locator('.kr-progress-percent')).toHaveCount(0);
+
+    // Status pills are equal-width regardless of label (On Track / At Risk / Off Track)
+    const pillWidth = async (rowText: string) => {
+      const box = await page.locator('.kr-row', { hasText: rowText }).locator('.kr-confidence-pill').boundingBox();
+      return box!.width;
+    };
+    const onTrack = await pillWidth('Complete 15 feature tickets'); // seed: on_track
+    const atRisk = await pillWidth('Achieve 90% test coverage');    // seed: at_risk
+    const kr = page.locator('.kr-row', { hasText: 'Complete 15 feature tickets' });
+    await kr.locator('.kr-confidence-pill').click();
+    await page.locator('.confidence-popup .confidence-option', { hasText: 'Off Track' }).click();
+    const offTrack = await pillWidth('Complete 15 feature tickets');
+    expect(Math.abs(onTrack - atRisk)).toBeLessThanOrEqual(1);
+    expect(Math.abs(onTrack - offTrack)).toBeLessThanOrEqual(1);
+
+    // Progress bars are the same width in every KR row
+    const bars = page.locator('.kr-row .kr-progress-bar');
+    const n = await bars.count();
+    expect(n).toBeGreaterThanOrEqual(6);
+    const first = (await bars.first().boundingBox())!.width;
+    for (let i = 1; i < n; i++) {
+      expect(Math.abs((await bars.nth(i).boundingBox())!.width - first)).toBeLessThanOrEqual(1);
+    }
   });
 
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {

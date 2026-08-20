@@ -104,7 +104,6 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     // (P7 revamp grid: value badge holds the current, the target reads "/ 10")
     await expect(krRow.locator('.kr-value-badge')).toHaveText('1');
     await expect(krRow.locator('.kr-target-text')).toContainText('/ 10');
-    await expect(krRow.locator('.kr-progress-percent')).toContainText('10.0%');
 
     // 5. Clean up habit (which also tests KR unlink fallback to manual mode)
     await navTo(page, 'Habits');
