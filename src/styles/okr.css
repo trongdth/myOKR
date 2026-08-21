@@ -681,6 +681,9 @@
   font-size: 0.78rem;
   color: var(--text-muted);
   white-space: nowrap;
+  /* Mono floor for "/ 999" keeps the text side tidy without affecting the
+     bar alignment — the bar itself is right-flushed below */
+  min-width: 5ch;
 }
 
 .kr-progress-bar {
@@ -688,6 +691,9 @@
      the percent readout lives in the badge/target, not after the bar */
   flex: none;
   width: 140px;
+  /* Right-flush: the bar hugs the pill column, so the bar→pill gap is the
+     grid gap on every row regardless of the target text's width */
+  margin-left: auto;
   height: 5px;
   background: var(--bg-tertiary);
   border-radius: 3px;

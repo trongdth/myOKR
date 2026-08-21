@@ -237,6 +237,25 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     }
   });
 
+  test('UI polish: bar-to-pill gap is uniform across KR rows', async ({ page }) => {
+    await page.waitForTimeout(350); // settle the slideDown entrance
+    // Removing the percent left the bar ending wherever the target text ends —
+    // the bar must hug the pill column so the gap is the grid gap on every row
+    const gaps = await page.evaluate(() => {
+      return [...document.querySelectorAll('.kr-row')].map(row => {
+        const bar = row.querySelector('.kr-progress-bar')!.getBoundingClientRect();
+        const pill = row.querySelector('.kr-confidence-pill')!.getBoundingClientRect();
+        return pill.left - bar.right;
+      });
+    });
+    expect(gaps.length).toBeGreaterThanOrEqual(6);
+    for (const g of gaps) {
+      expect(Math.abs(g - gaps[0])).toBeLessThanOrEqual(1);
+    }
+    // And it's a sensible gap, not a glued-together one
+    expect(gaps[0]).toBeGreaterThanOrEqual(8);
+  });
+
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {
     // Switch to a fresh blank cycle (June 2026 — future + empty)
     await page.locator('.cycle-selector-btn').click();

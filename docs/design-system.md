@@ -666,7 +666,9 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   (green/rose/red per `CONFIDENCE_META`; `not_set` = grey `--okr-not-set`,
   never the gradient). **No percent readout** after the bar (2026-08-19 polish
   round — the badge/target carry the numbers); the bar is a **fixed width**
-  (140px base; 90px ≤1100; flex only in the ≤900 re-stack) and the pills are
+  (140px base; 90px ≤1100; flex only in the ≤900 re-stack) — **right-flushed**
+  (`margin-left: auto`) so the bar→pill gap is the grid gap on every row
+  regardless of the target text's width — and the pills are
   **equal-width** (`min-width` + centered) so On Track / At Risk / Off Track
   align down the column. Col 4: confidence pill, far right. Delete ✕
   is **hover-reveal** (always visible ≤900px — touch rule). Habit KRs keep the
