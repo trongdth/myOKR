@@ -471,7 +471,8 @@ identically; there is no separate long-break case.
 - **Header block**: title `PLAN` + cycle pill (`May cycle`) · Board/List
   segmented switch · **"New task"** button (focuses the add-row). **No Search
   button on the board** (search stays reachable via Meta+K; "Search ⌘K" appears
-  on List, Done, Objectives per P3/P5/P7).
+  on List and Done per P3/P5 — Objectives dropped its button in the 2026-08-19
+  P7 revamp below).
 - **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
   Done N` with the count badge styling, and `May cycle · week 4 of 5` on the
   right. N = open tasks / objectives / completed tasks **in this cycle**
@@ -628,16 +629,89 @@ identically; there is no separate long-break case.
 
 ### Objectives (P7, flagship)
 
-- Header: `PLAN · May cycle` + `May 2026` + `6 days left in cycle · 3
-  objectives · 8 key results` countdown line; **"New objective"** button in
-  the top bar; `Cycle progress 38%` (existing).
-- Objectives **expanded by default** (existing). Each KR: typed mono
-  `11 / 15` current/target (existing NumberInput), a **confidence pill**
-  (`CONFIDENCE_META` colors — green/rose/red/grey), and a recency line
-  (`updated 2 days ago · 3 tasks linked`).
-- **Keep the explicit Save button** — the mockup's silent click-to-edit is
-  presentation shorthand; auto-writing the Automerge doc on every keystroke
-  violates the persistence rules (`docs/automerge-localstorage-rules.md`).
+Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
+— no CRDT/schema changes, so `mobile/` is untouched.
+
+- **Header**: eyebrow `PLAN`, h1 `{Mon} cycle` (e.g. "May cycle"), the
+  `CycleSelector` chip **inline right of the h1** (not stacked below), countdown
+  line (`N days left in cycle · X objectives · Y key results`) beneath; the
+  tab strip keeps the Plan-group's **1.25rem gap** above the first card
+  (2026-08-19 polish — `okr-container` isn't flex, so the gap is a scoped
+  `margin-bottom` on the strip). Right
+  side: **inline `Cycle progress {N}%`** label + violet (`--color-objective`)
+  bar — replacing the boxed "Overall" widget (whose logo-only gradient fill was
+  a violation) — then the **"+ New objective"** button. **No Search ⌘K button**
+  on this screen (List/Done keep theirs); the same Meta+K listener as Tasks
+  opens the ⌘K modal.
+- **Objective card**: **no left accent border** (uniform border). One header
+  row: collapse chevron · **static violet dot** (`--color-objective`; there is
+  no category field — the dot is identity, not data) · bold title (dbl-click
+  edit, ellipsis) ⟷ **reward pill** · progress bar (**always violet** — no
+  objective-level health color; health lives on the KR pills) + `%` · `✕`
+  (ConfirmModal). Body = KR list + add-KR affordance only.
+- **Reward pill is the sole reward UI**: empty = ghost pill (`Gift` + "Add
+  reward", dashed); click → inline input swap (Enter saves / Esc cancels with
+  an esc-guard so blur doesn't double-write; blur saves). Locked = `Gift` +
+  text + `Lock`; unlocked (progress 100%) = `Trophy` + violet tint — **no amber,
+  no pulse** (amber is streak-only). Pill text truncates.
+- **KR row — 4-column grid**: `info | value badge | /target + bar | status pill
+  | delete`. Col 1: title (dbl-click edit) + **muted subtitle** = mode label +
+  linkage (`Completed Tasks · 3 tasks linked` / `Manual` / `Habit Ticks ·
+  {habit}`; unserved shows `no tasks serving this KR` in risk color;
+  **recency line dropped**); the subtitle **click opens the mode-change popup**.
+  Col 2: current value in an outlined mono badge (click opens the existing
+  value popover — **Manual adjusts the hand-set current; every derived mode
+  adjusts its target** (Focus Hours included); derived currents are computed
+  from linked tasks/habits and are never hand-written). Col 3: `/ {target}` mono + bar in **confidence colors**
+  (green/rose/red per `CONFIDENCE_META`; `not_set` = grey `--okr-not-set`,
+  never the gradient). **No percent readout** after the bar (2026-08-19 polish
+  round — the badge/target carry the numbers); the bar is a **fixed width**
+  (140px base; 90px ≤1100; flex only in the ≤900 re-stack) — **right-flushed**
+  (`margin-left: auto`) and the col-3 track **caps at `max-content`** (a fixed
+  220px max let the grid pump the track wide and blow a hole between target
+  and bar), so `badge → "/ target" → bar → pill` share **one uniform 0.9em
+  gap** (2026-08-20 feedback) — and the pills are
+  **equal-width** (`min-width` + centered) so On Track / At Risk / Off Track
+  align down the column. Col 4: confidence pill, far right. Delete ✕
+  is **hover-reveal** (always visible ≤900px — touch rule). Habit KRs keep the
+  habit-link select on a full-width nested line.
+- **Add-KR row**: collapsed **"+ Add key result"** text button; click expands
+  inline — title input · Type dropdown · the `current / target` **value boxes**
+  (same `.kr-value-badge` as the rows; **pressing a box opens the shared
+  `StepperPopover`** — hold-repeat −/+ with Cancel/Confirm, identical to the
+  KR row's badge interaction; the current box **locks** (`.locked`,
+  pointer-events none) for derived modes — "Nothing to update by hand") ·
+  cyan `Add` · outlined `Cancel`, plus a **dynamic helper line** per type
+  (`COMPLETION_MODE_HELPER`). Esc/Cancel collapse; Add keeps the row open
+  (cleared) for rapid entry. The displayed `current` badge and `/ target`
+  share one compact mono scale (0.75rem).
+- **"+ New objective"** inserts an **inline form card at the top of the list**:
+  violet dot + bold name input · `REWARD` row (gift icon, `optional` tag) ·
+  `FIRST KEY RESULT` row (name + Type + `0 / target`) · `Create objective`
+  (disabled = dark-teal + muted until name + KR name; enabled = solid cyan) +
+  `Cancel` + "Needs a name and one key result" hint. **Esc = Cancel; Enter
+  never submits** — only the explicit button writes. Always creates in the
+  **viewed cycle** (no in-form cycle picker — the header selector scopes the
+  list; creating elsewhere strands the card off-screen). New objectives always
+  get ≥1 KR; habit-tick KRs are created unlinked (linked in the row after);
+  targets default per mode (`DEFAULT_KR_TARGET`). The **bottom add-objective
+  bar is removed**; the empty state (shared `EmptyState`) starter action opens
+  the form.
+- **Keep the explicit Save posture** — the creation form's button-only write and
+  the reward pill's Enter-save honor the persistence rules
+  (`docs/automerge-localstorage-rules.md`); no per-keystroke doc writes.
+- **Responsive**: the objective title is a one-row-header invariant (ellipsis at
+  all widths; wraps only ≤640). ≤1100 — reward pill gains a max-width, KR target
+  column slims. ≤900 — KR row re-stacks to two lines (title+subtitle on top;
+  badge · target+bar · pill below), delete ✕ always visible. <700 — the
+  cycle-progress bar hides (percentage text stays; the one hide-not-restack
+  exception here). ≤640 — the objective header wraps (pill, badge, actions flow
+  to a second row) instead of hiding anything.
+- **Verification**: `tests/objectives-redesign.spec.ts` (header, card, KR grid,
+  hover-reveal, value popover, add-KR row, creation form, empty state) +
+  `objective-rewards.spec.ts` (pill lifecycle) + `cycle-clone.spec.ts`
+  (`.okr-overall-text` unchanged) — plus regenerated 1280×800 / 1024×720
+  visual baselines.
 
 ### ⌘K search (P6, structural parity)
 

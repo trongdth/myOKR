@@ -72,9 +72,16 @@ test.describe('Desktop: OKR Workflow', () => {
   });
 
   test('create objective', async ({ page }) => {
-    const input = page.locator('input[placeholder*="Add a new objective"]');
-    await input.fill('Test Objective E2E');
-    await input.press('Enter');
+    // P7 revamp: the header button opens the inline form (name + first KR required)
+    await page.locator('.okr-new-objective-btn').click();
+    const form = page.locator('.okr-new-obj-form');
+    await expect(form).toBeVisible();
+
+    // Create stays disabled until both the name and the first KR are filled
+    await expect(form.locator('.okr-new-obj-create-btn')).toBeDisabled();
+    await form.locator('.okr-new-obj-title-input').fill('Test Objective E2E');
+    await form.locator('.okr-new-obj-kr-input').fill('Test KR E2E');
+    await form.locator('.okr-new-obj-create-btn').click();
 
     await expect(page.locator('text=Test Objective E2E')).toBeVisible();
   });
@@ -84,8 +91,9 @@ test.describe('Desktop: OKR Workflow', () => {
     await expect(page.locator('.objective-card').first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator('.objective-body').first()).toBeVisible();
 
-    // Add KR
-    const krInput = page.locator('input[placeholder*="Add a key result"]').first();
+    // P7 revamp: "+ Add key result" expands the inline row
+    await page.locator('.kr-add-toggle').first().click();
+    const krInput = page.locator('.kr-add-row >> input[type="text"]').first();
     await krInput.fill('Test KR E2E');
     await krInput.press('Enter');
 
@@ -233,9 +241,12 @@ test.describe('Mobile: Core Workflows', () => {
     await navMobile(page, 'OKRs');
     await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
 
-    const input = page.locator('input[placeholder*="Add a new objective"]');
-    await input.fill('Mobile Objective');
-    await input.press('Enter');
+    await page.locator('.okr-new-objective-btn').click();
+    const form = page.locator('.okr-new-obj-form');
+    await expect(form).toBeVisible();
+    await form.locator('.okr-new-obj-title-input').fill('Mobile Objective');
+    await form.locator('.okr-new-obj-kr-input').fill('Mobile KR');
+    await form.locator('.okr-new-obj-create-btn').click();
     await expect(page.locator('text=Mobile Objective')).toBeVisible();
   });
 

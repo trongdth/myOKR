@@ -18,6 +18,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# --update-snapshots only rewrites baselines whose diff EXCEEDS the tests'
+# maxDiffPixelRatio (0.05) — sub-tolerance drift silently survives a regen and
+# accumulates (found the hard way in the P7 polish rounds). Deleting the PNGs
+# first forces a true regenerate — but ONLY the set this session can rebuild:
+# darwin always (local run), linux just inside the Docker branch, so a
+# Docker-less host never deletes linux baselines it can't regenerate (PR #76).
+SNAP=tests/visual-regression.spec.ts-snapshots
+rm -f "$SNAP"/*-darwin.png
+
 echo "==> Regenerating darwin baselines (local)..."
 npx playwright test visual-regression --update-snapshots
 
@@ -28,6 +37,7 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   # installs its own in .docker-node_modules, mounted over /app/node_modules.
   # Host node_modules is left untouched; the scratch dir is gitignored.
   mkdir -p .docker-node_modules
+  rm -f "$SNAP"/*-linux.png
   docker run --rm -v "$PWD":/app -v "$PWD/.docker-node_modules":/app/node_modules -w /app \
     "mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy" \
     sh -c "npm ci --silent && npx playwright test visual-regression --update-snapshots"
