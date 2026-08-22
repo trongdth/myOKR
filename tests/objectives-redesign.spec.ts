@@ -148,10 +148,10 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
 
     await row.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
     await expect(row.locator('.kr-add-helper')).toContainText('Nothing to update by hand');
-    // Focus Hours is derived — the current stepper locks at 0, target takes the default
-    await expect(row.locator('.kr-stepper[data-part="current"]')).toHaveClass(/disabled/);
-    await expect(row.locator('.kr-stepper[data-part="current"] .kr-counter-value')).toHaveText('0');
-    await expect(row.locator('.kr-stepper[data-part="target"] .kr-counter-value')).toHaveText('10');
+    // Focus Hours is derived — the current box locks at 0, target takes the default
+    await expect(row.locator('button[aria-label="Adjust current value"]')).toHaveClass(/locked/);
+    await expect(row.locator('button[aria-label="Adjust current value"]')).toHaveText('0');
+    await expect(row.locator('button[aria-label="Adjust target value"]')).toHaveText('10');
 
     // Esc collapses back to the plain text button
     await row.locator('input[type="text"]').press('Escape');
@@ -184,8 +184,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await form.locator('.okr-new-obj-reward-wrap input').fill('A new mechanical keyboard');
     await form.locator('.okr-new-obj-kr-input').fill('Hold 40 focus hours a month');
     await form.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
-    await expect(form.locator('.kr-stepper[data-part="current"]')).toHaveClass(/disabled/);
-    await expect(form.locator('.kr-stepper[data-part="target"] .kr-counter-value')).toHaveText('10');
+    await expect(form.locator('button[aria-label="Adjust current value"]')).toHaveClass(/locked/);
+    await expect(form.locator('button[aria-label="Adjust target value"]')).toHaveText('10');
     await form.locator('.okr-new-obj-create-btn').click();
     await expect(form).toHaveCount(0);
 
@@ -296,31 +296,44 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     expect(sizes.target).toBe('12px');
   });
 
-  test('UI polish: add-KR current/target editors are steppers, current locked for derived modes', async ({ page }) => {
+  test('UI polish: add-KR values adjust via the popover stepper (same as the KR row)', async ({ page }) => {
     await page.waitForTimeout(350);
     const card = page.locator('.objective-card', { hasText: 'Ship myOKR v2.0' });
     await card.locator('.kr-add-toggle').click();
     const row = card.locator('.kr-add-row');
     await expect(row).toBeVisible();
 
-    // No plain number inputs — the − value + stepper is the editor
+    // No inline steppers or number inputs — the boxes open the shared popover
     await expect(row.locator('.kr-num-input')).toHaveCount(0);
+    await expect(row.locator('.kr-stepper')).toHaveCount(0);
 
-    // Manual default: current stepper active, target starts at the mode default (100)
-    const current = row.locator('.kr-stepper[data-part="current"]');
-    const target = row.locator('.kr-stepper[data-part="target"]');
-    await expect(current).not.toHaveClass(/disabled/);
-    await expect(target.locator('.kr-counter-value')).toHaveText('100');
-    await current.locator('.kr-counter-btn', { hasText: '+' }).click();
-    await expect(current.locator('.kr-counter-value')).toHaveText('1');
+    // Target box: click opens the same "Adjust Target" popover the KR row uses
+    const targetBox = row.locator('button[aria-label="Adjust target value"]');
+    await expect(targetBox).toHaveText('100'); // Manual mode's default target
+    await targetBox.click();
+    const popover = page.locator('.kr-value-popover');
+    await expect(popover).toBeVisible();
+    await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
+    await popover.locator('.kr-counter-btn', { hasText: '+' }).click();
+    await popover.locator('.kr-popover-confirm').click();
+    await expect(targetBox).toHaveText('101');
 
-    // Focus Hours is derived — the current stepper locks at 0, target still steppers
+    // Current box: same popover for Manual ("Adjust Current")
+    const currentBox = row.locator('button[aria-label="Adjust current value"]');
+    await expect(currentBox).toHaveText('0');
+    await currentBox.click();
+    await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Current');
+    await popover.locator('.kr-counter-btn', { hasText: '+' }).click();
+    await popover.locator('.kr-popover-confirm').click();
+    await expect(currentBox).toHaveText('1');
+
+    // Focus Hours is derived — the current box locks, the target still pops
     await row.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
-    await expect(current).toHaveClass(/disabled/);
-    await expect(current.locator('.kr-counter-value')).toHaveText('0');
-    await expect(target.locator('.kr-counter-value')).toHaveText('10');
-    await target.locator('.kr-counter-btn', { hasText: '+' }).click();
-    await expect(target.locator('.kr-counter-value')).toHaveText('11');
+    await expect(currentBox).toHaveClass(/locked/);
+    await expect(currentBox).toHaveText('0');
+    await expect(targetBox).toHaveText('10');
+    await targetBox.click();
+    await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
   });
 
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {

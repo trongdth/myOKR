@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useRef, type ReactNode } from 'react';
 import {
   COMPLETION_MODE_META,
   DEFAULT_KR_TARGET,
   type CompletionMode,
 } from '../../lib/okr-storage';
-import { useHoldRepeat } from '../../hooks/useHoldRepeat';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import StepperPopover from './StepperPopover';
 
 /**
  * Shared draft state for "a KR being created" — used by both the P7 creation
@@ -45,16 +46,15 @@ export function normalizeKrDraft(d: KrDraftState): { targetValue: number; curren
 }
 
 /**
- * Type dropdown + the `− current / − target +` stepper pair — the same stepper
- * interaction as the KR row's value popover (hold to repeat), compact-sized
- * for the inline rows.
+ * Type dropdown + the `current / target` value boxes. Pressing a box opens the
+ * same StepperPopover the KR row's value badge uses (P7 feedback — one adjust
+ * interaction everywhere); the current box locks for derived modes.
  */
 export function KrDraftControls({ draft }: { draft: KrDraftState }): ReactNode {
+  const [openPart, setOpenPart] = useState<'current' | 'target' | null>(null);
+  const groupRef = useRef<HTMLSpanElement>(null);
+  useClickOutside(groupRef, openPart !== null, () => setOpenPart(null));
   const manual = draft.mode === 'manual';
-  const holdCurrentDec = useHoldRepeat(() => draft.setCurrent(p => Math.max(0, p - 1)), () => draft.current > 0);
-  const holdCurrentInc = useHoldRepeat(() => draft.setCurrent(p => p + 1), () => manual);
-  const holdTargetDec = useHoldRepeat(() => draft.setTarget(p => Math.max(1, p - 1)), () => draft.target > 1);
-  const holdTargetInc = useHoldRepeat(() => draft.setTarget(p => p + 1), () => true);
 
   return (
     <>
@@ -68,17 +68,46 @@ export function KrDraftControls({ draft }: { draft: KrDraftState }): ReactNode {
           <option key={mode} value={mode}>{meta.label}</option>
         ))}
       </select>
-      <span className="kr-num-group">
-        <span className={`kr-stepper${manual ? '' : ' disabled'}`} data-part="current">
-          <button type="button" className="kr-counter-btn" aria-label="Decrease current value" {...holdCurrentDec}>−</button>
-          <span className="kr-counter-value">{draft.current}</span>
-          <button type="button" className="kr-counter-btn" aria-label="Increase current value" {...holdCurrentInc}>+</button>
+      <span className="kr-num-group" ref={groupRef}>
+        <span className="kr-draft-value-wrap">
+          <button
+            type="button"
+            className={`kr-value-badge${manual ? '' : ' locked'}`}
+            aria-label="Adjust current value"
+            onClick={e => { e.stopPropagation(); if (manual) setOpenPart(openPart === 'current' ? null : 'current'); }}
+          >
+            {draft.current}
+          </button>
+          {openPart === 'current' && manual && (
+            <StepperPopover
+              title="Adjust Current"
+              value={draft.current}
+              min={0}
+              max={draft.target}
+              onConfirm={v => { draft.setCurrent(v); setOpenPart(null); }}
+              onClose={() => setOpenPart(null)}
+            />
+          )}
         </span>
         <span className="kr-num-sep">/</span>
-        <span className="kr-stepper" data-part="target">
-          <button type="button" className="kr-counter-btn" aria-label="Decrease target value" {...holdTargetDec}>−</button>
-          <span className="kr-counter-value">{draft.target}</span>
-          <button type="button" className="kr-counter-btn" aria-label="Increase target value" {...holdTargetInc}>+</button>
+        <span className="kr-draft-value-wrap">
+          <button
+            type="button"
+            className="kr-value-badge"
+            aria-label="Adjust target value"
+            onClick={e => { e.stopPropagation(); setOpenPart(openPart === 'target' ? null : 'target'); }}
+          >
+            {draft.target}
+          </button>
+          {openPart === 'target' && (
+            <StepperPopover
+              title="Adjust Target"
+              value={draft.target}
+              min={1}
+              onConfirm={v => { draft.setTarget(v); setOpenPart(null); }}
+              onClose={() => setOpenPart(null)}
+            />
+          )}
         </span>
       </span>
     </>

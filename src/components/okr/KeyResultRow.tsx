@@ -4,8 +4,8 @@ import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from 
 import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 import { type Habit } from '../../lib/habit-storage';
+import StepperPopover from './StepperPopover';
 
 const COMPLETION_MODE_ICONS: Record<CompletionMode, ReactNode> = {
   manual: <Pencil size={12} />,
@@ -35,8 +35,6 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   const [showConfidencePopup, setShowConfidencePopup] = useState(false);
   const [showModePopup, setShowModePopup] = useState(false);
   const [showValuePopover, setShowValuePopover] = useState(false);
-  const [tempCurrent, setTempCurrent] = useState(kr.currentValue);
-  const [tempTarget, setTempTarget] = useState(kr.targetValue);
   const confidenceRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLDivElement>(null);
@@ -54,26 +52,6 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
   // all derived modes (Focus Hours included) adjust their target — their
   // current is computed from linked tasks/habits and is never hand-written.
   const showCurrentAdjuster = mode === 'manual';
-  const showTargetAdjuster = mode !== 'manual';
-
-  // Hold-repeat handlers for current value stepper
-  const holdCurrentDec = useHoldRepeat(
-    () => setTempCurrent(p => Math.max(0, p - 1)),
-    () => tempCurrent > 0,
-  );
-  const holdCurrentInc = useHoldRepeat(
-    () => setTempCurrent(p => Math.min(kr.targetValue, p + 1)),
-    () => tempCurrent < kr.targetValue,
-  );
-  // Hold-repeat handlers for target value stepper
-  const holdTargetDec = useHoldRepeat(
-    () => setTempTarget(p => Math.max(1, p - 1)),
-    () => tempTarget > 1,
-  );
-  const holdTargetInc = useHoldRepeat(
-    () => setTempTarget(p => p + 1),
-    () => true,
-  );
 
   const saveTitle = () => {
     const t = titleDraft.trim();
@@ -98,25 +76,13 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
     setShowModePopup(false);
   };
 
-  const openValuePopover = () => {
-    setTempCurrent(kr.currentValue);
-    setTempTarget(kr.targetValue);
-    setShowValuePopover(true);
-  };
+  const openValuePopover = () => setShowValuePopover(true);
 
-  const saveValuePopover = () => {
+  const confirmValuePopover = (v: number) => {
     if (showCurrentAdjuster) {
-      onUpdate({
-        ...kr,
-        currentValue: Math.max(0, Math.min(kr.targetValue, tempCurrent)),
-        updatedAt: new Date().toISOString(),
-      });
+      onUpdate({ ...kr, currentValue: Math.max(0, Math.min(kr.targetValue, v)), updatedAt: new Date().toISOString() });
     } else {
-      onUpdate({
-        ...kr,
-        targetValue: Math.max(1, tempTarget),
-        updatedAt: new Date().toISOString(),
-      });
+      onUpdate({ ...kr, targetValue: Math.max(1, v), updatedAt: new Date().toISOString() });
     }
     setShowValuePopover(false);
   };
@@ -213,35 +179,14 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
           </div>
         </div>
         {showValuePopover && (
-          <div className="kr-value-popover" onClick={e => e.stopPropagation()}>
-            <div className="kr-popover-title">
-              {showCurrentAdjuster ? 'Adjust Current' : 'Adjust Target'}
-            </div>
-            {showCurrentAdjuster && (
-              <div className="kr-popover-field">
-                <label>Current</label>
-                <div className="kr-popover-counter">
-                  <button className="kr-counter-btn" {...holdCurrentDec}>−</button>
-                  <span className="kr-counter-value">{tempCurrent}</span>
-                  <button className="kr-counter-btn" {...holdCurrentInc}>+</button>
-                </div>
-              </div>
-            )}
-            {showTargetAdjuster && (
-              <div className="kr-popover-field">
-                <label>Target</label>
-                <div className="kr-popover-counter">
-                  <button className="kr-counter-btn" {...holdTargetDec}>−</button>
-                  <span className="kr-counter-value">{tempTarget}</span>
-                  <button className="kr-counter-btn" {...holdTargetInc}>+</button>
-                </div>
-              </div>
-            )}
-            <div className="kr-popover-actions">
-              <button className="kr-popover-cancel" onClick={() => setShowValuePopover(false)}>Cancel</button>
-              <button className="kr-popover-confirm" onClick={saveValuePopover}>Confirm</button>
-            </div>
-          </div>
+          <StepperPopover
+            title={showCurrentAdjuster ? 'Adjust Current' : 'Adjust Target'}
+            value={showCurrentAdjuster ? kr.currentValue : kr.targetValue}
+            min={showCurrentAdjuster ? 0 : 1}
+            max={showCurrentAdjuster ? kr.targetValue : undefined}
+            onConfirm={confirmValuePopover}
+            onClose={() => setShowValuePopover(false)}
+          />
         )}
       </div>
 

@@ -965,40 +965,26 @@
   color: var(--text-muted);
 }
 
-/* Numeric current/target inputs (add-KR row + creation form) */
+/* Numeric current/target boxes (add-KR row + creation form) — the same
+   .kr-value-badge + StepperPopover interaction as the KR row itself */
 .kr-num-group {
   display: inline-flex;
   align-items: center;
-  gap: 0.4em;
+  gap: 0.5em;
   flex-shrink: 0;
 }
 
-.kr-stepper {
+/* Anchor for the shared adjust popover */
+.kr-draft-value-wrap {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
 }
 
-.kr-stepper.disabled {
+/* Derived modes can't hand-set the current — dimmed, click-proof */
+.kr-value-badge.locked {
   opacity: 0.45;
+  cursor: default;
   pointer-events: none;
-}
-
-/* Compact variant of the popover's 32px stepper buttons */
-.kr-num-group .kr-counter-btn {
-  width: 22px;
-  height: 22px;
-  font-size: 0.9rem;
-  border-radius: 6px;
-}
-
-.kr-num-group .kr-counter-value {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 1.6em;
-  text-align: center;
 }
 
 .kr-num-sep {
