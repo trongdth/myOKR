@@ -4,6 +4,7 @@ import {
   DEFAULT_KR_TARGET,
   type CompletionMode,
 } from '../../lib/okr-storage';
+import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 
 /**
  * Shared draft state for "a KR being created" — used by both the P7 creation
@@ -43,8 +44,18 @@ export function normalizeKrDraft(d: KrDraftState): { targetValue: number; curren
   };
 }
 
-/** Type dropdown + `[ current ] / [ target ]` inputs — the shared KR editor row. */
+/**
+ * Type dropdown + the `− current / − target +` stepper pair — the same stepper
+ * interaction as the KR row's value popover (hold to repeat), compact-sized
+ * for the inline rows.
+ */
 export function KrDraftControls({ draft }: { draft: KrDraftState }): ReactNode {
+  const manual = draft.mode === 'manual';
+  const holdCurrentDec = useHoldRepeat(() => draft.setCurrent(p => Math.max(0, p - 1)), () => draft.current > 0);
+  const holdCurrentInc = useHoldRepeat(() => draft.setCurrent(p => p + 1), () => manual);
+  const holdTargetDec = useHoldRepeat(() => draft.setTarget(p => Math.max(1, p - 1)), () => draft.target > 1);
+  const holdTargetInc = useHoldRepeat(() => draft.setTarget(p => p + 1), () => true);
+
   return (
     <>
       <select
@@ -58,24 +69,17 @@ export function KrDraftControls({ draft }: { draft: KrDraftState }): ReactNode {
         ))}
       </select>
       <span className="kr-num-group">
-        <input
-          type="number"
-          className="kr-num-input"
-          value={draft.current}
-          min={0}
-          disabled={draft.mode !== 'manual'}
-          aria-label="Current value"
-          onChange={e => draft.setCurrent(Number(e.target.value))}
-        />
+        <span className={`kr-stepper${manual ? '' : ' disabled'}`} data-part="current">
+          <button type="button" className="kr-counter-btn" aria-label="Decrease current value" {...holdCurrentDec}>−</button>
+          <span className="kr-counter-value">{draft.current}</span>
+          <button type="button" className="kr-counter-btn" aria-label="Increase current value" {...holdCurrentInc}>+</button>
+        </span>
         <span className="kr-num-sep">/</span>
-        <input
-          type="number"
-          className="kr-num-input"
-          value={draft.target}
-          min={1}
-          aria-label="Target value"
-          onChange={e => draft.setTarget(Number(e.target.value))}
-        />
+        <span className="kr-stepper" data-part="target">
+          <button type="button" className="kr-counter-btn" aria-label="Decrease target value" {...holdTargetDec}>−</button>
+          <span className="kr-counter-value">{draft.target}</span>
+          <button type="button" className="kr-counter-btn" aria-label="Increase target value" {...holdTargetInc}>+</button>
+        </span>
       </span>
     </>
   );

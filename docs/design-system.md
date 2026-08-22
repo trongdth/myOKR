@@ -676,13 +676,14 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   is **hover-reveal** (always visible ≤900px — touch rule). Habit KRs keep the
   habit-link select on a full-width nested line.
 - **Add-KR row**: collapsed **"+ Add key result"** text button; click expands
-  inline — title input · Type dropdown · `[ current ] / [ target ]` numeric
-  inputs (**current editable only for Manual**; derived modes lock it to 0 —
-  "Nothing to update by hand"; the inputs **mirror the `.kr-value-badge` spec** —
-  compact mono boxes, spinners hidden, 2026-08-20 feedback) · cyan `Add` ·
-  outlined `Cancel`, plus a
-  **dynamic helper line** per type (`COMPLETION_MODE_HELPER`). Esc/Cancel
-  collapse; Add keeps the row open (cleared) for rapid entry.
+  inline — title input · Type dropdown · the `− current / − target +`
+  **stepper pair** (the KR row's value-popover stepper interaction compacted
+  to 22px buttons; hold to repeat; **current locks (`.disabled`) for non-Manual
+  modes** — "Nothing to update by hand") · cyan `Add` · outlined `Cancel`, plus
+  a **dynamic helper line** per type (`COMPLETION_MODE_HELPER`). Esc/Cancel
+  collapse; Add keeps the row open (cleared) for rapid entry. The displayed
+  `current` badge and `/ target` share one compact mono scale (0.75rem,
+  2026-08-20 feedback — the first pass left them oversized).
 - **"+ New objective"** inserts an **inline form card at the top of the list**:
   violet dot + bold name input · `REWARD` row (gift icon, `optional` tag) ·
   `FIRST KEY RESULT` row (name + Type + `0 / target`) · `Create objective`

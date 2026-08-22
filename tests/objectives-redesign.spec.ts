@@ -148,9 +148,10 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
 
     await row.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
     await expect(row.locator('.kr-add-helper')).toContainText('Nothing to update by hand');
-    // Focus Hours is derived — the current input locks to 0, target takes the default
-    await expect(row.locator('.kr-num-input').first()).toBeDisabled();
-    await expect(row.locator('.kr-num-input').last()).toHaveValue('10');
+    // Focus Hours is derived — the current stepper locks at 0, target takes the default
+    await expect(row.locator('.kr-stepper[data-part="current"]')).toHaveClass(/disabled/);
+    await expect(row.locator('.kr-stepper[data-part="current"] .kr-counter-value')).toHaveText('0');
+    await expect(row.locator('.kr-stepper[data-part="target"] .kr-counter-value')).toHaveText('10');
 
     // Esc collapses back to the plain text button
     await row.locator('input[type="text"]').press('Escape');
@@ -183,8 +184,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await form.locator('.okr-new-obj-reward-wrap input').fill('A new mechanical keyboard');
     await form.locator('.okr-new-obj-kr-input').fill('Hold 40 focus hours a month');
     await form.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
-    await expect(form.locator('.kr-num-input').first()).toBeDisabled();
-    await expect(form.locator('.kr-num-input').last()).toHaveValue('10');
+    await expect(form.locator('.kr-stepper[data-part="current"]')).toHaveClass(/disabled/);
+    await expect(form.locator('.kr-stepper[data-part="target"] .kr-counter-value')).toHaveText('10');
     await form.locator('.okr-new-obj-create-btn').click();
     await expect(form).toHaveCount(0);
 
@@ -282,35 +283,44 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     expect(gaps[0].textToBar).toBeGreaterThanOrEqual(8);
   });
 
-  test('UI polish: add-KR value inputs share the KR row badge styling', async ({ page }) => {
+  test('UI polish: current/target pomos render at the compact mono scale', async ({ page }) => {
+    await page.waitForTimeout(350);
+    // The badge and the "/ N" target must share one small mono scale — the
+    // first polish pass left the badge at the larger 0.85rem
+    const sizes = await page.evaluate(() => {
+      const badge = getComputedStyle(document.querySelector('.kr-value-badge')!);
+      const target = getComputedStyle(document.querySelector('.kr-target-text')!);
+      return { badge: badge.fontSize, target: target.fontSize };
+    });
+    expect(sizes.badge).toBe('12px');
+    expect(sizes.target).toBe('12px');
+  });
+
+  test('UI polish: add-KR current/target editors are steppers, current locked for derived modes', async ({ page }) => {
     await page.waitForTimeout(350);
     const card = page.locator('.objective-card', { hasText: 'Ship myOKR v2.0' });
     await card.locator('.kr-add-toggle').click();
-    const input = card.locator('.kr-add-row .kr-num-input').first();
-    await expect(input).toBeVisible();
+    const row = card.locator('.kr-add-row');
+    await expect(row).toBeVisible();
 
-    const parity = await page.evaluate(() => {
-      const inputEl = document.querySelector('.kr-add-row .kr-num-input')!;
-      const badgeEl = document.querySelector('.kr-row .kr-value-badge')!;
-      const a = getComputedStyle(inputEl);
-      const b = getComputedStyle(badgeEl);
-      return {
-        radius: [a.borderRadius, b.borderRadius],
-        bg: [a.backgroundColor, b.backgroundColor],
-        font: [a.fontFamily, b.fontFamily],
-        size: [a.fontSize, b.fontSize],
-        weight: [a.fontWeight, b.fontWeight],
-        padTop: [a.paddingTop, b.paddingTop],
-        padSides: [a.paddingLeft, b.paddingRight],
-      };
-    });
-    expect(parity.radius[0]).toBe(parity.radius[1]);
-    expect(parity.bg[0]).toBe(parity.bg[1]);
-    expect(parity.font[0]).toBe(parity.font[1]);
-    expect(parity.size[0]).toBe(parity.size[1]);
-    expect(parity.weight[0]).toBe(parity.weight[1]);
-    expect(parity.padTop[0]).toBe(parity.padTop[1]);
-    expect(parity.padSides[0]).toBe(parity.padSides[1]);
+    // No plain number inputs — the − value + stepper is the editor
+    await expect(row.locator('.kr-num-input')).toHaveCount(0);
+
+    // Manual default: current stepper active, target starts at the mode default (100)
+    const current = row.locator('.kr-stepper[data-part="current"]');
+    const target = row.locator('.kr-stepper[data-part="target"]');
+    await expect(current).not.toHaveClass(/disabled/);
+    await expect(target.locator('.kr-counter-value')).toHaveText('100');
+    await current.locator('.kr-counter-btn', { hasText: '+' }).click();
+    await expect(current.locator('.kr-counter-value')).toHaveText('1');
+
+    // Focus Hours is derived — the current stepper locks at 0, target still steppers
+    await row.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
+    await expect(current).toHaveClass(/disabled/);
+    await expect(current.locator('.kr-counter-value')).toHaveText('0');
+    await expect(target.locator('.kr-counter-value')).toHaveText('10');
+    await target.locator('.kr-counter-btn', { hasText: '+' }).click();
+    await expect(target.locator('.kr-counter-value')).toHaveText('11');
   });
 
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {

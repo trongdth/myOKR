@@ -623,19 +623,19 @@
   color: var(--color-risk);
 }
 
-/* Column 2: current value badge */
+/* Column 2: current value badge — compact mono scale, same as "/ target" */
 .kr-value-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.6em;
-  padding: 0.25em 0.55em;
+  min-width: 2.2em;
+  padding: 0.15em 0.45em;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: border-color 150ms ease;
@@ -683,7 +683,7 @@
 
 .kr-target-text {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   white-space: nowrap;
   /* Mono floor for "/ 999" keeps the text side tidy without affecting the
@@ -973,48 +973,38 @@
   flex-shrink: 0;
 }
 
-.kr-num-input {
-  /* Mirrors the .kr-value-badge spec (P7 feedback: the add-row's current/target
-     inputs should read like the KR row's display badges, not wide form inputs) */
-  min-width: 2.6em;
-  width: auto;
-  padding: 0.25em 0.55em;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-primary);
+.kr-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.kr-stepper.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Compact variant of the popover's 32px stepper buttons */
+.kr-num-group .kr-counter-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+}
+
+.kr-num-group .kr-counter-value {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  color: var(--text-primary);
+  min-width: 1.6em;
   text-align: center;
-  outline: none;
-}
-
-/* Badge-like boxes, not steppers — the +/- affordance lives in the value popover */
-.kr-num-input::-webkit-outer-spin-button,
-.kr-num-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.kr-num-input[type='number'] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.kr-num-input:focus {
-  border-color: var(--color-primary);
-}
-
-.kr-num-input:disabled {
-  color: var(--text-muted);
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .kr-num-sep {
   color: var(--text-muted);
   font-family: var(--font-mono);
+  font-size: 0.75rem;
 }
 
 .kr-add-btn.primary {
