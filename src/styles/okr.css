@@ -561,7 +561,10 @@
 
 .kr-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(140px, 220px) auto 24px;
+  /* Third track caps at max-content — a fixed 220px max let the grid's
+     free-space distribution pump the track wide and blow a hole between the
+     target text and the right-flushed bar */
+  grid-template-columns: minmax(0, 1fr) auto minmax(140px, max-content) auto 24px;
   align-items: center;
   gap: 0.9em;
   padding: 0.75em 1em;
@@ -672,7 +675,9 @@
 .kr-progress-line {
   display: flex;
   align-items: center;
-  gap: 0.6em;
+  /* Matches the row's 0.9em grid gap, so badge → "/ target" → bar → pill
+     read as one evenly-padded display group */
+  gap: 0.9em;
   min-width: 0;
 }
 
@@ -969,16 +974,32 @@
 }
 
 .kr-num-input {
-  width: 4.5em;
-  padding: 0.55em 0.5em;
+  /* Mirrors the .kr-value-badge spec (P7 feedback: the add-row's current/target
+     inputs should read like the KR row's display badges, not wide form inputs) */
+  min-width: 2.6em;
+  width: auto;
+  padding: 0.25em 0.55em;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 0.85rem;
+  font-weight: 600;
   text-align: center;
   outline: none;
+}
+
+/* Badge-like boxes, not steppers — the +/- affordance lives in the value popover */
+.kr-num-input::-webkit-outer-spin-button,
+.kr-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.kr-num-input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .kr-num-input:focus {
@@ -1164,7 +1185,7 @@
   }
 
   .kr-row {
-    grid-template-columns: minmax(0, 1fr) auto minmax(100px, 160px) auto 24px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(100px, max-content) auto 24px;
   }
 
   .kr-progress-bar {

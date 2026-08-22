@@ -667,8 +667,10 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   never the gradient). **No percent readout** after the bar (2026-08-19 polish
   round — the badge/target carry the numbers); the bar is a **fixed width**
   (140px base; 90px ≤1100; flex only in the ≤900 re-stack) — **right-flushed**
-  (`margin-left: auto`) so the bar→pill gap is the grid gap on every row
-  regardless of the target text's width — and the pills are
+  (`margin-left: auto`) and the col-3 track **caps at `max-content`** (a fixed
+  220px max let the grid pump the track wide and blow a hole between target
+  and bar), so `badge → "/ target" → bar → pill` share **one uniform 0.9em
+  gap** (2026-08-20 feedback) — and the pills are
   **equal-width** (`min-width` + centered) so On Track / At Risk / Off Track
   align down the column. Col 4: confidence pill, far right. Delete ✕
   is **hover-reveal** (always visible ≤900px — touch rule). Habit KRs keep the
@@ -676,7 +678,9 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
 - **Add-KR row**: collapsed **"+ Add key result"** text button; click expands
   inline — title input · Type dropdown · `[ current ] / [ target ]` numeric
   inputs (**current editable only for Manual**; derived modes lock it to 0 —
-  "Nothing to update by hand") · cyan `Add` · outlined `Cancel`, plus a
+  "Nothing to update by hand"; the inputs **mirror the `.kr-value-badge` spec** —
+  compact mono boxes, spinners hidden, 2026-08-20 feedback) · cyan `Add` ·
+  outlined `Cancel`, plus a
   **dynamic helper line** per type (`COMPLETION_MODE_HELPER`). Esc/Cancel
   collapse; Add keeps the row open (cleared) for rapid entry.
 - **"+ New objective"** inserts an **inline form card at the top of the list**:

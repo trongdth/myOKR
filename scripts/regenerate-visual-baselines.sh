@@ -18,6 +18,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# --update-snapshots only rewrites baselines whose diff EXCEEDS the tests'
+# maxDiffPixelRatio (0.05) — sub-tolerance drift silently survives a regen and
+# accumulates (found the hard way in the P7 polish rounds). Deleting the PNGs
+# first forces a true regenerate of every screen.
+SNAP=tests/visual-regression.spec.ts-snapshots
+rm -f "$SNAP"/*.png
+
 echo "==> Regenerating darwin baselines (local)..."
 npx playwright test visual-regression --update-snapshots
 

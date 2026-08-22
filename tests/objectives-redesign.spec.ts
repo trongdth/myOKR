@@ -256,6 +256,63 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     expect(gaps[0]).toBeGreaterThanOrEqual(8);
   });
 
+  test('UI polish: badge → target → bar → pill share one uniform gap', async ({ page }) => {
+    await page.waitForTimeout(350); // settle the slideDown entrance
+    // The current pomos (badge), target pomos ("/ N"), progress bar and status
+    // pill form one display group — every adjacent gap must be the same width
+    const gaps = await page.evaluate(() => {
+      return [...document.querySelectorAll('.kr-row')].map(row => {
+        const badge = row.querySelector('.kr-value-badge')!.getBoundingClientRect();
+        const text = row.querySelector('.kr-target-text')!.getBoundingClientRect();
+        const bar = row.querySelector('.kr-progress-bar')!.getBoundingClientRect();
+        const pill = row.querySelector('.kr-confidence-pill')!.getBoundingClientRect();
+        return {
+          badgeToText: text.left - badge.right,
+          textToBar: bar.left - text.right,
+          barToPill: pill.left - bar.right,
+        };
+      });
+    });
+    expect(gaps.length).toBeGreaterThanOrEqual(6);
+    for (const g of gaps) {
+      expect(Math.abs(g.badgeToText - g.textToBar)).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.textToBar - g.barToPill)).toBeLessThanOrEqual(1);
+    }
+    // And a sensible gap, not glued
+    expect(gaps[0].textToBar).toBeGreaterThanOrEqual(8);
+  });
+
+  test('UI polish: add-KR value inputs share the KR row badge styling', async ({ page }) => {
+    await page.waitForTimeout(350);
+    const card = page.locator('.objective-card', { hasText: 'Ship myOKR v2.0' });
+    await card.locator('.kr-add-toggle').click();
+    const input = card.locator('.kr-add-row .kr-num-input').first();
+    await expect(input).toBeVisible();
+
+    const parity = await page.evaluate(() => {
+      const inputEl = document.querySelector('.kr-add-row .kr-num-input')!;
+      const badgeEl = document.querySelector('.kr-row .kr-value-badge')!;
+      const a = getComputedStyle(inputEl);
+      const b = getComputedStyle(badgeEl);
+      return {
+        radius: [a.borderRadius, b.borderRadius],
+        bg: [a.backgroundColor, b.backgroundColor],
+        font: [a.fontFamily, b.fontFamily],
+        size: [a.fontSize, b.fontSize],
+        weight: [a.fontWeight, b.fontWeight],
+        padTop: [a.paddingTop, b.paddingTop],
+        padSides: [a.paddingLeft, b.paddingRight],
+      };
+    });
+    expect(parity.radius[0]).toBe(parity.radius[1]);
+    expect(parity.bg[0]).toBe(parity.bg[1]);
+    expect(parity.font[0]).toBe(parity.font[1]);
+    expect(parity.size[0]).toBe(parity.size[1]);
+    expect(parity.weight[0]).toBe(parity.weight[1]);
+    expect(parity.padTop[0]).toBe(parity.padTop[1]);
+    expect(parity.padSides[0]).toBe(parity.padSides[1]);
+  });
+
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {
     // Switch to a fresh blank cycle (June 2026 — future + empty)
     await page.locator('.cycle-selector-btn').click();
