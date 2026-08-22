@@ -15,13 +15,21 @@ import StepperPopover from './StepperPopover';
 export function useKrDraft(initialMode: CompletionMode = 'manual') {
   const [mode, setDraftMode] = useState<CompletionMode>(initialMode);
   const [current, setCurrent] = useState(0);
-  const [target, setTarget] = useState(DEFAULT_KR_TARGET[initialMode]);
+  const [target, setTargetState] = useState(DEFAULT_KR_TARGET[initialMode]);
+
+  // A target below the current would render "80 / 50" mid-edit — clamp the
+  // current along (normalizeKrDraft only fixes things at save time, PR #76).
+  const setTarget = (v: number) => {
+    const t = Math.max(1, v);
+    setTargetState(t);
+    setCurrent(c => Math.min(c, t));
+  };
 
   // Picking a type swaps in that mode's default target; derived modes lock the
   // current value back to 0 (only Manual is hand-updatable).
   const changeMode = (m: CompletionMode) => {
     setDraftMode(m);
-    setTarget(DEFAULT_KR_TARGET[m]);
+    setTargetState(DEFAULT_KR_TARGET[m]);
     if (m !== 'manual') setCurrent(0);
   };
 

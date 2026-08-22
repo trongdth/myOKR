@@ -115,11 +115,12 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
   });
 
   test('derived modes adjust the target only — current stays automatic (Focus Hours included)', async ({ page }) => {
-    // Focus Hours KR (seed kr-3, target 40): the popover opens and adjusts the
-    // target — previously this mode had no popover at all and its target was
-    // stuck at the creation value forever.
+    // Focus Hours KR (seed kr-3, target 40): pressing the bar opens the popover
+    // and adjusts the target — previously this mode had no popover at all and
+    // its target was stuck at the creation value forever. (The current badge
+    // is locked for derived modes — pressing it does nothing.)
     const kr = page.locator('.kr-row', { hasText: 'Complete 40 focus hours' });
-    await kr.locator('.kr-value-badge').click();
+    await kr.locator('.kr-progress-line').click();
     const popover = page.locator('.kr-value-popover');
     await expect(popover).toBeVisible();
     await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
@@ -133,7 +134,7 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
 
     // Same posture for Pomodoros (seed kr-4, target 25)
     const pomo = page.locator('.kr-row', { hasText: 'Finish 25 Pomodoro sessions' });
-    await pomo.locator('.kr-value-badge').click();
+    await pomo.locator('.kr-progress-line').click();
     await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
     await expect(popover.locator('.kr-popover-field', { hasText: 'Current' })).toHaveCount(0);
   });
@@ -334,6 +335,65 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await expect(targetBox).toHaveText('10');
     await targetBox.click();
     await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
+  });
+
+  test('PR #76: derived-mode value badge is locked; the bar opens Adjust Target', async ({ page }) => {
+    await page.waitForTimeout(350);
+    // Focus Hours KR — its current is derived, so the badge must not pretend
+    // to be an editor; the target adjusts from the progress line instead
+    const kr = page.locator('.kr-row', { hasText: 'Complete 40 focus hours' });
+    const badge = kr.locator('.kr-value-badge');
+    await expect(badge).toHaveClass(/locked/);
+    await badge.click({ force: true }).catch(() => {}); // pointer-events:none — no popover
+    await expect(page.locator('.kr-value-popover')).toHaveCount(0);
+
+    await kr.locator('.kr-progress-line').click();
+    const popover = page.locator('.kr-value-popover');
+    await expect(popover).toBeVisible();
+    await expect(popover.locator('.kr-popover-title')).toHaveText('Adjust Target');
+
+    // Manual KR keeps the badge-as-editor behavior
+    const manual = page.locator('.kr-row', { hasText: 'Complete 15 feature tickets' });
+    await expect(manual.locator('.kr-value-badge')).not.toHaveClass(/locked/);
+  });
+
+  test('PR #76: lowering the draft target below its current clamps the current', async ({ page }) => {
+    await page.waitForTimeout(350);
+    const card = page.locator('.objective-card', { hasText: 'Ship myOKR v2.0' });
+    await card.locator('.kr-add-toggle').click();
+    const row = card.locator('.kr-add-row');
+    const currentBox = row.locator('button[aria-label="Adjust current value"]');
+    const targetBox = row.locator('button[aria-label="Adjust target value"]');
+
+    // Current → 2 (Manual default target is 100)
+    await currentBox.click();
+    const popover = page.locator('.kr-value-popover');
+    await popover.locator('.kr-counter-btn', { hasText: '+' }).click();
+    await popover.locator('.kr-counter-btn', { hasText: '+' }).click();
+    await popover.locator('.kr-popover-confirm').click();
+    await expect(currentBox).toHaveText('2');
+
+    // Target 100 → 1 (the stepper floors at 1) — one step per pointerdown
+    await targetBox.click();
+    await popover.locator('.kr-counter-btn').first().evaluate(async (btn) => {
+      for (let i = 0; i < 99; i++) {
+        btn.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true }));
+        btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      }
+    });
+    await popover.locator('.kr-popover-confirm').click();
+    await expect(targetBox).toHaveText('1');
+    // The current can no longer exceed its target — "2 / 1" must clamp to 1
+    await expect(currentBox).toHaveText('1');
+  });
+
+  test('PR #76: add-KR toggle announces its expansion state (aria)', async ({ page }) => {
+    const card = page.locator('.objective-card', { hasText: 'Ship myOKR v2.0' });
+    const toggle = card.locator('.kr-add-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle).toHaveAttribute('aria-controls');
   });
 
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {

@@ -3,6 +3,13 @@
   Dark Techy Theme — matching global.css design tokens
 */
 
+/* Local copy of the entrance animation — okr.css must not depend on
+   pomodoro.css happening to define it (PR #76) */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ===== OKR CONTAINER =====
    Matches .tasks-view-container / .done-view-container so the three Plan-group
    screens (Tasks, Objectives, Done) share the same content width and left/right/
@@ -1153,8 +1160,7 @@
   box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
 }
 
-/* ===== RESPONSIVE (P7 revamp) ===== */
-/* ≤1100: truncate the objective header extras, slim the KR target column */
+/* ===== RESPONSIVE (P7 revamp) — breakpoints in strict descending order ===== */
 @media (max-width: 1100px) {
   .objective-reward-pill {
     max-width: 160px;
@@ -1169,8 +1175,12 @@
   }
 }
 
-/* ≤900: KR row re-stacks to two lines (info on top, metrics below);
-   the delete ✕ is always visible (touch devices have no hover) */
+@media (max-width: 932px) {
+  .okr-container {
+    padding: 1.25rem;
+  }
+}
+
 @media (max-width: 900px) {
   .kr-row {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -1195,13 +1205,6 @@
   }
 }
 
-/* <700: the cycle-progress bar hides, the percentage text stays */
-@media (max-width: 700px) {
-  .okr-overall-bar {
-    display: none;
-  }
-}
-
 @media (max-width: 768px) {
   .cycle-dropdown {
     right: 0;
@@ -1217,14 +1220,12 @@
   }
 }
 
-@media (max-width: 932px) {
-  .okr-container {
-    padding: 1.25rem;
+@media (max-width: 700px) {
+  .okr-overall-bar {
+    display: none;
   }
 }
 
-/* ≤640: the objective header wraps — title keeps its line, the reward pill,
-   progress badge and actions flow onto a second row instead of being hidden */
 @media (max-width: 640px) {
   .objective-header {
     flex-wrap: wrap;

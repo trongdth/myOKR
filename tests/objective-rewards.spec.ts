@@ -124,4 +124,61 @@ test.describe('Objective Rewards system', () => {
     await expect.poll(() => pill.evaluate(el => getComputedStyle(el).color))
       .toBe('rgb(168, 85, 247)'); // --color-objective, never amber
   });
+
+  test('Enter on the reward input enqueues exactly one doc write (no blur double-save)', async ({ page }) => {
+    await waitForApp(page);
+    await page.locator('button[title="Plan"]').click();
+    await page.locator('button[title="Objectives"]').click();
+    await expect(page.locator('.okr-container h2.tasks-title', { hasText: 'PLAN' })).toBeVisible();
+
+    // Seed one objective with a KR (fresh page = fresh store per test)
+    await page.evaluate(async () => {
+      const updateDoc = (window as any).__updateAutomergeDoc;
+      await updateDoc('Seed double-save probe', (d: any) => {
+        d.cycles = [{
+          id: 'cycle-rewards-test', name: 'June 2026', month: 5, year: 2026,
+          isActive: true, createdAt: new Date().toISOString(),
+        }];
+        d.objectives = [{
+          id: 'obj-rewards-test', cycleId: 'cycle-rewards-test',
+          title: 'Achieve Greatness', order: 0, createdAt: new Date().toISOString(),
+        }];
+        d.keyResults = [{
+          id: 'kr-rewards-test', objectiveId: 'obj-rewards-test',
+          title: 'Finish 2 key metrics', targetValue: 2, currentValue: 0,
+          unit: 'metrics', confidence: 'on_track', completionMode: 'manual',
+          order: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        }];
+        d.tasks = [];
+        d.reviews = [];
+        d.history = [];
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    const header = page.locator('.objective-header:has-text("Achieve Greatness")');
+    await expect(header).toBeVisible({ timeout: 10000 });
+
+    // Stall the Automerge queue so each enqueued update is countable
+    const before = await page.evaluate(() => {
+      (window as any).__getQueueInfoForTesting().setIsUpdating(true);
+      return (window as any).__getQueueInfoForTesting().getQueueLength();
+    });
+
+    await header.locator('.objective-reward-pill.ghost').click();
+    const rewardInput = header.locator('.objective-reward-edit-input');
+    await rewardInput.fill('Single write please');
+    await rewardInput.press('Enter');
+
+    const after = await page.evaluate(() => {
+      const info = (window as any).__getQueueInfoForTesting();
+      const len = info.getQueueLength();
+      info.setIsUpdating(false); // unstall — let the queue drain
+      return len;
+    });
+
+    // Enter saves once; the unmount-blur that follows must NOT save again
+    expect(after - before).toBe(1);
+    await expect(header.locator('.objective-reward-pill:not(.ghost)')).toContainText('Single write please');
+  });
 });

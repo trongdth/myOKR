@@ -154,11 +154,14 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
         </div>
       </div>
 
-      {/* Column 2: current value badge (click opens the value popover) */}
+      {/* Column 2: current value badge. Manual opens the Adjust-Current
+          popover; derived modes lock it (the value is computed — pressing the
+          bar/target adjusts the target instead, PR #76). */}
       <button
-        className="kr-value-badge"
-        onClick={e => { e.stopPropagation(); openValuePopover(); }}
-        title="Adjust value"
+        className={`kr-value-badge${showCurrentAdjuster ? '' : ' locked'}`}
+        onClick={e => { e.stopPropagation(); if (showCurrentAdjuster) openValuePopover(); }}
+        style={{ cursor: showCurrentAdjuster ? 'pointer' : 'default' }}
+        title={showCurrentAdjuster ? 'Adjust value' : undefined}
         aria-label={`Current value ${effectiveCurrent} of ${kr.targetValue}`}
       >
         {effectiveCurrent}

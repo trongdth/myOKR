@@ -212,9 +212,11 @@ export default function ObjectiveCard({
             ))}
           </div>
 
-          {/* Add Key Result — collapsed text button, expands inline (P7 revamp) */}
-          {showAddKR ? (
-            <div className="kr-add-row">
+          {/* Add Key Result — collapsed text button, expands inline (P7 revamp).
+              The toggle stays mounted (hidden while expanded) so its
+              aria-expanded keeps announcing the state (PR #76). */}
+          {showAddKR && (
+            <div className="kr-add-row" id={`kr-add-row-${objective.id}`}>
               <input
                 ref={addKRInputRef}
                 type="text"
@@ -232,11 +234,16 @@ export default function ObjectiveCard({
               <button className="kr-add-cancel-btn" onClick={collapseAddKR}>Cancel</button>
               <div className="kr-add-helper">{COMPLETION_MODE_HELPER[newKR.mode]}</div>
             </div>
-          ) : (
-            <button className="kr-add-toggle" onClick={() => setShowAddKR(true)}>
-              <Plus size={13} /> Add key result
-            </button>
           )}
+          <button
+            className="kr-add-toggle"
+            onClick={() => setShowAddKR(true)}
+            aria-expanded={showAddKR}
+            aria-controls={`kr-add-row-${objective.id}`}
+            hidden={showAddKR}
+          >
+            <Plus size={13} /> Add key result
+          </button>
         </div>
       )}
     </div>
