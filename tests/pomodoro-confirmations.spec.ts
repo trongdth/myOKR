@@ -67,28 +67,18 @@ async function completeTaskInline(page: Page, name: string) {
 }
 
 async function selectTask(page: Page, name: string) {
-  // Replan the Day plan so newly-created tasks join the queue (the Session
-  // picker is sourced from TodayPlan.taskIds, ticket 05; a saved plan doesn't
-  // re-rank on its own).
-  const dayPlanItem = page.locator('button[title="Day plan"]').first();
-  if (!(await dayPlanItem.isVisible().catch(() => false))) {
-    await page.getByRole('button', { name: 'Focus', exact: true }).click();
-  }
-  await dayPlanItem.click();
-  await page.waitForTimeout(300);
-  await page.locator('.focus-plan-day-btn').click();
-  // "Plan day" opens the preview-and-commit modal (was a silent replan);
-  // Accept commits the fresh ranking so the queue updates.
-  await page.locator('.planday-accept-btn').click();
-  await page.locator('.planday-overlay').waitFor({ state: 'detached' });
-  await page.waitForTimeout(500);
+  // Order matters for the mid-session calls (break running while we pick):
+  // neutralize the timer FIRST — dismiss leftover confirms and pause a running
+  // break on the Session screen — and only then do the Day-plan replan. A
+  // paused timer cannot complete during the ~1.5s replan journey, so no
+  // Task-Changed / No-Task confirm can pop up mid-replan and block its clicks
+  // (the CI failure mode this ordering exists to prevent).
   await openSession(page);
 
   // Dismiss any leftover session confirm (Task Changed / No Task) from a break
-  // that ended while navigating away — it would sit on top of the Task Switcher
-  // overlay and intercept the row click. Use Continue (Task Changed) / Start
-  // Anyway (No Task); never touch a "Switch Task?" confirm (that's the expected
-  // pick-time guard, handled by the caller).
+  // that ended while navigating here. Use Continue (Task Changed) / Start
+  // Anyway (No Task); never touch a "Switch Task?" confirm (that's the
+  // expected pick-time guard, handled by the caller).
   const blocker = page.locator(
     '.confirm-modal:visible:not(:has(.prioritize-title:has-text("Switch Task")))'
   );
@@ -99,27 +89,26 @@ async function selectTask(page: Page, name: string) {
     await page.waitForTimeout(100);
   }
 
-  // Race guard: if a SHORT/LONG BREAK is running, it can auto-complete into the
-  // next focus while we're picking, surfacing a Task Changed confirm on top of
-  // the switcher and blocking the row click. Pause the break for the pick — a
-  // paused session can't tick into completion — then resume it afterwards so
-  // the caller's break→focus transition still happens. (Focus is left as-is so
-  // the "switch while running" tests still exercise the Switch Task? guard.)
-  const activeTab = await page.locator('button.session-tab.active').textContent().catch(() => '');
-  const wasBreakRunning = !!activeTab && /Break/i.test(activeTab)
+  // Race guard: if a SHORT/LONG BREAK is running, pause it for the whole
+  // replan + pick — a paused session can't tick into completion — then resume
+  // it at the end so the caller's break→focus transition still happens.
+  // (Focus is left as-is so the "switch while running" tests still exercise
+  // the Switch Task? guard.)
+  const initialTab = await page.locator('button.session-tab.active').textContent().catch(() => '');
+  const wasBreakRunning = !!initialTab && /Break/i.test(initialTab)
     && await page.locator('.timer-controls button:has-text("Pause")').count().then(c => c > 0);
   if (wasBreakRunning) {
-    // The break can also complete BETWEEN the single blocker-dismiss above and
-    // the pause click — its Task Changed / No Task confirm then intercepts the
+    // The break can also complete BETWEEN the blocker-dismiss above and the
+    // pause click — its Task Changed / No Task confirm then intercepts the
     // click and the test hangs (seen on CI). Retry the pair, and treat "the
     // break already ended" as success: auto-start may have begun a focus, and
     // a running focus is never paused here.
     await expect(async () => {
-      const blocker = page.locator(
+      const b = page.locator(
         '.confirm-modal:visible:not(:has(.prioritize-title:has-text("Switch Task")))'
       );
-      if (await blocker.count().then(c => c > 0)) {
-        await blocker.locator(
+      if (await b.count().then(c => c > 0)) {
+        await b.locator(
           'button:has-text("Continue"), button:has-text("Start Anyway")'
         ).first().click().catch(() => {});
         await page.waitForTimeout(100);
@@ -135,6 +124,32 @@ async function selectTask(page: Page, name: string) {
       const stillPause = await pause.count().then(c => c > 0);
       expect(stillBreak && stillPause).toBeFalsy();
     }).toPass({ timeout: 10000 });
+  }
+
+  // Replan the Day plan so newly-created tasks join the queue (the Session
+  // picker is sourced from TodayPlan.taskIds, ticket 05; a saved plan doesn't
+  // re-rank on its own). Safe now: any break is paused.
+  const dayPlanItem = page.locator('button[title="Day plan"]').first();
+  if (!(await dayPlanItem.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  }
+  await dayPlanItem.click();
+  await page.waitForTimeout(300);
+  await page.locator('.focus-plan-day-btn').click();
+  // "Plan day" opens the preview-and-commit modal (was a silent replan);
+  // Accept commits the fresh ranking so the queue updates.
+  await page.locator('.planday-accept-btn').click();
+  await page.locator('.planday-overlay').waitFor({ state: 'detached' });
+  await page.waitForTimeout(500);
+  await openSession(page);
+
+  // The replan navigation can itself surface a confirm (e.g. a paused break
+  // auto-resumed by the plan commit) — clear it before the pick.
+  if (await blocker.count().then(c => c > 0)) {
+    await blocker.locator(
+      'button:has-text("Continue"), button:has-text("Start Anyway")'
+    ).first().click().catch(() => {});
+    await page.waitForTimeout(100);
   }
 
   await page.locator('.active-task-card-change').click();
