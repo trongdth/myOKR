@@ -5,7 +5,7 @@ import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { Select } from '../shared/Select';
-import { priorityOptions, krOptions } from './taskSelectOptions';
+import { PRIORITY_OPTIONS, krOptions } from './taskSelectOptions';
 
 interface Props {
   tasks: PomodoroTask[];
@@ -152,7 +152,7 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
           ariaLabel="Key result filter"
         />
         <Select
-          options={[{ value: 'all', label: 'All priorities' }, ...priorityOptions()]}
+          options={[{ value: 'all', label: 'All priorities' }, ...PRIORITY_OPTIONS]}
           value={priorityFilter}
           onChange={setPriorityFilter}
           ariaLabel="Priority filter"

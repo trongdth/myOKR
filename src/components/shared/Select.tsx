@@ -66,9 +66,9 @@ export interface SelectProps<T> {
 const PANEL_GAP = 6;
 
 type Row<T> =
-  | { kind: 'option'; option: SelectOption<T>; key: string }
-  | { kind: 'clear'; key: string }
-  | { kind: 'action'; action: SelectAction; key: string };
+  | { kind: 'option'; option: SelectOption<T>; key: string; i: number }
+  | { kind: 'clear'; key: string; i: number }
+  | { kind: 'action'; action: SelectAction; key: string; i: number };
 
 interface PanelPos {
   top: number;
@@ -94,11 +94,11 @@ export function Select<T>(props: SelectProps<T>) {
   const chosen = options.find((o) => Object.is(o.value, value)) ?? null;
 
   const rows = useMemo<Row<T>[]>(() => {
-    const list: Row<T>[] = options.map((option) => ({
-      kind: 'option', option, key: String(option.value),
+    const list: Row<T>[] = options.map((option, i) => ({
+      kind: 'option', option, key: String(option.value), i,
     }));
-    if (onClear) list.push({ kind: 'clear', key: 'clear' });
-    actions?.forEach((action) => list.push({ kind: 'action', action, key: `action:${action.label}` }));
+    if (onClear) list.push({ kind: 'clear', key: '__clear__', i: list.length });
+    actions?.forEach((action) => list.push({ kind: 'action', action, key: `__action__:${action.label}`, i: list.length }));
     return list;
   }, [options, onClear, actions]);
 
@@ -106,9 +106,10 @@ export function Select<T>(props: SelectProps<T>) {
     .filter((r) => r.kind !== 'option' || !r.option.disabled)
     .map((r) => r.key);
 
-  // ids must stay CSS-selector-safe (queryable, whitespace-free); the raw key
-  // keeps its value for React identity/uniqueness.
-  const rowDomId = (key: string) => `${idBase}-${key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  // DOM ids carry the row position so distinct values that sanitize alike
+  // (e.g. 'a b' vs 'a_b') still get unique ids. Cross-render identity lives
+  // in the React keys, not here; scrolling targets rows via data-key.
+  const rowDomId = (row: Row<T>) => `${idBase}-${row.i}-${row.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
   const initialActive = (): string | null => {
     const chosenRow = rows.find((r) => r.kind === 'option' && Object.is(r.option.value, value));
@@ -247,13 +248,18 @@ export function Select<T>(props: SelectProps<T>) {
   }, [open]);
 
   // Keep the roving row in view while arrowing through a scrollable list.
+  // Queried by data-key (not id): distinct values can sanitize to the same
+  // DOM id, but keys stay unique by contract.
   useEffect(() => {
     if (!open || activeKey == null) return;
-    document.getElementById(rowDomId(activeKey))?.scrollIntoView({ block: 'nearest' });
+    panelRef.current
+      ?.querySelector(`[data-key=${CSS.escape(activeKey)}]`)
+      ?.scrollIntoView({ block: 'nearest' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey, open]);
 
-  const activeRowId = open && activeKey != null ? rowDomId(activeKey) : undefined;
+  const activeRow = open ? rows.find((r) => r.key === activeKey) : undefined;
+  const activeRowId = activeRow ? rowDomId(activeRow) : undefined;
   const hasFooter = Boolean(onClear) || (actions?.length ?? 0) > 0;
 
   const leadingSlot = chosen?.icon;
@@ -277,7 +283,10 @@ export function Select<T>(props: SelectProps<T>) {
       >
         {leadingSlot && <span className="sel-icon">{leadingSlot}</span>}
         {!(variant === 'bare' && hideTriggerLabel && leadingSlot) && (
-          <span className={`sel-text${chosen ? '' : ' sel-placeholder'}`}>
+          <span
+            className={`sel-text${chosen ? '' : ' sel-placeholder'}`}
+            title={chosen ? chosen.label : placeholder}
+          >
             {chosen ? chosen.label : (placeholder ?? '')}
           </span>
         )}
@@ -303,7 +312,8 @@ export function Select<T>(props: SelectProps<T>) {
                 return (
                   <div
                     key={row.key}
-                    id={rowDomId(row.key)}
+                    id={rowDomId(row)}
+                    data-key={row.key}
                     role="option"
                     aria-selected={isChosen}
                     aria-disabled={option.disabled || undefined}
@@ -348,7 +358,8 @@ export function Select<T>(props: SelectProps<T>) {
                   return (
                     <div
                       key={row.key}
-                      id={rowDomId(row.key)}
+                      id={rowDomId(row)}
+                      data-key={row.key}
                       role="option"
                       aria-selected="false"
                       className={`sel-row ${row.kind === 'clear' ? 'sel-clear' : 'sel-action'}${activeKey === row.key ? ' sel-active' : ''}`}

@@ -7,7 +7,7 @@ import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
 import PomoEstimatePopover from './PomoEstimatePopover';
 import { Select } from '../shared/Select';
-import { priorityOptions, bucketOptions, krOptions } from './taskSelectOptions';
+import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions } from './taskSelectOptions';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
 
@@ -348,7 +348,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
             <div className="prop-group">
               <span className="prop-label">PRIORITY</span>
               <Select
-                options={priorityOptions()}
+                options={PRIORITY_OPTIONS}
                 value={task.category || 'do'}
                 onChange={handleUpdateCategory}
                 ariaLabel="Priority"
@@ -358,7 +358,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
             <div className="prop-group">
               <span className="prop-label">BUCKET</span>
               <Select
-                options={bucketOptions()}
+                options={BUCKET_OPTIONS}
                 value={task.bucket || 'backlog'}
                 onChange={handleUpdateBucket}
                 ariaLabel="Bucket"

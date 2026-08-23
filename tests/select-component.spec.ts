@@ -245,6 +245,23 @@ test.describe('Select component (fixture page)', () => {
     await expect(trigger).toHaveCSS('height', '40px');
   });
 
+  test('panel entrance respects prefers-reduced-motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const { panel } = await openPanel(page, 'buckets');
+    await expect(panel).toHaveCSS('animation-name', 'none');
+  });
+
+  test('option values that collide with reserved keys keep unique row identities', async ({ page }) => {
+    const { panel } = await openPanel(page, 'edge');
+    const rows = panel.locator('.sel-row');
+    await expect(rows).toHaveCount(4); // 3 options + the clear row
+    const ids = await rows.evaluateAll((els) => els.map((e) => e.id));
+    expect(new Set(ids).size).toBe(ids.length); // no shared DOM ids
+    // The 'clear'-valued option commits as a value, distinct from the clear row
+    await rows.filter({ hasText: 'Clear me too' }).click();
+    await expect(page.locator('[data-fx="edge"] .sel-trigger')).toContainText('Clear me too');
+  });
+
   test('fixture route requires the exact ?fixture=select param', async ({ page }) => {
     await page.goto('/?fixture=select-multi');
     await page.waitForLoadState('networkidle');

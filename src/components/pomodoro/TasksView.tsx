@@ -7,7 +7,7 @@ import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
-import { priorityOptions, bucketOptions, krOptions, BUCKET_LABELS } from './taskSelectOptions';
+import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions, BUCKET_LABELS } from './taskSelectOptions';
 
 export type ViewMode = 'board' | 'list';
 
@@ -126,6 +126,9 @@ export default function TasksView({
     () => buildKrCycleMap(keyResults, objectives, cycles),
     [keyResults, objectives, cycles],
   );
+
+  // KR options are static between keyResults changes — build once, not per row.
+  const krOpts = useMemo(() => krOptions(keyResults), [keyResults]);
 
   const inCycle = useMemo(() => {
     const map = krCycleMap;
@@ -426,7 +429,7 @@ export default function TasksView({
           <div className="quick-add-field">
             <span className="quick-add-field-label">PRIORITY</span>
             <Select
-              options={priorityOptions()}
+              options={PRIORITY_OPTIONS}
               value={newCategory}
               onChange={setNewCategory}
               ariaLabel="Priority"
@@ -436,7 +439,7 @@ export default function TasksView({
           <div className="quick-add-field kr-field">
             <span className="quick-add-field-label">KEY RESULT</span>
             <Select
-              options={krOptions(keyResults)}
+              options={krOpts}
               value={newKrId || null}
               onChange={setNewKrId}
               placeholder="Link a key result"
@@ -702,7 +705,7 @@ export default function TasksView({
                         </td>
                         <td className="td-priority">
                           <Select
-                            options={priorityOptions()}
+                            options={PRIORITY_OPTIONS}
                             value={task.category || 'do'}
                             onChange={(category) => setTaskField(task.id, { category })}
                             ariaLabel={`Priority for ${task.title}`}
@@ -710,7 +713,7 @@ export default function TasksView({
                         </td>
                         <td className="td-kr">
                           <Select
-                            options={krOptions(keyResults)}
+                            options={krOpts}
                             value={task.keyResultId || null}
                             onChange={(krId) => setTaskField(task.id, { keyResultId: krId || undefined })}
                             placeholder="Link a key result"
@@ -721,7 +724,7 @@ export default function TasksView({
                         </td>
                         <td className="td-bucket">
                           <Select
-                            options={bucketOptions()}
+                            options={BUCKET_OPTIONS}
                             value={task.bucket || 'backlog'}
                             onChange={(bucket) => handleMoveTaskBucket(task.id, bucket)}
                             ariaLabel={`Bucket for ${task.title}`}
