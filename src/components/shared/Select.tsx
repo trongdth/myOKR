@@ -14,11 +14,15 @@ import '../../styles/select.css';
  * a single chosen row (tick + tint); clear + action rows below a divider.
  * The trailing slot holds a tick OR a quiet mono hint — never both.
  *
+ * Option values must be unique and String-stable — they key the rows, so
+ * keyboard roving and DOM identity survive options being removed or
+ * reordered while the menu is open.
+ *
  * Keyboard: listbox pattern minus type-ahead (ADR-0011 bans new hotkeys) —
- * ↑/↓/Home/End rove, Enter/Space commits, Esc closes with focus returned to
- * the trigger. The panel is portaled to document.body and fixed-positioned
- * from the trigger rect so it survives overflow-clipped rows and the modal
- * layer (z-1000).
+ * ↑/↓/Home/End rove (skipping disabled rows, incl. a disabled chosen one),
+ * Enter/Space commits, Esc closes with focus returned to the trigger. The
+ * panel is portaled to document.body and fixed-positioned from the trigger
+ * rect so it survives overflow-clipped rows and the modal layer (z-1000).
  */
 export interface SelectOption<T> {
   value: T;
@@ -62,9 +66,9 @@ export interface SelectProps<T> {
 const PANEL_GAP = 6;
 
 type Row<T> =
-  | { kind: 'option'; option: SelectOption<T>; i: number }
-  | { kind: 'clear'; i: number }
-  | { kind: 'action'; action: SelectAction; i: number };
+  | { kind: 'option'; option: SelectOption<T>; key: string }
+  | { kind: 'clear'; key: string }
+  | { kind: 'action'; action: SelectAction; key: string };
 
 interface PanelPos {
   top: number;
@@ -80,7 +84,7 @@ export function Select<T>(props: SelectProps<T>) {
   } = props;
 
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [pos, setPos] = useState<PanelPos | null>(null);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -90,34 +94,38 @@ export function Select<T>(props: SelectProps<T>) {
   const chosen = options.find((o) => Object.is(o.value, value)) ?? null;
 
   const rows = useMemo<Row<T>[]>(() => {
-    const list: Row<T>[] = options.map((option, i) => ({ kind: 'option', option, i }));
-    if (onClear) list.push({ kind: 'clear', i: list.length });
-    actions?.forEach((action) => list.push({ kind: 'action', action, i: list.length }));
+    const list: Row<T>[] = options.map((option) => ({
+      kind: 'option', option, key: String(option.value),
+    }));
+    if (onClear) list.push({ kind: 'clear', key: 'clear' });
+    actions?.forEach((action) => list.push({ kind: 'action', action, key: `action:${action.label}` }));
     return list;
   }, [options, onClear, actions]);
 
-  const rowId = (i: number) => `${idBase}-r${i}`;
-
-  const enabledIndexes = rows
+  const enabledKeys = rows
     .filter((r) => r.kind !== 'option' || !r.option.disabled)
-    .map((r) => r.i);
+    .map((r) => r.key);
 
-  const initialActive = () => {
+  // ids must be whitespace-free (HTML); keys with spaces get sanitized here
+  // only — React keys keep the raw value for uniqueness.
+  const rowDomId = (key: string) => `${idBase}-${key.replace(/\s+/g, '_')}`;
+
+  const initialActive = (): string | null => {
     const chosenRow = rows.find((r) => r.kind === 'option' && Object.is(r.option.value, value));
-    if (chosenRow) return chosenRow.i;
-    return enabledIndexes[0] ?? null;
+    if (chosenRow && enabledKeys.includes(chosenRow.key)) return chosenRow.key;
+    return enabledKeys[0] ?? null;
   };
 
-  const openAt = (index: number | null) => {
-    setActiveIndex(index);
+  const openAt = (key: string | null) => {
+    setActiveKey(key);
     setOpen(true);
   };
 
   const moveActive = (dir: 1 | -1) => {
-    if (enabledIndexes.length === 0) return;
-    const current = activeIndex == null ? (dir === 1 ? -1 : enabledIndexes.length) : enabledIndexes.indexOf(activeIndex);
-    const next = enabledIndexes[(current + dir + enabledIndexes.length) % enabledIndexes.length];
-    setActiveIndex(next);
+    if (enabledKeys.length === 0) return;
+    const current = activeKey == null ? (dir === 1 ? -1 : enabledKeys.length) : enabledKeys.indexOf(activeKey);
+    const next = enabledKeys[(current + dir + enabledKeys.length) % enabledKeys.length];
+    setActiveKey(next);
   };
 
   const commit = (row: Row<T>) => {
@@ -134,8 +142,8 @@ export function Select<T>(props: SelectProps<T>) {
 
   const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return;
-    const firstIdx = enabledIndexes[0] ?? null;
-    const lastIdx = enabledIndexes[enabledIndexes.length - 1] ?? null;
+    const firstKey = enabledKeys[0] ?? null;
+    const lastKey = enabledKeys[enabledKeys.length - 1] ?? null;
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -145,23 +153,23 @@ export function Select<T>(props: SelectProps<T>) {
       case 'ArrowUp':
         e.preventDefault();
         if (open) moveActive(-1);
-        else openAt(lastIdx);
+        else openAt(lastKey);
         break;
       case 'Home':
         e.preventDefault();
-        if (open) setActiveIndex(firstIdx);
-        else openAt(firstIdx);
+        if (open) setActiveKey(firstKey);
+        else openAt(firstKey);
         break;
       case 'End':
         e.preventDefault();
-        if (open) setActiveIndex(lastIdx);
-        else openAt(lastIdx);
+        if (open) setActiveKey(lastKey);
+        else openAt(lastKey);
         break;
       case 'Enter':
       case ' ':
         e.preventDefault();
         if (open) {
-          const row = rows.find((r) => r.i === activeIndex);
+          const row = rows.find((r) => r.key === activeKey);
           if (row) commit(row);
         } else {
           openAt(initialActive());
@@ -177,6 +185,11 @@ export function Select<T>(props: SelectProps<T>) {
         setOpen(false);
         break;
     }
+  };
+
+  const hoverRow = (row: Row<T>) => {
+    if (row.kind === 'option' && row.option.disabled) return;
+    setActiveKey(row.key);
   };
 
   // Outside-click closes. The panel is portaled to <body>, so the check must
@@ -229,12 +242,12 @@ export function Select<T>(props: SelectProps<T>) {
 
   // Keep the roving row in view while arrowing through a scrollable list.
   useEffect(() => {
-    if (!open || activeIndex == null) return;
-    document.getElementById(rowId(activeIndex))?.scrollIntoView({ block: 'nearest' });
+    if (!open || activeKey == null) return;
+    document.getElementById(rowDomId(activeKey))?.scrollIntoView({ block: 'nearest' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, open]);
+  }, [activeKey, open]);
 
-  const activeRowId = open && activeIndex != null ? rowId(activeIndex) : undefined;
+  const activeRowId = open && activeKey != null ? rowDomId(activeKey) : undefined;
   const hasFooter = Boolean(onClear) || (actions?.length ?? 0) > 0;
 
   const leadingSlot = chosen?.icon;
@@ -283,18 +296,18 @@ export function Select<T>(props: SelectProps<T>) {
                 const isChosen = Object.is(option.value, value);
                 return (
                   <div
-                    key={String(row.i)}
-                    id={rowId(row.i)}
+                    key={row.key}
+                    id={rowDomId(row.key)}
                     role="option"
                     aria-selected={isChosen}
                     aria-disabled={option.disabled || undefined}
                     className={[
                       'sel-row',
                       isChosen ? 'sel-chosen' : '',
-                      activeIndex === row.i ? 'sel-active' : '',
+                      activeKey === row.key ? 'sel-active' : '',
                       option.disabled ? 'sel-disabled' : '',
                     ].filter(Boolean).join(' ')}
-                    onMouseEnter={() => setActiveIndex(row.i)}
+                    onMouseEnter={() => hoverRow(row)}
                     onClick={() => commit(row)}
                   >
                     {option.icon && <span className="sel-icon">{option.icon}</span>}
@@ -328,12 +341,12 @@ export function Select<T>(props: SelectProps<T>) {
                     : row.action.icon && <span className="sel-icon">{row.action.icon}</span>;
                   return (
                     <div
-                      key={row.i}
-                      id={rowId(row.i)}
+                      key={row.key}
+                      id={rowDomId(row.key)}
                       role="option"
                       aria-selected="false"
-                      className={`sel-row ${row.kind === 'clear' ? 'sel-clear' : 'sel-action'}${activeIndex === row.i ? ' sel-active' : ''}`}
-                      onMouseEnter={() => setActiveIndex(row.i)}
+                      className={`sel-row ${row.kind === 'clear' ? 'sel-clear' : 'sel-action'}${activeKey === row.key ? ' sel-active' : ''}`}
+                      onMouseEnter={() => hoverRow(row)}
                       onClick={() => commit(row)}
                     >
                       {icon}

@@ -119,18 +119,18 @@ test.describe('Select component (fixture page)', () => {
   test('keyboard: arrows/Home/End navigate, Enter commits, Esc returns focus to trigger', async ({ page }) => {
     const trigger = page.locator('[data-fx="plain"] .sel-trigger');
     await trigger.focus();
-    await trigger.press('ArrowDown'); // opens on the chosen row (Alpha → r0)
+    await trigger.press('ArrowDown'); // opens on the chosen row (Alpha)
     const panel = page.locator('.sel-panel');
     await expect(panel).toBeVisible();
-    await expect(trigger).toHaveAttribute('aria-activedescendant', /-r0$/);
+    await expect(trigger).toHaveAttribute('aria-activedescendant', /-Alpha$/);
     await trigger.press('ArrowDown'); // Beta
-    await expect(trigger).toHaveAttribute('aria-activedescendant', /-r1$/);
+    await expect(trigger).toHaveAttribute('aria-activedescendant', /-Beta$/);
     await trigger.press('ArrowUp'); // back to Alpha
-    await expect(trigger).toHaveAttribute('aria-activedescendant', /-r0$/);
+    await expect(trigger).toHaveAttribute('aria-activedescendant', /-Alpha$/);
     await trigger.press('End'); // Gamma
-    await expect(trigger).toHaveAttribute('aria-activedescendant', /-r2$/);
+    await expect(trigger).toHaveAttribute('aria-activedescendant', /-Gamma$/);
     await trigger.press('Home');
-    await expect(trigger).toHaveAttribute('aria-activedescendant', /-r0$/);
+    await expect(trigger).toHaveAttribute('aria-activedescendant', /-Alpha$/);
     await trigger.press('ArrowDown');
     await trigger.press('Enter'); // commits Beta
     await expect(page.locator('.sel-panel')).toHaveCount(0);
@@ -242,5 +242,45 @@ test.describe('Select component (fixture page)', () => {
     await page.setViewportSize({ width: 800, height: 600 });
     const trigger = page.locator('[data-fx="buckets"] .sel-trigger');
     await expect(trigger).toHaveCSS('height', '40px');
+  });
+
+  test('fixture route requires the exact ?fixture=select param', async ({ page }) => {
+    await page.goto('/?fixture=select-multi');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.fx-title')).toHaveCount(0); // loose substrings must not activate the fixture
+  });
+
+  test('keyboard roving skips a disabled chosen option when opening', async ({ page }) => {
+    const trigger = page.locator('[data-fx="disabled-chosen"] .sel-trigger');
+    await trigger.focus();
+    await trigger.press('ArrowDown'); // opens — the chosen option is disabled, roving must fall through to the first enabled row
+    await trigger.press('Enter');
+    await expect(page.locator('.sel-panel')).toHaveCount(0);
+    await expect(trigger).toContainText('Enabled A');
+  });
+
+  test('ArrowUp opens at the last enabled row', async ({ page }) => {
+    const trigger = page.locator('[data-fx="disabled-chosen"] .sel-trigger');
+    await trigger.focus();
+    await trigger.press('ArrowUp'); // opens at the last enabled row, wrapping over the disabled one
+    await trigger.press('Enter');
+    await expect(trigger).toContainText('Enabled C');
+  });
+
+  test('hovering a disabled row does not make it the active row', async ({ page }) => {
+    const { panel } = await openPanel(page, 'disabled-chosen');
+    const disabledRow = panel.locator('.sel-row.sel-disabled');
+    await disabledRow.hover();
+    await expect(disabledRow).not.toHaveClass(/sel-active/);
+  });
+
+  test('removing a row keeps keyboard roving on the surviving rows', async ({ page }) => {
+    const { panel } = await openPanel(page, 'cycles');
+    const may = panel.locator('.sel-row', { hasText: 'May cycle' });
+    await may.hover();
+    await may.locator('.sel-remove').click(); // panel stays open
+    await page.locator('[data-fx="cycles"] .sel-trigger').press('ArrowDown'); // rove from the removed row's position
+    await page.locator('[data-fx="cycles"] .sel-trigger').press('Enter');
+    await expect(page.locator('[data-fx="cycles"] .sel-trigger')).toContainText('July cycle');
   });
 });

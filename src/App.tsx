@@ -271,7 +271,7 @@ export default function App() {
 
   // Dev-only component fixture page for the Playwright suite (?fixture=select).
   // import.meta.env.DEV is statically false in prod builds, so this never ships.
-  if (import.meta.env.DEV && window.location.search.includes('fixture=select')) {
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'select') {
     return (
       <Suspense fallback={null}>
         <SelectFixture />

@@ -57,6 +57,7 @@ export function SelectFixture() {
   const [dotOnly, setDotOnly] = useState('do');
   const [cycle, setCycle] = useState('July cycle');
   const [cycles, setCycles] = useState(['May cycle', 'June cycle', 'July cycle']);
+  const [disabledChosen, setDisabledChosen] = useState('b');
   const [actionLog, setActionLog] = useState<string[]>([]);
   const [modalBucket, setModalBucket] = useState<Bucket>('today');
   const [showModal, setShowModal] = useState(false);
@@ -125,7 +126,12 @@ export function SelectFixture() {
           options={cycles.map((c) => ({ value: c, label: c }))}
           value={cycle}
           onChange={setCycle}
-          onRemove={(removed) => setCycles((cs) => cs.filter((c) => c !== removed))}
+          onRemove={(removed) => {
+            setCycles((cs) => cs.filter((c) => c !== removed));
+            // The × never renders on the chosen row, but stay consistent if
+            // the removed value ever equals the selection.
+            if (cycle === removed) setCycle(cycles.find((c) => c !== removed) ?? '');
+          }}
           actions={[{ icon: <Plus size={14} />, label: 'New blank cycle', onSelect: () => log('new-cycle') }]}
           ariaLabel="Cycle"
         />
@@ -134,6 +140,20 @@ export function SelectFixture() {
       <section className="fx-section" data-fx="disabled">
         <h2 className="fx-heading">Disabled</h2>
         <Select options={cycles.map((c) => ({ value: c, label: c }))} value={cycle} onChange={setCycle} disabled ariaLabel="Disabled cycle" />
+      </section>
+
+      <section className="fx-section" data-fx="disabled-chosen">
+        <h2 className="fx-heading">Disabled chosen option</h2>
+        <Select
+          options={[
+            { value: 'a', label: 'Enabled A' },
+            { value: 'b', label: 'Disabled chosen', disabled: true },
+            { value: 'c', label: 'Enabled C' },
+          ]}
+          value={disabledChosen}
+          onChange={setDisabledChosen}
+          ariaLabel="Disabled chosen"
+        />
       </section>
 
       <section className="fx-section" data-fx="empty">
