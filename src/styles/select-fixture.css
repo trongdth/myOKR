@@ -1,0 +1,86 @@
+/* Dev-only fixture page for the Select component (?fixture=select).
+   Presentation-only scaffolding — not part of the design system. */
+
+.fx-page {
+  min-height: 200vh;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.fx-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+}
+
+.fx-section {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.fx-heading {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-3);
+}
+
+.fx-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.fx-open-modal {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.fx-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* the app's modal layer — Select panels must stack above it */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.fx-modal-card {
+  width: 320px;
+  padding: var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+}
+
+/* Pushes its Select near the viewport bottom so the panel must flip above. */
+.fx-flip {
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.fx-log {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}

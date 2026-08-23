@@ -208,6 +208,53 @@ the EmptyState pattern, with the bring-your-own-app-key flow behind an
 "Advanced" disclosure. True one-click connect (bundled Dropbox key + Tauri
 deep-link) is deferred — see ADR-0010.
 
+## Menu component (Select) — 2026-08-23
+
+`Select` (`src/components/shared/Select.tsx`) is the app's **single menu
+component** — every dropdown is an instance of it (see ADR-0018). Boxed
+variant for form / toolbar / cell pickers; `bare` for compact inline badge or
+dot pickers (KR mode, priority dots), where the badge itself is the
+affordance (no chevron) but the panel, states, and keyboard behave the same.
+
+**Trigger anatomy** `[ icon ] text [ chevron ]` — icon only when the value
+has a colour/glyph identity (priority dot, KR swatch, bucket icon); without
+one, text sits at the same 11px left inset. Text is the current value at
+0.72rem `--text-primary`; the empty state is an **imperative placeholder**
+in `--menu-placeholder` ("Link a key result"). Chevron never disappears on
+boxed triggers and rotates 180° while open. Metrics: **32px** high (40px
+≤900px), 8px radius, 11px side padding, 8px gap; width hugs content,
+ellipsis past 220px, never wrap.
+
+**States.** Rest `--menu-bg-rest` + 8% white border + `--menu-chevron-rest`
+chevron → hover `--menu-bg-hover` + 16% border + `--menu-chevron-hover`
+(120ms) → **pressed-open** `--menu-bg-open` + 1px `--color-primary` border +
+3px cyan ring (`color-mix` 30%), held while open — press and open are one
+state. Disabled: 40% opacity, no hover lift, chevron stays.
+
+**Panel.** 5px padding, 34px rows at 7px radius, 1px between rows, ~5 rows
+then scroll. **Exactly one chosen row** — cyan tick + 10% cyan tint; the tick
+wins over any trailing label on that row. Hover row: 5% white fill. Trailing
+slot: quiet mono hint/count in `--menu-hint` — tick *or* label, never both.
+Below a divider: the clear row (dashed icon placeholder, secondary text),
+then action rows (fire a callback without changing the value). Panel min-width
+= trigger width, 280px cap, entrance `sel-slide-down` 150ms, 6px gap.
+
+**Behaviour.** Click commits and closes; **Esc closes with focus returned
+to the trigger**; outside click closes unchanged and focus follows the click
+(refocusing on outside click would steal focus from the thing clicked).
+Keyboard is the full listbox pattern minus type-ahead (ADR-0011):
+↑/↓/Home/End rove, Enter/Space commit. The panel is **portaled to
+`<body>`**, fixed-positioned from the trigger rect (repositioned on
+scroll/resize, flips above near the bottom edge), stacked above the modal
+layer (z 1100 vs 1000). Single-select, no search; an empty option list
+renders a quiet "No options yet" row. Menu icons are 14px (remove × 12px) —
+the dense meta-size surface is the exception to the 16px content-icon rule.
+
+**Tokens.** The `--menu-*` block in `global.css` is the only place the menu
+hex values live; screen CSS uses tokens and `color-mix` only. "All X" filter
+sentinels are normal chosen-able rows; the clear row exists only on nullable
+links. Migration per `.scratch/custom-select/`.
+
 ## Verification
 
 Screenshot tests in `tests/screenshots.spec.ts` carry `toHaveScreenshot()`
