@@ -112,10 +112,11 @@ test.describe('Desktop: Task Workflow', () => {
     const input = page.locator('input[placeholder*="What are you working on?"]');
     await input.fill('Test Task E2E');
 
-    // Wait for KR dropdown to populate (async keyResults load)
-    const krSelect = page.locator('select.kr-select');
-    await expect(krSelect).toBeVisible({ timeout: 10000 });
-    await krSelect.selectOption({ index: 1 });
+    // Wait for KR dropdown to populate (async keyResults load), pick the first KR
+    const krTrigger = page.locator('.quick-add-field [aria-label="Key result"]');
+    await expect(krTrigger).toBeVisible({ timeout: 10000 });
+    await krTrigger.click();
+    await page.locator('.sel-panel .sel-rows .sel-row').first().click();
 
     await page.locator('button.quick-add-btn').click();
     await expect(page.locator('text=Test Task E2E')).toBeVisible();

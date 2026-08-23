@@ -61,9 +61,10 @@ test.describe('Resilience to poisoned synced/imported state', () => {
     await page.locator('button[title="Objectives"]').first().click();
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
 
-    // Tasks tab: TaskList renders the task-kr-select <select> with keyResults.
+    // Tasks tab: the quick-add KR Select renders the poisoned KR's row.
     await page.locator('button[title="Tasks"]').first().click();
-    await expect(page.locator('option[value="kr1"]')).toBeAttached();
+    await page.locator('.quick-add-field [aria-label="Key result"]').click();
+    await expect(page.locator('.sel-panel .sel-row').filter({ hasText: 'Poison KR' })).toBeVisible();
 
     // Day plan tab: FocusCard renders the KR for the linked task.
     const dayPlanBtn = page.locator('button[title="Day plan"]').first();

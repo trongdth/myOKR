@@ -1084,7 +1084,6 @@
   contain-intrinsic-size: auto 110px;
 }
 
-.task-item:has(.category-dropdown),
 .task-item.editing {
   z-index: 50;
   content-visibility: visible;
@@ -1728,87 +1727,6 @@
   margin-left: 0;
   white-space: nowrap;
 }
-.category-badge-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  flex-shrink: 0;
-  z-index: 2;
-}
-
-.category-badge {
-  width: 14px;
-  height: 14px;
-  border-radius: 10px 0 10px 0;
-  border: none;
-  cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.category-badge:hover {
-  transform: scale(1.3);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
-}
-
-.category-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 100;
-  min-width: 270px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 0.5em;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: slideDown 150ms ease;
-  overflow: visible;
-}
-
-.category-dropdown-item {
-  display: grid;
-  grid-template-columns: 14px auto 1fr;
-  align-items: center;
-  gap: 0.75em;
-  width: 100%;
-  padding: 0.7em 1em;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease, transform 150ms ease;
-  text-align: left;
-}
-
-.category-dropdown-item:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.category-dropdown-item.selected {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.category-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.category-desc {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-left: auto;
-  white-space: nowrap;
-}
-
 .task-input-group {
   flex: 1;
   display: flex;
@@ -1830,61 +1748,6 @@
   border: none !important;
   box-shadow: none !important;
   padding: 0.75em 1em;
-}
-
-.category-selector-wrapper {
-  display: flex;
-  align-items: center;
-  padding-right: 0.25em;
-  position: relative;
-}
-
-.category-selector-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  padding: 0.4em 0.75em;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-  white-space: nowrap;
-  margin: 4px;
-}
-
-.category-selector-btn:hover {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  border-color: var(--accent-cyan);
-}
-
-.task-kr-select {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  padding: 0.4em 0.75em;
-  font-size: 0.82rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-  outline: none;
-  max-width: 120px;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.task-kr-select:hover,
-.task-kr-select:focus {
-  border-color: var(--accent-cyan);
-  color: var(--text-primary);
 }
 
 .task-detail-kr-select {
@@ -2319,14 +2182,6 @@
     min-height: 40px;
   }
 
-  .task-kr-select {
-    max-width: none;
-    font-size: 0.88rem;
-    height: 40px;
-    line-height: 1;
-    padding: 0 0.85em;
-  }
-
   .add-task-btn {
     padding: 0 1.2em !important;
     min-height: 38px;
@@ -2376,20 +2231,6 @@
 
   .timer-time {
     font-size: 4rem;
-  }
-
-  .category-selector-wrapper .category-dropdown {
-    left: auto;
-    right: 0;
-    min-width: 280px;
-    max-width: 90vw;
-  }
-
-  .category-badge-wrapper .category-dropdown {
-    left: 0;
-    right: auto;
-    min-width: 280px;
-    max-width: 90vw;
   }
 }
 
@@ -3312,32 +3153,30 @@
   text-transform: uppercase;
 }
 
-.quick-add-priority-dot {
-  width: 7px;
-  height: 7px;
+/* Select sizing in the quick-add row (custom-select ticket 02) */
+.quick-add-field .sel-trigger {
+  max-width: 120px;
+}
+
+.quick-add-field.kr-field .sel-trigger {
+  max-width: 170px;
+}
+
+.sel-priority-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
 }
 
-.quick-add-select {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  max-width: 100px;
-}
-
-.quick-add-select.kr-select {
-  max-width: 110px;
-}
-
-.quick-add-select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+.sel-kr-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-objective);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .quick-add-btn {
@@ -3598,13 +3437,23 @@
   color: var(--text-muted);
 }
 
-.cell-select, .cell-date-input {
+.cell-date-input {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   border-radius: 4px;
   padding: 0.2rem 0.4rem;
   font-size: 0.8rem;
+}
+
+/* List-view cell Selects (custom-select ticket 02) */
+.td-priority .sel-trigger,
+.td-bucket .sel-trigger {
+  max-width: 96px;
+}
+
+.td-kr .sel-trigger {
+  max-width: 160px;
 }
 
 /* Done View */
@@ -4438,13 +4287,8 @@
   font-size: 0.78rem;
 }
 .list-toolbar-label { color: var(--text-muted); }
-.list-toolbar-select {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.35rem 0.6rem;
-  color: var(--text-primary);
-  font-size: 0.8rem;
+.list-toolbar-item .sel-trigger {
+  max-width: 130px;
 }
 .list-new-task { margin-left: auto; }
 .list-group { margin-bottom: 1.25rem; }

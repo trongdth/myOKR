@@ -6,6 +6,8 @@ import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective
 import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { navigateToSection } from '../../lib/navigation';
+import { Select } from '../shared/Select';
+import { priorityOptions, bucketOptions, krOptions, BUCKET_LABELS } from './taskSelectOptions';
 
 export type ViewMode = 'board' | 'list';
 
@@ -31,7 +33,18 @@ interface Props {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const BUCKET_LABELS: Record<TaskBucket, string> = { today: 'Today', this_week: 'This week', backlog: 'Backlog' };
+
+const GROUP_BY_OPTIONS = [
+  { value: 'bucket' as GroupBy, label: 'Bucket' },
+  { value: 'keyResult' as GroupBy, label: 'Key result' },
+  { value: 'priority' as GroupBy, label: 'Priority' },
+];
+
+const SORT_BY_OPTIONS = [
+  { value: 'priority' as SortBy, label: 'Priority' },
+  { value: 'due' as SortBy, label: 'Due date' },
+  { value: 'pomos' as SortBy, label: 'Pomodoros' },
+];
 
 function formatDueLabel(dueDate: string | undefined): { label: string; overdue: boolean } | null {
   if (!dueDate) return null;
@@ -195,6 +208,10 @@ export default function TasksView({
     const updated = tasks.map(t => t.id === taskId ? { ...t, bucket: targetBucket } : t);
     onTasksChange(updated);
     setSelectedForMoveId(null);
+  };
+
+  const setTaskField = (taskId: string, patch: Partial<PomodoroTask>) => {
+    onTasksChange(tasks.map(t => t.id === taskId ? { ...t, ...patch } : t));
   };
 
   // Tick-to-complete (P5: ticking removes from board; undo via completed strip)
@@ -408,33 +425,25 @@ export default function TasksView({
 
           <div className="quick-add-field">
             <span className="quick-add-field-label">PRIORITY</span>
-            <span
-              className="quick-add-priority-dot"
-              style={{ backgroundColor: EISENHOWER_META[newCategory].color }}
-            />
-            <select
-              className="quick-add-select"
+            <Select
+              options={priorityOptions()}
               value={newCategory}
-              onChange={e => setNewCategory(e.target.value as EisenhowerCategory)}
-            >
-              {Object.entries(EISENHOWER_META).map(([cat, meta]) => (
-                <option key={cat} value={cat}>{meta.label}</option>
-              ))}
-            </select>
+              onChange={setNewCategory}
+              ariaLabel="Priority"
+            />
           </div>
 
-          <div className="quick-add-field">
+          <div className="quick-add-field kr-field">
             <span className="quick-add-field-label">KEY RESULT</span>
-            <select
-              className="quick-add-select kr-select"
-              value={newKrId}
-              onChange={e => setNewKrId(e.target.value)}
-            >
-              <option value="">None</option>
-              {keyResults.map(kr => (
-                <option key={kr.id} value={kr.id}>{kr.title}</option>
-              ))}
-            </select>
+            <Select
+              options={krOptions(keyResults)}
+              value={newKrId || null}
+              onChange={setNewKrId}
+              placeholder="Link a key result"
+              onClear={() => setNewKrId('')}
+              clearLabel="No key result"
+              ariaLabel="Key result"
+            />
           </div>
 
           <button type="submit" className="quick-add-btn">
@@ -605,31 +614,15 @@ export default function TasksView({
         <div className="list-view-container">
           {/* Toolbar: Group by / Sort / New task (P3) */}
           <div className="list-toolbar">
-            <label className="list-toolbar-item">
+            <div className="list-toolbar-item">
               <span className="list-toolbar-label">Group by</span>
-              <select
-                className="list-toolbar-select"
-                value={groupBy}
-                onChange={e => setGroupBy(e.target.value as GroupBy)}
-              >
-                <option value="bucket">Bucket</option>
-                <option value="keyResult">Key result</option>
-                <option value="priority">Priority</option>
-              </select>
-            </label>
+              <Select options={GROUP_BY_OPTIONS} value={groupBy} onChange={setGroupBy} ariaLabel="Group by" />
+            </div>
 
-            <label className="list-toolbar-item">
+            <div className="list-toolbar-item">
               <span className="list-toolbar-label">Sort</span>
-              <select
-                className="list-toolbar-select"
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as SortBy)}
-              >
-                <option value="priority">Priority</option>
-                <option value="due">Due date</option>
-                <option value="pomos">Pomodoros</option>
-              </select>
-            </label>
+              <Select options={SORT_BY_OPTIONS} value={sortBy} onChange={setSortBy} ariaLabel="Sort" />
+            </div>
 
             <button className="new-task-btn list-new-task" onClick={focusQuickAdd}>
               <Plus size={15} />
@@ -708,44 +701,31 @@ export default function TasksView({
                           <span className="list-task-title">{task.title}</span>
                         </td>
                         <td className="td-priority">
-                          <select
+                          <Select
+                            options={priorityOptions()}
                             value={task.category || 'do'}
-                            onChange={e => {
-                              const updated = tasks.map(t => t.id === task.id ? { ...t, category: e.target.value as EisenhowerCategory } : t);
-                              onTasksChange(updated);
-                            }}
-                            className="cell-select"
-                          >
-                            {Object.entries(EISENHOWER_META).map(([c, m]) => (
-                              <option key={c} value={c}>{m.label}</option>
-                            ))}
-                          </select>
+                            onChange={(category) => setTaskField(task.id, { category })}
+                            ariaLabel={`Priority for ${task.title}`}
+                          />
                         </td>
                         <td className="td-kr">
-                          <select
-                            value={task.keyResultId || ''}
-                            onChange={e => {
-                              const updated = tasks.map(t => t.id === task.id ? { ...t, keyResultId: e.target.value || undefined } : t);
-                              onTasksChange(updated);
-                            }}
-                            className="cell-select kr-cell"
-                          >
-                            <option value="">No Key Result</option>
-                            {keyResults.map(kr => (
-                              <option key={kr.id} value={kr.id}>{kr.title}</option>
-                            ))}
-                          </select>
+                          <Select
+                            options={krOptions(keyResults)}
+                            value={task.keyResultId || null}
+                            onChange={(krId) => setTaskField(task.id, { keyResultId: krId || undefined })}
+                            placeholder="Link a key result"
+                            onClear={() => setTaskField(task.id, { keyResultId: undefined })}
+                            clearLabel="No key result"
+                            ariaLabel={`Key result for ${task.title}`}
+                          />
                         </td>
                         <td className="td-bucket">
-                          <select
+                          <Select
+                            options={bucketOptions()}
                             value={task.bucket || 'backlog'}
-                            onChange={e => handleMoveTaskBucket(task.id, e.target.value as TaskBucket)}
-                            className="cell-select bucket-cell"
-                          >
-                            <option value="today">Today</option>
-                            <option value="this_week">This week</option>
-                            <option value="backlog">Backlog</option>
-                          </select>
+                            onChange={(bucket) => handleMoveTaskBucket(task.id, bucket)}
+                            ariaLabel={`Bucket for ${task.title}`}
+                          />
                         </td>
                         <td className="td-due">
                           <input
