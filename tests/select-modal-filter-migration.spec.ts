@@ -114,6 +114,10 @@ test.describe('Modal & filter Select migration', () => {
     await page.waitForLoadState('networkidle');
     await page.locator('.search-trigger-btn').click();
     await expect(page.locator('.command-k-modal')).toBeVisible();
+    // The modal auto-focuses its input on a ~50ms timeout; let that land
+    // before touching the filter, or the steal blurs the Select trigger and
+    // closes the panel mid-interaction (seen on slow CI).
+    await expect(page.locator('.command-k-input')).toBeFocused();
 
     const cycleFilter = page.locator('[aria-label="Cycle filter"]');
     await cycleFilter.click();
