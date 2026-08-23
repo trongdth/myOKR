@@ -123,7 +123,10 @@ export function Select<T>(props: SelectProps<T>) {
 
   const moveActive = (dir: 1 | -1) => {
     if (enabledKeys.length === 0) return;
-    const current = activeKey == null ? (dir === 1 ? -1 : enabledKeys.length) : enabledKeys.indexOf(activeKey);
+    // A stale key (its row was removed while open) behaves like no active
+    // row: ArrowDown enters at the first enabled row, ArrowUp at the last.
+    let current = enabledKeys.indexOf(activeKey ?? '');
+    if (activeKey == null || current === -1) current = dir === 1 ? -1 : enabledKeys.length;
     const next = enabledKeys[(current + dir + enabledKeys.length) % enabledKeys.length];
     setActiveKey(next);
   };

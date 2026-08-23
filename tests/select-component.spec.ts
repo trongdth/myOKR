@@ -279,8 +279,13 @@ test.describe('Select component (fixture page)', () => {
     const may = panel.locator('.sel-row', { hasText: 'May cycle' });
     await may.hover();
     await may.locator('.sel-remove').click(); // panel stays open
-    await page.locator('[data-fx="cycles"] .sel-trigger').press('ArrowDown'); // rove from the removed row's position
-    await page.locator('[data-fx="cycles"] .sel-trigger').press('Enter');
-    await expect(page.locator('[data-fx="cycles"] .sel-trigger')).toContainText('July cycle');
+    const trigger = page.locator('[data-fx="cycles"] .sel-trigger');
+    // End/Enter are position-absolute, so they cannot race the hover state
+    // Chromium may or may not recompute after the row shift.
+    await trigger.press('End'); // last enabled row = the footer action, over the survivors
+    await trigger.press('Enter'); // fires the action without changing the value
+    await expect(page.locator('.sel-panel')).toHaveCount(0);
+    await expect(page.locator('[data-fx="log"]')).toHaveText(/new-cycle/);
+    await expect(trigger).toContainText('July cycle'); // chosen untouched
   });
 });
