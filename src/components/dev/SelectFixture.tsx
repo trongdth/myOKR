@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CalendarCheck, CalendarRange, ClipboardList, Inbox, Plus, Timer, TrendingUp } from 'lucide-react';
 import { Select, type SelectOption } from '../shared/Select';
+import { priorityOptions } from '../pomodoro/taskSelectOptions';
 import '../../styles/select-fixture.css';
 
 type Bucket = 'today' | 'week' | 'backlog';
@@ -9,13 +10,6 @@ const BUCKET_OPTIONS: SelectOption<Bucket>[] = [
   { value: 'today', label: 'Today', icon: <CalendarCheck size={14} /> },
   { value: 'week', label: 'This week', icon: <CalendarRange size={14} /> },
   { value: 'backlog', label: 'Backlog', icon: <Inbox size={14} /> },
-];
-
-const PRIORITY_OPTIONS: SelectOption<string>[] = [
-  { value: 'do', label: 'Do', icon: <span className="fx-dot" style={{ background: 'var(--okr-on-track)' }} /> },
-  { value: 'decide', label: 'Decide', icon: <span className="fx-dot" style={{ background: 'var(--color-objective)' }} /> },
-  { value: 'delegate', label: 'Delegate', icon: <span className="fx-dot" style={{ background: 'var(--color-risk)' }} /> },
-  { value: 'delete', label: 'Delete', icon: <span className="fx-dot" style={{ background: 'var(--okr-not-set)' }} /> },
 ];
 
 const KR_OPTIONS: SelectOption<string>[] = [
@@ -85,7 +79,7 @@ export function SelectFixture() {
 
       <section className="fx-section" data-fx="priority">
         <h2 className="fx-heading">Priority dots</h2>
-        <Select options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} ariaLabel="Priority" />
+        <Select options={priorityOptions()} value={priority} onChange={setPriority} ariaLabel="Priority" />
       </section>
 
       <section className="fx-section" data-fx="habit">
@@ -126,12 +120,7 @@ export function SelectFixture() {
           options={cycles.map((c) => ({ value: c, label: c }))}
           value={cycle}
           onChange={setCycle}
-          onRemove={(removed) => {
-            setCycles((cs) => cs.filter((c) => c !== removed));
-            // The × never renders on the chosen row, but stay consistent if
-            // the removed value ever equals the selection.
-            if (cycle === removed) setCycle(cycles.find((c) => c !== removed) ?? '');
-          }}
+          onRemove={(removed) => setCycles((cs) => cs.filter((c) => c !== removed))}
           actions={[{ icon: <Plus size={14} />, label: 'New blank cycle', onSelect: () => log('new-cycle') }]}
           ariaLabel="Cycle"
         />
@@ -164,7 +153,7 @@ export function SelectFixture() {
       <section className="fx-section" data-fx="bare">
         <h2 className="fx-heading">Bare variants</h2>
         <Select options={MODE_OPTIONS} value={mode} onChange={setMode} variant="bare" ariaLabel="KR mode" />
-        <Select options={PRIORITY_OPTIONS} value={dotOnly} onChange={setDotOnly} variant="bare" hideTriggerLabel ariaLabel="Priority dot" />
+        <Select options={priorityOptions()} value={dotOnly} onChange={setDotOnly} variant="bare" hideTriggerLabel ariaLabel="Priority dot" />
       </section>
 
       <section className="fx-section" data-fx="modal">

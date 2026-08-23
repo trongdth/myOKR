@@ -1,7 +1,7 @@
 import { CalendarCheck, CalendarRange, Inbox } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
-import { EISENHOWER_META, TASK_BUCKETS } from '../../lib/pomodoro-storage';
+import { EISENHOWER_META, EISENHOWER_PRIORITY_ORDER, TASK_BUCKETS } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import type { SelectOption } from '../shared/Select';
 
@@ -20,7 +20,7 @@ const BUCKET_ICONS: Record<TaskBucket, ReactNode> = {
 };
 
 export const priorityOptions = (): SelectOption<EisenhowerCategory>[] =>
-  (Object.keys(EISENHOWER_META) as EisenhowerCategory[]).map(cat => ({
+  EISENHOWER_PRIORITY_ORDER.map(cat => ({
     value: cat,
     label: EISENHOWER_META[cat].label,
     icon: <span className="sel-priority-dot" style={{ background: EISENHOWER_META[cat].color }} />,
