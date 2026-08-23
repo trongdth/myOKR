@@ -181,6 +181,9 @@ export function Select<T>(props: SelectProps<T>) {
       case 'Escape':
         if (open) {
           e.preventDefault();
+          // Modals listen for Escape at document level — the open panel
+          // swallows it so Esc closes the panel without dismissing the modal.
+          e.stopPropagation();
           setOpen(false);
         }
         break;

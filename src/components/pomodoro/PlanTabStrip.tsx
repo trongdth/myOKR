@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { navigateToSection } from '../../lib/navigation';
+import { Select } from '../shared/Select';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -116,24 +116,15 @@ export default function PlanTabStrip({
       </div>
 
       {activeCycle && onSelectWeek ? (
-        <div className="plan-cycle-week-dropdown-wrapper">
-          <ChevronDown size={14} className="dropdown-chevron" />
-          <select
-            className="plan-cycle-week-select"
-            value={selectedWeek === 'all' ? 'all' : (selectedWeek ?? currentWeek)}
-            onChange={e => {
-              const val = e.target.value;
-              onSelectWeek(val === 'all' ? 'all' : Number(val));
-            }}
-          >
-            <option value="all">{cycleName} · All weeks</option>
-            {weeks.map(w => (
-              <option key={w} value={w}>
-                {cycleName} · week {w} of {totalWeeks}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select
+          options={[
+            { value: 'all' as const, label: `${cycleName} · All weeks` },
+            ...weeks.map(w => ({ value: w as number | 'all', label: `${cycleName} · week ${w} of ${totalWeeks}` })),
+          ]}
+          value={selectedWeek === 'all' ? 'all' : (selectedWeek ?? currentWeek)}
+          onChange={(week) => onSelectWeek(week === 'all' ? 'all' : Number(week))}
+          ariaLabel="Cycle week"
+        />
       ) : (cycleLabel || activeCycle) ? (
         <span className="plan-cycle-week">{cycleLabel || (activeCycle ? `${cycleName} · week ${currentWeek} of ${totalWeeks}` : '')}</span>
       ) : null}

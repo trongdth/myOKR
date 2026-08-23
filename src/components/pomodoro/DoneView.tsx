@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { RotateCcw, CheckCircle2, Search } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
-import { EISENHOWER_META, isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
+import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import { Select } from '../shared/Select';
+import { priorityOptions, krOptions } from './taskSelectOptions';
 
 interface Props {
   tasks: PomodoroTask[];
@@ -143,26 +145,18 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
         >
           This week
         </button>
-        <select
-          className="done-filter-select"
+        <Select
+          options={[{ value: 'all', label: 'All key results' }, ...krOptions(keyResults)]}
           value={krFilter}
-          onChange={e => setKrFilter(e.target.value)}
-        >
-          <option value="all">All key results</option>
-          {keyResults.map(kr => (
-            <option key={kr.id} value={kr.id}>{kr.title}</option>
-          ))}
-        </select>
-        <select
-          className="done-filter-select"
+          onChange={setKrFilter}
+          ariaLabel="Key result filter"
+        />
+        <Select
+          options={[{ value: 'all', label: 'All priorities' }, ...priorityOptions()]}
           value={priorityFilter}
-          onChange={e => setPriorityFilter(e.target.value)}
-        >
-          <option value="all">All priorities</option>
-          {Object.entries(EISENHOWER_META).map(([cat, meta]) => (
-            <option key={cat} value={cat}>{meta.label}</option>
-          ))}
-        </select>
+          onChange={setPriorityFilter}
+          ariaLabel="Priority filter"
+        />
 
         <span className="done-view-summary">
           {totalSpentPomos} pomodoros spent · {averagePerTask} average per task

@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { CheckCircle, X, SquareCheck, MessageSquare, Play, RotateCcw, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
 import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
-import { generateId, EISENHOWER_META, reorderTodoItems } from '../../lib/pomodoro-storage';
+import { generateId, reorderTodoItems } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
 import PomoEstimatePopover from './PomoEstimatePopover';
+import { Select } from '../shared/Select';
+import { priorityOptions, bucketOptions, krOptions } from './taskSelectOptions';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
 
@@ -345,28 +347,22 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
           <div className="detail-properties-bar">
             <div className="prop-group">
               <span className="prop-label">PRIORITY</span>
-              <select
-                className="prop-select"
+              <Select
+                options={priorityOptions()}
                 value={task.category || 'do'}
-                onChange={e => handleUpdateCategory(e.target.value as EisenhowerCategory)}
-              >
-                {Object.entries(EISENHOWER_META).map(([c, m]) => (
-                  <option key={c} value={c}>{m.label}</option>
-                ))}
-              </select>
+                onChange={handleUpdateCategory}
+                ariaLabel="Priority"
+              />
             </div>
 
             <div className="prop-group">
               <span className="prop-label">BUCKET</span>
-              <select
-                className="prop-select"
+              <Select
+                options={bucketOptions()}
                 value={task.bucket || 'backlog'}
-                onChange={e => handleUpdateBucket(e.target.value as TaskBucket)}
-              >
-                <option value="today">Today</option>
-                <option value="this_week">This week</option>
-                <option value="backlog">Backlog</option>
-              </select>
+                onChange={handleUpdateBucket}
+                ariaLabel="Bucket"
+              />
             </div>
 
             <div className="prop-group">
@@ -381,16 +377,15 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
 
             <div className="prop-group">
               <span className="prop-label">KEY RESULT</span>
-              <select
-                className="prop-select kr-prop-select"
-                value={task.keyResultId || ''}
-                onChange={e => handleUpdateKR(e.target.value)}
-              >
-                <option value="">No Key Result</option>
-                {keyResults.map(kr => (
-                  <option key={kr.id} value={kr.id}>{kr.title}</option>
-                ))}
-              </select>
+              <Select
+                options={krOptions(keyResults)}
+                value={task.keyResultId || null}
+                onChange={(krId) => handleUpdateKR(krId || '')}
+                placeholder="Link a key result"
+                onClear={() => handleUpdateKR('')}
+                clearLabel="No key result"
+                ariaLabel="Key result"
+              />
             </div>
           </div>
         </div>
