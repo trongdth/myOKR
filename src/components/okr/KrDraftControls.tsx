@@ -1,11 +1,12 @@
 import { useState, useRef, type ReactNode } from 'react';
 import {
-  COMPLETION_MODE_META,
   DEFAULT_KR_TARGET,
   type CompletionMode,
 } from '../../lib/okr-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import StepperPopover from './StepperPopover';
+import { Select } from '../shared/Select';
+import { KR_MODE_OPTIONS } from './okrSelectOptions';
 
 /**
  * Shared draft state for "a KR being created" — used by both the P7 creation
@@ -66,16 +67,14 @@ export function KrDraftControls({ draft }: { draft: KrDraftState }): ReactNode {
 
   return (
     <>
-      <select
-        className="kr-mode-select"
-        value={draft.mode}
-        onChange={e => draft.changeMode(e.target.value as CompletionMode)}
-        aria-label="Key result type"
-      >
-        {Object.entries(COMPLETION_MODE_META).map(([mode, meta]) => (
-          <option key={mode} value={mode}>{meta.label}</option>
-        ))}
-      </select>
+      <span className="kr-mode-select">
+        <Select
+          options={KR_MODE_OPTIONS}
+          value={draft.mode}
+          onChange={draft.changeMode}
+          ariaLabel="Key result type"
+        />
+      </span>
       <span className="kr-num-group" ref={groupRef}>
         <span className="kr-draft-value-wrap">
           <button

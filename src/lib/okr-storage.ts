@@ -476,7 +476,7 @@ export function getWeekEndFromStart(startDate: string): string {
 // ===== STORE REMOVED IN FAVOR OF AUTOMERGE =====
 
 // ===== NORMALIZATION (untrusted synced/imported state → safe app data) =====
-const CONFIDENCE_VALUES: readonly Confidence[] = ['on_track', 'at_risk', 'off_track', 'not_set'];
+export const CONFIDENCE_VALUES: readonly Confidence[] = ['on_track', 'at_risk', 'off_track', 'not_set'];
 const COMPLETION_MODE_VALUES: readonly CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks', 'habit'];
 
 function finiteNumber(v: unknown, fallback: number): number {

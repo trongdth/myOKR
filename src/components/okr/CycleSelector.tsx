@@ -1,7 +1,6 @@
-import { useState, useRef } from 'react';
-import { Calendar, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { OKRCycle } from '../../lib/okr-storage';
-import { useClickOutside } from '../../hooks/useClickOutside';
+import { Select } from '../shared/Select';
 
 interface Props {
   cycles: OKRCycle[];
@@ -15,63 +14,33 @@ interface Props {
   onDeleteCycle?: (id: string) => void;
 }
 
+/**
+ * Cycle switcher on the Objectives header — the shared Select wearing this
+ * screen's shape (custom-select ticket 04): the chosen row's tick replaces the
+ * old "current" badge, deletable rows get the hover ×, and New/Clone run as
+ * footer actions below the divider.
+ */
 export default function CycleSelector({ cycles, activeCycleId, onSelect, onCreateCycle, onCloneCycle, deletableCycleIds, onDeleteCycle }: Props) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, open, () => setOpen(false));
-
-  const activeCycle = cycles.find(c => c.id === activeCycleId);
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  const canRemove = Boolean(deletableCycleIds && onDeleteCycle);
 
   return (
-    <div className="cycle-selector" ref={ref}>
-      <button
-        className={`cycle-selector-btn${open ? ' open' : ''}`}
-        onClick={() => setOpen(!open)}
-      >
-        <span><Calendar size={14} /></span>
-        <span>{activeCycle?.name || 'Select Cycle'}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 5l3 3 3-3" />
-        </svg>
-      </button>
-      {open && (
-        <div className="cycle-dropdown">
-          {cycles.map(cycle => {
-            const deletable = !!onDeleteCycle && !!deletableCycleIds?.has(cycle.id);
-            return (
-              <div key={cycle.id} className="cycle-dropdown-row">
-                <button
-                  className={`cycle-dropdown-item${cycle.id === activeCycleId ? ' active' : ''}`}
-                  onClick={() => { onSelect(cycle.id); setOpen(false); }}
-                >
-                  <span>{cycle.name}</span>
-                  {cycle.month === currentMonth && cycle.year === currentYear && <span className="cycle-badge">current</span>}
-                </button>
-                {deletable && (
-                  <button
-                    className="cycle-dropdown-delete"
-                    aria-label={`Delete ${cycle.name}`}
-                    onClick={(e) => { e.stopPropagation(); onDeleteCycle!(cycle.id); setOpen(false); }}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <button className="cycle-create-btn" onClick={() => { onCreateCycle(); setOpen(false); }}>
-            <span>+</span> New blank cycle
-          </button>
-          {onCloneCycle && (
-            <button className="cycle-create-btn" onClick={() => { onCloneCycle(); setOpen(false); }}>
-              <span>+</span> Clone this cycle
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+    <span className="cycle-selector">
+      <Select
+        options={cycles.map(c => ({
+          value: c.id,
+          label: c.name,
+          removable: canRemove ? deletableCycleIds!.has(c.id) : false,
+        }))}
+        value={cycles.some(c => c.id === activeCycleId) ? activeCycleId : null}
+        onChange={onSelect}
+        placeholder="Select cycle"
+        onRemove={canRemove ? (id) => onDeleteCycle!(id) : undefined}
+        actions={[
+          { icon: <Plus size={14} />, label: 'New blank cycle', onSelect: onCreateCycle },
+          ...(onCloneCycle ? [{ icon: <Plus size={14} />, label: 'Clone this cycle', onSelect: onCloneCycle }] : []),
+        ]}
+        ariaLabel="Cycle"
+      />
+    </span>
   );
 }

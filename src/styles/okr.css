@@ -77,149 +77,8 @@
   position: relative;
 }
 
-.cycle-selector-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  padding: 0.6em 1em;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    color 200ms ease,
-    background-color 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease,
-    opacity 200ms ease,
-    transform 200ms ease;
-}
-
-.cycle-selector-btn:hover {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
-}
-
-.cycle-selector-btn svg {
-  transition: transform 200ms ease;
-}
-
-.cycle-selector-btn.open svg {
-  transform: rotate(180deg);
-}
-
-.cycle-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 100;
-  min-width: 220px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 0.5em;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: slideDown 150ms ease;
-}
-
-.cycle-dropdown-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.65em 0.85em;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.88rem;
-  cursor: pointer;
-  transition:
-    color 150ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
-  text-align: left;
-}
-
-.cycle-dropdown-item:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.cycle-dropdown-item.active {
-  background: var(--bg-tertiary);
-  color: var(--accent-cyan);
-}
-
-.cycle-dropdown-item .cycle-badge {
-  font-size: 0.7rem;
-  padding: 0.15em 0.5em;
-  border-radius: 4px;
-  background: rgba(6, 182, 212, 0.15);
-  color: var(--accent-cyan);
-  font-family: var(--font-mono);
-}
-
-.cycle-dropdown-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0.1em;
-}
-
-.cycle-dropdown-row .cycle-dropdown-item {
-  flex: 1;
-}
-
-.cycle-dropdown-delete {
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0 0.7em;
-  font-size: 0.9rem;
-  transition:
-    color 150ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
-}
-
-.cycle-dropdown-delete:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-}
-
-.cycle-create-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  width: 100%;
-  padding: 0.65em 0.85em;
-  background: transparent;
-  border: none;
-  border-top: 1px solid var(--border-color);
-  border-radius: 0 0 8px 8px;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: color 150ms ease;
-  margin-top: 0.25em;
-}
-
-.cycle-create-btn:hover {
-  color: var(--accent-cyan);
+.cycle-selector .sel-trigger {
+  max-width: 180px;
 }
 
 /* ===== NEW OBJECTIVE INLINE FORM (P7 revamp) ===== */
@@ -603,30 +462,28 @@
   min-width: 0;
 }
 
-.kr-subtitle {
+.kr-subtitle-row {
   display: inline-flex;
   align-items: center;
+  gap: 0.35em;
   align-self: flex-start;
-  padding: 0.05em 0;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
+  min-height: 0;
+}
+
+.kr-subtitle-row .sel-trigger.bare {
+  font-size: 0.72rem;
+}
+
+.kr-subtitle-unserved,
+.kr-subtitle-served {
   font-size: 0.72rem;
   color: var(--text-muted);
-  font-family: inherit;
-  cursor: pointer;
-  transition: color 150ms ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
 }
 
-.kr-subtitle:hover {
-  color: var(--text-secondary);
-}
-
-.kr-subtitle.unserved {
+.kr-subtitle-unserved {
   color: var(--color-risk);
 }
 
@@ -910,14 +767,8 @@
   color: var(--text-secondary);
 }
 
-.kr-habit-link-row select {
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  font-size: 0.8rem;
-  font-family: inherit;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+.kr-habit-link-row .sel-trigger {
+  max-width: 220px;
 }
 
 /* Add Key Result — collapsed toggle + expanded row (P7 revamp) */
@@ -1048,116 +899,13 @@
 }
 
 /* ===== CONFIDENCE POPUP ===== */
-.confidence-popup {
-  position: absolute;
-  z-index: 200;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 0.4em;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  animation: slideDown 150ms ease;
-  display: flex;
-  gap: 0.25em;
-}
-
-.confidence-option {
-  display: flex;
-  align-items: center;
-  gap: 0.4em;
-  padding: 0.45em 0.75em;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition:
-    color 150ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
-  white-space: nowrap;
-}
-
-.confidence-option:hover {
-  background: var(--bg-tertiary);
-}
-
-.confidence-option.selected {
-  background: var(--bg-tertiary);
-  font-weight: 600;
-}
-
-/* ===== COMPLETION MODE ===== */
-
-.mode-popup {
-  position: absolute;
-  z-index: 200;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 0.4em;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  animation: slideDown 150ms ease;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15em;
-  min-width: 160px;
-}
-
-.mode-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  padding: 0.45em 0.75em;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition:
-    color 150ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
-  white-space: nowrap;
-  text-align: left;
-  width: 100%;
-}
-
-.mode-option:hover {
-  background: var(--bg-tertiary);
-}
-
-.mode-option.selected {
-  background: var(--bg-tertiary);
-  font-weight: 600;
-}
-
 /* Mode select in Add KR form */
 .kr-mode-select {
-  padding: 0.75em 0.65em;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.82rem;
-  cursor: pointer;
-  outline: none;
+  display: inline-flex;
 }
 
-.kr-mode-select:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
+.kr-mode-select .sel-trigger {
+  max-width: 150px;
 }
 
 /* ===== RESPONSIVE (P7 revamp) — breakpoints in strict descending order ===== */
@@ -1343,4 +1091,12 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+}
+
+
+/* Confidence picker (bare Select) — fixed width keeps the old pill's
+   equal-width design pin (P7 UI polish) intact */
+.kr-status-cell .sel-trigger {
+  width: 104px;
+  justify-content: flex-start;
 }

@@ -68,7 +68,8 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     const form = page.locator('.okr-new-obj-form');
     await form.locator('.okr-new-obj-title-input').fill('Habit E2E Objective');
     await form.locator('.okr-new-obj-kr-input').fill('E2E Ticking KR');
-    await form.locator('.kr-mode-select').selectOption({ label: 'Habit Ticks' });
+    await form.locator('[aria-label="Key result type"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Habit Ticks' }).click();
     await form.locator('.okr-new-obj-create-btn').click();
 
     // Find the objective card (expanded by default)
@@ -76,9 +77,10 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     await expect(objHeader).toBeVisible();
 
     // Select the linked habit in the newly created KR
-    const linkSelect = page.locator('.kr-habit-link-row >> select');
+    const linkSelect = page.locator('.kr-habit-link-row [aria-label="Linked habit"]');
     await expect(linkSelect).toBeVisible();
-    await linkSelect.selectOption({ label: 'Forming E2E Habit' });
+    await linkSelect.click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Forming E2E Habit' }).click();
 
     // 3. Go to Habits tab, check off the habit today
     await navTo(page, 'Habits');
@@ -124,7 +126,7 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
 
     const krRowAfter = page.locator('.kr-row:has-text("E2E Ticking KR")');
     await expect(krRowAfter).toBeVisible();
-    await expect(krRowAfter.locator('.kr-subtitle')).toContainText('Manual');
+    await expect(krRowAfter.locator('[aria-label^="KR mode"]')).toContainText('Manual');
     await expect(krRowAfter.locator('.kr-value-badge')).toHaveText('1'); // progress value preserved
   });
 
@@ -160,16 +162,18 @@ test.describe('Habit KR Linking & Progress Workflow', () => {
     const form = page.locator('.okr-new-obj-form');
     await form.locator('.okr-new-obj-title-input').fill('Habit Link Navigation Objective');
     await form.locator('.okr-new-obj-kr-input').fill('Navigation KR');
-    await form.locator('.kr-mode-select').selectOption({ label: 'Habit Ticks' });
+    await form.locator('[aria-label="Key result type"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Habit Ticks' }).click();
     await form.locator('.okr-new-obj-create-btn').click();
 
     const objHeader = page.locator('.objective-header:has-text("Habit Link Navigation Objective")');
     await expect(objHeader).toBeVisible();
 
     // Select the "+ Create new habit..." option in the newly created KR
-    const linkSelect = page.locator('.kr-habit-link-row >> select');
+    const linkSelect = page.locator('.kr-habit-link-row [aria-label="Linked habit"]');
     await expect(linkSelect).toBeVisible();
-    await linkSelect.selectOption('__new__');
+    await linkSelect.click();
+    await page.locator('.sel-panel .sel-row.sel-action', { hasText: 'Create new habit' }).click();
 
     // Verify it redirects to Habits tab and shows title
     await expect(page.locator('.habits-title')).toBeVisible();
