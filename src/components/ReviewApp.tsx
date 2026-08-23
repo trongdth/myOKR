@@ -17,15 +17,7 @@ import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
 import ProgressChart from './review/ProgressChart';
 import LoadingState from './shared/LoadingState';
-
-const SELECT_STYLE: React.CSSProperties = {
-  padding: '0.35rem 0.5rem',
-  borderRadius: '4px',
-  border: '1px solid var(--border)',
-  background: 'var(--bg-surface)',
-  color: 'var(--text-primary)',
-  fontSize: '0.85rem'
-};
+import { Select } from './shared/Select';
 
 async function repairReviews(
   loadedReviews: WeeklyReview[],
@@ -338,20 +330,14 @@ export default function ReviewApp() {
       <div className="review-header">
         <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label htmlFor="cycle-select" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cycle:</label>
-          <select 
-            id="cycle-select" 
-            value={activeCycle.id} 
+          <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cycle:</label>
+          <Select
+            options={cycles.map(c => ({ value: c.id, label: c.name }))}
+            value={activeCycle.id}
             disabled={showWizard}
-            onChange={e => {
-              setExplicitCycleId(e.target.value);
-            }}
-            style={SELECT_STYLE}
-          >
-            {cycles.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            onChange={(cycleId) => setExplicitCycleId(cycleId)}
+            ariaLabel="Cycle"
+          />
         </div>
       </div>
 
@@ -376,22 +362,19 @@ export default function ReviewApp() {
         <div className="review-start-card">
           <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label htmlFor="week-select" style={{ color: 'var(--text-muted)' }}>Review for week of:</label>
-              <select 
-                id="week-select" 
-                value={selectedWeek} 
-                onChange={e => {
-                  setSelectedWeek(e.target.value);
+              <label style={{ color: 'var(--text-muted)' }}>Review for week of:</label>
+              <Select
+                options={getMondaysForCycle(activeCycle).map(monday => ({
+                  value: monday,
+                  label: `${monday} to ${getWeekEndFromStart(monday)}`,
+                }))}
+                value={selectedWeek}
+                onChange={(monday) => {
+                  setSelectedWeek(monday);
                   setExplicitCycleId(null);
                 }}
-                style={SELECT_STYLE}
-              >
-                {getMondaysForCycle(activeCycle).map(monday => (
-                  <option key={monday} value={monday}>
-                    {monday} to {getWeekEndFromStart(monday)}
-                  </option>
-                ))}
-              </select>
+                ariaLabel="Review week"
+              />
             </div>
           </div>
           {currentWeekReview ? (

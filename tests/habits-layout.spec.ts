@@ -97,17 +97,17 @@ test.describe('Habits Tracker Layout and Styles', () => {
 
     // No hover exists on touch — the actions must be visible from the start
     await expect(actions).toHaveCSS('opacity', '1');
-    await expect(row.locator('.habit-status-select')).toBeVisible();
+    await expect(row.locator('[aria-label^="Status of"]')).toBeVisible();
     await expect(row.locator('.habit-delete-btn')).toBeVisible();
   });
 
-  test('row actions are hover-revealed above 900px; status select keeps the custom styling', async ({ page }) => {
+  test('row actions are hover-revealed above 900px; status Select commits', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await addHabit(page, 'Dropdown Styling Habit');
 
     const row = page.locator('.habit-row:has-text("Dropdown Styling Habit")');
     const actions = row.locator('.habit-row-actions');
-    const selectEl = row.locator('.habit-status-select');
+    const statusSelect = row.locator('[aria-label^="Status of"]');
 
     // Hidden until the row is hovered (or focused)
     const initialOpacity = await actions.evaluate((el) => window.getComputedStyle(el).opacity);
@@ -115,23 +115,11 @@ test.describe('Habits Tracker Layout and Styles', () => {
     await row.hover();
     await expect(actions).toHaveCSS('opacity', '1');
 
-    const selectStyles = await selectEl.evaluate((el) => {
-      const styles = window.getComputedStyle(el);
-      return {
-        appearance: styles.appearance,
-        webkitAppearance: styles.webkitAppearance,
-        backgroundImage: styles.backgroundImage,
-        paddingRight: styles.paddingRight,
-        borderRadius: styles.borderRadius,
-      };
-    });
-
-    expect(selectStyles.appearance).toBe('none');
-    expect(selectStyles.backgroundImage).toContain('data:image/svg+xml');
-    expect(selectStyles.borderRadius).toBe('6px');
-
-    const paddingRightVal = parseInt(selectStyles.paddingRight, 10);
-    expect(paddingRightVal).toBeGreaterThanOrEqual(24);
+    // The shared Select carries its own chevron affordance and commits on click
+    await expect(statusSelect.locator('.sel-chevron')).toBeVisible();
+    await statusSelect.click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'In progress' }).click();
+    await expect(statusSelect).toContainText('In progress');
   });
 
   test('verifies horizontal container padding is applied on all screens below 932px viewport width', async ({ page }) => {

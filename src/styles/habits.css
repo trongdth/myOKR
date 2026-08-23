@@ -248,34 +248,9 @@
   opacity: 1;
 }
 
-.habit-status-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2371717a' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right 0.4rem center;
-  background-repeat: no-repeat;
-  background-size: 1rem 1rem;
-  padding: 0.25rem 1.6rem 0.25rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  transition: all var(--transition-fast);
-}
-
-.habit-status-select:hover {
-  border-color: var(--color-primary);
-  color: var(--text-primary);
-}
-
-.habit-status-select:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--border-glow);
+/* Status picker — the shared Select (custom-select ticket 05) */
+.habit-row-actions .sel-trigger {
+  max-width: 130px;
 }
 
 .habit-delete-btn {
