@@ -119,7 +119,7 @@ export default function PlanTabStrip({
         <Select
           options={[
             { value: 'all' as const, label: `${cycleName} · All weeks` },
-            ...weeks.map(w => ({ value: w as number | 'all', label: `${cycleName} · week ${w} of ${totalWeeks}` })),
+            ...weeks.map(w => ({ value: w as number, label: `${cycleName} · week ${w} of ${totalWeeks}` })),
           ]}
           value={selectedWeek === 'all' ? 'all' : (selectedWeek ?? currentWeek)}
           onChange={(week) => onSelectWeek(week === 'all' ? 'all' : Number(week))}

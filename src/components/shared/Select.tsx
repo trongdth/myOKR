@@ -100,7 +100,7 @@ export function Select<T>(props: SelectProps<T>) {
       kind: 'option', option, key: String(option.value), i,
     }));
     if (onClear) list.push({ kind: 'clear', key: '__clear__', i: list.length });
-    actions?.forEach((action) => list.push({ kind: 'action', action, key: `__action__:${action.label}`, i: list.length }));
+    actions?.forEach((action, ai) => list.push({ kind: 'action', action, key: `__action__:${ai}:${action.label}`, i: list.length }));
     return list;
   }, [options, onClear, actions]);
 

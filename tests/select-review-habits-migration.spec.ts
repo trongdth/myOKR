@@ -42,6 +42,14 @@ test.describe('Review & Habits Select migration', () => {
     const label = await rows.nth(1).textContent();
     await rows.nth(1).click();
     await expect(week).toContainText(label!.trim());
+
+    // The visible label text still activates the picker (implicit label
+    // association — PR #83 review: htmlFor was lost with the native select)
+    await page.locator('label', { hasText: 'Review for week of:' }).click();
+    await expect(page.locator('.sel-panel')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.locator('label', { hasText: 'Cycle:' }).click();
+    await expect(page.locator('.sel-panel')).toBeVisible();
   });
 
   test('cycle picker disables at 40% while the review wizard is open', async ({ page }) => {

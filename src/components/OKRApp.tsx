@@ -429,6 +429,7 @@ export default function OKRApp() {
       {selectedDetailTask && (
         <TaskDetailModal
           task={selectedDetailTask}
+          tasks={tasks}
           onUpdate={updateTask}
           onDelete={deleteTask}
           onClose={() => setSelectedDetailTask(null)}

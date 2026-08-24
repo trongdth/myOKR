@@ -330,14 +330,16 @@ export default function ReviewApp() {
       <div className="review-header">
         <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cycle:</label>
-          <Select
-            options={cycles.map(c => ({ value: c.id, label: c.name }))}
-            value={activeCycle.id}
-            disabled={showWizard}
-            onChange={(cycleId) => setExplicitCycleId(cycleId)}
-            ariaLabel="Cycle"
-          />
+          <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center' }}>
+            Cycle:
+            <Select
+              options={cycles.map(c => ({ value: c.id, label: c.name }))}
+              value={activeCycle.id}
+              disabled={showWizard}
+              onChange={(cycleId) => setExplicitCycleId(cycleId)}
+              ariaLabel="Cycle"
+            />
+          </label>
         </div>
       </div>
 
@@ -362,19 +364,21 @@ export default function ReviewApp() {
         <div className="review-start-card">
           <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ color: 'var(--text-muted)' }}>Review for week of:</label>
-              <Select
-                options={getMondaysForCycle(activeCycle).map(monday => ({
-                  value: monday,
-                  label: `${monday} to ${getWeekEndFromStart(monday)}`,
-                }))}
-                value={selectedWeek}
-                onChange={(monday) => {
-                  setSelectedWeek(monday);
-                  setExplicitCycleId(null);
-                }}
-                ariaLabel="Review week"
-              />
+              <label style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Review for week of:
+                <Select
+                  options={getMondaysForCycle(activeCycle).map(monday => ({
+                    value: monday,
+                    label: `${monday} to ${getWeekEndFromStart(monday)}`,
+                  }))}
+                  value={selectedWeek}
+                  onChange={(monday) => {
+                    setSelectedWeek(monday);
+                    setExplicitCycleId(null);
+                  }}
+                  ariaLabel="Review week"
+                />
+              </label>
             </div>
           </div>
           {currentWeekReview ? (

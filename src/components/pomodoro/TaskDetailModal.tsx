@@ -49,6 +49,8 @@ function notesIsLong(markdown: string): boolean {
 }
 
 interface Props {
+  /** The full task list — feeds the KR picker's open-linked counts (ticket 07). */
+  tasks?: PomodoroTask[];
   task: PomodoroTask;
   onUpdate: (updated: PomodoroTask) => void;
   onClose: () => void;
@@ -57,7 +59,7 @@ interface Props {
   onStartFocus?: (task: PomodoroTask) => void;
 }
 
-export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, keyResults = [], onStartFocus }: Props) {
+export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDelete, keyResults = [], onStartFocus }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -378,7 +380,7 @@ export default function TaskDetailModal({ task, onUpdate, onClose, onDelete, key
             <div className="prop-group">
               <span className="prop-label">KEY RESULT</span>
               <Select
-                options={krOptions(keyResults)}
+                options={krOptions(keyResults, tasks)}
                 value={task.keyResultId || null}
                 onChange={(krId) => handleUpdateKR(krId || '')}
                 placeholder="Link a key result"

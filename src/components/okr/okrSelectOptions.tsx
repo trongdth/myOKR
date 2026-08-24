@@ -14,9 +14,10 @@ export const KR_MODE_OPTIONS: SelectOption<CompletionMode>[] = [
 ];
 
 /** Confidence picker rows — "not_set" is not offered; it is the absence of a pick. */
-export const CONFIDENCE_OPTIONS: SelectOption<Confidence>[] =
-  CONFIDENCE_VALUES.filter(c => c !== 'not_set').map(c => ({
-  value: c,
-  label: CONFIDENCE_META[c].label,
-  icon: <span className="confidence-dot" style={{ background: CONFIDENCE_META[c].color }} />,
-}));
+export const CONFIDENCE_OPTIONS: SelectOption<Confidence>[] = CONFIDENCE_VALUES
+  .filter(c => c !== 'not_set')
+  .map(c => ({
+    value: c,
+    label: CONFIDENCE_META[c].label,
+    icon: <span className="confidence-dot" style={{ background: CONFIDENCE_META[c].color }} />,
+  }));

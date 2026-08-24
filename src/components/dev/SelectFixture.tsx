@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CalendarCheck, CalendarRange, ClipboardList, Inbox, Plus, Timer, TrendingUp } from 'lucide-react';
 import { Select, type SelectOption } from '../shared/Select';
 import { PRIORITY_OPTIONS } from '../pomodoro/taskSelectOptions';
+import type { EisenhowerCategory } from '../../lib/pomodoro-storage';
 import '../../styles/select-fixture.css';
 
 type Bucket = 'today' | 'week' | 'backlog';
@@ -58,13 +59,13 @@ const HABIT_OPTIONS: SelectOption<string>[] = [
  */
 export function SelectFixture() {
   const [bucket, setBucket] = useState<Bucket>('week');
-  const [priority, setPriority] = useState('do');
+  const [priority, setPriority] = useState<EisenhowerCategory>('do');
   const [plain, setPlain] = useState('Alpha');
   const [habit, setHabit] = useState<string | null>(null);
   const [kr, setKr] = useState<string | null>(null);
   const [long, setLong] = useState(2);
   const [mode, setMode] = useState('manual');
-  const [dotOnly, setDotOnly] = useState('do');
+  const [dotOnly, setDotOnly] = useState<EisenhowerCategory>('do');
   const [cycle, setCycle] = useState('July cycle');
   const [cycles, setCycles] = useState(['May cycle', 'June cycle', 'July cycle']);
   const [disabledChosen, setDisabledChosen] = useState('b');
@@ -135,7 +136,7 @@ export function SelectFixture() {
         <h2 className="fx-heading">Remove rows</h2>
         <Select
           options={cycles.map((c) => ({ value: c, label: c }))}
-          value={cycle}
+          value={cycles.some((c) => c === cycle) ? cycle : null}
           onChange={setCycle}
           onRemove={(removed) => setCycles((cs) => cs.filter((c) => c !== removed))}
           actions={[{ icon: <Plus size={14} />, label: 'New blank cycle', onSelect: () => log('new-cycle') }]}

@@ -203,6 +203,7 @@
 
 .sel-row.sel-disabled:hover {
   background: transparent;
+  color: var(--text-secondary);
 }
 
 .sel-row-text {
@@ -256,9 +257,11 @@
   background: color-mix(in srgb, var(--color-risk) 12%, transparent);
 }
 
-.sel-row.sel-empty {
+.sel-row.sel-empty,
+.sel-row.sel-empty:hover {
   color: var(--menu-hint);
   cursor: default;
+  background: transparent;
 }
 
 /* Footer zone: clear row first, then action rows — below a divider. */

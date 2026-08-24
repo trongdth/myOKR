@@ -59,6 +59,15 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
   // counts, the completed-today strip and the SERVING strip as cycle-scoped) —
   // it is the audit of everything finished, day-grouped. Only the strip
   // counts above use in-cycle membership.
+  // Count base for the filter rows' trailing hints (ticket 07): completed
+  // tasks after the week toggle, BEFORE the KR/priority filters — the count
+  // is what choosing that row would show.
+  const filterCountBase = useMemo(() => {
+    return tasks
+      .filter(t => t.isCompleted)
+      .filter(t => !weekOnly || (t.completedAt || t.createdAt).slice(0, 10) >= weekStart);
+  }, [tasks, weekOnly, weekStart]);
+
   const completedTasks = useMemo(() => {
     return tasks
       .filter(t => t.isCompleted)
@@ -67,6 +76,24 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
       .filter(t => priorityFilter === 'all' || (t.category || 'do') === priorityFilter)
       .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime());
   }, [tasks, weekOnly, weekStart, krFilter, priorityFilter]);
+
+  // Filter rows with per-value trailing counts (ticket 07). Each count is
+  // what choosing that row would show — including the All rows' totals.
+  const krFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All key results', trailing: String(filterCountBase.length) },
+    ...krOptions(keyResults).map(opt => ({
+      ...opt,
+      trailing: String(filterCountBase.filter(t => t.keyResultId === opt.value).length),
+    })),
+  ], [keyResults, filterCountBase]);
+
+  const priorityFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All priorities', trailing: String(filterCountBase.length) },
+    ...PRIORITY_OPTIONS.map(opt => ({
+      ...opt,
+      trailing: String(filterCountBase.filter(t => (t.category || 'do') === opt.value).length),
+    })),
+  ], [filterCountBase]);
 
   const totalSpentPomos = useMemo(() => {
     return completedTasks.reduce((sum, t) => sum + (t.completedPomodoros || 0), 0);
@@ -146,13 +173,13 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
           This week
         </button>
         <Select
-          options={[{ value: 'all', label: 'All key results' }, ...krOptions(keyResults)]}
+          options={krFilterOptions}
           value={krFilter}
           onChange={setKrFilter}
           ariaLabel="Key result filter"
         />
         <Select
-          options={[{ value: 'all', label: 'All priorities' }, ...PRIORITY_OPTIONS]}
+          options={priorityFilterOptions}
           value={priorityFilter}
           onChange={setPriorityFilter}
           ariaLabel="Priority filter"
