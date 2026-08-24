@@ -183,6 +183,7 @@ test.describe('Select component (fixture page)', () => {
     await trigger.click();
     const panel = page.locator('.sel-panel');
     await expect(panel).toBeVisible();
+    await panel.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished))); // settle the slide-up entrance before measuring
     const triggerBox = await trigger.boundingBox();
     const panelBox = await panel.boundingBox();
     expect(triggerBox).not.toBeNull();
@@ -248,6 +249,40 @@ test.describe('Select component (fixture page)', () => {
     await page.goto('/?fixture=select-multi');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.fx-title')).toHaveCount(0); // loose substrings must not activate the fixture
+  });
+
+  test('fixture page mounts without the App shell (navigate events must not hit dead handler bindings)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+    await page.goto('/?fixture=select');
+    await page.waitForLoadState('networkidle');
+    // App's navigate listener captures handlers whose declarations the fixture
+    // early-return skipped — dispatching must not throw from a TDZ binding.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'tasks' })));
+    await expect(page.locator('.fx-title')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('remove × stays a mouse-only affordance — tab order never exposes it', async ({ page }) => {
+    // Focus lives on the trigger (activedescendant pattern); moving it away
+    // blurs the trigger, which closes the panel — so keyboard focus can never
+    // land on an invisible ×. Keyboard removal would need new keybindings,
+    // which ADR-0011 bans; recorded as a known limitation in the spec.
+    await openPanel(page, 'cycles');
+    await page.locator('[data-fx="cycles"] .sel-trigger').press('Tab');
+    await expect(page.locator('.sel-panel')).toHaveCount(0);
+    await expect(page.locator('.sel-remove')).toHaveCount(0); // unmounted with the panel — nothing focusable left behind
+  });
+
+  test('panel entrance slides up when flipped above, down when below', async ({ page }) => {
+    const { panel } = await openPanel(page, 'buckets');
+    await expect(panel).toHaveCSS('animation-name', 'sel-slide-down');
+    await page.locator('[data-fx="buckets"] .sel-trigger').press('Escape');
+    await page.locator('[data-fx="flip"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-fx="flip"] .sel-trigger').click();
+    const flipped = page.locator('.sel-panel');
+    await expect(flipped).toBeVisible();
+    await expect(flipped).toHaveCSS('animation-name', 'sel-slide-up');
   });
 
   test('keyboard roving skips a disabled chosen option when opening', async ({ page }) => {

@@ -37,9 +37,9 @@ test.describe('Plan Group Feedback — TDD Tests', () => {
     const labelPx = parseFloat(await fieldLabel.evaluate(el => getComputedStyle(el).fontSize));
     expect(labelPx).toBeLessThanOrEqual(11); // <= 11px label
 
-    const select = page.locator('.quick-add-select').first();
-    const selectPx = parseFloat(await select.evaluate(el => getComputedStyle(el).fontSize));
-    expect(selectPx).toBeLessThanOrEqual(13); // <= 13px select text
+    const trigger = page.locator('.quick-add-field .sel-trigger').first();
+    const triggerPx = parseFloat(await trigger.evaluate(el => getComputedStyle(el).fontSize));
+    expect(triggerPx).toBeLessThanOrEqual(13); // <= 13px picker text
   });
 
   test('Feedback 3: No warning icon inside unserved warning (bare text no tasks)', async ({ page }) => {

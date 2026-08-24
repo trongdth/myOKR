@@ -34,13 +34,6 @@
   margin-bottom: var(--space-3);
 }
 
-.fx-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
 .fx-open-modal {
   font: inherit;
   font-size: 0.8rem;

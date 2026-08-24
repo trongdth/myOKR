@@ -128,10 +128,26 @@
   animation: sel-slide-down 150ms ease;
 }
 
+/* Flipped above the trigger — the entrance slides up to match. */
+.sel-panel.sel-open-above {
+  animation-name: sel-slide-up;
+}
+
 @keyframes sel-slide-down {
   from {
     opacity: 0;
     transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sel-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;

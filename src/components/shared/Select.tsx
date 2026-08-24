@@ -106,9 +106,9 @@ export function Select<T>(props: SelectProps<T>) {
     .filter((r) => r.kind !== 'option' || !r.option.disabled)
     .map((r) => r.key);
 
-  // ids must be whitespace-free (HTML); keys with spaces get sanitized here
-  // only — React keys keep the raw value for uniqueness.
-  const rowDomId = (key: string) => `${idBase}-${key.replace(/\s+/g, '_')}`;
+  // ids must stay CSS-selector-safe (queryable, whitespace-free); the raw key
+  // keeps its value for React identity/uniqueness.
+  const rowDomId = (key: string) => `${idBase}-${key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
   const initialActive = (): string | null => {
     const chosenRow = rows.find((r) => r.kind === 'option' && Object.is(r.option.value, value));
@@ -287,7 +287,7 @@ export function Select<T>(props: SelectProps<T>) {
             ref={panelRef}
             id={`${idBase}-panel`}
             role="listbox"
-            className="sel-panel"
+            className={`sel-panel${pos?.above ? ' sel-open-above' : ''}`}
             style={pos ? { top: pos.top, left: pos.left, minWidth: pos.minWidth } : undefined}
             onMouseDown={(e) => e.preventDefault()}
           >
