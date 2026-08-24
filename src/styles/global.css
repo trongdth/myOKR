@@ -102,6 +102,13 @@
   --menu-row-height: 34px;
 }
 
+/* Shared panel/popover entrance — single source (custom-select ticket 06);
+   feature stylesheets reference slideDown, they no longer define it. */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Base styles */
 *,
 *::before,
