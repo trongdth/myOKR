@@ -32,6 +32,8 @@ export interface SelectOption<T> {
   /** Quiet mono hint/count — hidden on the chosen row, where the tick wins. */
   trailing?: ReactNode;
   disabled?: boolean;
+  /** Suppress this row's hover × when onRemove is present (e.g. only some rows are deletable). */
+  removable?: boolean;
 }
 
 export interface SelectAction {
@@ -331,7 +333,10 @@ export function Select<T>(props: SelectProps<T>) {
                     {isChosen
                       ? <Check size={14} className="sel-tick" aria-hidden="true" />
                       : option.trailing != null && <span className="sel-trailing">{option.trailing}</span>}
-                    {onRemove && !isChosen && (
+                    {/* The × is a row action, not the trailing slot — it may
+                        coexist with the chosen tick (deleting an active-yet-
+                        deletable row is a legit flow, e.g. cycle deletion). */}
+                    {onRemove && option.removable !== false && (
                       <button
                         type="button"
                         className="sel-remove"

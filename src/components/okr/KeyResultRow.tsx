@@ -1,19 +1,14 @@
-import { useState, useRef, type ReactNode } from 'react';
-import { X, Pencil, Clock, Timer, CheckCheck, TrendingUp } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Plus } from 'lucide-react';
 import type { KeyResult, CompletionMode, Confidence, Objective, OKRCycle } from '../../lib/okr-storage';
-import { CONFIDENCE_META, COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
+import { COMPLETION_MODE_META, getEffectiveCurrentValue } from '../../lib/okr-storage';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { type Habit } from '../../lib/habit-storage';
 import StepperPopover from './StepperPopover';
-
-const COMPLETION_MODE_ICONS: Record<CompletionMode, ReactNode> = {
-  manual: <Pencil size={12} />,
-  focus_hours: <Clock size={12} />,
-  focus_pomodoros: <Timer size={12} />,
-  completed_tasks: <CheckCheck size={12} />,
-  habit: <TrendingUp size={12} />,
-};
+import { Select } from '../shared/Select';
+import { KR_MODE_OPTIONS, CONFIDENCE_OPTIONS } from './okrSelectOptions';
+import { navigateToSection } from '../../lib/navigation';
 
 interface Props {
   kr: KeyResult;
@@ -26,28 +21,17 @@ interface Props {
   cycles: OKRCycle[];
 }
 
-const CONFIDENCE_CYCLE: Confidence[] = ['not_set', 'on_track', 'at_risk', 'off_track'];
-const COMPLETION_MODES: CompletionMode[] = ['manual', 'focus_hours', 'focus_pomodoros', 'completed_tasks', 'habit'];
-
 export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate, onDelete, habits, objectives, cycles }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(kr.title);
-  const [showConfidencePopup, setShowConfidencePopup] = useState(false);
-  const [showModePopup, setShowModePopup] = useState(false);
   const [showValuePopover, setShowValuePopover] = useState(false);
-  const confidenceRef = useRef<HTMLDivElement>(null);
-  const modeRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLDivElement>(null);
 
-  useClickOutside(confidenceRef, showConfidencePopup, () => setShowConfidencePopup(false));
-  useClickOutside(modeRef, showModePopup, () => setShowModePopup(false));
   useClickOutside(valueRef, showValuePopover, () => setShowValuePopover(false));
 
   const mode = kr.completionMode || 'manual';
   const effectiveCurrent = getEffectiveCurrentValue(kr, tasks, focusDurationMinutes, habits, objectives, cycles);
   const progress = kr.targetValue > 0 ? Math.min(100, (effectiveCurrent / kr.targetValue) * 100) : 0;
-  const meta = CONFIDENCE_META[kr.confidence];
-  const modeMeta = COMPLETION_MODE_META[mode];
   // Every mode opens the value popover: Manual adjusts the hand-set current;
   // all derived modes (Focus Hours included) adjust their target — their
   // current is computed from linked tasks/habits and is never hand-written.
@@ -63,7 +47,6 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
 
   const setConfidence = (c: Confidence) => {
     onUpdate({ ...kr, confidence: c, updatedAt: new Date().toISOString() });
-    setShowConfidencePopup(false);
   };
 
   const setMode = (m: CompletionMode) => {
@@ -73,8 +56,14 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
       unit: COMPLETION_MODE_META[m].unit,
       updatedAt: new Date().toISOString(),
     });
-    setShowModePopup(false);
   };
+
+  const linkHabit = (habitId: string | undefined) => onUpdate({
+    ...kr,
+    habitId: habitId || undefined,
+    unit: 'ticks',
+    updatedAt: new Date().toISOString(),
+  });
 
   const openValuePopover = () => setShowValuePopover(true);
 
@@ -89,22 +78,23 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
 
   const confidenceClass = kr.confidence === 'not_set' ? 'not-set' : kr.confidence.replace('_', '-');
 
-  // Subtitle (P7 revamp): mode label + linkage, e.g. "Completed Tasks · 3 tasks
-  // linked" / "Manual" / "Habit Ticks · Read before bed". Click opens the mode popup.
+  // Subtitle (P7 revamp): the bare mode Select carries the mode label; the
+  // linkage suffix (tasks/habit serving this KR) renders beside it, muted and
+  // only when the KR is unserved.
   const linkedTasks = tasks.filter(t => !t.isCompleted && t.keyResultId === kr.id).length;
   const linkedHabit = habits.find(h => h.id === kr.habitId);
-  let subtitleLabel: string;
+  let subtitleSuffix = '';
   let subtitleServed = true;
-  if (mode === 'manual') {
-    subtitleLabel = 'Manual';
-  } else if (mode === 'habit') {
-    subtitleLabel = `${modeMeta.label} · ${linkedHabit ? linkedHabit.name : 'no habit linked'}`;
+  if (mode === 'habit') {
+    subtitleSuffix = linkedHabit ? `· ${linkedHabit.name}` : '· no habit linked';
     subtitleServed = !!linkedHabit;
-  } else if (linkedTasks > 0) {
-    subtitleLabel = `${modeMeta.label} · ${linkedTasks} ${linkedTasks === 1 ? 'task' : 'tasks'} linked`;
-  } else {
-    subtitleLabel = `${modeMeta.label} · no tasks serving this KR`;
-    subtitleServed = false;
+  } else if (mode !== 'manual') {
+    if (linkedTasks > 0) {
+      subtitleSuffix = `· ${linkedTasks} ${linkedTasks === 1 ? 'task' : 'tasks'} linked`;
+    } else {
+      subtitleSuffix = '· no tasks serving this KR';
+      subtitleServed = false;
+    }
   }
 
   return (
@@ -130,27 +120,16 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
             {kr.title}
           </span>
         )}
-        <div style={{ position: 'relative' }} ref={modeRef}>
-          <button
-            className={`kr-subtitle${subtitleServed ? '' : ' unserved'}`}
-            onClick={(e) => { e.stopPropagation(); setShowModePopup(!showModePopup); setShowConfidencePopup(false); setShowValuePopover(false); }}
-            title={`Mode: ${modeMeta.label} — Click to change`}
-          >
-            {subtitleLabel}
-          </button>
-          {showModePopup && (
-            <div className="mode-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>
-              {COMPLETION_MODES.map(m => (
-                <button
-                  key={m}
-                  className={`mode-option${mode === m ? ' selected' : ''}`}
-                  onClick={() => setMode(m)}
-                >
-                  {COMPLETION_MODE_ICONS[m]} {COMPLETION_MODE_META[m].label}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="kr-subtitle-row">
+          <Select
+            options={KR_MODE_OPTIONS}
+            value={mode}
+            onChange={setMode}
+            variant="bare"
+            ariaLabel={`KR mode for ${kr.title}`}
+          />
+          {!subtitleServed && <span className="kr-subtitle-unserved">{subtitleSuffix}</span>}
+          {subtitleServed && subtitleSuffix && <span className="kr-subtitle-served">{subtitleSuffix}</span>}
         </div>
       </div>
 
@@ -193,30 +172,16 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
         )}
       </div>
 
-      {/* Column 4: status pill (far right) */}
-      <div className="kr-status-cell" style={{ position: 'relative' }} ref={confidenceRef}>
-        <span
-          className={`kr-confidence-pill${kr.confidence === 'not_set' ? ' not-set' : ''}`}
-          style={{ background: meta.bgColor, color: meta.color, borderColor: meta.color }}
-          onClick={(e) => { e.stopPropagation(); setShowConfidencePopup(!showConfidencePopup); setShowModePopup(false); setShowValuePopover(false); }}
-          title={`${meta.label} — Click to change`}
-        >
-          <span className="confidence-dot" style={{ background: meta.color }} />
-          {meta.label}
-        </span>
-        {showConfidencePopup && (
-          <div className="confidence-popup" style={{ top: '100%', right: 0, marginTop: 4 }}>
-            {CONFIDENCE_CYCLE.filter(c => c !== 'not_set').map(c => (
-              <button
-                key={c}
-                className={`confidence-option${kr.confidence === c ? ' selected' : ''}`}
-                onClick={() => setConfidence(c)}
-              >
-                <span className="confidence-dot" style={{ background: CONFIDENCE_META[c].color }} /> {CONFIDENCE_META[c].label}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* Column 4: status pill (far right) — bare Select; "not_set" shows the placeholder */}
+      <div className="kr-status-cell">
+        <Select
+          options={CONFIDENCE_OPTIONS}
+          value={kr.confidence === 'not_set' ? null : kr.confidence}
+          onChange={setConfidence}
+          variant="bare"
+          placeholder="Set confidence"
+          ariaLabel={`Confidence for ${kr.title}`}
+        />
       </div>
 
       <button
@@ -231,28 +196,16 @@ export default function KeyResultRow({ kr, tasks, focusDurationMinutes, onUpdate
       {mode === 'habit' && (
         <div className="kr-habit-link-row">
           <span className="kr-habit-link-label">Linked Habit:</span>
-          <select
-            value={kr.habitId || ''}
-            onChange={async (e) => {
-              const val = e.target.value;
-              if (val === '__new__') {
-                window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'habits' }));
-              } else {
-                onUpdate({
-                  ...kr,
-                  habitId: val || undefined,
-                  unit: 'ticks',
-                  updatedAt: new Date().toISOString()
-                });
-              }
-            }}
-          >
-            <option value="">-- Select a habit --</option>
-            {habits.map(h => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-            <option value="__new__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>+ Create new habit...</option>
-          </select>
+          <Select
+            options={habits.map(h => ({ value: h.id, label: h.name }))}
+            value={kr.habitId || null}
+            onChange={linkHabit}
+            placeholder="Link a habit"
+            onClear={() => linkHabit(undefined)}
+            clearLabel="No habit"
+            actions={[{ icon: <Plus size={14} />, label: 'Create new habit…', onSelect: () => navigateToSection('habits') }]}
+            ariaLabel="Linked habit"
+          />
         </div>
       )}
     </div>

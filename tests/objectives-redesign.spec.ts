@@ -22,7 +22,7 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
   test('header: "{Mon} cycle" title, inline cycle selector, violet cycle progress, no search button, no bottom bar', async ({ page }) => {
     await expect(page.locator('.plan-header-title')).toHaveText('May cycle');
     // Cycle selector sits inline next to the title, not stacked underneath
-    await expect(page.locator('.plan-header-title-row .cycle-selector-btn')).toContainText('May 2026');
+    await expect(page.locator('.plan-header-title-row [aria-label="Cycle"]')).toContainText('May 2026');
 
     // Cycle progress: inline label + % above a violet bar (objective token —
     // the old boxed widget's logo-only gradient is gone)
@@ -71,24 +71,23 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await expect(kr.locator('.kr-value-badge')).toHaveText('9');
     // Column 3: "/ 15" target + bar (no percent readout — UI-polish round dropped it)
     await expect(kr.locator('.kr-target-text')).toHaveText('/ 15');
-    // Column 4: status pill far right
-    await expect(kr.locator('.kr-confidence-pill')).toContainText('On Track');
-    // Column 1 subtitle: mode label for a manual KR
-    await expect(kr.locator('.kr-subtitle')).toContainText('Manual');
+    // Column 4: status picker far right (bare Select, fixed width)
+    await expect(kr.locator('.kr-status-cell .sel-trigger')).toContainText('On Track');
+    // Column 1: the bare mode Select carries the label for a manual KR
+    await expect(kr.locator('[aria-label^="KR mode"]')).toContainText('Manual');
 
-    // Subtitle click opens the mode popup; switching to Completed Tasks shows
-    // the linked-tasks count (seed: task-1 open and linked to kr-1)
-    await kr.locator('.kr-subtitle').click();
-    await expect(kr.locator('.mode-popup')).toBeVisible();
-    await kr.locator('.mode-popup .mode-option', { hasText: 'Completed Tasks' }).click();
-    await expect(kr.locator('.kr-subtitle')).toContainText('Completed Tasks · 1 task linked');
+    // Mode switching via the bare Select; the served suffix shows the
+    // linked-tasks count (seed: task-1 open and linked to kr-1)
+    await kr.locator('[aria-label^="KR mode"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Completed Tasks' }).click();
+    await expect(kr.locator('[aria-label^="KR mode"]')).toContainText('Completed Tasks');
+    await expect(kr.locator('.kr-subtitle-served')).toHaveText(/1 task linked/);
 
     // A tasks-mode KR with no linked tasks shows the unserved warning instead
     const unserved = page.locator('.kr-row', { hasText: 'Complete 10 learning sessions' });
-    await unserved.locator('.kr-subtitle').click();
-    await unserved.locator('.mode-popup .mode-option', { hasText: 'Completed Tasks' }).click();
-    await expect(unserved.locator('.kr-subtitle')).toContainText('Completed Tasks · no tasks serving this KR');
-    await expect(unserved.locator('.kr-subtitle')).toHaveClass(/unserved/);
+    await unserved.locator('[aria-label^="KR mode"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Completed Tasks' }).click();
+    await expect(unserved.locator('.kr-subtitle-unserved')).toHaveText(/no tasks serving this KR/);
   });
 
   test('KR delete ✕ is hover-reveal, then visible', async ({ page }) => {
@@ -147,7 +146,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await expect(row).toBeVisible();
     await expect(row.locator('.kr-add-helper')).toContainText('Manual');
 
-    await row.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
+    await row.locator('[aria-label="Key result type"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Focus Hours' }).click();
     await expect(row.locator('.kr-add-helper')).toContainText('Nothing to update by hand');
     // Focus Hours is derived — the current box locks at 0, target takes the default
     await expect(row.locator('button[aria-label="Adjust current value"]')).toHaveClass(/locked/);
@@ -184,7 +184,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await form.locator('.okr-new-obj-title-input').fill('Grow the design practice');
     await form.locator('.okr-new-obj-reward-wrap input').fill('A new mechanical keyboard');
     await form.locator('.okr-new-obj-kr-input').fill('Hold 40 focus hours a month');
-    await form.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
+    await form.locator('[aria-label="Key result type"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Focus Hours' }).click();
     await expect(form.locator('button[aria-label="Adjust current value"]')).toHaveClass(/locked/);
     await expect(form.locator('button[aria-label="Adjust target value"]')).toHaveText('10');
     await form.locator('.okr-new-obj-create-btn').click();
@@ -194,7 +195,7 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await expect(card).toBeVisible();
     await expect(card.locator('.objective-reward-pill:not(.ghost)')).toContainText('A new mechanical keyboard');
     const kr = card.locator('.kr-row', { hasText: 'Hold 40 focus hours a month' });
-    await expect(kr.locator('.kr-subtitle')).toContainText('Focus Hours');
+    await expect(kr.locator('[aria-label^="KR mode"]')).toContainText('Focus Hours');
     await expect(kr.locator('.kr-target-text')).toHaveText('/ 10');
   });
 
@@ -217,14 +218,14 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
 
     // Status pills are equal-width regardless of label (On Track / At Risk / Off Track)
     const pillWidth = async (rowText: string) => {
-      const box = await page.locator('.kr-row', { hasText: rowText }).locator('.kr-confidence-pill').boundingBox();
+      const box = await page.locator('.kr-row', { hasText: rowText }).locator('.kr-status-cell .sel-trigger').boundingBox();
       return box!.width;
     };
     const onTrack = await pillWidth('Complete 15 feature tickets'); // seed: on_track
     const atRisk = await pillWidth('Achieve 90% test coverage');    // seed: at_risk
     const kr = page.locator('.kr-row', { hasText: 'Complete 15 feature tickets' });
-    await kr.locator('.kr-confidence-pill').click();
-    await page.locator('.confidence-popup .confidence-option', { hasText: 'Off Track' }).click();
+    await kr.locator('[aria-label^="Confidence"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Off Track' }).click();
     const offTrack = await pillWidth('Complete 15 feature tickets');
     expect(Math.abs(onTrack - atRisk)).toBeLessThanOrEqual(1);
     expect(Math.abs(onTrack - offTrack)).toBeLessThanOrEqual(1);
@@ -246,7 +247,7 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     const gaps = await page.evaluate(() => {
       return [...document.querySelectorAll('.kr-row')].map(row => {
         const bar = row.querySelector('.kr-progress-bar')!.getBoundingClientRect();
-        const pill = row.querySelector('.kr-confidence-pill')!.getBoundingClientRect();
+        const pill = row.querySelector('.kr-status-cell .sel-trigger')!.getBoundingClientRect();
         return pill.left - bar.right;
       });
     });
@@ -267,7 +268,7 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
         const badge = row.querySelector('.kr-value-badge')!.getBoundingClientRect();
         const text = row.querySelector('.kr-target-text')!.getBoundingClientRect();
         const bar = row.querySelector('.kr-progress-bar')!.getBoundingClientRect();
-        const pill = row.querySelector('.kr-confidence-pill')!.getBoundingClientRect();
+        const pill = row.querySelector('.kr-status-cell .sel-trigger')!.getBoundingClientRect();
         return {
           badgeToText: text.left - badge.right,
           textToBar: bar.left - text.right,
@@ -329,7 +330,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
     await expect(currentBox).toHaveText('1');
 
     // Focus Hours is derived — the current box locks, the target still pops
-    await row.locator('.kr-mode-select').selectOption({ label: 'Focus Hours' });
+    await row.locator('[aria-label="Key result type"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Focus Hours' }).click();
     await expect(currentBox).toHaveClass(/locked/);
     await expect(currentBox).toHaveText('0');
     await expect(targetBox).toHaveText('10');
@@ -398,8 +400,8 @@ test.describe('Objectives screen redesign (P7 revamp)', () => {
 
   test('empty cycle: EmptyState starter action opens the creation form', async ({ page }) => {
     // Switch to a fresh blank cycle (June 2026 — future + empty)
-    await page.locator('.cycle-selector-btn').click();
-    await page.locator('button:has-text("New blank cycle")').click();
+    await page.locator('[aria-label="Cycle"]').click();
+    await page.locator('.sel-panel .sel-row.sel-action', { hasText: 'New blank cycle' }).click();
     await expect(page.locator('.empty-state')).toBeVisible();
     await page.locator('.empty-state button', { hasText: 'New objective' }).click();
     await expect(page.locator('.okr-new-obj-form')).toBeVisible();

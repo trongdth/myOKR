@@ -1,4 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+/** Open the header cycle Select (custom-select ticket 04). */
+async function openCycleMenu(page: Page) {
+  const trigger = page.locator('[aria-label="Cycle"]');
+  await trigger.click();
+  const panel = page.locator('.sel-panel');
+  await expect(panel).toBeVisible();
+  return { trigger, panel };
+}
 
 test.describe('Clone cycle', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,15 +23,15 @@ test.describe('Clone cycle', () => {
     await page.locator('button[title="Objectives"]').click();
 
     // Source cycle is the seeded May 2026 with overall progress 38%
-    await expect(page.locator('.cycle-selector-btn')).toContainText('May 2026');
+    const { trigger, panel } = await openCycleMenu(page);
+    await expect(trigger).toContainText('May 2026');
     await expect(page.locator('.okr-overall-text')).toHaveText('38%');
 
-    // Open dropdown and clone
-    await page.locator('.cycle-selector-btn').click();
-    await page.locator('button:has-text("Clone this cycle")').click();
+    // Clone via the footer action
+    await panel.locator('.sel-row.sel-action', { hasText: 'Clone this cycle' }).click();
 
     // New cycle is auto-selected (June 2026 — month after May)
-    await expect(page.locator('.cycle-selector-btn')).toContainText('June 2026');
+    await expect(trigger).toContainText('June 2026');
 
     // Objective titles cloned (visible at the collapsed header level)
     await expect(page.getByText('Ship myOKR v2.0')).toBeVisible();
@@ -33,37 +42,39 @@ test.describe('Clone cycle', () => {
     await expect(page.locator('.okr-overall-text')).toHaveText('0%');
 
     // Switch back to source — progress is still intact (history not mutated)
-    await page.locator('.cycle-selector-btn').click();
-    await page.locator('.cycle-dropdown-item:has-text("May 2026")').click();
+    await openCycleMenu(page);
+    await page.locator('.sel-panel .sel-row', { hasText: 'May 2026' }).click();
     await expect(page.locator('.okr-overall-text')).toHaveText('38%');
   });
 
   test('future + empty cycle can be deleted; current cycle cannot', async ({ page }) => {
     await page.locator('button[title="Plan"]').click();
     await page.locator('button[title="Objectives"]').click();
-    await expect(page.locator('.cycle-selector-btn')).toContainText('May 2026');
+    const { trigger } = await openCycleMenu(page);
+    await expect(trigger).toContainText('May 2026');
 
     // Current month (May 2026) is not deletable — no × button on its row
-    await page.locator('.cycle-selector-btn').click();
-    const mayRow = page.locator('.cycle-dropdown-row', { hasText: 'May 2026' });
-    await expect(mayRow.locator('.cycle-dropdown-delete')).toHaveCount(0);
+    const mayRow = page.locator('.sel-panel .sel-row', { hasText: 'May 2026' });
+    await mayRow.hover();
+    await expect(mayRow.locator('.sel-remove')).toHaveCount(0);
 
     // Create a future blank cycle (June 2026)
-    await page.locator('button:has-text("New blank cycle")').click();
-    await expect(page.locator('.cycle-selector-btn')).toContainText('June 2026');
+    await page.locator('.sel-panel .sel-row.sel-action', { hasText: 'New blank cycle' }).click();
+    await expect(trigger).toContainText('June 2026');
 
     // June is future + empty — × button is present
-    await page.locator('.cycle-selector-btn').click();
-    const juneRow = page.locator('.cycle-dropdown-row', { hasText: 'June 2026' });
-    await expect(juneRow.locator('.cycle-dropdown-delete')).toBeVisible();
+    await openCycleMenu(page);
+    const juneRow = page.locator('.sel-panel .sel-row', { hasText: 'June 2026' });
+    await juneRow.hover();
+    await expect(juneRow.locator('.sel-remove')).toBeVisible();
 
     // Delete June via confirm
-    await juneRow.locator('.cycle-dropdown-delete').click();
+    await juneRow.locator('.sel-remove').click();
     await page.locator('button:has-text("Delete")').click();
 
-    // Active falls back to May 2026; June no longer in dropdown
-    await expect(page.locator('.cycle-selector-btn')).toContainText('May 2026');
-    await page.locator('.cycle-selector-btn').click();
-    await expect(page.locator('.cycle-dropdown-row', { hasText: 'June 2026' })).toHaveCount(0);
+    // Active falls back to May 2026; June no longer in the menu
+    await expect(trigger).toContainText('May 2026');
+    await openCycleMenu(page);
+    await expect(page.locator('.sel-panel .sel-row', { hasText: 'June 2026' })).toHaveCount(0);
   });
 });
