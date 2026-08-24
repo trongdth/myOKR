@@ -33,6 +33,19 @@ export const BUCKET_OPTIONS: SelectOption<TaskBucket>[] =
 
 /** KR options; with `tasks`, each row carries its open-linked-task count
  * (ticket 07 — hidden on the chosen row, where the tick wins). */
+/** List-view toolbar selectors (ticket 02). */
+export const GROUP_BY_OPTIONS = [
+  { value: 'bucket' as const, label: 'Bucket' },
+  { value: 'keyResult' as const, label: 'Key result' },
+  { value: 'priority' as const, label: 'Priority' },
+];
+
+export const SORT_BY_OPTIONS = [
+  { value: 'priority' as const, label: 'Priority' },
+  { value: 'due' as const, label: 'Due date' },
+  { value: 'pomos' as const, label: 'Pomodoros' },
+];
+
 export const krOptions = (keyResults: KeyResult[], tasks?: PomodoroTask[]): SelectOption<string>[] =>
   keyResults.map(kr => ({
     value: kr.id,

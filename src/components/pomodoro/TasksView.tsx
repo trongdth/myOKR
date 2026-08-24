@@ -7,7 +7,7 @@ import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
-import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions, BUCKET_LABELS } from './taskSelectOptions';
+import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions, BUCKET_LABELS, GROUP_BY_OPTIONS, SORT_BY_OPTIONS } from './taskSelectOptions';
 
 export type ViewMode = 'board' | 'list';
 
@@ -33,18 +33,6 @@ interface Props {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const GROUP_BY_OPTIONS = [
-  { value: 'bucket' as GroupBy, label: 'Bucket' },
-  { value: 'keyResult' as GroupBy, label: 'Key result' },
-  { value: 'priority' as GroupBy, label: 'Priority' },
-];
-
-const SORT_BY_OPTIONS = [
-  { value: 'priority' as SortBy, label: 'Priority' },
-  { value: 'due' as SortBy, label: 'Due date' },
-  { value: 'pomos' as SortBy, label: 'Pomodoros' },
-];
 
 function formatDueLabel(dueDate: string | undefined): { label: string; overdue: boolean } | null {
   if (!dueDate) return null;

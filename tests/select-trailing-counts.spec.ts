@@ -42,21 +42,28 @@ test.describe('Trailing counts', () => {
     const krFilter = page.locator('.done-filters-row [aria-label="Key result filter"]');
     await krFilter.click();
     const panel = page.locator('.sel-panel');
+    // 'all' is the initially chosen row, so its own total hides behind the
+    // tick — the per-KR rows carry their counts from the start
     await expect(panel.locator('.sel-row', { hasText: 'Counts KR One' }).locator('.sel-trailing')).toHaveText('2');
     await expect(panel.locator('.sel-row', { hasText: 'Counts KR Two' }).locator('.sel-trailing')).toHaveText('1');
-    await expect(panel.locator('.sel-row', { hasText: 'All key results' }).locator('.sel-trailing')).toHaveCount(0); // sentinel carries no count
 
-    // Choosing a KR hides its count behind the tick
+    // Choosing a KR hides its count behind the tick — and reveals the
+    // All row's base total (PR #83 review: the All rows carry totals too)
     await panel.locator('.sel-row', { hasText: 'Counts KR One' }).click();
     await krFilter.click();
     await expect(panel.locator('.sel-chosen').locator('.sel-trailing')).toHaveCount(0);
     await expect(panel.locator('.sel-chosen')).toHaveText(/Counts KR One/);
+    await expect(panel.locator('.sel-row', { hasText: 'All key results' }).locator('.sel-trailing')).toHaveText('3');
     await page.keyboard.press('Escape');
 
     const priorityFilter = page.locator('.done-filters-row [aria-label="Priority filter"]');
     await priorityFilter.click();
     await expect(panel.locator('.sel-row', { hasText: 'Do' }).locator('.sel-trailing')).toHaveText('2');
     await expect(panel.locator('.sel-row', { hasText: 'Decide' }).locator('.sel-trailing')).toHaveText('1');
+    // Same flip for the priority All row
+    await panel.locator('.sel-row', { hasText: 'Do' }).click();
+    await priorityFilter.click();
+    await expect(panel.locator('.sel-row', { hasText: 'All priorities' }).locator('.sel-trailing')).toHaveText('3');
   });
 
   test('KR pickers show open-linked-task counts and update after completion', async ({ page }) => {

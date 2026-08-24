@@ -77,6 +77,24 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
       .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime());
   }, [tasks, weekOnly, weekStart, krFilter, priorityFilter]);
 
+  // Filter rows with per-value trailing counts (ticket 07). Each count is
+  // what choosing that row would show — including the All rows' totals.
+  const krFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All key results', trailing: String(filterCountBase.length) },
+    ...krOptions(keyResults).map(opt => ({
+      ...opt,
+      trailing: String(filterCountBase.filter(t => t.keyResultId === opt.value).length),
+    })),
+  ], [keyResults, filterCountBase]);
+
+  const priorityFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All priorities', trailing: String(filterCountBase.length) },
+    ...PRIORITY_OPTIONS.map(opt => ({
+      ...opt,
+      trailing: String(filterCountBase.filter(t => (t.category || 'do') === opt.value).length),
+    })),
+  ], [filterCountBase]);
+
   const totalSpentPomos = useMemo(() => {
     return completedTasks.reduce((sum, t) => sum + (t.completedPomodoros || 0), 0);
   }, [completedTasks]);
@@ -155,25 +173,13 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
           This week
         </button>
         <Select
-          options={[
-            { value: 'all', label: 'All key results' },
-            ...krOptions(keyResults).map(opt => ({
-              ...opt,
-              trailing: String(filterCountBase.filter(t => t.keyResultId === opt.value).length),
-            })),
-          ]}
+          options={krFilterOptions}
           value={krFilter}
           onChange={setKrFilter}
           ariaLabel="Key result filter"
         />
         <Select
-          options={[
-            { value: 'all', label: 'All priorities' },
-            ...PRIORITY_OPTIONS.map(opt => ({
-              ...opt,
-              trailing: String(filterCountBase.filter(t => (t.category || 'do') === opt.value).length),
-            })),
-          ]}
+          options={priorityFilterOptions}
           value={priorityFilter}
           onChange={setPriorityFilter}
           ariaLabel="Priority filter"
