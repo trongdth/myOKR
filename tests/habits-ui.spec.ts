@@ -53,11 +53,12 @@ test.describe('Habits Tracker UI', () => {
     await expect(futureCell).toBeDisabled();
     await expect(row.locator('.habit-cell.future')).toHaveCount(4);
 
-    // Update status via the hover-revealed select
+    // Update status via the hover-revealed Select
     await row.hover();
-    const statusSelect = row.locator('.habit-status-select');
-    await statusSelect.selectOption('formed');
-    await expect(statusSelect).toHaveValue('formed');
+    const statusSelect = row.locator('[aria-label^="Status of"]');
+    await statusSelect.click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'Formed' }).click();
+    await expect(statusSelect).toContainText('Formed');
     await expect(row.locator('.habit-name')).toBeVisible(); // no formed-section hiding anymore
 
     // Delete with confirmation

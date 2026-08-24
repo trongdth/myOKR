@@ -56,6 +56,21 @@ async function navMobile(page: Page, label: string) {
 // DESKTOP TESTS
 // ==========================================
 
+/** Open the Review week Select and pick the first fully-past week (custom-select). */
+async function pickFirstPastWeek(page: Page) {
+  const weekSelect = page.locator('[aria-label="Review week"]');
+  await weekSelect.click();
+  const weekRows = page.locator('.sel-panel .sel-row');
+  const weekTexts = await weekRows.allTextContents();
+  // Local date, matching the app's week logic (UTC drift near midnight would
+  // misclassify the current week)
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const pastWeek = weekTexts.find((t) => t.split(' to ')[1].trim() <= todayStr);
+  expect(pastWeek).toBeTruthy();
+  await weekRows.filter({ hasText: pastWeek! }).first().click();
+}
+
 test.describe('Desktop: OKR Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await waitForApp(page);
@@ -181,28 +196,7 @@ test.describe('Desktop: Review Workflow', () => {
   });
 
   test('complete review wizard', async ({ page }) => {
-    // Select the first past week option that is not in progress
-    const select = page.locator('#week-select');
-    await select.evaluate((el: HTMLSelectElement) => {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const todayStr = `${yyyy}-${mm}-${dd}`;
-
-      for (let i = 0; i < el.options.length; i++) {
-        const option = el.options[i];
-        const monday = option.value;
-        const d = new Date(monday);
-        d.setUTCDate(d.getUTCDate() + 6);
-        const sundayStr = d.toISOString().slice(0, 10);
-        if (sundayStr <= todayStr) {
-          el.selectedIndex = i;
-          el.dispatchEvent(new Event('change'));
-          break;
-        }
-      }
-    });
+    await pickFirstPastWeek(page);
 
     // Start review
     await page.locator('button:has-text("Start Weekly Review")').click();
@@ -285,28 +279,7 @@ test.describe('Mobile: Core Workflows', () => {
     await navMobile(page, 'Review');
     await expect(page.locator('.review-header-title')).toBeVisible();
 
-    // Select the first past week option that is not in progress
-    const select = page.locator('#week-select');
-    await select.evaluate((el: HTMLSelectElement) => {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const todayStr = `${yyyy}-${mm}-${dd}`;
-
-      for (let i = 0; i < el.options.length; i++) {
-        const option = el.options[i];
-        const monday = option.value;
-        const d = new Date(monday);
-        d.setUTCDate(d.getUTCDate() + 6);
-        const sundayStr = d.toISOString().slice(0, 10);
-        if (sundayStr <= todayStr) {
-          el.selectedIndex = i;
-          el.dispatchEvent(new Event('change'));
-          break;
-        }
-      }
-    });
+    await pickFirstPastWeek(page);
 
     await page.locator('button:has-text("Start Weekly Review")').click();
 

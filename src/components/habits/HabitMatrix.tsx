@@ -8,6 +8,7 @@ import {
 } from '../../lib/habit-storage';
 import { getLocalDateString } from '../../lib/pomodoro-storage';
 import { habitAccentClass } from './habit-accent';
+import { Select, type SelectOption } from '../shared/Select';
 
 /** Monday-start weeks whose Monday..Sunday window overlaps `monthKey` ('YYYY-MM-01'). */
 function getMonthWeekStarts(monthKey: string): string[] {
@@ -31,6 +32,12 @@ interface HabitMatrixProps {
   onUpdateStatus: (habitId: string, status: HabitStatus) => void;
   onDelete: (habitId: string) => void;
 }
+
+const HABIT_STATUS_OPTIONS: SelectOption<HabitStatus>[] = [
+  { value: 'want_to_form', label: 'Want to form' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'formed', label: 'Formed' },
+];
 
 /**
  * The weekly completion matrix — HABIT | Mon..Sun | STREAK. Always shows the
@@ -99,16 +106,12 @@ export default function HabitMatrix({
                     <span className="habit-sub">Every day</span>
                   </span>
                   <span className="habit-row-actions">
-                    <select
-                      className="habit-status-select"
+                    <Select
+                      options={HABIT_STATUS_OPTIONS}
                       value={row.status}
-                      aria-label={`Status of ${row.name}`}
-                      onChange={(e) => onUpdateStatus(row.habitId, e.target.value as HabitStatus)}
-                    >
-                      <option value="want_to_form">Want to form</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="formed">Formed</option>
-                    </select>
+                      ariaLabel={`Status of ${row.name}`}
+                      onChange={(status) => onUpdateStatus(row.habitId, status)}
+                    />
                     <button
                       type="button"
                       className="habit-delete-btn"

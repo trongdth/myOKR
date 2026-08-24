@@ -118,10 +118,11 @@ test.describe('Weekly Review Calculations & Repair', () => {
     });
 
     // Wait for the UI to reload and show the June 2026 cycle in the header
-    await expect(page.locator('.review-header #cycle-select')).toHaveValue('cycle-test', { timeout: 10000 });
+    await expect(page.locator('[aria-label="Cycle"]')).toContainText('June 2026', { timeout: 10000 });
 
     // Select Week 1: June 1st to June 7th
-    await page.locator('#week-select').selectOption({ label: '2026-06-01 to 2026-06-07' });
+    await page.locator('[aria-label="Review week"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: '2026-06-01 to 2026-06-07' }).click();
 
     // Start Week 1 Review
     await page.locator('button:has-text("Start Weekly Review")').click();
@@ -147,7 +148,8 @@ test.describe('Weekly Review Calculations & Repair', () => {
     await expect(page.locator('text=This week\'s review is complete!')).toBeVisible();
 
     // Now select Week 2: June 8th to June 14th
-    await page.locator('#week-select').selectOption({ label: '2026-06-08 to 2026-06-14' });
+    await page.locator('[aria-label="Review week"]').click();
+    await page.locator('.sel-panel .sel-row', { hasText: '2026-06-08 to 2026-06-14' }).click();
 
     // Start Week 2 Review
     await page.locator('button:has-text("Start Weekly Review")').click();
