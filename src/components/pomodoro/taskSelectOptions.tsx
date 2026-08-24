@@ -5,7 +5,9 @@ import { EISENHOWER_META, EISENHOWER_PRIORITY_ORDER, TASK_BUCKETS } from '../../
 import type { KeyResult } from '../../lib/okr-storage';
 import type { SelectOption } from '../shared/Select';
 
-/** Option builders for the Tasks-screen Selects (ticket 02, custom-select). */
+/** Option sets for the Tasks-screen Selects (tickets 02/03, custom-select).
+ * The static sets are module constants so list rows share one array instead
+ * of rebuilding options (and their icon JSX) on every render. */
 
 export const BUCKET_LABELS: Record<TaskBucket, string> = {
   today: 'Today',
@@ -19,14 +21,14 @@ const BUCKET_ICONS: Record<TaskBucket, ReactNode> = {
   backlog: <Inbox size={14} />,
 };
 
-export const priorityOptions = (): SelectOption<EisenhowerCategory>[] =>
+export const PRIORITY_OPTIONS: SelectOption<EisenhowerCategory>[] =
   EISENHOWER_PRIORITY_ORDER.map(cat => ({
     value: cat,
     label: EISENHOWER_META[cat].label,
     icon: <span className="sel-priority-dot" style={{ background: EISENHOWER_META[cat].color }} />,
   }));
 
-export const bucketOptions = (): SelectOption<TaskBucket>[] =>
+export const BUCKET_OPTIONS: SelectOption<TaskBucket>[] =
   TASK_BUCKETS.map(b => ({ value: b, label: BUCKET_LABELS[b], icon: BUCKET_ICONS[b] }));
 
 export const krOptions = (keyResults: KeyResult[]): SelectOption<string>[] =>

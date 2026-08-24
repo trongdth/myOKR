@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarCheck, CalendarRange, ClipboardList, Inbox, Plus, Timer, TrendingUp } from 'lucide-react';
 import { Select, type SelectOption } from '../shared/Select';
-import { priorityOptions } from '../pomodoro/taskSelectOptions';
+import { PRIORITY_OPTIONS } from '../pomodoro/taskSelectOptions';
 import '../../styles/select-fixture.css';
 
 type Bucket = 'today' | 'week' | 'backlog';
@@ -22,6 +22,22 @@ const MODE_OPTIONS: SelectOption<string>[] = [
   { value: 'manual', label: 'Manual', icon: <ClipboardList size={14} /> },
   { value: 'focus', label: 'Focus hours', icon: <Timer size={14} /> },
   { value: 'pomo', label: 'Pomodoros', icon: <TrendingUp size={14} /> },
+];
+
+// Static so the disabled demo stays self-contained (PR #79 feedback: it must
+// not share state with the remove-rows section above).
+const DISABLED_CYCLE_OPTIONS: SelectOption<string>[] = [
+  { value: 'May cycle', label: 'May cycle' },
+  { value: 'June cycle', label: 'June cycle' },
+  { value: 'July cycle', label: 'July cycle' },
+];
+
+// Key/id edge cases (PR #79 feedback): values that collide with the reserved
+// clear-row key, and values that sanitize to the same DOM id.
+const EDGE_OPTIONS: SelectOption<string>[] = [
+  { value: 'clear', label: 'Clear me too' },
+  { value: 'a_b', label: 'Underscore value' },
+  { value: 'a b', label: 'Spaced value' },
 ];
 
 const LONG_OPTIONS: SelectOption<number>[] = Array.from({ length: 25 }, (_, i) => ({
@@ -52,6 +68,7 @@ export function SelectFixture() {
   const [cycle, setCycle] = useState('July cycle');
   const [cycles, setCycles] = useState(['May cycle', 'June cycle', 'July cycle']);
   const [disabledChosen, setDisabledChosen] = useState('b');
+  const [edgeValue, setEdgeValue] = useState('a_b');
   const [actionLog, setActionLog] = useState<string[]>([]);
   const [modalBucket, setModalBucket] = useState<Bucket>('today');
   const [showModal, setShowModal] = useState(false);
@@ -79,7 +96,7 @@ export function SelectFixture() {
 
       <section className="fx-section" data-fx="priority">
         <h2 className="fx-heading">Priority dots</h2>
-        <Select options={priorityOptions()} value={priority} onChange={setPriority} ariaLabel="Priority" />
+        <Select options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} ariaLabel="Priority" />
       </section>
 
       <section className="fx-section" data-fx="habit">
@@ -128,7 +145,19 @@ export function SelectFixture() {
 
       <section className="fx-section" data-fx="disabled">
         <h2 className="fx-heading">Disabled</h2>
-        <Select options={cycles.map((c) => ({ value: c, label: c }))} value={cycle} onChange={setCycle} disabled ariaLabel="Disabled cycle" />
+        <Select options={DISABLED_CYCLE_OPTIONS} value={DISABLED_CYCLE_OPTIONS[2].value} onChange={() => {}} disabled ariaLabel="Disabled cycle" />
+      </section>
+
+      <section className="fx-section" data-fx="edge">
+        <h2 className="fx-heading">Key edge cases</h2>
+        <Select
+          options={EDGE_OPTIONS}
+          value={edgeValue}
+          onChange={setEdgeValue}
+          onClear={() => setEdgeValue('a_b')}
+          clearLabel="None"
+          ariaLabel="Edge cases"
+        />
       </section>
 
       <section className="fx-section" data-fx="disabled-chosen">
@@ -153,7 +182,7 @@ export function SelectFixture() {
       <section className="fx-section" data-fx="bare">
         <h2 className="fx-heading">Bare variants</h2>
         <Select options={MODE_OPTIONS} value={mode} onChange={setMode} variant="bare" ariaLabel="KR mode" />
-        <Select options={priorityOptions()} value={dotOnly} onChange={setDotOnly} variant="bare" hideTriggerLabel ariaLabel="Priority dot" />
+        <Select options={PRIORITY_OPTIONS} value={dotOnly} onChange={setDotOnly} variant="bare" hideTriggerLabel ariaLabel="Priority dot" />
       </section>
 
       <section className="fx-section" data-fx="modal">

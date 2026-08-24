@@ -4,6 +4,7 @@ import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
+import { Select } from '../shared/Select';
 
 export type SearchScope = 'everything' | 'open' | 'completed' | 'subtasks' | 'notes';
 
@@ -158,18 +159,15 @@ export default function CommandKModal({
 
           {cycles.length > 0 && (
             <div className="command-k-cycle-filter">
-              <select
+              <Select
+                options={[
+                  { value: 'all', label: 'All Cycles' },
+                  ...cycles.map(c => ({ value: c.id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` })),
+                ]}
                 value={selectedCycleId}
-                onChange={e => setSelectedCycleId(e.target.value)}
-                className="command-k-cycle-select"
-              >
-                <option value="all">All Cycles</option>
-                {cycles.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.isActive ? '(Active)' : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedCycleId}
+                ariaLabel="Cycle filter"
+              />
             </div>
           )}
         </div>
