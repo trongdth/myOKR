@@ -223,6 +223,7 @@ export default function PomodoroApp({
       {selectedDetailTask && (
         <TaskDetailModal
           task={selectedDetailTask}
+          tasks={tasks}
           onUpdate={(updated) => {
             const newTasks = tasks.map(t => t.id === updated.id ? updated : t);
             handleTasksChange(newTasks);

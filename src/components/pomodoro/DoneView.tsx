@@ -59,6 +59,15 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
   // counts, the completed-today strip and the SERVING strip as cycle-scoped) —
   // it is the audit of everything finished, day-grouped. Only the strip
   // counts above use in-cycle membership.
+  // Count base for the filter rows' trailing hints (ticket 07): completed
+  // tasks after the week toggle, BEFORE the KR/priority filters — the count
+  // is what choosing that row would show.
+  const filterCountBase = useMemo(() => {
+    return tasks
+      .filter(t => t.isCompleted)
+      .filter(t => !weekOnly || (t.completedAt || t.createdAt).slice(0, 10) >= weekStart);
+  }, [tasks, weekOnly, weekStart]);
+
   const completedTasks = useMemo(() => {
     return tasks
       .filter(t => t.isCompleted)
@@ -146,13 +155,25 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
           This week
         </button>
         <Select
-          options={[{ value: 'all', label: 'All key results' }, ...krOptions(keyResults)]}
+          options={[
+            { value: 'all', label: 'All key results' },
+            ...krOptions(keyResults).map(opt => ({
+              ...opt,
+              trailing: String(filterCountBase.filter(t => t.keyResultId === opt.value).length),
+            })),
+          ]}
           value={krFilter}
           onChange={setKrFilter}
           ariaLabel="Key result filter"
         />
         <Select
-          options={[{ value: 'all', label: 'All priorities' }, ...PRIORITY_OPTIONS]}
+          options={[
+            { value: 'all', label: 'All priorities' },
+            ...PRIORITY_OPTIONS.map(opt => ({
+              ...opt,
+              trailing: String(filterCountBase.filter(t => (t.category || 'do') === opt.value).length),
+            })),
+          ]}
           value={priorityFilter}
           onChange={setPriorityFilter}
           ariaLabel="Priority filter"

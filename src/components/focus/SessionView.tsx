@@ -201,6 +201,7 @@ export default function SessionView({
       {selectedDetailTask && (
         <TaskDetailModal
           task={selectedDetailTask}
+          tasks={tasks}
           onUpdate={(updated) => {
             handleTasksChange(tasks.map(t => t.id === updated.id ? updated : t));
             setSelectedDetailTask(updated);

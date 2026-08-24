@@ -1,7 +1,7 @@
 import { CalendarCheck, CalendarRange, Inbox } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
-import { EISENHOWER_META, EISENHOWER_PRIORITY_ORDER, TASK_BUCKETS } from '../../lib/pomodoro-storage';
+import { EISENHOWER_META, EISENHOWER_PRIORITY_ORDER, TASK_BUCKETS, type PomodoroTask } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import type { SelectOption } from '../shared/Select';
 
@@ -31,5 +31,12 @@ export const PRIORITY_OPTIONS: SelectOption<EisenhowerCategory>[] =
 export const BUCKET_OPTIONS: SelectOption<TaskBucket>[] =
   TASK_BUCKETS.map(b => ({ value: b, label: BUCKET_LABELS[b], icon: BUCKET_ICONS[b] }));
 
-export const krOptions = (keyResults: KeyResult[]): SelectOption<string>[] =>
-  keyResults.map(kr => ({ value: kr.id, label: kr.title, icon: <span className="sel-kr-swatch" /> }));
+/** KR options; with `tasks`, each row carries its open-linked-task count
+ * (ticket 07 — hidden on the chosen row, where the tick wins). */
+export const krOptions = (keyResults: KeyResult[], tasks?: PomodoroTask[]): SelectOption<string>[] =>
+  keyResults.map(kr => ({
+    value: kr.id,
+    label: kr.title,
+    icon: <span className="sel-kr-swatch" />,
+    trailing: tasks ? String(tasks.filter(t => !t.isCompleted && t.keyResultId === kr.id).length) : undefined,
+  }));

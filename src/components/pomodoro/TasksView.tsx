@@ -128,7 +128,7 @@ export default function TasksView({
   );
 
   // KR options are static between keyResults changes — build once, not per row.
-  const krOpts = useMemo(() => krOptions(keyResults), [keyResults]);
+  const krOpts = useMemo(() => krOptions(keyResults, tasks), [keyResults, tasks]);
 
   const inCycle = useMemo(() => {
     const map = krCycleMap;
