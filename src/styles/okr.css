@@ -3,13 +3,6 @@
   Dark Techy Theme — matching global.css design tokens
 */
 
-/* Local copy of the entrance animation — okr.css must not depend on
-   pomodoro.css happening to define it (PR #76) */
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* ===== OKR CONTAINER =====
    Matches .tasks-view-container / .done-view-container so the three Plan-group
    screens (Tasks, Objectives, Done) share the same content width and left/right/
@@ -954,13 +947,6 @@
 }
 
 @media (max-width: 768px) {
-  .cycle-dropdown {
-    right: 0;
-    left: auto;
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-  }
-
   .kr-value-popover {
     left: 0;
     max-height: calc(100vh - 200px);
@@ -1076,23 +1062,6 @@
   white-space: nowrap;
 }
 .okr-new-objective-btn:hover { filter: brightness(1.08); }
-
-/* --- P7: KR confidence pill (replaces bare dot) --- */
-.kr-confidence-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  min-width: 5.5rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
 
 /* Confidence picker (bare Select) — fixed width keeps the old pill's
    equal-width design pin (P7 UI polish) intact */
