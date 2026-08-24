@@ -19,6 +19,7 @@ const ReviewApp = lazy(() => import('./components/ReviewApp'));
 const SettingsApp = lazy(() => import('./components/SettingsApp'));
 const HelpApp = lazy(() => import('./components/HelpApp'));
 const Walkthrough = lazy(() => import('./components/Walkthrough'));
+const SelectFixture = lazy(() => import('./components/dev/SelectFixture'));
 
 export type Section =
   | 'day-plan'
@@ -267,6 +268,16 @@ export default function App() {
     localStorage.setItem('myokr_active_section', 'session');
     setSidebarOpen(false);
   };
+
+  // Dev-only component fixture page for the Playwright suite (?fixture=select).
+  // import.meta.env.DEV is statically false in prod builds, so this never ships.
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'select') {
+    return (
+      <Suspense fallback={null}>
+        <SelectFixture />
+      </Suspense>
+    );
+  }
 
   return (
     <>

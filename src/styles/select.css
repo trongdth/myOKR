@@ -1,0 +1,283 @@
+/* Select — the app's single menu component (boxed + bare variants).
+   Spec: .scratch/custom-select/spec.md · tokens: --menu-* in global.css.
+   Raw hex lives only in the token block; use tokens and color-mix here. */
+
+/* ---- Trigger ---- */
+
+.sel-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--text-primary);
+  cursor: pointer;
+  max-width: 252px; /* 220px text cap + paddings/icon/chevron */
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.sel-trigger.boxed {
+  background: var(--menu-bg-rest);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+.sel-trigger.boxed:hover:not(:disabled):not(.sel-open) {
+  background: var(--menu-bg-hover);
+  border-color: color-mix(in srgb, var(--text-primary) 16%, transparent);
+}
+
+.sel-trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Pressed and open are one state — held for as long as the menu is open. */
+.sel-trigger.boxed.sel-open,
+.sel-trigger.boxed:active:not(:disabled) {
+  background: var(--menu-bg-open);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+.sel-trigger:focus {
+  outline: none;
+}
+
+.sel-trigger.boxed:focus-visible:not(.sel-open) {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+.sel-trigger.bare:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+.sel-chevron {
+  flex-shrink: 0;
+  color: var(--menu-chevron-rest);
+  transition: transform var(--transition-fast), color 120ms ease;
+}
+
+.sel-trigger.boxed:hover:not(:disabled) .sel-chevron,
+.sel-trigger.boxed.sel-open .sel-chevron {
+  color: var(--menu-chevron-hover);
+}
+
+.sel-open .sel-chevron {
+  transform: rotate(180deg);
+}
+
+.sel-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sel-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.sel-placeholder {
+  color: var(--menu-placeholder);
+}
+
+/* Bare variant: compact badge/dot trigger — the badge is the affordance, so
+   no chevron and no box; everything underneath (panel, ring, keyboard) is
+   the same system. */
+
+.sel-trigger.bare {
+  background: transparent;
+  border: none;
+  height: auto;
+  min-height: 24px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  max-width: none;
+}
+
+.sel-trigger.bare:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+
+.sel-trigger.bare.sel-open {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+/* ---- Panel ---- */
+
+.sel-panel {
+  position: fixed;
+  z-index: 1100; /* above the app's modal layer (1000) */
+  max-width: 280px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: var(--shadow-card);
+  animation: sel-slide-down 150ms ease;
+}
+
+@keyframes sel-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* ~5 visible rows: 5 × 34px + 4 × 1px gaps + slack for the scrollbar */
+  max-height: 184px;
+  overflow-y: auto;
+}
+
+.sel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sel-row:hover,
+.sel-row.sel-active {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: var(--text-primary);
+}
+
+.sel-row.sel-chosen {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--text-primary);
+}
+
+.sel-row.sel-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sel-row.sel-disabled:hover {
+  background: transparent;
+}
+
+.sel-row-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sel-tick {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.sel-trailing {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--menu-hint);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.sel-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.sel-row:hover .sel-remove,
+.sel-row.sel-active .sel-remove {
+  opacity: 1;
+}
+
+.sel-remove:hover {
+  color: var(--color-risk);
+  background: color-mix(in srgb, var(--color-risk) 12%, transparent);
+}
+
+.sel-row.sel-empty {
+  color: var(--menu-hint);
+  cursor: default;
+}
+
+/* Footer zone: clear row first, then action rows — below a divider. */
+
+.sel-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sel-footer .sel-row {
+  color: var(--text-secondary);
+}
+
+.sel-clear-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.sel-dash {
+  width: 12px;
+  height: 12px;
+  border: 1px dashed var(--menu-hint);
+  border-radius: 3px;
+}
+
+/* Touch rule (design-system.md): 40px tap targets below 900px, and the
+   hover-revealed remove × becomes always visible — no hover on touch. */
+
+@media (max-width: 900px) {
+  .sel-trigger {
+    height: 40px;
+  }
+
+  .sel-trigger.bare {
+    min-height: 40px;
+  }
+
+  .sel-remove {
+    opacity: 1;
+  }
+}

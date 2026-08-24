@@ -89,6 +89,16 @@
   /* Additional accents */
   --accent-emerald: #10b981;
   --accent-orange: #f97316; /* habit derived-accent palette (tracker); see design-system.md */
+
+  /* Menu component (Select) — .scratch/custom-select/spec.md. The only place
+     these raw hex values live; screen CSS references the tokens. */
+  --menu-bg-rest: #12161d;
+  --menu-bg-hover: #171d26;
+  --menu-bg-open: #0a0d12;
+  --menu-chevron-rest: #727c8c;
+  --menu-chevron-hover: #b7bfcc;
+  --menu-placeholder: #8a93a3;
+  --menu-hint: #5a6474;
 }
 
 /* Base styles */
