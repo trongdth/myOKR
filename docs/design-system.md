@@ -524,8 +524,9 @@ identically; there is no separate long-break case.
 - **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
   Done N` with the count badge styling, and the cycle·week slot on the right —
   static `May cycle · week 4 of 5` text elsewhere, the week-filter Select on
-  Tasks (2026-08-27: the strip bottom-aligns its children so that picker rests
-  on the tab underline instead of looming over / dipping below the label band).
+  Tasks (2026-08-27: the strip bottom-aligns its children, and the picker's
+  `margin-bottom` holds it fully **clear of the strip's border-bottom rule** —
+  the pill is translucent, so a flush resting line would graze through it).
   N = open tasks / objectives / completed tasks **in this cycle**
   (ADR-0012 rule; unlinked tasks always count).
 - **SERVING strip**: the active cycle's *objectives* with progress bars (violet

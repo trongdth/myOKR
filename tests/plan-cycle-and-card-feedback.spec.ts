@@ -24,29 +24,35 @@ async function openTasksBoard(page: Page) {
 test.describe('Plan cycle-week picker alignment', () => {
   test.beforeEach(async ({ page }) => openTasksBoard(page));
 
-  test('the week picker sits inside the tab band, resting on the tab underline', async ({ page }) => {
+  test('the week picker floats clear of the tab strip rule', async ({ page }) => {
+    // 2026-08-27 follow-up: resting flush on the border made the rule graze
+    // the pill's bottom edge (its background is translucent, so the line
+    // shows through). The picker must hang fully ABOVE the strip's
+    // border-bottom with visible clearance.
     const geo = await page.evaluate(() => {
-      const rect = (sel: string) => {
-        const el = document.querySelector(sel);
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return { top: r.top, bottom: r.bottom, height: r.height };
-      };
+      const strip = document.querySelector('.plan-tab-strip')!;
+      const trigger = document.querySelector('.plan-tab-strip .sel-trigger')!;
+      const s = strip.getBoundingClientRect();
+      const t = trigger.getBoundingClientRect();
       return {
-        trigger: rect('.plan-tab-strip .sel-trigger'),
-        tab: rect('.plan-tab'),
+        borderTopEdgeY: s.bottom - parseFloat(getComputedStyle(strip).borderBottomWidth),
+        triggerTop: t.top,
+        triggerBottom: t.bottom,
+        triggerHeight: t.height,
+        stripTop: s.top,
       };
     });
 
-    expect(geo.trigger).not.toBeNull();
-    expect(geo.tab).not.toBeNull();
+    // Visible air between the pill and the rule — never touching it, so no
+    // DPR/rounding can make the line cut through the control.
+    const clearanceY = geo.borderTopEdgeY - geo.triggerBottom;
+    expect(clearanceY).toBeGreaterThanOrEqual(4);
 
-    // Bottoms meet (± rounding): the picker rests where the active-tab
-    // underline sits instead of dipping below it into the border.
-    expect(Math.abs(geo.trigger!.bottom - geo.tab!.bottom)).toBeLessThanOrEqual(2);
-    // And the pill fits the tab band vertically — no more looming over the
-    // label row.
-    expect(geo.trigger!.height).toBeLessThanOrEqual(geo.tab!.height + 2);
+    // Still compact — the height override holds (40px touch rule is ≤900px).
+    expect(geo.triggerHeight).toBeLessThanOrEqual(29);
+
+    // And the pill stays inside the strip's own box.
+    expect(geo.triggerTop).toBeGreaterThanOrEqual(geo.stripTop - 0.5);
   });
 });
 

@@ -3874,10 +3874,12 @@
 
 /* Cycle·week picker (custom-select ticket 03 — the overlay-chevron wrapper
    hack is gone; this is the shared Select now). Height matches the tab label
-   band so the pill rests on the underline instead of towering over it. */
+   band and a margin lifts it fully clear of the strip's border-bottom: its
+   translucent background would let the rule graze through otherwise. */
 .plan-tab-strip .sel-trigger {
   max-width: 210px;
   height: 28px;
+  margin-bottom: 6px;
 }
 @media (max-width: 900px) {
   .plan-tab-strip .sel-trigger { height: 40px; }
