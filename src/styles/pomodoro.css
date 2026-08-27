@@ -3290,11 +3290,6 @@
   line-height: 1.35;
 }
 
-.card-kr {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-}
-
 .card-footer {
   display: flex;
   align-items: center;
@@ -3302,19 +3297,6 @@
   font-size: 0.75rem;
   color: var(--text-muted);
   flex-wrap: wrap;
-}
-
-.card-move-wrapper {
-  margin-left: auto;
-  position: relative;
-}
-
-.card-move-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0.2rem;
 }
 
 .card-move-menu {
@@ -3843,7 +3825,10 @@
 /* --- P1 tab strip --- */
 .plan-tab-strip {
   display: flex;
-  align-items: center;
+  /* flex-end: every child rests on the bottom edge the active-tab underline
+     sits on, so the cycle·week picker can't loom over or dip below the tab
+     label band. */
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
   border-bottom: 1px solid var(--border-color);
@@ -3888,9 +3873,14 @@
 }
 
 /* Cycle·week picker (custom-select ticket 03 — the overlay-chevron wrapper
-   hack is gone; this is the shared Select now) */
+   hack is gone; this is the shared Select now). Height matches the tab label
+   band so the pill rests on the underline instead of towering over it. */
 .plan-tab-strip .sel-trigger {
   max-width: 210px;
+  height: 28px;
+}
+@media (max-width: 900px) {
+  .plan-tab-strip .sel-trigger { height: 40px; }
 }
 
 /* --- P1 SERVING strip: objectives with progress --- */
@@ -4003,11 +3993,13 @@
   flex: none;
 }
 /* --- P1 card meta pills (flagship: mockup-exact). Category = filled tint
-   pill with a colored dot; KR & due are pills, dashed when unset. --- */
+   pill with a colored dot; KR is an inline Select chip; due is a pill,
+   dashed when unset. The row cannot wrap — under width pressure only the
+   KR chip shrinks, ellipsizing its label. --- */
 .card-meta-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.4rem;
   padding-left: 1.7rem; /* align under the title, past the tick */
 }
@@ -4030,29 +4022,33 @@
   background: var(--cat-color, var(--text-muted));
   flex: none;
 }
+/* KR chip: the shared Select (bare variant) dressed as the mockup's pill —
+   filled when a KR is linked, dashed "Link a key result" when not. The chip
+   is the only shrinking child of the meta row, so long KR titles ellipsize
+   instead of wrapping or pushing the due pill out. */
 .card-kr {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.card-kr .sel-trigger.bare {
+  min-width: 0;
+  height: auto;
+  max-width: none;
   padding: 0.18rem 0.5rem;
   border-radius: 6px;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   font-size: 0.69rem;
-  /* truncate a long KR inside the bounded column track */
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 0 1 auto;
+  gap: 0;
 }
-.card-kr.is-empty {
+.card-kr.is-empty .sel-trigger.bare {
   background: transparent;
   border: 1px dashed rgba(255, 255, 255, 0.14);
   color: var(--text-muted);
-  font-weight: 400;
-  flex: none;
 }
+.card-kr.is-empty .sel-placeholder { color: var(--text-muted); }
 .card-due {
   display: inline-flex;
   align-items: center;
@@ -4074,20 +4070,27 @@
   background: color-mix(in srgb, var(--color-risk) 16%, transparent);
   color: var(--color-risk);
 }
-.card-move-wrapper { margin-left: auto; position: relative; }
-.card-move-btn {
-  display: flex;
+/* Compact bucket-dropdown icon in the title row (top-right, after the title).
+   The ADR-0010 click-select move menu opens beneath it. */
+.card-move-wrapper { position: relative; flex: none; display: inline-flex; }
+.card-bucket-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  background: none;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
   border-radius: 6px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.68rem;
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
 }
-.card-move-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.card-bucket-btn:hover,
+.card-bucket-btn[aria-expanded="true"] {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
 
 /* --- P1 completed-today strip (inside Backlog column) --- */
 .completed-today-strip {

@@ -522,8 +522,11 @@ identically; there is no separate long-break case.
   "Search ⌘K" appears on List and Done per P3/P5 — Objectives dropped its
   button in the 2026-08-19 P7 revamp below).
 - **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
-  Done N` with the count badge styling, and `May cycle · week 4 of 5` on the
-  right. N = open tasks / objectives / completed tasks **in this cycle**
+  Done N` with the count badge styling, and the cycle·week slot on the right —
+  static `May cycle · week 4 of 5` text elsewhere, the week-filter Select on
+  Tasks (2026-08-27: the strip bottom-aligns its children so that picker rests
+  on the tab underline instead of looming over / dipping below the label band).
+  N = open tasks / objectives / completed tasks **in this cycle**
   (ADR-0012 rule; unlinked tasks always count).
 - **SERVING strip**: the active cycle's *objectives* with progress bars (violet
   `--color-objective` at >0%, rose `--color-risk` at 0%) and a `0% · no tasks`
@@ -532,11 +535,17 @@ identically; there is no separate long-break case.
 - **Add-row**: `[type, then ↵ to set priority and key result] [category] [key
   result] [Add]` — **no bucket select, no due date**. New tasks land in
   **Backlog** (matches the storage default; schema rule in CONTEXT.md).
-- **Card anatomy**: `[✓ tick]` (tick = complete; same-session undo via the
-  completed strip) · title · mono `4/6` (current-position / estimated — see
-  *Pomo count display* above) · KR line ·
-  mono category · due chip (`Thu`, mono) · **dashed "Add to <bucket>" button**
-  = the move-to-bucket menu. 3px left accent stripe in the task's Eisenhower
+- **Card anatomy** (2026-08-27 rework): `[✓ tick]` (tick = complete;
+  same-session undo via the completed strip) · title · **compact
+  bucket-dropdown icon** in the top-right corner right after the title —
+  replaces the dashed "Add to <bucket>" button and opens the same ADR-0010
+  click-select move menu · mono `4/6` (current-position / estimated — see
+  *Pomo count display* above). The meta row is **one line that never wraps**:
+  mono category pill, then the **KR chip — the shared Select (bare variant)
+  dressed as a pill**, which links/unlinks inline (clicking "Link a key
+  result" opens the KR picker, never task detail) and **ellipsizes long KR
+  titles** (it is the row's only shrinking child), then the due chip (`Thu`,
+  mono). 3px left accent stripe in the task's Eisenhower
   category color (`EISENHOWER_META`, via `--today-accent`-style CSS var).
   **No focus button on cards** — focus starts from the detail modal's `Start
   focus` or ⌘K `Start`. No emoji (🎯🍅📅 → mono text / Lucide).

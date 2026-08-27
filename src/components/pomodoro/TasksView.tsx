@@ -1,12 +1,12 @@
 import { useState, useMemo, type CSSProperties } from 'react';
-import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar } from 'lucide-react';
+import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar, ChevronDown } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
 import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { navigateToSection } from '../../lib/navigation';
-import { Select } from '../shared/Select';
+import { Select, type SelectOption } from '../shared/Select';
 import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions, BUCKET_LABELS, GROUP_BY_OPTIONS, SORT_BY_OPTIONS } from './taskSelectOptions';
 
 export type ViewMode = 'board' | 'list';
@@ -172,7 +172,7 @@ export default function TasksView({
       title: newTitle.trim(),
       category: newCategory,
       // P1: new tasks land in Backlog (the storage default); promote them to
-      // Today / This week via the card's "Add to <bucket>" action.
+      // Today / This week via the card's bucket dropdown.
       bucket: 'backlog',
       keyResultId: newKrId || undefined,
       estimatedPomodoros: 1,
@@ -452,13 +452,14 @@ export default function TasksView({
                 <BoardTaskCard
                   key={task.id}
                   task={task}
-                  keyResults={keyResults}
+                  krOptions={krOpts}
                   activeFocusTaskId={activeFocusTaskId}
                   isSelectedForMove={selectedForMoveId === task.id}
                   onSelect={() => onSelectTask(task)}
                   onComplete={handleComplete}
                   onToggleMove={() => setSelectedForMoveId(selectedForMoveId === task.id ? null : task.id)}
                   onMoveBucket={(b) => handleMoveTaskBucket(task.id, b)}
+                  onSetKeyResult={(krId) => setTaskField(task.id, { keyResultId: krId || undefined })}
                 />
               ))}
             </div>
@@ -480,13 +481,14 @@ export default function TasksView({
                 <BoardTaskCard
                   key={task.id}
                   task={task}
-                  keyResults={keyResults}
+                  krOptions={krOpts}
                   activeFocusTaskId={activeFocusTaskId}
                   isSelectedForMove={selectedForMoveId === task.id}
                   onSelect={() => onSelectTask(task)}
                   onComplete={handleComplete}
                   onToggleMove={() => setSelectedForMoveId(selectedForMoveId === task.id ? null : task.id)}
                   onMoveBucket={(b) => handleMoveTaskBucket(task.id, b)}
+                  onSetKeyResult={(krId) => setTaskField(task.id, { keyResultId: krId || undefined })}
                 />
               ))}
             </div>
@@ -526,13 +528,14 @@ export default function TasksView({
                 <BoardTaskCard
                   key={task.id}
                   task={task}
-                  keyResults={keyResults}
+                  krOptions={krOpts}
                   activeFocusTaskId={activeFocusTaskId}
                   isSelectedForMove={selectedForMoveId === task.id}
                   onSelect={() => onSelectTask(task)}
                   onComplete={handleComplete}
                   onToggleMove={() => setSelectedForMoveId(selectedForMoveId === task.id ? null : task.id)}
                   onMoveBucket={(b) => handleMoveTaskBucket(task.id, b)}
+                  onSetKeyResult={(krId) => setTaskField(task.id, { keyResultId: krId || undefined })}
                 />
               ))}
             </div>
@@ -574,13 +577,14 @@ export default function TasksView({
               <BoardTaskCard
                 key={task.id}
                 task={task}
-                keyResults={keyResults}
+                krOptions={krOpts}
                 activeFocusTaskId={activeFocusTaskId}
                 isSelectedForMove={selectedForMoveId === task.id}
                 onSelect={() => onSelectTask(task)}
                 onComplete={handleComplete}
                 onToggleMove={() => setSelectedForMoveId(selectedForMoveId === task.id ? null : task.id)}
                 onMoveBucket={(b) => handleMoveTaskBucket(task.id, b)}
+                onSetKeyResult={(krId) => setTaskField(task.id, { keyResultId: krId || undefined })}
               />
             ))}
             {tasksByBucket.backlog.length === 0 && (
@@ -739,32 +743,31 @@ export default function TasksView({
   );
 }
 
-// Single Board Card Component (P1 anatomy: tick · title · pomos / KR / category · due · dashed move)
+// Single Board Card Component (P1 anatomy: tick · title · bucket dropdown · pomos / KR picker / category · due)
 function BoardTaskCard({
   task,
-  keyResults,
+  krOptions,
   isSelectedForMove,
   onSelect,
   onComplete,
   onToggleMove,
   onMoveBucket,
+  onSetKeyResult,
   activeFocusTaskId,
 }: {
   task: PomodoroTask;
-  keyResults: KeyResult[];
+  krOptions: SelectOption<string>[];
   activeFocusTaskId: string | null;
   isSelectedForMove: boolean;
   onSelect: () => void;
   onComplete: (task: PomodoroTask) => void;
   onToggleMove: () => void;
   onMoveBucket: (b: TaskBucket) => void;
+  onSetKeyResult: (krId: string | undefined) => void;
 }) {
   const meta = task.category ? EISENHOWER_META[task.category] || null : null;
-  const linkedKr = keyResults.find(k => k.id === task.keyResultId);
   const accentVar = meta?.color ?? '#6b7280';
   const due = formatDueLabel(task.dueDate);
-  // Dashed button label: "Add to <first bucket the task isn't in>" (design's per-card placement)
-  const moveTarget = TASK_BUCKETS.find(b => b !== (task.bucket || 'backlog')) || 'today';
 
   return (
     <div
@@ -780,6 +783,30 @@ function BoardTaskCard({
           aria-label={`Mark ${task.title} complete`}
         />
         <span className="card-title">{task.title}</span>
+
+        {/* Compact bucket dropdown (ADR-0010 click-select move flow lives
+            behind it) — top-right, right after the title. */}
+        <div className="card-move-wrapper" onClick={e => e.stopPropagation()}>
+          <button
+            className="card-bucket-btn"
+            onClick={onToggleMove}
+            title="Move to another bucket"
+            aria-label={`Move ${task.title} to another bucket`}
+            aria-expanded={isSelectedForMove}
+          >
+            <ChevronDown size={14} />
+          </button>
+
+          {isSelectedForMove && (
+            <div className="card-move-menu">
+              <span className="move-title">Move task to:</span>
+              <button onClick={() => onMoveBucket('today')} className="move-option">Today</button>
+              <button onClick={() => onMoveBucket('this_week')} className="move-option">This week</button>
+              <button onClick={() => onMoveBucket('backlog')} className="move-option">Backlog</button>
+            </div>
+          )}
+        </div>
+
         <span className="card-pomos">
           {displayedPomoCount(task.completedPomodoros, task.estimatedPomodoros, task.id === activeFocusTaskId)}/{task.estimatedPomodoros || 1}
         </span>
@@ -796,37 +823,26 @@ function BoardTaskCard({
           </span>
         )}
 
-        {/* KR pill: the linked KR title, or a dashed "Link a key result" prompt
-            when none is linked (matches the mockup — never blank). */}
-        <span className={`card-kr${linkedKr ? '' : ' is-empty'}`}>
-          {linkedKr ? linkedKr.title : 'Link a key result'}
-        </span>
+        {/* KR chip inline with the priority tag; clicking it opens the KR
+            picker (never the detail modal). Truncates when the title is long. */}
+        <div className={`card-kr${task.keyResultId ? '' : ' is-empty'}`} onClick={e => e.stopPropagation()}>
+          <Select
+            variant="bare"
+            options={krOptions}
+            value={task.keyResultId ?? null}
+            placeholder="Link a key result"
+            onChange={(krId) => onSetKeyResult(krId)}
+            onClear={() => onSetKeyResult(undefined)}
+            clearLabel="No key result"
+            ariaLabel={`Key result for ${task.title}`}
+          />
+        </div>
 
         {/* Due pill: the due label, or a dashed calendar "No due date" prompt. */}
         <span className={`card-due${due ? '' : ' is-empty'}${due?.overdue ? ' overdue' : ''}`}>
           <Calendar size={11} className="card-due-icon" />
           {due ? due.label : 'No due date'}
         </span>
-
-        {/* Click-to-Move Bucket Menu (ADR-0010) */}
-        <div className="card-move-wrapper" onClick={e => e.stopPropagation()}>
-          <button
-            className="card-move-btn"
-            onClick={onToggleMove}
-            title="Move to another bucket"
-          >
-            {`Add to ${BUCKET_LABELS[moveTarget]}`}
-          </button>
-
-          {isSelectedForMove && (
-            <div className="card-move-menu">
-              <span className="move-title">Move task to:</span>
-              <button onClick={() => onMoveBucket('today')} className="move-option">Today</button>
-              <button onClick={() => onMoveBucket('this_week')} className="move-option">This week</button>
-              <button onClick={() => onMoveBucket('backlog')} className="move-option">Backlog</button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
