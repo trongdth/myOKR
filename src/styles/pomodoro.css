@@ -3969,13 +3969,13 @@
   gap: 0.6rem;
 }
 .card-tick {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
   background: transparent;
   flex: none;
-  margin-top: 1px;
+  margin-top: 0;
   cursor: pointer;
   padding: 0;
 }
@@ -4052,6 +4052,11 @@
   font-size: 0.69rem;
   gap: 0;
 }
+/* Linked chip takes the objective tint (mockup: violet pill + swatch dot);
+   the empty prompt stays neutral/dashed. */
+.card-kr:not(.is-empty) .sel-trigger.bare {
+  background: color-mix(in srgb, var(--color-objective) 16%, transparent);
+}
 .card-kr.is-empty { flex: none; } /* the full "Link a key result" label never shrinks */
 .card-kr.is-empty .sel-trigger.bare {
   background: transparent;
@@ -4080,21 +4085,21 @@
   background: color-mix(in srgb, var(--color-risk) 16%, transparent);
   color: var(--color-risk);
 }
-/* Compact bucket button in the title row (top-right, beside the pomo
-   counter): a visible rounded container holding the bucket glyph. The
-   ADR-0010 click-select move menu opens beneath it. */
+/* Bucket mini-trigger in the title row (top-right, beside the pomo
+   counter): bucket glyph + chevron in a visible rounded container, reading
+   as the move-to-bucket dropdown it opens. */
 .card-move-wrapper { position: relative; flex: none; display: inline-flex; }
 .card-bucket-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-secondary);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 .card-bucket-btn:hover,

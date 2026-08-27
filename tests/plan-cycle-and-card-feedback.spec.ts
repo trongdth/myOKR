@@ -113,6 +113,21 @@ test.describe('Board card feedback rework', () => {
     const dueBox = (await due.boundingBox())!;
     expect(Math.abs(catBox.y - krBox.y)).toBeLessThanOrEqual(4);
 
+    // Linked chips read as violet — the KR swatch dot renders in the trigger
+    // and the pill takes the objective tint instead of neutral gray
+    // (mockup parity, round 3).
+    await expect(card.locator('.card-kr .sel-icon .sel-kr-swatch')).toBeVisible();
+    const linkedBg = await krTrigger.evaluate(el => getComputedStyle(el).backgroundColor);
+    const neutralProbe = await card.evaluate(el => {
+      const probe = document.createElement('span');
+      probe.style.background = 'var(--bg-tertiary)';
+      el.appendChild(probe);
+      const bg = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return bg;
+    });
+    expect(linkedBg).not.toBe(neutralProbe);
+
     // …and the due badge lives on its OWN row directly below the priority
     // tag (feedback round 2), left-aligned with it.
     expect(dueBox.y).toBeGreaterThan(catBox.y + 10);
@@ -163,16 +178,29 @@ test.describe('Board card feedback rework', () => {
 
     await expect(btn).toBeVisible();
 
-    // Feedback round 2: the control is a BUCKET glyph inside a visible
-    // rounded container — not a bare chevron on a transparent hit area.
+    // Feedback round 2/3: the control is a BUCKET glyph + chevron inside a
+    // visible rounded container — a mini-trigger, not a bare square.
     await expect(btn.locator('svg.lucide-paint-bucket')).toHaveCount(1);
+    await expect(btn.locator('svg.lucide-chevron-down')).toHaveCount(1);
     const chrome = await btn.evaluate(el => {
       const s = getComputedStyle(el);
-      return { border: s.borderTopWidth, radius: s.borderRadius, bg: s.backgroundColor };
+      return {
+        border: s.borderTopWidth,
+        radius: s.borderRadius,
+        bg: s.backgroundColor,
+        width: el.getBoundingClientRect().width,
+        height: el.getBoundingClientRect().height,
+      };
     });
     expect(parseFloat(chrome.border)).toBeGreaterThan(0);
     expect(chrome.radius).not.toBe('0px');
     expect(chrome.bg).not.toBe('rgba(0, 0, 0, 0)');
+    // Wide enough to read as icon+chevron, small enough to stay a corner
+    // affordance.
+    expect(chrome.width).toBeGreaterThanOrEqual(40);
+    expect(chrome.width).toBeLessThanOrEqual(72);
+    expect(chrome.height).toBeGreaterThanOrEqual(26);
+    expect(chrome.height).toBeLessThanOrEqual(36);
 
     // Top-right corner, right after the title and directly beside the pomo
     // counter: same vertical band as the title text, then counter to its right.
@@ -193,5 +221,21 @@ test.describe('Board card feedback rework', () => {
 
     // Icon clicks must not fall through to the detail modal either.
     await expect(page.locator('.task-detail-panel')).toHaveCount(0);
+  });
+
+  test('card tick matches the mockup proportions', async ({ page }) => {
+    const tick = page.locator('.column-today .board-task-card').first().locator('.card-tick');
+    await expect(tick).toBeVisible();
+
+    const style = await tick.evaluate(el => {
+      const s = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      return { width: box.width, height: box.height, radius: s.borderRadius };
+    });
+    // Round-3 mockup parity: the checkbox is a substantial rounded square,
+    // not a small corner dot.
+    expect(style.width).toBeGreaterThanOrEqual(22);
+    expect(style.height).toBeGreaterThanOrEqual(22);
+    expect(style.radius).not.toBe('5px');
   });
 });

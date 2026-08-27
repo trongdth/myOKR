@@ -1,5 +1,5 @@
 import { useState, useMemo, type CSSProperties } from 'react';
-import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar, PaintBucket } from 'lucide-react';
+import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar, PaintBucket, ChevronDown } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -784,9 +784,9 @@ function BoardTaskCard({
         />
         <span className="card-title">{task.title}</span>
 
-        {/* Compact bucket button (ADR-0010 click-select move flow lives
-            behind it) — visible rounded container, top-right beside the
-            pomo counter. */}
+        {/* Bucket mini-trigger (ADR-0010 click-select move flow lives behind
+            it) — visible rounded container, top-right beside the pomo
+            counter. */}
         <div className="card-move-wrapper" onClick={e => e.stopPropagation()}>
           <button
             className="card-bucket-btn"
@@ -795,7 +795,8 @@ function BoardTaskCard({
             aria-label={`Move ${task.title} to another bucket`}
             aria-expanded={isSelectedForMove}
           >
-            <PaintBucket size={13} />
+            <PaintBucket size={14} />
+            <ChevronDown size={12} />
           </button>
 
           {isSelectedForMove && (
