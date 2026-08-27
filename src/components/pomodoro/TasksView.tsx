@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, type CSSProperties } from 'react';
-import { LayoutGrid, List, Plus, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar } from 'lucide-react';
+import { useState, useMemo, type CSSProperties } from 'react';
+import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -75,7 +75,6 @@ export default function TasksView({
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<EisenhowerCategory>('do');
   const [newKrId, setNewKrId] = useState<string>('');
-  const quickAddRef = useRef<HTMLDivElement>(null);
 
   // Week filter state ('all' or week number)
   const [selectedWeek, setSelectedWeek] = useState<number | 'all' | null>('all');
@@ -184,14 +183,6 @@ export default function TasksView({
 
     onTasksChange([newTask, ...tasks]);
     setNewTitle('');
-  };
-
-  const focusQuickAdd = () => {
-    if (quickAddRef.current) {
-      quickAddRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const input = quickAddRef.current.querySelector('input');
-      input?.focus();
-    }
   };
 
   // Bucket Assignment Helper
@@ -402,46 +393,44 @@ export default function TasksView({
       )}
 
       {/* Quick Add Bar (P1: Priority + Key Result only; new tasks land in Backlog) */}
-      <div ref={quickAddRef}>
-        <form className="quick-add-bar" onSubmit={handleAddTask}>
-          <span className="quick-add-eyebrow">NEW TASK</span>
+      <form className="quick-add-bar" onSubmit={handleAddTask}>
+        <span className="quick-add-eyebrow">NEW TASK</span>
 
-          <input
-            type="text"
-            className="quick-add-input"
-            placeholder="What are you working on?"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
+        <input
+          type="text"
+          className="quick-add-input"
+          placeholder="What are you working on?"
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+        />
+
+        <div className="quick-add-field">
+          <span className="quick-add-field-label">PRIORITY</span>
+          <Select
+            options={PRIORITY_OPTIONS}
+            value={newCategory}
+            onChange={setNewCategory}
+            ariaLabel="Priority"
           />
+        </div>
 
-          <div className="quick-add-field">
-            <span className="quick-add-field-label">PRIORITY</span>
-            <Select
-              options={PRIORITY_OPTIONS}
-              value={newCategory}
-              onChange={setNewCategory}
-              ariaLabel="Priority"
-            />
-          </div>
+        <div className="quick-add-field kr-field">
+          <span className="quick-add-field-label">KEY RESULT</span>
+          <Select
+            options={krOpts}
+            value={newKrId || null}
+            onChange={setNewKrId}
+            placeholder="Link a key result"
+            onClear={() => setNewKrId('')}
+            clearLabel="No key result"
+            ariaLabel="Key result"
+          />
+        </div>
 
-          <div className="quick-add-field kr-field">
-            <span className="quick-add-field-label">KEY RESULT</span>
-            <Select
-              options={krOpts}
-              value={newKrId || null}
-              onChange={setNewKrId}
-              placeholder="Link a key result"
-              onClear={() => setNewKrId('')}
-              clearLabel="No key result"
-              ariaLabel="Key result"
-            />
-          </div>
-
-          <button type="submit" className="quick-add-btn">
-            Add
-          </button>
-        </form>
-      </div>
+        <button type="submit" className="quick-add-btn">
+          Add
+        </button>
+      </form>
 
       {/* Main Content: BOARD VIEW vs LIST VIEW */}
       {viewMode === 'board' ? (
@@ -603,7 +592,7 @@ export default function TasksView({
       ) : (
         /* LIST VIEW (P3) */
         <div className="list-view-container">
-          {/* Toolbar: Group by / Sort / New task (P3) */}
+          {/* Toolbar: Group by / Sort (the persistent quick-add bar above owns task creation) */}
           <div className="list-toolbar">
             <div className="list-toolbar-item">
               <span className="list-toolbar-label">Group by</span>
@@ -614,11 +603,6 @@ export default function TasksView({
               <span className="list-toolbar-label">Sort</span>
               <Select options={SORT_BY_OPTIONS} value={sortBy} onChange={setSortBy} ariaLabel="Sort" />
             </div>
-
-            <button className="new-task-btn list-new-task" onClick={focusQuickAdd}>
-              <Plus size={15} />
-              <span>New task</span>
-            </button>
 
             <button className="search-trigger-btn list-search-btn" onClick={onOpenSearch}>
               <Search size={15} />

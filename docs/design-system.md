@@ -516,10 +516,11 @@ identically; there is no separate long-break case.
 ### Tasks board (P1/P2, flagship — mockup-exact values)
 
 - **Header block**: title `PLAN` + cycle pill (`May cycle`) · Board/List
-  segmented switch · **"New task"** button (focuses the add-row). **No Search
-  button on the board** (search stays reachable via Meta+K; "Search ⌘K" appears
-  on List and Done per P3/P5 — Objectives dropped its button in the 2026-08-19
-  P7 revamp below).
+  segmented switch. **No New task button in the header** (2026-08-27: and the
+  list toolbar's was removed too — the add-row is task creation's single
+  home). **No Search button on the board** (search stays reachable via Meta+K;
+  "Search ⌘K" appears on List and Done per P3/P5 — Objectives dropped its
+  button in the 2026-08-19 P7 revamp below).
 - **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
   Done N` with the count badge styling, and `May cycle · week 4 of 5` on the
   right. N = open tasks / objectives / completed tasks **in this cycle**
@@ -556,9 +557,12 @@ identically; there is no separate long-break case.
 ### List view (P3, structural parity)
 
 - Toolbar: **Group by** (bucket / key result / priority) + **Sort**
-  (priority / due / pomos) dropdowns, **"New task"** button, and the bulk bar
+  (priority / due / pomos) dropdowns, **Search ⌘K**, and the bulk bar
   `N selected · Move to` (existing). Group headers carry the planning line
-  (`TODAY — 3 tasks · 9 pomodoros planned`).
+  (`TODAY — 3 tasks · 9 pomodoros planned`). **"New task" removed
+  (2026-08-27)**: the add-row sits permanently above the toolbar in both
+  views, so the button was a redundant focus affordance — task creation has
+  one home (`tests/plan-group-feedback.spec.ts` Feedback 4).
 - Columns already match the mockup (`TASK | PRIORITY | KEY RESULT | BUCKET |
   DUE | POMOS | SUBTASKS`); bucket/priority/KR stay inline-editable cells
   (the design's "re-schedule without dragging").

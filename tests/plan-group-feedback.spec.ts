@@ -64,4 +64,20 @@ test.describe('Plan Group Feedback — TDD Tests', () => {
     const svgCount = await unserved.locator('svg').count();
     expect(svgCount).toBe(0);
   });
+
+  // Feedback 4 (2026-08-27): the list-view toolbar's "New task" button was a
+  // redundant focus affordance — the quick-add bar sits permanently above the
+  // toolbar in both views, so task creation has one home. The button is gone;
+  // the add row must remain reachable in list mode.
+  test('Feedback 4: List view has no extra New task button; quick-add stays visible', async ({ page }) => {
+    await page.locator('button[title="Plan"]').click();
+
+    await expect(page.locator('.quick-add-bar')).toBeVisible();
+    await page.locator('.view-switch-btn', { hasText: 'List' }).click();
+    await expect(page.locator('.list-view-container')).toBeVisible();
+
+    await expect(page.locator('.list-toolbar .list-new-task')).toHaveCount(0);
+    await expect(page.locator('.list-toolbar .list-search-btn')).toBeVisible();
+    await expect(page.locator('.quick-add-bar')).toBeVisible();
+  });
 });

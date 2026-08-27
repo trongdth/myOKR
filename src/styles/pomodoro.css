@@ -3828,7 +3828,7 @@
    Plan Group redesign (P1–P7) — design-system.md per-screen rules
    ========================================================================== */
 
-/* --- P1 header: PLAN + cycle pill + New task --- */
+/* --- P1 header: PLAN + cycle pill --- */
 .cycle-pill {
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -3839,22 +3839,6 @@
   padding: 0.2rem 0.6rem;
   border-radius: 6px;
 }
-
-.new-task-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  height: 34px;
-  padding: 0 0.9rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.new-task-btn:hover { filter: brightness(1.08); }
 
 /* --- P1 tab strip --- */
 .plan-tab-strip {
@@ -4238,7 +4222,7 @@
 .list-toolbar-item .sel-trigger {
   max-width: 130px;
 }
-.list-new-task { margin-left: auto; }
+.list-search-btn { margin-left: auto; }
 .list-group { margin-bottom: 1.25rem; }
 .list-group-header {
   font-family: var(--font-mono);
