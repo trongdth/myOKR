@@ -89,7 +89,7 @@ test.describe('Plan Group — Task detail header (P4)', () => {
       ]);
     });
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 
@@ -156,7 +156,7 @@ test.describe('Task detail — updatedAt stamp on edit', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 
@@ -214,7 +214,7 @@ test.describe('Task detail — sub-task delete confirmation', () => {
       ]);
     });
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 
@@ -273,7 +273,7 @@ test.describe('Task detail — sub-task drag-and-drop reorder', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 

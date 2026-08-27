@@ -139,7 +139,7 @@ test.describe('Plan Group Redesign — task detail opens centered (bug #2)', () 
       ]);
     });
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 

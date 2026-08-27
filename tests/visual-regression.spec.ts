@@ -154,7 +154,7 @@ test.describe('Visual regression (1a redesign)', () => {
 
     await page.locator('[title="Plan"]').first().click();
     await page.waitForTimeout(300);
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
     // Let the lazy-loaded Markdown notes settle before snapping.
     await expect(page.locator('.notes-content-view')).toBeVisible();

@@ -97,23 +97,32 @@ test.describe('Board card feedback rework', () => {
     expect(textStyle.whiteSpace).toBe('nowrap');
     expect(textStyle.textOverflow).toBe('ellipsis');
 
-    // Priority tag + KR chip share one row; the row itself cannot wrap a
-    // long KR onto its own line.
-    const rowStyle = await card.locator('.card-meta-row').evaluate(el => getComputedStyle(el));
+    // Priority tag + KR chip share one row that cannot wrap a long KR onto
+    // its own line…
+    const rowStyle = await card.locator('.card-meta-row').first().evaluate(el => getComputedStyle(el));
     expect(rowStyle.flexWrap).toBe('nowrap');
 
     const catBox = (await cat.boundingBox())!;
     const krBox = (await krTrigger.boundingBox())!;
     const dueBox = (await due.boundingBox())!;
     expect(Math.abs(catBox.y - krBox.y)).toBeLessThanOrEqual(4);
-    // Shrink order under pressure: only the KR chip narrows, so it never
-    // pushes against the due pill.
-    expect(krBox.x + krBox.width).toBeLessThanOrEqual(dueBox.x + 1);
+
+    // …and the due badge lives on its OWN row directly below the priority
+    // tag (feedback round 2), left-aligned with it.
+    expect(dueBox.y).toBeGreaterThan(catBox.y + 10);
+    expect(dueBox.x).toBeLessThanOrEqual(catBox.x + 4);
   });
 
   test('"Link a key result" opens the KR picker, not the task detail modal', async ({ page }) => {
     const card = page.locator('.column-backlog .board-task-card', { hasText: 'Unlinked task' });
     await expect(card.locator('.card-kr')).toContainText('Link a key result');
+
+    // Feedback round 2: the empty chip shows the FULL label — it never
+    // shrinks under row pressure.
+    const emptyLabel = await card.locator('.card-kr .sel-text')
+      .evaluate(el => ({ text: el.textContent ?? '', scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+    expect(emptyLabel.text).toBe('Link a key result');
+    expect(emptyLabel.scrollWidth).toBeLessThanOrEqual(emptyLabel.clientWidth + 1);
 
     await card.locator('.card-kr .sel-trigger').click();
 
@@ -144,16 +153,30 @@ test.describe('Board card feedback rework', () => {
     const card = page.locator('.column-backlog .board-task-card', { hasText: 'Move me please' });
     const title = card.locator('.card-title');
     const btn = card.locator('.card-bucket-btn');
+    const pomos = card.locator('.card-pomos');
 
     await expect(btn).toBeVisible();
-    await expect(btn.locator('svg')).toBeVisible();
 
-    // Top-right corner, right after the title: same vertical band as the
-    // title text and to the right of it.
+    // Feedback round 2: the control is a BUCKET glyph inside a visible
+    // rounded container — not a bare chevron on a transparent hit area.
+    await expect(btn.locator('svg.lucide-paint-bucket')).toHaveCount(1);
+    const chrome = await btn.evaluate(el => {
+      const s = getComputedStyle(el);
+      return { border: s.borderTopWidth, radius: s.borderRadius, bg: s.backgroundColor };
+    });
+    expect(parseFloat(chrome.border)).toBeGreaterThan(0);
+    expect(chrome.radius).not.toBe('0px');
+    expect(chrome.bg).not.toBe('rgba(0, 0, 0, 0)');
+
+    // Top-right corner, right after the title and directly beside the pomo
+    // counter: same vertical band as the title text, then counter to its right.
     const titleBox = (await title.boundingBox())!;
     const btnBox = (await btn.boundingBox())!;
+    const pomosBox = (await pomos.boundingBox())!;
     expect(Math.abs(titleBox.y - btnBox.y)).toBeLessThanOrEqual(8);
     expect(btnBox.x).toBeGreaterThan(titleBox.x + titleBox.width - 8);
+    expect(pomosBox.x - btnBox.x - btnBox.width).toBeGreaterThanOrEqual(-1);
+    expect(pomosBox.x - btnBox.x - btnBox.width).toBeLessThanOrEqual(24);
 
     // The ADR-0010 click-select move flow survives behind the icon.
     await btn.click();

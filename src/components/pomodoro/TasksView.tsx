@@ -1,5 +1,5 @@
 import { useState, useMemo, type CSSProperties } from 'react';
-import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar, ChevronDown } from 'lucide-react';
+import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar, PaintBucket } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -172,7 +172,7 @@ export default function TasksView({
       title: newTitle.trim(),
       category: newCategory,
       // P1: new tasks land in Backlog (the storage default); promote them to
-      // Today / This week via the card's bucket dropdown.
+      // Today / This week via the card's bucket button.
       bucket: 'backlog',
       keyResultId: newKrId || undefined,
       estimatedPomodoros: 1,
@@ -743,7 +743,7 @@ export default function TasksView({
   );
 }
 
-// Single Board Card Component (P1 anatomy: tick · title · bucket dropdown · pomos / KR picker / category · due)
+// Single Board Card Component (P1 anatomy: tick · title · bucket button · pomos / KR picker + category / due)
 function BoardTaskCard({
   task,
   krOptions,
@@ -784,8 +784,9 @@ function BoardTaskCard({
         />
         <span className="card-title">{task.title}</span>
 
-        {/* Compact bucket dropdown (ADR-0010 click-select move flow lives
-            behind it) — top-right, right after the title. */}
+        {/* Compact bucket button (ADR-0010 click-select move flow lives
+            behind it) — visible rounded container, top-right beside the
+            pomo counter. */}
         <div className="card-move-wrapper" onClick={e => e.stopPropagation()}>
           <button
             className="card-bucket-btn"
@@ -794,7 +795,7 @@ function BoardTaskCard({
             aria-label={`Move ${task.title} to another bucket`}
             aria-expanded={isSelectedForMove}
           >
-            <ChevronDown size={14} />
+            <PaintBucket size={13} />
           </button>
 
           {isSelectedForMove && (
@@ -812,37 +813,45 @@ function BoardTaskCard({
         </span>
       </div>
 
-      <div className="card-meta-row">
-        {meta && (
-          <span
-            className="card-category"
-            style={{ '--cat-color': meta.color, '--cat-bg': meta.bgColor } as CSSProperties}
-          >
-            <span className="card-category-dot" />
-            {meta.label}
-          </span>
-        )}
+      {/* Meta block: priority + KR chip share the first row; the due badge
+          sits on its own row below the priority tag (2026-08-27 feedback). */}
+      <div className="card-meta-block">
+        <div className="card-meta-row">
+          {meta && (
+            <span
+              className="card-category"
+              style={{ '--cat-color': meta.color, '--cat-bg': meta.bgColor } as CSSProperties}
+            >
+              <span className="card-category-dot" />
+              {meta.label}
+            </span>
+          )}
 
-        {/* KR chip inline with the priority tag; clicking it opens the KR
-            picker (never the detail modal). Truncates when the title is long. */}
-        <div className={`card-kr${task.keyResultId ? '' : ' is-empty'}`} onClick={e => e.stopPropagation()}>
-          <Select
-            variant="bare"
-            options={krOptions}
-            value={task.keyResultId ?? null}
-            placeholder="Link a key result"
-            onChange={(krId) => onSetKeyResult(krId)}
-            onClear={() => onSetKeyResult(undefined)}
-            clearLabel="No key result"
-            ariaLabel={`Key result for ${task.title}`}
-          />
+          {/* KR chip inline with the priority tag; clicking it opens the KR
+              picker (never the detail modal). Truncates when the title is
+              long — but only once a KR is linked; the empty prompt shows in
+              full. */}
+          <div className={`card-kr${task.keyResultId ? '' : ' is-empty'}`} onClick={e => e.stopPropagation()}>
+            <Select
+              variant="bare"
+              options={krOptions}
+              value={task.keyResultId ?? null}
+              placeholder="Link a key result"
+              onChange={(krId) => onSetKeyResult(krId)}
+              onClear={() => onSetKeyResult(undefined)}
+              clearLabel="No key result"
+              ariaLabel={`Key result for ${task.title}`}
+            />
+          </div>
         </div>
 
-        {/* Due pill: the due label, or a dashed calendar "No due date" prompt. */}
-        <span className={`card-due${due ? '' : ' is-empty'}${due?.overdue ? ' overdue' : ''}`}>
-          <Calendar size={11} className="card-due-icon" />
-          {due ? due.label : 'No due date'}
-        </span>
+        <div className="card-meta-row">
+          {/* Due pill: the due label, or a dashed calendar "No due date" prompt. */}
+          <span className={`card-due${due ? '' : ' is-empty'}${due?.overdue ? ' overdue' : ''}`}>
+            <Calendar size={11} className="card-due-icon" />
+            {due ? due.label : 'No due date'}
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -3993,9 +3993,16 @@
   flex: none;
 }
 /* --- P1 card meta pills (flagship: mockup-exact). Category = filled tint
-   pill with a colored dot; KR is an inline Select chip; due is a pill,
-   dashed when unset. The row cannot wrap — under width pressure only the
-   KR chip shrinks, ellipsizing its label. --- */
+   pill with a colored dot; KR is an inline Select chip; due is a pill on
+   its own row below the priority tag. Rows cannot wrap — under width
+   pressure only a LINKED KR chip shrinks, ellipsizing its label; the empty
+   "Link a key result" prompt always shows in full. --- */
+.card-meta-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
 .card-meta-row {
   display: flex;
   align-items: center;
@@ -4043,6 +4050,7 @@
   font-size: 0.69rem;
   gap: 0;
 }
+.card-kr.is-empty { flex: none; } /* the full "Link a key result" label never shrinks */
 .card-kr.is-empty .sel-trigger.bare {
   background: transparent;
   border: 1px dashed rgba(255, 255, 255, 0.14);
@@ -4070,26 +4078,27 @@
   background: color-mix(in srgb, var(--color-risk) 16%, transparent);
   color: var(--color-risk);
 }
-/* Compact bucket-dropdown icon in the title row (top-right, after the title).
-   The ADR-0010 click-select move menu opens beneath it. */
+/* Compact bucket button in the title row (top-right, beside the pomo
+   counter): a visible rounded container holding the bucket glyph. The
+   ADR-0010 click-select move menu opens beneath it. */
 .card-move-wrapper { position: relative; flex: none; display: inline-flex; }
 .card-bucket-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
   color: var(--text-muted);
   cursor: pointer;
 }
 .card-bucket-btn:hover,
 .card-bucket-btn[aria-expanded="true"] {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* --- P1 completed-today strip (inside Backlog column) --- */
