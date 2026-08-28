@@ -88,7 +88,7 @@ test.describe('Board card feedback rework', () => {
     await page.locator('button[title="Plan"]').click();
   });
 
-  test('KR chip is inline with the priority tag and truncates with an ellipsis', async ({ page }) => {
+  test('chip rows wrap, share one size token, and long KRs ellipsize', async ({ page }) => {
     const card = page.locator('.column-today .board-task-card').first();
     const cat = card.locator('.card-category');
     const krTrigger = card.locator('.card-kr .sel-trigger');
@@ -97,21 +97,35 @@ test.describe('Board card feedback rework', () => {
     await expect(cat).toBeVisible();
     await expect(krTrigger).toContainText(/Grow weekly active users/);
 
-    // The label never wraps — long KRs ellipsize.
+    // Round 4: rows are flex rows with gap-2 that may wrap; the two rows
+    // themselves sit gap-2 apart.
+    const rowStyle = await card.locator('.card-meta-row').first().evaluate(el => getComputedStyle(el));
+    expect(rowStyle.flexWrap).toBe('wrap');
+    const blockStyle = await card.locator('.card-meta-block').evaluate(el => getComputedStyle(el));
+    expect(parseFloat(blockStyle.rowGap)).toBeCloseTo(8, 0);
+    expect(parseFloat(rowStyle.columnGap)).toBeCloseTo(8, 0);
+
+    // All three chips share ONE size token — identical height, horizontal
+    // padding, radius, and font-size (mockup parity).
+    const chipStyle = async (loc: ReturnType<typeof card.locator>) =>
+      await loc.evaluate(el => {
+        const s = getComputedStyle(el);
+        return { h: s.height, px: s.paddingLeft, radius: s.borderRadius, font: s.fontSize };
+      });
+    const catStyle = await chipStyle(cat);
+    const krStyle = await chipStyle(krTrigger);
+    const dueStyle = await chipStyle(due);
+    expect(krStyle).toEqual(catStyle);
+    expect(dueStyle).toEqual(catStyle);
+    // The shared token: ~28px pill height per the expect shot.
+    expect(parseFloat(catStyle.h)).toBeGreaterThanOrEqual(26);
+    expect(parseFloat(catStyle.h)).toBeLessThanOrEqual(30);
+
+    // The KR label itself never wraps — a long KR ellipsizes inside its chip.
     const textStyle = await card.locator('.card-kr .sel-text')
       .evaluate(el => getComputedStyle(el));
     expect(textStyle.whiteSpace).toBe('nowrap');
     expect(textStyle.textOverflow).toBe('ellipsis');
-
-    // Priority tag + KR chip share one row that cannot wrap a long KR onto
-    // its own line…
-    const rowStyle = await card.locator('.card-meta-row').first().evaluate(el => getComputedStyle(el));
-    expect(rowStyle.flexWrap).toBe('nowrap');
-
-    const catBox = (await cat.boundingBox())!;
-    const krBox = (await krTrigger.boundingBox())!;
-    const dueBox = (await due.boundingBox())!;
-    expect(Math.abs(catBox.y - krBox.y)).toBeLessThanOrEqual(4);
 
     // Linked chips read as violet — the KR swatch dot renders in the trigger
     // and the pill takes the objective tint instead of neutral gray
@@ -130,6 +144,8 @@ test.describe('Board card feedback rework', () => {
 
     // …and the due badge lives on its OWN row directly below the priority
     // tag (feedback round 2), left-aligned with it.
+    const catBox = (await cat.boundingBox())!;
+    const dueBox = (await due.boundingBox())!;
     expect(dueBox.y).toBeGreaterThan(catBox.y + 10);
     expect(dueBox.x).toBeLessThanOrEqual(catBox.x + 4);
   });
@@ -178,16 +194,25 @@ test.describe('Board card feedback rework', () => {
 
     await expect(btn).toBeVisible();
 
-    // Feedback round 2/3: the control is a BUCKET glyph + chevron inside a
-    // visible rounded container — a mini-trigger, not a bare square.
-    await expect(btn.locator('svg.lucide-paint-bucket')).toHaveCount(1);
+    // Feedback round 4: a rounded-rect pill holding the BOARD/CARD glyph +
+    // chevron — a dropdown affordance in muted foreground, never a garbled
+    // or full-white glyph.
+    await expect(btn.locator('svg.lucide-paint-bucket')).toHaveCount(0);
+    await expect(btn.locator('svg.lucide-square-kanban')).toHaveCount(1);
     await expect(btn.locator('svg.lucide-chevron-down')).toHaveCount(1);
     const chrome = await btn.evaluate(el => {
       const s = getComputedStyle(el);
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--text-muted)';
+      el.appendChild(probe);
+      const muted = getComputedStyle(probe).color;
+      probe.remove();
       return {
         border: s.borderTopWidth,
         radius: s.borderRadius,
         bg: s.backgroundColor,
+        color: s.color,
+        muted,
         width: el.getBoundingClientRect().width,
         height: el.getBoundingClientRect().height,
       };
@@ -195,6 +220,7 @@ test.describe('Board card feedback rework', () => {
     expect(parseFloat(chrome.border)).toBeGreaterThan(0);
     expect(chrome.radius).not.toBe('0px');
     expect(chrome.bg).not.toBe('rgba(0, 0, 0, 0)');
+    expect(chrome.color).toBe(chrome.muted);
     // Wide enough to read as icon+chevron, small enough to stay a corner
     // affordance.
     expect(chrome.width).toBeGreaterThanOrEqual(40);

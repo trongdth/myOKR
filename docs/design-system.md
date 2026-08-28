@@ -536,23 +536,26 @@ identically; there is no separate long-break case.
 - **Add-row**: `[type, then ↵ to set priority and key result] [category] [key
   result] [Add]` — **no bucket select, no due date**. New tasks land in
   **Backlog** (matches the storage default; schema rule in CONTEXT.md).
-- **Card anatomy** (2026-08-27 rework, round 3 same day): `[✓ tick]` — a
+- **Card anatomy** (2026-08-27 rework, round 4): `[✓ tick]` — a
   24px rounded-square checkbox (tick = complete; same-session undo via the
-  completed strip) · title · **bucket mini-trigger** in the top-right corner
-  beside the pomo counter: a `PaintBucket` glyph + chevron in one bordered
-  rounded container reading as the dropdown it opens (replaces the dashed
-  "Add to <bucket>" button; opens the ADR-0010 click-select move menu) ·
-  mono `4/6` (current-position / estimated — see *Pomo count display*
-  above). The meta block is **two rows that never wrap**: row 1 = mono
-  category pill + the **KR chip — the shared Select (bare variant) dressed
-  as a pill**, which links/unlinks inline (clicking "Link a key result"
-  opens the KR picker, never task detail); a linked chip shows its violet
-  KR swatch dot and takes an objective tint (`color-mix` of
-  `--color-objective`) while ellipsizing long titles; the empty prompt
-  stays neutral/dashed and never shrinks. Row 2 = the due chip (`Thu` mono
-  within 7 days, `Mon D` beyond, rose when overdue). 3px left accent stripe
-  in the task's Eisenhower
-  category color (`EISENHOWER_META`, via `--today-accent`-style CSS var).
+  completed strip) · title · **board-card mini-trigger** in the top-right
+  corner beside the pomo counter: a rounded-rect pill (28px, radius-md,
+  subtle surface + low-contrast 1px border) holding a `KanbanSquare` glyph +
+  chevron in **muted foreground** (replaces the dashed "Add to <bucket>"
+  button; opens the ADR-0010 click-select move menu) · mono `4/6`
+  (current-position / estimated — see *Pomo count display* above). The meta
+  block is **two gap-2 flex rows that wrap**: row 1 = status pill + the
+  **KR chip — the shared Select (bare variant) dressed as a pill**, which
+  links/unlinks inline (clicking "Link a key result" opens the KR picker,
+  never task detail); a linked chip shows its violet KR swatch dot and
+  takes an objective tint (`color-mix` of `--color-objective`) while
+  ellipsizing long titles; the empty prompt stays neutral/dashed and never
+  shrinks. Row 2 = the due chip (`Thu` mono within 7 days, `Mon D` beyond,
+  rose when overdue). **All three chips share one size token** — the
+  block's `--chip-height/--chip-pad-x/--chip-radius/--chip-font` — so they
+  render as identical pills. 3px left accent stripe in the task's
+  Eisenhower category color (`EISENHOWER_META`, via `--today-accent`-style
+  CSS var).
   **No focus button on cards** — focus starts from the detail modal's `Start
   focus` or ⌘K `Start`. No emoji (🎯🍅📅 → mono text / Lucide).
 - **Bucket headers**: `Today · N · X pomos` (mono count pill + planned-pomo
