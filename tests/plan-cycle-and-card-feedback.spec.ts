@@ -133,14 +133,27 @@ test.describe('Board card feedback rework', () => {
     await expect(card.locator('.card-kr .sel-icon .sel-kr-swatch')).toBeVisible();
 
     // Round 5: the KR dot is a CIRCLE — same glyph shape as the priority
-    // dot (8×8, radius 50%), not a rounded square.
+    // dot (radius 50%), not a rounded square.
     const swatch = await card.locator('.card-kr .sel-icon .sel-kr-swatch')
       .evaluate(el => {
         const s = getComputedStyle(el);
         return { width: parseFloat(s.width), radius: s.borderRadius };
       });
-    expect(swatch.width).toBe(8);
     expect(swatch.radius).toBe('50%');
+
+    // Round 7: the two on-card dots are the SAME SIZE — the KR circle must
+    // not dwarf the priority circle beside it.
+    const dotPair = await card.evaluate(el => {
+      const width = (sel: string) => {
+        const dot = el.querySelector(sel);
+        return dot ? parseFloat(getComputedStyle(dot).width) : null;
+      };
+      return { cat: width('.card-category-dot'), kr: width('.card-kr .sel-kr-swatch') };
+    });
+    expect(dotPair.cat).not.toBeNull();
+    expect(dotPair.cat).toBe(dotPair.kr);
+    expect(dotPair.cat).toBeGreaterThanOrEqual(5);
+    expect(dotPair.cat).toBeLessThanOrEqual(7);
 
     const linkedBg = await krTrigger.evaluate(el => getComputedStyle(el).backgroundColor);
     const neutralProbe = await card.evaluate(el => {

@@ -4036,8 +4036,8 @@
   flex: none;
 }
 .card-category-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 99px;
   background: var(--cat-color, var(--text-muted));
   flex: none;
@@ -4062,6 +4062,13 @@
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   gap: 0.3rem;
+}
+/* The KR dot matches the priority dot's on-card size (6px circle); the
+   global .sel-kr-swatch stays 8px for Select rows where the priority dot
+   is also 8px. */
+.card-kr .sel-kr-swatch {
+  width: 6px;
+  height: 6px;
 }
 /* Linked chip takes the objective tint (mockup: violet pill + swatch dot);
    the empty prompt stays neutral/dashed. */
