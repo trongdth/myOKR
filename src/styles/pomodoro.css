@@ -3148,7 +3148,7 @@
 .sel-kr-swatch {
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 50%; /* circle — same glyph shape as .sel-priority-dot */
   background: var(--color-objective);
   display: inline-block;
   flex-shrink: 0;

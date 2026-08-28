@@ -131,6 +131,17 @@ test.describe('Board card feedback rework', () => {
     // and the pill takes the objective tint instead of neutral gray
     // (mockup parity, round 3).
     await expect(card.locator('.card-kr .sel-icon .sel-kr-swatch')).toBeVisible();
+
+    // Round 5: the KR dot is a CIRCLE — same glyph shape as the priority
+    // dot (8×8, radius 50%), not a rounded square.
+    const swatch = await card.locator('.card-kr .sel-icon .sel-kr-swatch')
+      .evaluate(el => {
+        const s = getComputedStyle(el);
+        return { width: parseFloat(s.width), radius: s.borderRadius };
+      });
+    expect(swatch.width).toBe(8);
+    expect(swatch.radius).toBe('50%');
+
     const linkedBg = await krTrigger.evaluate(el => getComputedStyle(el).backgroundColor);
     const neutralProbe = await card.evaluate(el => {
       const probe = document.createElement('span');
