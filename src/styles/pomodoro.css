@@ -3993,6 +3993,8 @@
   font-size: 0.72rem;
   color: var(--text-muted);
   flex: none;
+  /* matches the bucket pill's height so both sit on one centered line */
+  line-height: 24px;
 }
 /* --- P1 card meta pills (round 4): one chip size token shared by all
    three chips — status (category), key result, and date — so they render
@@ -4100,9 +4102,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 9px;
+  gap: 4px;
+  height: 24px;
+  padding: 0 7px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-secondary);

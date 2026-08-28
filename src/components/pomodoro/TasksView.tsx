@@ -795,8 +795,8 @@ function BoardTaskCard({
             aria-label={`Move ${task.title} to another bucket`}
             aria-expanded={isSelectedForMove}
           >
-            <KanbanSquare size={14} />
-            <ChevronDown size={12} />
+            <KanbanSquare size={13} />
+            <ChevronDown size={11} />
           </button>
 
           {isSelectedForMove && (

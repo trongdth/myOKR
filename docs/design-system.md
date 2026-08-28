@@ -539,7 +539,8 @@ identically; there is no separate long-break case.
 - **Card anatomy** (2026-08-27 rework, round 4): `[✓ tick]` — a
   24px rounded-square checkbox (tick = complete; same-session undo via the
   completed strip) · title · **board-card mini-trigger** in the top-right
-  corner beside the pomo counter: a rounded-rect pill (28px, radius-md,
+  corner beside the pomo counter: a rounded-rect pill (24px — sized to the
+  counter's line, which it shares centered — radius-md,
   subtle surface + low-contrast 1px border) holding a `KanbanSquare` glyph +
   chevron in **muted foreground** (replaces the dashed "Add to <bucket>"
   button; opens the ADR-0010 click-select move menu) · mono `4/6`

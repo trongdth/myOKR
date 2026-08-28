@@ -232,15 +232,17 @@ test.describe('Board card feedback rework', () => {
     expect(chrome.radius).not.toBe('0px');
     expect(chrome.bg).not.toBe('rgba(0, 0, 0, 0)');
     expect(chrome.color).toBe(chrome.muted);
-    // Wide enough to read as icon+chevron, small enough to stay a corner
-    // affordance.
-    expect(chrome.width).toBeGreaterThanOrEqual(40);
-    expect(chrome.width).toBeLessThanOrEqual(72);
-    expect(chrome.height).toBeGreaterThanOrEqual(26);
-    expect(chrome.height).toBeLessThanOrEqual(36);
+    // Round 6: sized to the counter it sits beside, not above it — a
+    // compact icon+chevron pill (~24px tall, ~40px wide).
+    expect(chrome.width).toBeGreaterThanOrEqual(34);
+    expect(chrome.width).toBeLessThanOrEqual(44);
+    expect(chrome.height).toBeGreaterThanOrEqual(20);
+    expect(chrome.height).toBeLessThanOrEqual(26);
 
     // Top-right corner, right after the title and directly beside the pomo
-    // counter: same vertical band as the title text, then counter to its right.
+    // counter: same vertical band as the title text, then counter to its
+    // right. Round 6: the pill is vertically CENTERED on the counter line
+    // ("align padding") — shared mid-line with `0/2`, ±3px.
     const titleBox = (await title.boundingBox())!;
     const btnBox = (await btn.boundingBox())!;
     const pomosBox = (await pomos.boundingBox())!;
@@ -248,6 +250,9 @@ test.describe('Board card feedback rework', () => {
     expect(btnBox.x).toBeGreaterThan(titleBox.x + titleBox.width - 8);
     expect(pomosBox.x - btnBox.x - btnBox.width).toBeGreaterThanOrEqual(-1);
     expect(pomosBox.x - btnBox.x - btnBox.width).toBeLessThanOrEqual(24);
+    const btnCenterY = btnBox.y + btnBox.height / 2;
+    const pomosCenterY = pomosBox.y + pomosBox.height / 2;
+    expect(Math.abs(btnCenterY - pomosCenterY)).toBeLessThanOrEqual(3);
 
     // The ADR-0010 click-select move flow survives behind the icon.
     await btn.click();
