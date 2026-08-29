@@ -1,5 +1,5 @@
 import { useState, useMemo, type CSSProperties } from 'react';
-import { LayoutGrid, List, Search, CheckCircle2, RotateCcw, ArrowRight, Calendar, KanbanSquare, ChevronDown } from 'lucide-react';
+import { LayoutGrid, List, Search, CheckCircle2, Check, RotateCcw, ArrowRight, Calendar, KanbanSquare, ChevronDown } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -799,12 +799,35 @@ function BoardTaskCard({
             <ChevronDown size={11} />
           </button>
 
+          {/* Select-style move panel: eyebrow + ticked current bucket +
+              green Mark done action (round-8 reference screenshot). The
+              ADR-0010 click-select flow keeps working around it — picking a
+              bucket or marking done also clears the move selection. */}
           {isSelectedForMove && (
-            <div className="card-move-menu">
-              <span className="move-title">Move task to:</span>
-              <button onClick={() => onMoveBucket('today')} className="move-option">Today</button>
-              <button onClick={() => onMoveBucket('this_week')} className="move-option">This week</button>
-              <button onClick={() => onMoveBucket('backlog')} className="move-option">Backlog</button>
+            <div className="card-move-menu" role="group" aria-label="Move to bucket">
+              <span className="move-eyebrow">Move to bucket</span>
+              {TASK_BUCKETS.map(bucket => {
+                const current = (task.bucket || 'backlog') === bucket;
+                return (
+                  <button
+                    key={bucket}
+                    type="button"
+                    className={`move-option${current ? ' is-chosen' : ''}`}
+                    onClick={() => onMoveBucket(bucket)}
+                  >
+                    <span>{BUCKET_LABELS[bucket]}</span>
+                    {current && <Check size={14} className="move-tick" aria-hidden="true" />}
+                  </button>
+                );
+              })}
+              <div className="move-divider" />
+              <button
+                type="button"
+                className="move-action"
+                onClick={() => { onComplete(task); onToggleMove(); }}
+              >
+                Mark done
+              </button>
             </div>
           )}
         </div>

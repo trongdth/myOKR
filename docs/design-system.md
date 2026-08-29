@@ -543,7 +543,10 @@ identically; there is no separate long-break case.
   counter's line, which it shares centered — radius-md,
   subtle surface + low-contrast 1px border) holding a `KanbanSquare` glyph +
   chevron in **muted foreground** (replaces the dashed "Add to <bucket>"
-  button; opens the ADR-0010 click-select move menu) · mono `4/6`
+  button; opens the move panel — Select-style: mono `MOVE TO BUCKET`
+  eyebrow, the task's current bucket ticked cyan on a raised row, divider,
+  green `Mark done` action (round 8; picking a bucket or marking done also
+  clears the ADR-0010 move selection)) · mono `4/6`
   (current-position / estimated — see *Pomo count display* above). The meta
   block is **two gap-2 flex rows that wrap**: row 1 = status pill + the
   **KR chip — the shared Select (bare variant) dressed as a pill**, which

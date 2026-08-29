@@ -271,6 +271,18 @@ test.describe('Board card feedback rework', () => {
     await btn.click();
     const menu = page.locator('.card-move-menu');
     await expect(menu).toBeVisible();
+
+    // Round 8: the menu is a Select-style panel — "Move to bucket" eyebrow,
+    // the task's current bucket ticked, a divider, and a green Mark done
+    // action row (per the reference screenshot).
+    await expect(menu.locator('.move-eyebrow')).toHaveText(/move to bucket/i);
+    await expect(menu.locator('.move-option')).toHaveCount(3);
+    const chosen = menu.locator('.move-option.is-chosen');
+    await expect(chosen).toHaveText(/Backlog/);
+    await expect(chosen.locator('svg')).toBeVisible();
+    await expect(menu.locator('.move-divider')).toBeVisible();
+    await expect(menu.locator('.move-action')).toHaveText(/mark done/i);
+
     await menu.locator('.move-option', { hasText: 'Today' }).click();
     await expect(page.locator('.column-today .board-task-card', { hasText: 'Move me please' })).toBeVisible();
 
@@ -292,5 +304,18 @@ test.describe('Board card feedback rework', () => {
     expect(style.width).toBeGreaterThanOrEqual(22);
     expect(style.height).toBeGreaterThanOrEqual(22);
     expect(style.radius).not.toBe('5px');
+  });
+
+  test('"Mark done" in the bucket menu completes the task', async ({ page }) => {
+    const card = page.locator('.column-backlog .board-task-card', { hasText: 'Move me please' });
+    await card.locator('.card-bucket-btn').click();
+    await card.locator('.move-action').click();
+
+    // The task leaves the board…
+    await expect(page.locator('.board-task-card', { hasText: 'Move me please' })).toHaveCount(0);
+    // …lands in the same-session completed strip (fixed clock = today)…
+    await expect(page.locator('.completed-today-toggle')).toContainText('1 completed today');
+    // …and the click never fell through to the detail modal.
+    await expect(page.locator('.task-detail-panel')).toHaveCount(0);
   });
 });

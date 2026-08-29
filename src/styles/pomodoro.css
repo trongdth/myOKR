@@ -3299,42 +3299,89 @@
   flex-wrap: wrap;
 }
 
+/* Move panel (round 8): mirrors the shared Select panel — card surface,
+   mono eyebrow, 34px rows with the current bucket ticked cyan, divider,
+   green action row. */
 .card-move-menu {
   position: absolute;
   right: 0;
-  top: 100%;
-  background: var(--bg-primary);
+  top: calc(100% + 6px);
+  min-width: 170px;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.5rem;
+  border-radius: 10px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 2px;
   z-index: 50;
-  min-width: 120px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-card);
 }
 
-.move-title {
-  font-size: 0.7rem;
+.move-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 600;
+  padding: 6px 8px 4px;
 }
 
 .move-option {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+}
+
+.move-option:hover {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   color: var(--text-primary);
-  padding: 0.3rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
+}
+
+.move-option.is-chosen {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-primary);
+}
+
+.move-tick {
+  color: var(--color-primary);
+  flex: none;
+}
+
+.move-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 6px;
+}
+
+.move-action {
+  min-height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--okr-on-track);
+  font-size: 0.72rem;
+  line-height: 1;
   cursor: pointer;
   text-align: left;
 }
 
-.move-option:hover {
-  background: var(--accent-primary);
-  color: #000;
+.move-action:hover {
+  background: color-mix(in srgb, var(--okr-on-track) 10%, transparent);
 }
 
 /* List View Table */
