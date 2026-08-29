@@ -41,6 +41,7 @@ meaning aligns (cyan = primary action = focus).
 | `--color-objective` | `#a855f7` (violet) | OKR Objectives |
 | `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else. **One carve-out:** the Habits analytics weak-day insight banner (2026-08-08, Habits tracker) — an insight derived from streak data, documented in the Habits section below |
 | `--color-risk` | `#f43f5e` (rose) | At-risk / warning |
+| `--color-danger` | `#e87975` (salmon) | Destructive-action fill (ConfirmModal delete confirms). Dark text on the fill (`--bg-primary`), same treatment as `.btn` — added 2026-08-29 with the confirm-modal visibility fix (danger = a solid soft-red action, not a red heading). |
 
 OKR `Confidence` status mapping (the enum is domain vocabulary in `CONTEXT.md`;
 its colors are presentation, recorded here):

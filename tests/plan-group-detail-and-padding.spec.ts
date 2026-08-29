@@ -245,6 +245,116 @@ test.describe('Task detail — sub-task delete confirmation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task-delete confirmation (2026-08-29 expected design): copy must name what
+// goes away with the task (its sub-tasks) and reassure that the logged
+// pomodoros survive in stats; title reads "Delete this task?" and the confirm
+// button reads "Delete task" (was a bare "Delete"). The Cancel button must be
+// clearly visible — outlined in cyan on the dark dialog (it was a bg-tertiary
+// fill one shade off the card, effectively invisible) — with the action row
+// right-aligned and content-sized.
+// ---------------------------------------------------------------------------
+test.describe('Task detail — task delete confirmation', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveTasks([
+        {
+          id: 'del1',
+          title: 'CCA Exam',
+          estimatedPomodoros: 6,
+          completedPomodoros: 3,
+          isCompleted: false,
+          createdAt: '2026-05-18T10:00:00Z',
+          todos: [
+            { id: 'dt1', text: 'Chapter 1', completed: false, createdAt: '2026-05-18T10:00:00Z' },
+            { id: 'dt2', text: 'Chapter 2', completed: true, createdAt: '2026-05-19T10:00:00Z' },
+          ],
+        },
+        {
+          id: 'del2',
+          title: 'Plain task',
+          estimatedPomodoros: 2,
+          completedPomodoros: 0,
+          isCompleted: false,
+          createdAt: '2026-05-18T10:00:00Z',
+        },
+      ]);
+    });
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await expect(page.locator('.board-task-card').first()).toBeVisible();
+  });
+
+  test('delete confirmation names the sub-tasks and reassures about logged pomodoros', async ({ page }) => {
+    await page.locator('.board-task-card .card-title', { hasText: 'CCA Exam' }).click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+    await page.locator('.delete-task-btn').click();
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+
+    await expect(modal.locator('h3')).toHaveText('Delete this task?');
+    await expect(modal).toContainText(
+      '“CCA Exam” and its 2 sub-tasks will be removed. The 3 logged pomodoros stay in your stats.'
+    );
+
+    // Confirm keeps the task until clicked; the button reads the full action.
+    const confirm = modal.locator('button', { hasText: 'Delete task' });
+    await expect(confirm).toHaveCount(1);
+  });
+
+  test('confirmation without sub-tasks or pomos stays a plain removal line', async ({ page }) => {
+    await page.locator('.board-task-card .card-title', { hasText: 'Plain task' }).click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    await page.locator('.delete-task-btn').click();
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('“Plain task” will be removed.');
+    await expect(modal).not.toContainText('logged pomodoros');
+    await expect(modal).not.toContainText('sub-tasks');
+  });
+
+  test('cancel is cyan-outlined and the action row hugs content right-aligned', async ({ page }) => {
+    await page.locator('.board-task-card .card-title', { hasText: 'CCA Exam' }).click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+    await page.locator('.delete-task-btn').click();
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+
+    // Cancel: transparent fill + cyan outline + primary text — visible.
+    const cancel = await modal.locator('.confirm-cancel-btn').evaluate(el => {
+      const s = getComputedStyle(el);
+      return { borderColor: s.borderColor, borderWidth: s.borderTopWidth, bg: s.backgroundColor, color: s.color, grow: s.flexGrow };
+    });
+    expect(cancel.borderColor, 'cyan outline (var(--color-primary))').toBe('rgb(34, 211, 238)');
+    expect(cancel.borderWidth).toBe('1px');
+    expect(cancel.bg, 'dialog surface shows through — no low-contrast fill').toBe('rgba(0, 0, 0, 0)');
+    expect(cancel.color, 'primary text (var(--text-primary))').toBe('rgb(228, 228, 231)');
+    expect(cancel.grow, 'hugs content — not stretched across the modal').toBe('0');
+
+    // Actions row sits at the end, matching the expected design.
+    const justify = await modal.locator('.prioritize-actions').evaluate(el => getComputedStyle(el).justifyContent);
+    expect(justify).toBe('flex-end');
+
+    // Title is plain primary text — the color lives on the destructive action.
+    expect(await modal.locator('h3.prioritize-title').evaluate(el => getComputedStyle(el).color)).toBe('rgb(228, 228, 231)');
+
+    // Delete action: salmon danger fill with dark on-danger text.
+    const confirm = await modal.locator('.confirm-danger-btn').evaluate(el => {
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, color: s.color };
+    });
+    expect(confirm.bg, 'salmon fill (var(--color-danger))').toBe('rgb(232, 121, 117)');
+    expect(confirm.color, 'dark on-danger text (var(--bg-primary), same treatment as .btn)').toBe('rgb(10, 10, 15)');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Sub-task reorder via HTML5 drag-and-drop (amends ADR-0010 to permit in-list
 // reordering; PrioritizeModal already uses HTML5 DnD as precedent). Dropping a
 // row onto another inserts it ABOVE the target (reorderTodoItems semantics).

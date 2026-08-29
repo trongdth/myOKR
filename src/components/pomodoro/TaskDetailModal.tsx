@@ -18,6 +18,18 @@ type PendingDelete = { kind: 'todo' | 'comment' | 'task'; id: string } | null;
 const pct = (done: number, total: number) =>
   total > 0 ? Math.min(100, (done / total) * 100) : 0;
 
+/** Task-delete confirm copy: names what goes away with the task and reassures
+ * that logged pomodoros stay in stats (they live in review snapshots). */
+function taskDeleteMessage(task: PomodoroTask): string {
+  const parts = [`“${task.title}”`];
+  if (task.todos?.length) parts.push(`its ${task.todos.length} sub-task${task.todos.length === 1 ? '' : 's'}`);
+  if (task.comments?.length) parts.push(`${task.comments.length} comment${task.comments.length === 1 ? '' : 's'}`);
+  const joined = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+  const logged = task.completedPomodoros;
+  const pomoLine = logged > 0 ? ` The ${logged} logged pomodoro${logged === 1 ? '' : 's'} stay${logged === 1 ? 's' : ''} in your stats.` : '';
+  return `${joined} will be removed.${pomoLine}`;
+}
+
 /** "12 Jul" — short absolute date for the footer's Created line. */
 function formatShortDate(iso: string): string {
   const d = new Date(iso);
@@ -271,11 +283,11 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
     setPendingDelete(null);
   };
 
-  let deleteModalProps = { title: 'Delete sub-task', message: 'Delete this sub-task? This cannot be undone.' };
+  let deleteModalProps = { title: 'Delete sub-task', message: 'Delete this sub-task? This cannot be undone.' as React.ReactNode, confirmText: 'Delete' };
   if (pendingDelete?.kind === 'comment') {
-    deleteModalProps = { title: 'Delete comment', message: 'Delete this comment? This cannot be undone.' };
+    deleteModalProps = { title: 'Delete comment', message: 'Delete this comment? This cannot be undone.', confirmText: 'Delete' };
   } else if (pendingDelete?.kind === 'task') {
-    deleteModalProps = { title: 'Delete task', message: `Delete “${task.title}”? This permanently removes the task, its sub-tasks, and comments. This cannot be undone.` };
+    deleteModalProps = { title: 'Delete this task?', message: taskDeleteMessage(task), confirmText: 'Delete task' };
   }
 
   const notesLong = notesIsLong(task.description || '');
@@ -679,7 +691,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
         onConfirm={confirmDelete}
         title={deleteModalProps.title}
         message={deleteModalProps.message}
-        confirmText="Delete"
+        confirmText={deleteModalProps.confirmText}
       />
     </div>
   );
