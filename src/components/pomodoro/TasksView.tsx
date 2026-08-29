@@ -642,7 +642,7 @@ export default function TasksView({
                     <th className="th-select">
                       <input
                         type="checkbox"
-                        checked={selectedTaskIds.size === group.tasks.length && group.tasks.length > 0}
+                        checked={group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.has(t.id))}
                         onChange={e => {
                           const ids = new Set(selectedTaskIds);
                           group.tasks.forEach(t => {

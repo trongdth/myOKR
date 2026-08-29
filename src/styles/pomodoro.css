@@ -4383,35 +4383,19 @@
   font-size: 0.78rem;
   color: var(--text-muted);
 }
-.done-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-.done-table th {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-align: left;
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--border-color);
-  white-space: nowrap;
-}
-.done-table td {
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-}
-.done-table-row { cursor: pointer; }
-.done-table-row:hover { background: rgba(255, 255, 255, 0.03); }
-.done-th-pomos, .done-th-finished, .done-th-undo { text-align: right; }
-.done-td-pomos, .done-td-finished, .done-td-undo {
+/* Done table (2026-08-29): carries the .list-table class in the markup, so it
+   inherits the Tasks list view's card chrome (surface, border, header row,
+   padding) — this block keeps only the Done-specific layer. Selectors are
+   .done-table-qualified so they outrank .list-table th's text-align: left. */
+.done-table .done-th-pomos, .done-table .done-th-finished, .done-table .done-th-undo { text-align: right; }
+.done-table .done-td-pomos, .done-table .done-td-finished, .done-table .done-td-undo {
   font-family: var(--font-mono);
   text-align: right;
   font-size: 0.78rem;
   color: var(--text-muted);
 }
+.done-table-row { cursor: pointer; }
+.done-table-row:hover { background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
 .done-task-title { font-weight: 500; }
 .done-task-kr { font-size: 0.75rem; color: var(--text-muted); }
 .done-reopen-btn {
@@ -4427,6 +4411,13 @@
   cursor: pointer;
 }
 .done-reopen-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* Bulk-selection state shared by both tables (Tasks list rows previously had
+   the class but no style). */
+.list-row.selected,
+.done-table-row.selected {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
 
 /* --- P4 Task detail: eyebrow hint + mono readout --- */
 .detail-eyebrow {

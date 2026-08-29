@@ -184,8 +184,9 @@ export default function PomodoroApp({
           cycles={cycles}
           activeCycle={activeCycle}
           onOpenSearch={() => setIsSearchOpen(true)}
-          onReopenTask={(task) => {
-            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+          onReopenTasks={(reopening) => {
+            const ids = new Set(reopening.map(t => t.id));
+            const updated = tasks.map(t => ids.has(t.id) ? { ...t, isCompleted: false, completedAt: undefined } : t);
             handleTasksChange(updated);
           }}
           onSelectTask={(t) => setSelectedDetailTask(t)}

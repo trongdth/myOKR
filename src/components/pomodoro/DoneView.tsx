@@ -9,7 +9,8 @@ import { PRIORITY_OPTIONS, krOptions } from './taskSelectOptions';
 
 interface Props {
   tasks: PomodoroTask[];
-  onReopenTask: (task: PomodoroTask) => void;
+  /** Bulk-shaped so a multi-select reopen is one write, not N sequential ones. */
+  onReopenTasks: (tasks: PomodoroTask[]) => void;
   keyResults?: KeyResult[];
   objectives?: Objective[];
   cycles?: OKRCycle[];
@@ -34,11 +35,14 @@ function dayGroupLabel(dateStr: string, todayStr: string, yesterdayStr: string):
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()].toUpperCase()}`;
 }
 
-export default function DoneView({ tasks, onReopenTask, keyResults = [], objectives = [], cycles = [], activeCycle, onSelectTask, onOpenSearch }: Props) {
+export default function DoneView({ tasks, onReopenTasks, keyResults = [], objectives = [], cycles = [], activeCycle, onSelectTask, onOpenSearch }: Props) {
   // Filters (P5): This week / All key results / All priorities
   const [weekOnly, setWeekOnly] = useState(false);
   const [krFilter, setKrFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+
+  // Bulk selection (row anatomy matches the Tasks list view — 2026-08-29)
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
   const krCycleMap = useMemo(
     () => buildKrCycleMap(keyResults, objectives, cycles),
@@ -139,6 +143,46 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
     });
   }, [completedTasks, todayStr, yesterdayStr]);
 
+  const toggleSelectTask = (id: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectGroup = (groupTasks: PomodoroTask[], checked: boolean) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      groupTasks.forEach(t => {
+        if (checked) next.add(t.id);
+        else next.delete(t.id);
+      });
+      return next;
+    });
+  };
+
+  // Bulk actions only touch what the current filters show, then clear — same
+  // posture as the Tasks list view's bulk bar.
+  const selectedCompleted = completedTasks.filter(t => selectedTaskIds.has(t.id));
+
+  const handleBulkReopen = () => {
+    if (selectedCompleted.length === 0) return;
+    onReopenTasks(selectedCompleted);
+    setSelectedTaskIds(new Set());
+  };
+
+  const handleRowReopen = (task: PomodoroTask) => {
+    onReopenTasks([task]);
+    setSelectedTaskIds(prev => {
+      if (!prev.has(task.id)) return prev;
+      const next = new Set(prev);
+      next.delete(task.id);
+      return next;
+    });
+  };
+
   return (
     <div className="done-view-container">
       {/* Header (P5): PLAN + cycle pill + Search ⌘K */}
@@ -190,6 +234,17 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
         </span>
       </div>
 
+      {/* Bulk Action Bar — same anatomy as the Tasks list view's; Reopen is
+          the one bulk action completed tasks can take */}
+      {selectedCompleted.length > 0 && (
+        <div className="bulk-action-bar">
+          <span className="bulk-count">{selectedCompleted.length} selected</span>
+          <div className="bulk-buttons">
+            <button onClick={handleBulkReopen} className="bulk-btn">Reopen</button>
+          </div>
+        </div>
+      )}
+
       {completedTasks.length === 0 ? (
         <div className="done-view-empty">
           <CheckCircle2 size={36} className="empty-icon" />
@@ -206,10 +261,19 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
                 </span>
               </div>
 
-              {/* P5: table TASK | KEY RESULT | POMODOROS | FINISHED | UNDO */}
-              <table className="done-table">
+              {/* P5 columns in the Tasks list-view table anatomy (2026-08-29):
+                  select · TASK | KEY RESULT | POMODOROS | FINISHED | UNDO */}
+              <table className="list-table done-table">
                 <thead>
                   <tr>
+                    <th className="th-select">
+                      <input
+                        type="checkbox"
+                        checked={group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.has(t.id))}
+                        onChange={e => toggleSelectGroup(group.tasks, e.target.checked)}
+                        aria-label={`Select all tasks finished ${group.label}`}
+                      />
+                    </th>
                     <th className="done-th-task">TASK</th>
                     <th className="done-th-kr">KEY RESULT</th>
                     <th className="done-th-pomos">POMODOROS</th>
@@ -223,13 +287,22 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
                     const finishedTime = task.completedAt
                       ? new Date(task.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       : '—';
+                    const isSelected = selectedTaskIds.has(task.id);
 
                     return (
                       <tr
                         key={task.id}
-                        className="done-table-row"
+                        className={`list-row done-table-row${isSelected ? ' selected' : ''}`}
                         onClick={() => onSelectTask?.(task)}
                       >
+                        <td className="td-select" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectTask(task.id)}
+                            aria-label={`Select ${task.title}`}
+                          />
+                        </td>
                         <td className="done-td-task">
                           <span className="done-task-title">{task.title}</span>
                         </td>
@@ -243,7 +316,7 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
                         <td className="done-td-undo" onClick={e => e.stopPropagation()}>
                           <button
                             className="done-reopen-btn"
-                            onClick={() => onReopenTask(task)}
+                            onClick={() => handleRowReopen(task)}
                             title="Reopen task and return to bucket"
                           >
                             <RotateCcw size={13} />
