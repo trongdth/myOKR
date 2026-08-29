@@ -319,3 +319,84 @@ test.describe('Board card feedback rework', () => {
     await expect(page.locator('.task-detail-panel')).toHaveCount(0);
   });
 });
+
+test.describe('PR #84 review feedback', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(FIXED));
+    await page.addInitScript(() => {
+      window.localStorage.setItem('myokr_walkthrough_state', '"seen"');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async () => {
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+      const tasks = Array.from({ length: 30 }, (_, i) => ({
+        id: `t-scroll-${i}`,
+        title: `Scroll filler task ${i + 1}`,
+        bucket: 'backlog' as const,
+        category: 'do' as const,
+        estimatedPomodoros: 1,
+        completedPomodoros: 0,
+        isCompleted: false,
+        createdAt: '2026-05-24T10:00:00Z',
+      }));
+      await pomo.saveTasks(tasks);
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.locator('button[title="Plan"]').click();
+  });
+
+  // Review 1: with the toolbar "New task" button gone, a long list left no
+  // in-view creation affordance once scrolled. The quick-add bar must stay
+  // pinned (sticky) inside the app's main scroller.
+  test('quick-add bar stays in view when the list is scrolled', async ({ page }) => {
+    await page.locator('.view-switch-btn', { hasText: 'List' }).click();
+    await expect(page.locator('.list-view-container')).toBeVisible();
+
+    // Scroll whichever container actually scrolls (the shell decides between
+    // the window and .app-main) — precondition: we really moved.
+    const scrolled = await page.evaluate(() => {
+      const main = document.querySelector('.app-main') as HTMLElement;
+      const se = document.scrollingElement as HTMLElement;
+      if (main && main.scrollHeight > main.clientHeight + 50) {
+        main.scrollTop = main.scrollHeight;
+        return main.scrollTop > 100;
+      }
+      se.scrollTop = se.scrollHeight;
+      return se.scrollTop > 100;
+    });
+    expect(scrolled).toBe(true);
+
+    const bar = page.locator('.quick-add-bar');
+    await expect(bar).toBeVisible();
+    const vp = page.viewportSize()!;
+    const box = (await bar.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+  });
+
+  // Review 2: the chip token must honor the design system's 40px touch rule
+  // at ≤900px — all three chips grow together, so parity survives.
+  test('all three chips meet the 40px touch rule at ≤900px, still identical', async ({ page }) => {
+    await page.setViewportSize({ width: 860, height: 900 });
+    await page.waitForTimeout(300);
+
+    const card = page.locator('.column-backlog .board-task-card').first();
+    const chipHeights = await card.evaluate(el => {
+      const height = (sel: string) => {
+        const chip = el.querySelector(sel);
+        return chip ? getComputedStyle(chip).height : null;
+      };
+      return [
+        height('.card-category'),
+        height('.card-kr .sel-trigger'),
+        height('.card-due'),
+      ];
+    });
+
+    expect(chipHeights[0]).not.toBeNull();
+    expect(new Set(chipHeights).size).toBe(1);
+    expect(parseFloat(chipHeights[0]!)).toBeGreaterThanOrEqual(40);
+  });
+});

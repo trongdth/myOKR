@@ -1483,12 +1483,32 @@
   padding: 0.85em 0.75em;
 }
 
-/* Confirm modal cancel button — neutralize .btn hover glow */
-.confirm-cancel-btn:hover {
+/* Confirm modal (ConfirmModal) — the Cancel button must stay clearly visible
+   on the dark dialog: cyan outline, transparent fill (2026-08-29 expected
+   design). The destructive action carries the color (--color-danger); the
+   non-danger confirm is the plain solid-cyan .btn. No .btn hover lift/glow. */
+.confirm-modal .btn:hover {
   transform: none;
   box-shadow: none;
-  background: var(--bg-secondary);
+}
+
+.confirm-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+.confirm-cancel-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.confirm-danger-btn {
+  background: var(--color-danger);
+  border: none;
+  color: var(--bg-primary);
+  font-weight: 600;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -3068,6 +3088,12 @@
 
 /* Quick Add Bar (Redesign 09.00.16.png & 09.42.28.png) */
 .quick-add-bar {
+  /* Sticky within .app-main (the shell's single scroller): the creation
+     affordance stays in view no matter how far the board/list scrolls
+     (PR #84 review 1 — the list toolbar lost its New-task focus button). */
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -4057,6 +4083,14 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
+}
+@media (max-width: 900px) {
+  /* Touch rule (design-system): 40px targets ≤900px — re-scope the shared
+     token so all three chips grow together and parity holds (PR #84
+     review 2). */
+  .card-meta-block {
+    --chip-height: 40px;
+  }
 }
 .card-meta-row {
   display: flex;

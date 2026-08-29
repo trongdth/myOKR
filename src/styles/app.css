@@ -6,7 +6,11 @@
 /* ===== APP LAYOUT ===== */
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  /* Fixed-viewport app shell: the sidebar stays put and .app-main is the
+     single scroller (the window itself never scrolls). This is what lets
+     in-content sticky affordances (e.g. the Tasks quick-add bar) pin. */
+  height: 100vh;
+  overflow: hidden;
   width: 100%;
 }
 
