@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -12,11 +11,11 @@ interface Props {
   danger?: boolean;
 }
 
-export default function ConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
+export default function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
@@ -34,27 +33,18 @@ export default function ConfirmModal({
     <div className="prioritize-overlay confirm-modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
       <div className="prioritize-modal confirm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: '2em' }}>
         <div className="prioritize-header" style={{ marginBottom: '1em' }}>
-          <h3 className="prioritize-title" style={{ color: danger ? '#ef4444' : 'var(--text-primary)' }}>
-            {danger ? <><Trash2 size={16} className="icon-inline" /> </> : null}{title}
-          </h3>
+          <h3 className="prioritize-title">{title}</h3>
         </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.5em' }}>
           {message}
         </div>
         <div className="prioritize-actions" style={{ gap: '0.75em' }}>
-          <button className="btn confirm-cancel-btn" onClick={onClose} style={{ background: 'var(--bg-tertiary)', flex: 1 }}>
+          <button className="btn confirm-cancel-btn" onClick={onClose}>
             {cancelText}
           </button>
-          <button 
-            className="btn" 
+          <button
+            className={danger ? 'btn confirm-danger-btn' : 'btn'}
             onClick={() => { onConfirm(); onClose(); }}
-            style={{ 
-              background: danger ? '#ef4444' : 'var(--accent-gradient)', 
-              color: 'white', 
-              border: 'none', 
-              flex: 1, 
-              fontWeight: '600' 
-            }}
           >
             {confirmText}
           </button>

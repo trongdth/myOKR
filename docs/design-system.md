@@ -41,6 +41,7 @@ meaning aligns (cyan = primary action = focus).
 | `--color-objective` | `#a855f7` (violet) | OKR Objectives |
 | `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else. **One carve-out:** the Habits analytics weak-day insight banner (2026-08-08, Habits tracker) — an insight derived from streak data, documented in the Habits section below |
 | `--color-risk` | `#f43f5e` (rose) | At-risk / warning |
+| `--color-danger` | `#e87975` (salmon) | Destructive-action fill (ConfirmModal delete confirms). Dark text on the fill (`--bg-primary`), same treatment as `.btn` — added 2026-08-29 with the confirm-modal visibility fix (danger = a solid soft-red action, not a red heading). |
 
 OKR `Confidence` status mapping (the enum is domain vocabulary in `CONTEXT.md`;
 its colors are presentation, recorded here):
@@ -516,13 +517,18 @@ identically; there is no separate long-break case.
 ### Tasks board (P1/P2, flagship — mockup-exact values)
 
 - **Header block**: title `PLAN` + cycle pill (`May cycle`) · Board/List
-  segmented switch · **"New task"** button (focuses the add-row). **No Search
-  button on the board** (search stays reachable via Meta+K; "Search ⌘K" appears
-  on List and Done per P3/P5 — Objectives dropped its button in the 2026-08-19
-  P7 revamp below).
+  segmented switch. **No New task button in the header** (2026-08-27: and the
+  list toolbar's was removed too — the add-row is task creation's single
+  home). **No Search button on the board** (search stays reachable via Meta+K;
+  "Search ⌘K" appears on List and Done per P3/P5 — Objectives dropped its
+  button in the 2026-08-19 P7 revamp below).
 - **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
-  Done N` with the count badge styling, and `May cycle · week 4 of 5` on the
-  right. N = open tasks / objectives / completed tasks **in this cycle**
+  Done N` with the count badge styling, and the cycle·week slot on the right —
+  static `May cycle · week 4 of 5` text elsewhere, the week-filter Select on
+  Tasks (2026-08-27: the strip bottom-aligns its children, and the picker's
+  `margin-bottom` holds it fully **clear of the strip's border-bottom rule** —
+  the pill is translucent, so a flush resting line would graze through it).
+  N = open tasks / objectives / completed tasks **in this cycle**
   (ADR-0012 rule; unlinked tasks always count).
 - **SERVING strip**: the active cycle's *objectives* with progress bars (violet
   `--color-objective` at >0%, rose `--color-risk` at 0%) and a `0% · no tasks`
@@ -531,12 +537,30 @@ identically; there is no separate long-break case.
 - **Add-row**: `[type, then ↵ to set priority and key result] [category] [key
   result] [Add]` — **no bucket select, no due date**. New tasks land in
   **Backlog** (matches the storage default; schema rule in CONTEXT.md).
-- **Card anatomy**: `[✓ tick]` (tick = complete; same-session undo via the
-  completed strip) · title · mono `4/6` (current-position / estimated — see
-  *Pomo count display* above) · KR line ·
-  mono category · due chip (`Thu`, mono) · **dashed "Add to <bucket>" button**
-  = the move-to-bucket menu. 3px left accent stripe in the task's Eisenhower
-  category color (`EISENHOWER_META`, via `--today-accent`-style CSS var).
+- **Card anatomy** (2026-08-27 rework, round 4): `[✓ tick]` — a
+  24px rounded-square checkbox (tick = complete; same-session undo via the
+  completed strip) · title · **board-card mini-trigger** in the top-right
+  corner beside the pomo counter: a rounded-rect pill (24px — sized to the
+  counter's line, which it shares centered — radius-md,
+  subtle surface + low-contrast 1px border) holding a `KanbanSquare` glyph +
+  chevron in **muted foreground** (replaces the dashed "Add to <bucket>"
+  button; opens the move panel — Select-style: mono `MOVE TO BUCKET`
+  eyebrow, the task's current bucket ticked cyan on a raised row, divider,
+  green `Mark done` action (round 8; picking a bucket or marking done also
+  clears the ADR-0010 move selection)) · mono `4/6`
+  (current-position / estimated — see *Pomo count display* above). The meta
+  block is **two gap-2 flex rows that wrap**: row 1 = status pill + the
+  **KR chip — the shared Select (bare variant) dressed as a pill**, which
+  links/unlinks inline (clicking "Link a key result" opens the KR picker,
+  never task detail); a linked chip shows its violet KR swatch dot and
+  takes an objective tint (`color-mix` of `--color-objective`) while
+  ellipsizing long titles; the empty prompt stays neutral/dashed and never
+  shrinks. Row 2 = the due chip (`Thu` mono within 7 days, `Mon D` beyond,
+  rose when overdue). **All three chips share one size token** — the
+  block's `--chip-height/--chip-pad-x/--chip-radius/--chip-font` — so they
+  render as identical pills. 3px left accent stripe in the task's
+  Eisenhower category color (`EISENHOWER_META`, via `--today-accent`-style
+  CSS var).
   **No focus button on cards** — focus starts from the detail modal's `Start
   focus` or ⌘K `Start`. No emoji (🎯🍅📅 → mono text / Lucide).
 - **Bucket headers**: `Today · N · X pomos` (mono count pill + planned-pomo
@@ -556,9 +580,12 @@ identically; there is no separate long-break case.
 ### List view (P3, structural parity)
 
 - Toolbar: **Group by** (bucket / key result / priority) + **Sort**
-  (priority / due / pomos) dropdowns, **"New task"** button, and the bulk bar
+  (priority / due / pomos) dropdowns, **Search ⌘K**, and the bulk bar
   `N selected · Move to` (existing). Group headers carry the planning line
-  (`TODAY — 3 tasks · 9 pomodoros planned`).
+  (`TODAY — 3 tasks · 9 pomodoros planned`). **"New task" removed
+  (2026-08-27)**: the add-row sits permanently above the toolbar in both
+  views, so the button was a redundant focus affordance — task creation has
+  one home (`tests/plan-group-feedback.spec.ts` Feedback 4).
 - Columns already match the mockup (`TASK | PRIORITY | KEY RESULT | BUCKET |
   DUE | POMOS | SUBTASKS`); bucket/priority/KR stay inline-editable cells
   (the design's "re-schedule without dragging").

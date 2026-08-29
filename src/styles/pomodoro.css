@@ -1483,12 +1483,32 @@
   padding: 0.85em 0.75em;
 }
 
-/* Confirm modal cancel button — neutralize .btn hover glow */
-.confirm-cancel-btn:hover {
+/* Confirm modal (ConfirmModal) — the Cancel button must stay clearly visible
+   on the dark dialog: cyan outline, transparent fill (2026-08-29 expected
+   design). The destructive action carries the color (--color-danger); the
+   non-danger confirm is the plain solid-cyan .btn. No .btn hover lift/glow. */
+.confirm-modal .btn:hover {
   transform: none;
   box-shadow: none;
-  background: var(--bg-secondary);
+}
+
+.confirm-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+.confirm-cancel-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.confirm-danger-btn {
+  background: var(--color-danger);
+  border: none;
+  color: var(--bg-primary);
+  font-weight: 600;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -3068,6 +3088,12 @@
 
 /* Quick Add Bar (Redesign 09.00.16.png & 09.42.28.png) */
 .quick-add-bar {
+  /* Sticky within .app-main (the shell's single scroller): the creation
+     affordance stays in view no matter how far the board/list scrolls
+     (PR #84 review 1 — the list toolbar lost its New-task focus button). */
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -3148,7 +3174,7 @@
 .sel-kr-swatch {
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 50%; /* circle — same glyph shape as .sel-priority-dot */
   background: var(--color-objective);
   display: inline-block;
   flex-shrink: 0;
@@ -3290,11 +3316,6 @@
   line-height: 1.35;
 }
 
-.card-kr {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-}
-
 .card-footer {
   display: flex;
   align-items: center;
@@ -3304,55 +3325,89 @@
   flex-wrap: wrap;
 }
 
-.card-move-wrapper {
-  margin-left: auto;
-  position: relative;
-}
-
-.card-move-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0.2rem;
-}
-
+/* Move panel (round 8): mirrors the shared Select panel — card surface,
+   mono eyebrow, 34px rows with the current bucket ticked cyan, divider,
+   green action row. */
 .card-move-menu {
   position: absolute;
   right: 0;
-  top: 100%;
-  background: var(--bg-primary);
+  top: calc(100% + 6px);
+  min-width: 170px;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.5rem;
+  border-radius: 10px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 2px;
   z-index: 50;
-  min-width: 120px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-card);
 }
 
-.move-title {
-  font-size: 0.7rem;
+.move-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 600;
+  padding: 6px 8px 4px;
 }
 
 .move-option {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+}
+
+.move-option:hover {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   color: var(--text-primary);
-  padding: 0.3rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
+}
+
+.move-option.is-chosen {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-primary);
+}
+
+.move-tick {
+  color: var(--color-primary);
+  flex: none;
+}
+
+.move-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 6px;
+}
+
+.move-action {
+  min-height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--okr-on-track);
+  font-size: 0.72rem;
+  line-height: 1;
   cursor: pointer;
   text-align: left;
 }
 
-.move-option:hover {
-  background: var(--accent-primary);
-  color: #000;
+.move-action:hover {
+  background: color-mix(in srgb, var(--okr-on-track) 10%, transparent);
 }
 
 /* List View Table */
@@ -3828,7 +3883,7 @@
    Plan Group redesign (P1–P7) — design-system.md per-screen rules
    ========================================================================== */
 
-/* --- P1 header: PLAN + cycle pill + New task --- */
+/* --- P1 header: PLAN + cycle pill --- */
 .cycle-pill {
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -3840,26 +3895,13 @@
   border-radius: 6px;
 }
 
-.new-task-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  height: 34px;
-  padding: 0 0.9rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.new-task-btn:hover { filter: brightness(1.08); }
-
 /* --- P1 tab strip --- */
 .plan-tab-strip {
   display: flex;
-  align-items: center;
+  /* flex-end: every child rests on the bottom edge the active-tab underline
+     sits on, so the cycle·week picker can't loom over or dip below the tab
+     label band. */
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
   border-bottom: 1px solid var(--border-color);
@@ -3904,9 +3946,16 @@
 }
 
 /* Cycle·week picker (custom-select ticket 03 — the overlay-chevron wrapper
-   hack is gone; this is the shared Select now) */
+   hack is gone; this is the shared Select now). Height matches the tab label
+   band and a margin lifts it fully clear of the strip's border-bottom: its
+   translucent background would let the rule graze through otherwise. */
 .plan-tab-strip .sel-trigger {
   max-width: 210px;
+  height: 28px;
+  margin-bottom: 6px;
+}
+@media (max-width: 900px) {
+  .plan-tab-strip .sel-trigger { height: 40px; }
 }
 
 /* --- P1 SERVING strip: objectives with progress --- */
@@ -3993,13 +4042,13 @@
   gap: 0.6rem;
 }
 .card-tick {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
   background: transparent;
   flex: none;
-  margin-top: 1px;
+  margin-top: 0;
   cursor: pointer;
   padding: 0;
 }
@@ -4017,67 +4066,109 @@
   font-size: 0.72rem;
   color: var(--text-muted);
   flex: none;
+  /* matches the bucket pill's height so both sit on one centered line */
+  line-height: 24px;
 }
-/* --- P1 card meta pills (flagship: mockup-exact). Category = filled tint
-   pill with a colored dot; KR & due are pills, dashed when unset. --- */
+/* --- P1 card meta pills (round 4): one chip size token shared by all
+   three chips — status (category), key result, and date — so they render
+   as identical-height pills. Rows are gap-2 flex rows that wrap; rows sit
+   gap-2 apart. --- */
+.card-meta-block {
+  /* the chip size token */
+  --chip-height: 28px;
+  --chip-pad-x: 0.6rem;
+  --chip-radius: 8px;
+  --chip-font: 0.72rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  /* Touch rule (design-system): 40px targets ≤900px — re-scope the shared
+     token so all three chips grow together and parity holds (PR #84
+     review 2). */
+  .card-meta-block {
+    --chip-height: 40px;
+  }
+}
 .card-meta-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-2);
   padding-left: 1.7rem; /* align under the title, past the tick */
+}
+.card-category,
+.card-due,
+.card-kr .sel-trigger.bare {
+  height: var(--chip-height);
+  padding: 0 var(--chip-pad-x);
+  border-radius: var(--chip-radius);
+  font-size: var(--chip-font);
 }
 .card-category {
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 6px;
   background: var(--cat-bg, transparent);
   color: var(--cat-color, var(--text-secondary));
-  font-size: 0.69rem;
   font-weight: 600;
   flex: none;
 }
 .card-category-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 99px;
   background: var(--cat-color, var(--text-muted));
   flex: none;
 }
+/* KR chip: the shared Select (bare variant) dressed as a pill, sized by the
+   block's chip token. Filled violet when a KR is linked; dashed neutral
+   "Link a key result" when not. The label itself ellipsizes rather than
+   wrapping inside the chip. */
 .card-kr {
   display: inline-flex;
   align-items: center;
-  padding: 0.18rem 0.5rem;
-  border-radius: 6px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 0.69rem;
-  /* truncate a long KR inside the bounded column track */
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 0 1 auto;
 }
-.card-kr.is-empty {
+.card-kr .sel-trigger.bare {
+  min-width: 0;
+  max-width: none;
+  /* Chip token wins over select.css's ≤900px 40px tap-target rule so the
+     three chips stay identical at every width; the picker panel rows still
+     get full touch sizing. */
+  min-height: var(--chip-height);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  gap: 0.3rem;
+}
+/* The KR dot matches the priority dot's on-card size (6px circle); the
+   global .sel-kr-swatch stays 8px for Select rows where the priority dot
+   is also 8px. */
+.card-kr .sel-kr-swatch {
+  width: 6px;
+  height: 6px;
+}
+/* Linked chip takes the objective tint (mockup: violet pill + swatch dot);
+   the empty prompt stays neutral/dashed. */
+.card-kr:not(.is-empty) .sel-trigger.bare {
+  background: color-mix(in srgb, var(--color-objective) 16%, transparent);
+}
+.card-kr.is-empty { flex: none; } /* the full "Link a key result" label never shrinks */
+.card-kr.is-empty .sel-trigger.bare {
   background: transparent;
   border: 1px dashed rgba(255, 255, 255, 0.14);
   color: var(--text-muted);
-  font-weight: 400;
-  flex: none;
 }
+.card-kr.is-empty .sel-placeholder { color: var(--text-muted); }
 .card-due {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 6px;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: 0.69rem;
   flex: none;
 }
 .card-due .card-due-icon { flex: none; }
@@ -4090,20 +4181,29 @@
   background: color-mix(in srgb, var(--color-risk) 16%, transparent);
   color: var(--color-risk);
 }
-.card-move-wrapper { margin-left: auto; position: relative; }
-.card-move-btn {
-  display: flex;
+/* Board-card mini-trigger in the title row (top-right, beside the pomo
+   counter): rounded-rect pill (~28px, radius-md) with subtle surface +
+   low-contrast 1px border; board glyph + chevron in muted foreground —
+   the affordance reads as the dropdown it opens. */
+.card-move-wrapper { position: relative; flex: none; display: inline-flex; }
+.card-bucket-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  background: none;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.68rem;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
   color: var(--text-muted);
   cursor: pointer;
 }
-.card-move-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.card-bucket-btn:hover,
+.card-bucket-btn[aria-expanded="true"] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
 
 /* --- P1 completed-today strip (inside Backlog column) --- */
 .completed-today-strip {
@@ -4238,7 +4338,7 @@
 .list-toolbar-item .sel-trigger {
   max-width: 130px;
 }
-.list-new-task { margin-left: auto; }
+.list-search-btn { margin-left: auto; }
 .list-group { margin-bottom: 1.25rem; }
 .list-group-header {
   font-family: var(--font-mono);

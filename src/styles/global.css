@@ -35,6 +35,7 @@
   --color-objective: #a855f7; /* OKR Objectives (violet) */
   --color-streak: #f59e0b;    /* streaks — amber means streak, nothing else */
   --color-risk: #f43f5e;      /* at-risk / warning (rose) */
+  --color-danger: #e87975;    /* destructive action fill (delete confirms) */
 
   /* Legacy aliases — kept so existing var(--accent-*) call-sites adopt the new
      semantic values automatically. Migrate them to --color-* over time. */

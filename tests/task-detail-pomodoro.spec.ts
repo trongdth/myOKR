@@ -66,7 +66,7 @@ test.describe('Pomodoro block — task detail modal (Seam C)', () => {
       ]);
     });
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
   });
 
   test('shows POMODOROS with lifetime completed / estimated, no weekly plan button', async ({ page }) => {
@@ -111,7 +111,7 @@ test.describe('Pomodoro block — task detail modal (Seam C)', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Plan', exact: true }).click();
-    await page.locator('.board-task-card').first().click();
+    await page.locator('.board-task-card .card-title').first().click();
     await expect(page.locator('.weekly-plan-block .task-pomo-count')).toHaveText('2 / 5 planned');
   });
 });

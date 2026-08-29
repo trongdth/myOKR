@@ -97,7 +97,7 @@ test.describe('Trailing counts', () => {
     await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'tasks'));
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.locator('.board-task-card', { hasText: 'Open Task One' }).click();
+    await page.locator('.board-task-card', { hasText: 'Open Task One' }).locator('.card-title').click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
 
     const kr = page.locator('.prop-group [aria-label="Key result"]');

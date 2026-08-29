@@ -38,7 +38,7 @@ test.describe('Modal & filter Select migration', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    await page.locator('.board-task-card', { hasText: 'Mig Open Task' }).click();
+    await page.locator('.board-task-card', { hasText: 'Mig Open Task' }).locator('.card-title').click();
     await expect(page.locator('.task-detail-panel')).toBeVisible();
 
     // KR row: imperative placeholder → choose → clear row
@@ -179,7 +179,7 @@ test.describe('Modal & filter Select migration', () => {
     await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'tasks'));
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.locator('.board-task-card', { hasText: 'Mig Open Task' }).click();
+    await page.locator('.board-task-card', { hasText: 'Mig Open Task' }).locator('.card-title').click();
     await expect(page.locator('.task-detail-panel select')).toHaveCount(0);
   });
 });
