@@ -420,6 +420,11 @@ export default function OKRApp() {
             setTasks(updated);
             saveTasks(updated);
           }}
+          onCompleteTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t);
+            setTasks(updated);
+            saveTasks(updated);
+          }}
         />
       )}
 

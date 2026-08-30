@@ -932,12 +932,22 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   opens the parent task. A title-matching task and its matching sub-tasks can
   both appear (matching the mockup).
 - **Selection / keyboard.** First result preselected; ↑/↓ move; **Enter
-  starts a focus session** on the highlighted open task (completed → Reopen,
-  inside → open parent); the solid-cyan **Start pill renders only on the
-  highlighted row**; completed rows always show the muted `Reopen` text link.
-  These are palette-intrinsic keys scoped to the open modal — a deliberate,
-  user-requested carve-out from the no-global-shortcuts policy
+  starts a focus session** on the highlighted open task (completed → the
+  reopen dialog, inside → open parent); the solid-cyan **Start pill renders
+  only on the highlighted row**; completed rows always show the muted
+  `Reopen` text link. These are palette-intrinsic keys scoped to the open
+  modal — a deliberate, user-requested carve-out from the
+  no-global-shortcuts policy
   ([ADR-0011](./adr/0011-no-keyboard-shortcuts.md)), not a legend'd global
   binding.
+- **Done toggle + reopen confirm (2026-08-30 feedback).** The row checkbox
+  is the task's done state, not decoration: clicking it on an open row
+  completes the task instantly (the Tasks-board posture; the check appears
+  and the row moves to COMPLETED live). Every un-complete path — the
+  completed row's checkbox, the `Reopen` link, Enter on a completed row —
+  opens the Done screen's **"Reopen task" `ConfirmModal`** (non-danger;
+  copy names the cost: leaves the Done list, returns to its bucket, logged
+  pomodoros kept) and only confirms then writes. While that dialog is open
+  the palette's own keys are suspended.
 - Guarded by `tests/command-k-search.spec.ts` (+ the chips-removal test in
   `tests/select-modal-filter-migration.spec.ts`).

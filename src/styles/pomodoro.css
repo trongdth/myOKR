@@ -3693,8 +3693,9 @@
   border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
-/* Rounded-square status checkbox (mirrors .done-check): outlined for open,
-   green-filled with a white check for completed. */
+/* Rounded-square status checkbox (mirrors .done-check): a working done
+   toggle — outlined open (click completes), green-filled with a white check
+   when done (click asks to reopen). */
 .command-k-check {
   width: 18px;
   height: 18px;
@@ -3705,6 +3706,14 @@
   justify-content: center;
   flex-shrink: 0;
   color: transparent;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.command-k-check:not(.done):hover {
+  border-color: var(--text-secondary);
 }
 
 .command-k-check.done {

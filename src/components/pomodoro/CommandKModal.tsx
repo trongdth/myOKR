@@ -3,6 +3,7 @@ import { Search, Play, Check, SquareCheck, FileText } from 'lucide-react';
 import type { PomodoroTask, TaskBucket } from '../../lib/pomodoro-storage';
 import { EISENHOWER_META } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
+import ConfirmModal from '../ConfirmModal';
 
 export type SearchScope = 'everything' | 'open' | 'completed' | 'subtasks' | 'notes';
 
@@ -33,6 +34,7 @@ interface Props {
   onSelectTask: (task: PomodoroTask) => void;
   onStartFocusTask?: (task: PomodoroTask) => void;
   onReopenTask?: (task: PomodoroTask) => void;
+  onCompleteTask?: (task: PomodoroTask) => void;
 }
 
 /** A match found *inside* a task — a sub-task or a note (description /
@@ -127,10 +129,14 @@ export default function CommandKModal({
   onSelectTask,
   onStartFocusTask,
   onReopenTask,
+  onCompleteTask,
 }: Props) {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<SearchScope>(sessionScope);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  // Reopen routes through the Done screen's confirmation: the task never
+  // flips until the dialog decides.
+  const [reopenCandidate, setReopenCandidate] = useState<PomodoroTask | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -218,6 +224,7 @@ export default function CommandKModal({
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (document.querySelector('.sel-panel')) return; // a Select menu owns the keyboard
+      if (document.querySelector('.confirm-modal-overlay')) return; // the reopen dialog owns it
       if (e.key === 'Escape') {
         e.preventDefault();
         if (query) setQuery('');
@@ -251,6 +258,12 @@ export default function CommandKModal({
     };
   }, [isOpen]);
 
+  // Every reopen path — Reopen link, Enter, the completed row's checkbox —
+  // asks first; the write itself happens only on confirm.
+  const requestReopen = (task: PomodoroTask) => {
+    if (onReopenTask) setReopenCandidate(task);
+  };
+
   const activateRow = (row: Row | undefined) => {
     if (!row) return;
     if (row.kind === 'open') {
@@ -265,7 +278,7 @@ export default function CommandKModal({
     }
     if (row.kind === 'completed') {
       // Reopen keeps the modal open — the row simply leaves the group.
-      onReopenTask?.(row.task);
+      requestReopen(row.task);
       return;
     }
     onSelectTask(row.match.parent);
@@ -354,7 +367,8 @@ export default function CommandKModal({
                       keyResults={keyResults}
                       onHighlight={setSelectedIdx}
                       onStart={onStartFocusTask}
-                      onReopen={onReopenTask}
+                      onRequestReopen={onReopenTask ? requestReopen : undefined}
+                      onComplete={onCompleteTask}
                       onOpenParent={onSelectTask}
                       onClose={onClose}
                     />
@@ -364,6 +378,28 @@ export default function CommandKModal({
             )
           )}
         </div>
+
+        {/* Reopen confirm — same dialog as the Done screen; the checkbox,
+            the Reopen link and Enter all route through it. */}
+        <ConfirmModal
+          isOpen={reopenCandidate !== null}
+          onClose={() => setReopenCandidate(null)}
+          onConfirm={() => {
+            if (reopenCandidate) onReopenTask?.(reopenCandidate);
+          }}
+          title="Reopen task"
+          danger={false}
+          confirmText="Reopen"
+          message={
+            reopenCandidate && (
+              <>
+                “{reopenCandidate.title}” will leave the Done list and return to
+                its bucket as an open task. Its {reopenCandidate.completedPomodoros || 0}{' '}
+                logged {reopenCandidate.completedPomodoros === 1 ? 'pomodoro is' : 'pomodoros are'} kept.
+              </>
+            )
+          }
+        />
       </div>
     </div>
   );
@@ -384,7 +420,8 @@ function CommandKRow({
   keyResults,
   onHighlight,
   onStart,
-  onReopen,
+  onRequestReopen,
+  onComplete,
   onOpenParent,
   onClose,
 }: {
@@ -395,10 +432,18 @@ function CommandKRow({
   keyResults: KeyResult[];
   onHighlight: (idx: number) => void;
   onStart?: (task: PomodoroTask) => void;
-  onReopen?: (task: PomodoroTask) => void;
+  onRequestReopen?: (task: PomodoroTask) => void;
+  onComplete?: (task: PomodoroTask) => void;
   onOpenParent: (task: PomodoroTask) => void;
   onClose: () => void;
 }) {
+  // The checkbox is the task's done toggle: completing is instant (the Tasks
+  // board's posture); un-completing asks first via the reopen dialog.
+  const toggleDone = (task: PomodoroTask) => {
+    if (task.isCompleted) onRequestReopen?.(task);
+    else onComplete?.(task);
+  };
+
   return (
     <div
       className={`command-k-item${selected ? ' selected' : ''}`}
@@ -416,7 +461,7 @@ function CommandKRow({
         onHighlight(index);
       }}
     >
-      <RowLeading row={row} />
+      <RowLeading row={row} onToggle={toggleDone} />
       <div className="command-k-item-main">
         <RowTitle row={row} query={query} />
         <RowMeta row={row} query={query} keyResults={keyResults} />
@@ -425,14 +470,20 @@ function CommandKRow({
         row={row}
         selected={selected}
         onStart={onStart}
-        onReopen={onReopen}
+        onRequestReopen={onRequestReopen}
         onClose={onClose}
       />
     </div>
   );
 }
 
-function RowLeading({ row }: { row: Row }) {
+function RowLeading({
+  row,
+  onToggle,
+}: {
+  row: Row;
+  onToggle: (task: PomodoroTask) => void;
+}) {
   if (row.kind === 'inside') {
     return (
       <span className="command-k-inside-icon">
@@ -441,9 +492,17 @@ function RowLeading({ row }: { row: Row }) {
     );
   }
   return (
-    <span className={`command-k-check${row.task.isCompleted ? ' done' : ''}`}>
+    <button
+      type="button"
+      className={`command-k-check${row.task.isCompleted ? ' done' : ''}`}
+      aria-label={row.task.isCompleted ? 'Reopen task' : 'Mark task done'}
+      onClick={e => {
+        e.stopPropagation();
+        onToggle(row.task);
+      }}
+    >
       {row.task.isCompleted && <Check size={12} strokeWidth={3} />}
-    </span>
+    </button>
   );
 }
 
@@ -525,24 +584,24 @@ function RowAction({
   row,
   selected,
   onStart,
-  onReopen,
+  onRequestReopen,
   onClose,
 }: {
   row: Row;
   selected: boolean;
   onStart?: (task: PomodoroTask) => void;
-  onReopen?: (task: PomodoroTask) => void;
+  onRequestReopen?: (task: PomodoroTask) => void;
   onClose: () => void;
 }) {
   if (row.kind === 'completed') {
-    if (!onReopen) return null;
+    if (!onRequestReopen) return null;
     return (
       <button
         className="command-k-reopen-link"
         title="Reopen task"
         onClick={e => {
           e.stopPropagation();
-          onReopen(row.task);
+          onRequestReopen(row.task);
         }}
       >
         Reopen

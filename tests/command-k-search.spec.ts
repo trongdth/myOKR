@@ -124,10 +124,44 @@ test.describe('⌘K search rework', () => {
     await expect(row.locator('.command-k-reopen-link')).toHaveText('Reopen');
     await expect(row.locator('.command-k-start-btn')).toHaveCount(0);
 
-    // Reopen returns the task to OPEN and it leaves COMPLETED.
+    // Reopen asks for confirmation first (mirrors the Done screen): cancelling
+    // keeps the task completed; confirming returns it to OPEN.
     await row.locator('.command-k-reopen-link').click();
+    const confirm = page.locator('.confirm-modal');
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText('Reopen task');
+    await expect(confirm).toContainText('Rotate auth tokens on release');
+    await page.locator('.confirm-cancel-btn').click();
+    await expect(confirm).toHaveCount(0);
+    await expect(row.locator('.command-k-check.done')).toBeVisible();
+
+    await row.locator('.command-k-reopen-link').click();
+    await confirm.locator('.btn:not(.confirm-cancel-btn)').click();
     await expect(page.locator('.command-k-group-header', { hasText: 'OPEN' })).toBeVisible();
     await expect(page.locator('.command-k-item-title', { hasText: 'Rotate auth tokens' })).toBeVisible();
+  });
+
+  test('row checkbox is a done toggle: clicking completes an open task in place', async ({ page }) => {
+    await page.keyboard.type('Document');
+    const row = page.locator('.command-k-item', { hasText: 'Document auth error codes' });
+    await expect(row.locator('.command-k-check:not(.done)')).toBeVisible();
+
+    await row.locator('.command-k-check').click();
+    // The check appears and the row becomes a completed row (Finished …).
+    await expect(row.locator('.command-k-check.done')).toBeVisible();
+    await expect(row.locator('.meta-seg').first()).toHaveText(/Finished/);
+    // No open match left for this query — the task left OPEN.
+    await expect(page.locator('.command-k-group-header', { hasText: 'OPEN' })).toHaveCount(0);
+  });
+
+  test('completed row checkbox reopens through the same confirm', async ({ page }) => {
+    await page.keyboard.type('Ship');
+    const check = page.locator('.command-k-item .command-k-check.done');
+    await check.click();
+    const confirm = page.locator('.confirm-modal');
+    await expect(confirm).toBeVisible();
+    await confirm.locator('.btn:not(.confirm-cancel-btn)').click();
+    await expect(page.locator('.command-k-check:not(.done)')).toBeVisible();
   });
 
   test('inside rows: quoted matched text, kind icon, parent context line', async ({ page }) => {

@@ -214,6 +214,10 @@ export default function PomodoroApp({
             const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
             handleTasksChange(updated);
           }}
+          onCompleteTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t);
+            handleTasksChange(updated);
+          }}
         />
       )}
 
