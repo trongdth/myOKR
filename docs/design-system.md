@@ -693,6 +693,18 @@ identically; there is no separate long-break case.
 >   the scroll container it becomes scrollable overflow — the band's bleed
 >   there made the whole body swipe sideways. `.detail-scroll-body` carries
 >   `overflow-x: hidden` as belt-and-braces, and nothing inside it may bleed.
+> - **Follow-up 2026-08-30 (DUE picker feedback).** The Due cell's native
+>   `input[type=date]` popover rendered tiny in WKWebView and outlived the
+>   panel (outside clicks never dismissed it) — the hidden-host +
+>   `showPicker()` approach above is **superseded** by the shared
+>   **`DatePicker`** (`src/components/shared/DatePicker.tsx`): a portaled
+>   in-app calendar on the Select panel system (fixed-positioned from the
+>   trigger, flips above, z-1100, outside-mousedown closes unchanged, Esc
+>   closes with the modal spared via the panel's `mousedown` preventDefault
+>   keeping focus on the trigger). Monday-start 6×7 grid, ≥280px, month
+>   seeded from the value; values are `YYYY-MM-DD` composed from the viewed
+>   month — never round-tripped through `new Date(iso)` (UTC parse shifts
+>   the picked day across timezones). Guarded by `tests/date-picker.spec.ts`.
 > - Guarded by `tests/task-detail-restyle.spec.ts` (+ updated label
 >   assertions in `tests/task-detail-pomodoro.spec.ts`).
 

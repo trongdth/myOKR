@@ -117,19 +117,15 @@ test.describe('Task detail restyle', () => {
     await expect(bucket.locator('.sel-icon')).toHaveCount(0);
     await expect(bucket.locator('.sel-chevron')).toHaveCount(1);
 
-    // Due: human date (EEE d MMM) + chevron; the raw input is a hidden host.
+    // Due: human date (EEE d MMM) + chevron; clicking opens the shared
+    // in-app DatePicker (tests/date-picker.spec.ts covers the picker itself).
     const due = page.locator('[aria-label="Due date"]');
     await expect(due).toContainText('Fri 31 Jul');
     await expect(due.locator('svg')).toHaveCount(1);
-    const host = page.locator('.prop-date-input');
-    await expect(host).toHaveValue('2026-07-31');
-    // Visually hidden picker host (opacity 0 — a date input can't be
-    // display:none, or showPicker() refuses to open).
-    const hostOpacity = await host.evaluate(el => getComputedStyle(el).opacity);
-    expect(hostOpacity).toBe('0');
-    // Clicking the cell opens the native picker without leaving the panel.
     await due.click();
-    await expect(page.locator('.task-detail-panel')).toBeVisible();
+    await expect(page.locator('.date-picker-panel')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.date-picker-panel')).toHaveCount(0);
 
     // Key result: full violet label, no chevron, no box.
     const kr = page.locator('.detail-properties-bar [aria-label="Key result"]');

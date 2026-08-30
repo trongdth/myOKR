@@ -3851,18 +3851,9 @@
   color: var(--text-muted);
 }
 
-/* Due: the native date input is only the picker host — visually hidden but
-   still rendered, because showPicker() throws on a display:none element. */
-.prop-due { position: relative; display: flex; min-width: 0; }
-.detail-properties-bar .prop-date-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-  border: 0;
-  padding: 0;
-}
+/* Due: the cell opens the shared DatePicker popover (2026-08-30) — the
+   trigger is plain text + chevron; the calendar panel is portaled to body. */
+.prop-due { display: flex; min-width: 0; }
 .prop-due-btn {
   display: inline-flex;
   align-items: center;
@@ -3884,8 +3875,8 @@
   white-space: nowrap;
 }
 .prop-due-btn.empty > span:first-child { color: var(--menu-placeholder); }
-.prop-due-btn:hover .prop-chevron { color: var(--menu-chevron-hover); }
-.prop-chevron { flex-shrink: 0; color: var(--menu-chevron-rest); }
+.prop-due-btn:hover .dp-chevron { color: var(--menu-chevron-hover); }
+.prop-due-btn .dp-chevron { flex-shrink: 0; color: var(--menu-chevron-rest); }
 
 /* Trigger dressing (2026-08-29): the meta cells show the shared Select's
    value as plain text — the boxed chrome (bg/border/padding) is stripped

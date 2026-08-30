@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { X, SquareCheck, MessageSquare, Play, GripVertical, ChevronDown } from 'lucide-react';
+import { X, SquareCheck, MessageSquare, Play, GripVertical } from 'lucide-react';
 import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { EISENHOWER_META, generateId, reorderTodoItems } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -7,6 +7,7 @@ import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
 import PomoEstimatePopover from './PomoEstimatePopover';
 import { Select, type SelectOption } from '../shared/Select';
+import DatePicker from '../shared/DatePicker';
 import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions } from './taskSelectOptions';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
@@ -62,20 +63,6 @@ function formatRelative(iso: string | undefined, now: number): string {
   return formatShortDate(iso);
 }
 
-/** "Fri 31 Jul" (EEE d MMM) for the meta bar's Due cell. The date input's
- *  YYYY-MM-DD is parsed as local calendar fields — `new Date('YYYY-MM-DD')`
- *  would parse UTC and shift the shown day in negative-offset timezones. */
-function formatDueDate(value: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!m) return value;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  if (Number.isNaN(d.getTime())) return value;
-  const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' });
-  const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
-  const month = d.toLocaleDateString('en-GB', { month: 'short' });
-  return `${weekday} ${day} ${month}`;
-}
-
 interface Props {
   /** The full task list — feeds the KR picker's open-linked counts (ticket 07). */
   tasks?: PomodoroTask[];
@@ -109,7 +96,6 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
 
   const descRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const dueInputRef = useRef<HTMLInputElement>(null);
   // Esc reverts notes / sub-task / comment edits; blur autosaves (severity-based
   // commit: one-liners & notes both autosave on blur, Esc discards). Setting this
   // before exit makes the imminent blur handler skip its save so the revert wins.
@@ -126,20 +112,6 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   const visibleTodos = showAllTodos ? todos : todos.slice(0, SUBTASKS_VISIBLE);
   const hiddenTodos = todos.slice(visibleTodos.length);
   const hiddenCompletedCount = hiddenTodos.filter(t => t.completed).length;
-
-  // Due cell: the visible affordance is text + chevron; the native date input
-  // stays in the DOM (visually hidden) as the picker host. showPicker needs
-  // user activation — we're always called from the button's click handler.
-  const openDuePicker = () => {
-    const input = dueInputRef.current;
-    if (!input) return;
-    try {
-      input.showPicker();
-    } catch {
-      input.focus();
-      input.click();
-    }
-  };
 
   useModalEffects(onClose);
 
@@ -427,23 +399,14 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
             <div className="prop-group">
               <span className="prop-label">DUE</span>
               <div className="prop-due">
-                <button
-                  type="button"
-                  className={`prop-due-btn${task.dueDate ? '' : ' empty'}`}
-                  onClick={openDuePicker}
-                  aria-label="Due date"
-                >
-                  <span>{task.dueDate ? formatDueDate(task.dueDate) : 'Set a due date'}</span>
-                  <ChevronDown size={14} className="prop-chevron" aria-hidden="true" />
-                </button>
-                <input
-                  ref={dueInputRef}
-                  type="date"
-                  className="prop-date-input"
-                  value={task.dueDate || ''}
-                  onChange={e => handleUpdateDueDate(e.target.value)}
-                  tabIndex={-1}
-                  aria-hidden="true"
+                <DatePicker
+                  className="prop-due-btn"
+                  ariaLabel="Due date"
+                  value={task.dueDate}
+                  onChange={handleUpdateDueDate}
+                  placeholder="Set a due date"
+                  onClear={() => handleUpdateDueDate('')}
+                  clearLabel="No due date"
                 />
               </div>
             </div>
