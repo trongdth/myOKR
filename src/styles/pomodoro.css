@@ -3549,14 +3549,10 @@
   font-size: 0.8rem;
 }
 
-/* Command-K Search Modal (2026-08-30 rework): a flat, left-anchored results
-   panel — no boxed input-in-a-box, no per-row cards. The header (input +
-   scope chips) pins; only .command-k-results scrolls. */
-.search-modal-overlay {
-  justify-content: flex-start;
-  align-items: flex-start;
-  padding: 6vh 2.5rem;
-}
+/* Command-K Search Modal (2026-08-30 rework): a flat results panel on the
+   standard centered modal overlay — no boxed input-in-a-box, no per-row
+   cards. The header (input + scope chips) pins; only .command-k-results
+   scrolls. */
 
 .command-k-modal {
   width: 100%;

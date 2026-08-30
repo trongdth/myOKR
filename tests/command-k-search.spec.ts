@@ -175,11 +175,15 @@ test.describe('⌘K search rework', () => {
     await expect(page.locator('.command-k-modal')).toHaveCount(0);
   });
 
-  test('panel is left-anchored, capped at 840px, with the header pinned above a scrolling region', async ({ page }) => {
+  test('panel is centered, capped at 840px, with the header pinned above a scrolling region', async ({ page }) => {
     await page.keyboard.type('auth');
     const box = await page.locator('.command-k-modal').boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.x).toBeLessThan(60); // 2.5rem overlay padding, left edge
+    const viewport = page.viewportSize()!;
+    // Horizontally and vertically centered on the standard modal overlay…
+    expect(Math.abs((box!.x + box!.width / 2) - viewport.width / 2)).toBeLessThanOrEqual(2);
+    expect(Math.abs((box!.y + box!.height / 2) - viewport.height / 2)).toBeLessThanOrEqual(6);
+    // …but never wider than 840px.
     expect(box!.width).toBeLessThanOrEqual(840.5);
 
     // Header stays pinned (outside the scroll region): results scroll, not the panel.

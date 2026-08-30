@@ -289,7 +289,7 @@ export default function CommandKModal({
   ];
 
   return (
-    <div className="app-modal-overlay search-modal-overlay" onClick={onClose}>
+    <div className="app-modal-overlay" onClick={onClose}>
       <div
         className="app-modal-content command-k-modal"
         role="dialog"

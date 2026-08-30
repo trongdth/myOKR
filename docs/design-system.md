@@ -893,9 +893,10 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
 > matched-term highlighting" and a cycle selector). Spec'd directly by the
 > app owner against a reference mockup.
 
-- **Container.** Left-anchored panel (`.search-modal-overlay`), **max-width
-  840px**, so rows don't stretch and the meta line stays near the title. The
-  header (input + scope chips) is pinned; only `.command-k-results` scrolls.
+- **Container.** Standard **centered** modal overlay (`.app-modal-overlay`),
+  panel **max-width 840px**, so rows don't stretch and the meta line stays
+  near the title. The header (input + scope chips) is pinned; only
+  `.command-k-results` scrolls.
 - **Header is a flat row** — small search icon, borderless input (~14px,
   the global `input`/`input:focus` chrome and `--glow-cyan` focus ring are
   explicitly stripped), then right-aligned `N results` text + a mono `esc`
