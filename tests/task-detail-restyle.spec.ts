@@ -213,4 +213,37 @@ test.describe('Task detail restyle', () => {
     const box = await page.locator('.task-detail-panel').boundingBox();
     expect(box!.width).toBeGreaterThan(800);
   });
+
+  test('body never swipes horizontally; band and footer are pinned (2026-08-30 feedback)', async ({ page }) => {
+    // Feedback 1: the scroll body (and the panel) must not be wider than
+    // their visible box — the band's old negative-margin bleed inside the
+    // scroll container made everything shift when swiped sideways.
+    const overflow = await page.evaluate(() => {
+      const body = document.querySelector('.detail-scroll-body') as HTMLElement;
+      const panel = document.querySelector('.task-detail-panel') as HTMLElement;
+      return {
+        bodyX: body.scrollWidth - body.clientWidth,
+        panelX: panel.scrollWidth - panel.clientWidth,
+      };
+    });
+    expect(overflow.bodyX).toBeLessThanOrEqual(0);
+    expect(overflow.panelX).toBeLessThanOrEqual(0);
+
+    // Feedback 2: the footer is pinned — it lives outside the scroll body
+    // and its bottom edge sits at the panel's inner bottom (inside the
+    // panel's 1.5rem padding + 1px border), never after the last section.
+    await expect(page.locator('.detail-scroll-body .detail-footer')).toHaveCount(0);
+    const footerBox = await page.locator('.detail-footer').boundingBox();
+    const panelBox = await page.locator('.task-detail-panel').boundingBox();
+    const bottomGap = panelBox!.y + panelBox!.height - (footerBox!.y + footerBox!.height);
+    expect(bottomGap).toBeGreaterThanOrEqual(20); // padding + border only
+    expect(bottomGap).toBeLessThanOrEqual(28);
+
+    // The band is pinned with it: attached flush under the meta bar, so the
+    // band's bottom border sits directly above the scroll body's top.
+    const bandBox = await page.locator('.weekly-plan-block').boundingBox();
+    const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
+    expect(Math.abs(bandBox!.y + bandBox!.height - scrollBox!.y)).toBeLessThanOrEqual(2);
+    await expect(page.locator('.detail-scroll-body .weekly-plan-block')).toHaveCount(0);
+  });
 });

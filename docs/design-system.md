@@ -684,6 +684,15 @@ identically; there is no separate long-break case.
 > - **Panel.** Max-width 720 → **880px** so the four meta columns and full
 >   note lines stop squeezing. Mono audit: monospace stays on section labels,
 >   counters, code, and the footer — body copy and tab badges are UI sans.
+> - **Follow-up 2026-08-30 (width + pinning feedback).** The POMODOROS band
+>   joins the **pinned** stack, flush-attached under the meta bar (the bar's
+>   bottom border is the band's top line), and the **footer pins to the
+>   panel's bottom edge** — the scroll region is notes → tabs only. Rule
+>   behind it: the panel's 1.5rem-padding negative-margin bleed is only safe
+>   where overflow is hidden (the pinned stack, clipped by the panel); inside
+>   the scroll container it becomes scrollable overflow — the band's bleed
+>   there made the whole body swipe sideways. `.detail-scroll-body` carries
+>   `overflow-x: hidden` as belt-and-braces, and nothing inside it may bleed.
 > - Guarded by `tests/task-detail-restyle.spec.ts` (+ updated label
 >   assertions in `tests/task-detail-pomodoro.spec.ts`).
 

@@ -331,7 +331,10 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   return (
     <div className="app-modal-overlay" onClick={onClose}>
       <div className="app-modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
-        {/* Pinned: header + properties row (note #4 — body scrolls under these) */}
+        {/* Pinned: header + properties row + pomodoros band. The band lives in
+            the pinned stack (flush under the bar) — its full-bleed negative
+            margins are only safe where overflow is hidden; inside the scroll
+            container they became horizontal swipe (2026-08-30 feedback). */}
         <div className="detail-pinned">
           {/* Panel Header */}
           <div className="detail-panel-header">
@@ -459,12 +462,9 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               />
             </div>
           </div>
-        </div>
 
-        {/* Scrolling body: pomodoro line → notes → tabs → footer */}
-        <div className="detail-scroll-body">
-          {/* P4: POMODOROS — an elevated band: label · bar · readout. The
-              readout IS the estimate editor: click `2 / 4 planned` to open the
+          {/* P4: POMODOROS — an elevated band: label · bar · readout on one row.
+              The readout IS the estimate editor: click `2 / 4 planned` to open the
               shared Adjust Total Pomodoros popover (same component as the
               Tasks rows). The bar mirrors the completed/estimated ratio. */}
           <div className="weekly-plan-block">
@@ -484,7 +484,11 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               onChange={n => onUpdate({ ...task, estimatedPomodoros: n })}
             />
           </div>
+        </div>
 
+        {/* Scrolling body: notes → tabs. min-height:0 is required for a flex
+            child to scroll instead of growing past the panel's 90vh cap. */}
+        <div className="detail-scroll-body">
           {/* Notes & Links — one markdown field; click anywhere to edit.
               Full render, no cap/fade/Expand: notes of any length stay whole. */}
           <div className="detail-body-section">
@@ -721,18 +725,19 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               )}
             </div>
           </div>
+        </div>
 
-          {/* Footer: created/updated/logged + Delete task */}
-          <div className="detail-footer">
-            <span className="detail-meta">
-              Created {formatShortDate(task.createdAt)}
-              {updatedIso ? <> · updated {formatRelative(updatedIso, nowMs)}</> : null}
-              {' · '}{task.completedPomodoros} pomodoro{task.completedPomodoros === 1 ? '' : 's'} logged
-            </span>
-            <button className="delete-task-btn" onClick={() => setPendingDelete({ kind: 'task', id: task.id })}>
-              Delete task
-            </button>
-          </div>
+        {/* Footer: created/updated/logged + Delete task — pinned to the panel's
+            bottom edge; only notes → tabs scroll (2026-08-30 feedback). */}
+        <div className="detail-footer">
+          <span className="detail-meta">
+            Created {formatShortDate(task.createdAt)}
+            {updatedIso ? <> · updated {formatRelative(updatedIso, nowMs)}</> : null}
+            {' · '}{task.completedPomodoros} pomodoro{task.completedPomodoros === 1 ? '' : 's'} logged
+          </span>
+          <button className="delete-task-btn" onClick={() => setPendingDelete({ kind: 'task', id: task.id })}>
+            Delete task
+          </button>
         </div>
       </div>
       <ConfirmModal
