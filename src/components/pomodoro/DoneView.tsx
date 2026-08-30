@@ -4,6 +4,7 @@ import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import { useTaskMultiSelect } from '../../hooks/useTaskMultiSelect';
 import { Select } from '../shared/Select';
 import { PRIORITY_OPTIONS, krOptions } from './taskSelectOptions';
 
@@ -41,8 +42,8 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
   const [krFilter, setKrFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
-  // Bulk selection (row anatomy matches the Tasks list view — 2026-08-29)
-  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  // Bulk selection — same machinery as the Tasks list view (2026-08-29)
+  const { selectedTaskIds, isSelected: isTaskSelected, isGroupSelected, toggleTask, toggleGroup, deselect, clear } = useTaskMultiSelect();
 
   const krCycleMap = useMemo(
     () => buildKrCycleMap(keyResults, objectives, cycles),
@@ -143,26 +144,6 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
     });
   }, [completedTasks, todayStr, yesterdayStr]);
 
-  const toggleSelectTask = (id: string) => {
-    setSelectedTaskIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectGroup = (groupTasks: PomodoroTask[], checked: boolean) => {
-    setSelectedTaskIds(prev => {
-      const next = new Set(prev);
-      groupTasks.forEach(t => {
-        if (checked) next.add(t.id);
-        else next.delete(t.id);
-      });
-      return next;
-    });
-  };
-
   // Bulk actions only touch what the current filters show, then clear — same
   // posture as the Tasks list view's bulk bar.
   const selectedCompleted = completedTasks.filter(t => selectedTaskIds.has(t.id));
@@ -170,17 +151,12 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
   const handleBulkReopen = () => {
     if (selectedCompleted.length === 0) return;
     onReopenTasks(selectedCompleted);
-    setSelectedTaskIds(new Set());
+    clear();
   };
 
   const handleRowReopen = (task: PomodoroTask) => {
     onReopenTasks([task]);
-    setSelectedTaskIds(prev => {
-      if (!prev.has(task.id)) return prev;
-      const next = new Set(prev);
-      next.delete(task.id);
-      return next;
-    });
+    deselect(task.id);
   };
 
   return (
@@ -269,8 +245,8 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                     <th className="th-select">
                       <input
                         type="checkbox"
-                        checked={group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.has(t.id))}
-                        onChange={e => toggleSelectGroup(group.tasks, e.target.checked)}
+                        checked={isGroupSelected(group.tasks)}
+                        onChange={e => toggleGroup(group.tasks, e.target.checked)}
                         aria-label={`Select all tasks finished ${group.label}`}
                       />
                     </th>
@@ -287,7 +263,7 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                     const finishedTime = task.completedAt
                       ? new Date(task.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       : '—';
-                    const isSelected = selectedTaskIds.has(task.id);
+                    const isSelected = isTaskSelected(task.id);
 
                     return (
                       <tr
@@ -299,7 +275,7 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => toggleSelectTask(task.id)}
+                            onChange={() => toggleTask(task.id)}
                             aria-label={`Select ${task.title}`}
                           />
                         </td>

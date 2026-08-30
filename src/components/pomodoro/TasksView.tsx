@@ -5,6 +5,7 @@ import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTas
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
 import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import { useTaskMultiSelect } from '../../hooks/useTaskMultiSelect';
 import { navigateToSection } from '../../lib/navigation';
 import { Select, type SelectOption } from '../shared/Select';
 import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions, BUCKET_LABELS, GROUP_BY_OPTIONS, SORT_BY_OPTIONS } from './taskSelectOptions';
@@ -59,7 +60,7 @@ export default function TasksView({
   activeFocusTaskId = null,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('board');
-  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const { selectedTaskIds, isSelected: isTaskSelected, isGroupSelected, toggleTask: toggleSelectTask, toggleGroup, clear: clearSelection } = useTaskMultiSelect();
 
   // Click-to-place task selection (ADR-0010)
   const [selectedForMoveId, setSelectedForMoveId] = useState<string | null>(null);
@@ -210,26 +211,17 @@ export default function TasksView({
     onTasksChange(updated);
   };
 
-  // Bulk Multi-Select Helpers (P3)
-  const toggleSelectTask = (id: string) => {
-    setSelectedTaskIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
+  // Bulk actions (P3) — selection machinery comes from the shared hook
   const handleBulkMoveBucket = (bucket: TaskBucket) => {
     const updated = tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, bucket } : t);
     onTasksChange(updated);
-    setSelectedTaskIds(new Set());
+    clearSelection();
   };
 
   const handleBulkSetCategory = (category: EisenhowerCategory) => {
     const updated = tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, category } : t);
     onTasksChange(updated);
-    setSelectedTaskIds(new Set());
+    clearSelection();
   };
 
   // Tasks grouped by Bucket for Board
@@ -642,15 +634,8 @@ export default function TasksView({
                     <th className="th-select">
                       <input
                         type="checkbox"
-                        checked={group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.has(t.id))}
-                        onChange={e => {
-                          const ids = new Set(selectedTaskIds);
-                          group.tasks.forEach(t => {
-                            if (e.target.checked) ids.add(t.id);
-                            else ids.delete(t.id);
-                          });
-                          setSelectedTaskIds(ids);
-                        }}
+                        checked={isGroupSelected(group.tasks)}
+                        onChange={e => toggleGroup(group.tasks, e.target.checked)}
                       />
                     </th>
                     <th className="th-title">TASK</th>
@@ -664,7 +649,7 @@ export default function TasksView({
                 </thead>
                 <tbody>
                   {group.tasks.map(task => {
-                    const isSelected = selectedTaskIds.has(task.id);
+                    const isSelected = isTaskSelected(task.id);
                     const doneSubtasks = (task.todos || []).filter(t => t.completed).length;
 
                     return (
