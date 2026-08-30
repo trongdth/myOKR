@@ -755,23 +755,24 @@ identically; there is no separate long-break case.
   `Reopen`), grouped by day (`TODAY · MONDAY 25 MAY — 2 tasks · 7 pomodoros`,
   `YESTERDAY · SUNDAY 24 MAY — …`). "This week" is a date-range filter;
   "All key results" / "All priorities" are dropdowns defaulting to All.
-- **Row anatomy matches the Tasks list view (2026-08-29)** — a deliberate
-  deviation from the mockup's bare table for cross-tab consistency: the table
-  carries the `.list-table` class (same card chrome, header row, paddings) and
-  gains a leading **selection-checkbox column** (select-all per day group) +
-  the bulk bar (`N selected · Reopen`) — Reopen being the one bulk action a
-  completed task can take. P5's columns are unchanged (no PRIORITY/BUCKET/DUE
-  cells — those are editing controls for open tasks), per-row `Reopen` stays,
-  and the numeric columns stay right-aligned mono (scoped `.done-table`
+- **Row anatomy matches the Tasks list view (2026-08-29; revised 2026-08-30
+  feedback)** — a deliberate deviation from the mockup's bare table for
+  cross-tab consistency: the table carries the `.list-table` class (same card
+  chrome, header row, paddings). The leading **checkbox is the task's done
+  state**, checked by default — unchecking it opens a **`ConfirmModal`**
+  ("Reopen task", non-danger, copy names the cost: the task leaves the Done
+  list and returns to its bucket, logged pomodoros are kept); the checkbox is
+  controlled by `task.isCompleted`, so it never flips until the modal decides.
+  This replaced the earlier bulk-selection bar **and the mockup's UNDO
+  column** (`Reopen` button gone with it — the checkbox is the reopen
+  affordance). Titles are **not struck through** (done-ness is the checkbox's
+  job). P5 columns otherwise unchanged (`TASK | KEY RESULT | POMODOROS |
+  FINISHED`; no PRIORITY/BUCKET/DUE cells — those are editing controls for
+  open tasks). Numeric columns stay right-aligned mono (scoped `.done-table`
   selectors, which also fixed the headers losing their right-alignment to the
-  shared `text-align: left`). Reopen is one bulk-shaped write
-  (`onReopenTasks`), never N sequential single-task writes. Selected rows get
-  the shared `.selected` tint (which the Tasks list rows previously lacked
-  entirely — its select-all also gains Done's per-group `every` predicate,
-  replacing a `size === length` check that misrendered when a selection spanned
-  groups). The bar's N counts what Reopen would reopen — the selection
-  intersected with the current filters — since a KR/priority filter can hide a
-  selected row. Guarded by `tests/done-view-list-parity.spec.ts`.
+  shared `text-align: left`). Reopen is one write (`onReopenTasks`), and the
+  `.selected` tint stays list-view-only. Guarded by
+  `tests/done-view-list-parity.spec.ts`.
 
 ### Objectives (P7, flagship)
 

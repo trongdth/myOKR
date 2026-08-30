@@ -3533,8 +3533,7 @@
 }
 
 .done-task-title {
-  text-decoration: line-through;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 0.9rem;
 }
 
@@ -3548,19 +3547,6 @@
   align-items: center;
   gap: 1rem;
   font-size: 0.8rem;
-}
-
-.done-reopen-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.6rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  cursor: pointer;
 }
 
 /* Command-K Search Modal */
@@ -4480,8 +4466,8 @@
    inherits the Tasks list view's card chrome (surface, border, header row,
    padding) — this block keeps only the Done-specific layer. Selectors are
    .done-table-qualified so they outrank .list-table th's text-align: left. */
-.done-table .done-th-pomos, .done-table .done-th-finished, .done-table .done-th-undo { text-align: right; }
-.done-table .done-td-pomos, .done-table .done-td-finished, .done-table .done-td-undo {
+.done-table .done-th-pomos, .done-table .done-th-finished { text-align: right; }
+.done-table .done-td-pomos, .done-table .done-td-finished {
   font-family: var(--font-mono);
   text-align: right;
   font-size: 0.78rem;
@@ -4491,24 +4477,10 @@
 .done-table-row:hover { background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
 .done-task-title { font-weight: 500; }
 .done-task-kr { font-size: 0.75rem; color: var(--text-muted); }
-.done-reopen-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.done-reopen-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
-/* Bulk-selection state shared by both tables (Tasks list rows previously had
-   the class but no style). */
-.list-row.selected,
-.done-table-row.selected {
+/* Bulk-selection state of the Tasks list rows (Done's checkbox is the done
+   state, not a selection — 2026-08-30 feedback). */
+.list-row.selected {
   background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 

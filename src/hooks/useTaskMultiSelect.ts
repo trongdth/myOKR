@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
 /**
- * Bulk row-selection state shared by the Tasks list view and the Done table —
- * the two views deliberately share one selection anatomy (docs/design-system.md,
- * Done 2026-08-29), so the machinery lives here instead of being copied.
+ * Bulk row-selection state for the Tasks list view (group headers, bulk bar).
+ * The Done tab's checkbox is the task's done state, not a selection, and does
+ * not use this hook (2026-08-30 feedback).
  */
 export function useTaskMultiSelect() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());

@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Done tab row-layout parity with the Tasks list view (2026-08-29 decision):
- * the Done table reuses the list table's anatomy — leading selection-checkbox
- * column (select-all per day group), the same card chrome, and a bulk bar —
- * while keeping the P5 columns (TASK | KEY RESULT | POMODOROS | FINISHED |
- * UNDO). The bulk action for completed tasks is Reopen.
+ * Done tab row semantics (2026-08-30 feedback): the leading checkbox IS the
+ * task's done state — checked by default, unchecking it asks for confirmation
+ * and then reopens the task (replacing the old UNDO column / Reopen button and
+ * the bulk-selection bar). Titles are not struck through. The table keeps the
+ * Tasks list view's card chrome (.list-table) per the 2026-08-29 decision.
  */
 test.describe('Done view list parity', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,47 +34,61 @@ test.describe('Done view list parity', () => {
     await page.waitForTimeout(500);
   });
 
-  test('done table adopts the list-table anatomy with a checkbox column', async ({ page }) => {
+  test('done table keeps the list-table anatomy with done-state checkboxes', async ({ page }) => {
     const table = page.locator('.done-table');
     await expect(table).toBeVisible();
     // The consistency binding: same table chrome as the Tasks list view.
     await expect(table).toHaveClass(/list-table/);
 
-    // Select-all checkbox in the group header + one checkbox per row.
-    await expect(table.locator('.th-select input[type="checkbox"]')).toHaveCount(1);
-    await expect(table.locator('.td-select input[type="checkbox"]')).toHaveCount(2);
+    // One checkbox per row, checked by default (the task is done).
+    const rowChecks = table.locator('.td-select input[type="checkbox"]');
+    await expect(rowChecks).toHaveCount(2);
+    await expect(rowChecks.first()).toBeChecked();
 
-    // P5 columns survive the re-layout.
+    // Columns: empty checkbox header + P5 columns; the UNDO column is gone.
     const headers = table.locator('thead th').allTextContents();
-    expect(await headers).toEqual(['', 'TASK', 'KEY RESULT', 'POMODOROS', 'FINISHED', 'UNDO']);
+    expect(await headers).toEqual(['', 'TASK', 'KEY RESULT', 'POMODOROS', 'FINISHED']);
+    await expect(table.locator('.done-reopen-btn')).toHaveCount(0);
+
+    // Done titles read as normal text, not struck through.
+    const lineThrough = await table.locator('.done-task-title').first()
+      .evaluate(el => getComputedStyle(el).textDecorationLine);
+    expect(lineThrough).toBe('none');
   });
 
-  test('row checkbox selects without opening task detail; selected rows are highlighted', async ({ page }) => {
-    await page.locator('.done-table .td-select input[type="checkbox"]').first().check();
-    await expect(page.locator('.bulk-action-bar')).toBeVisible();
-    await expect(page.locator('.bulk-count')).toHaveText('1 selected');
-    await expect(page.locator('.done-table .list-row.selected')).toHaveCount(1);
-    // The checkbox cell must not trigger the row's open-detail click.
-    await expect(page.locator('.task-detail-panel')).toHaveCount(0);
+  test('unchecking asks for confirmation; Cancel keeps the task done', async ({ page }) => {
+    await page.locator('.done-table .td-select input[type="checkbox"]').first().click();
+
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('Ship redesign');
+
+    await modal.locator('.confirm-cancel-btn').click();
+    await expect(modal).toHaveCount(0);
+    // Still done, still listed, checkbox still checked.
+    await expect(page.locator('.done-table .done-table-row')).toHaveCount(2);
+    await expect(page.locator('.done-table .td-select input[type="checkbox"]').first()).toBeChecked();
   });
 
-  test('select-all checks the group; bulk Reopen returns every selected task to open', async ({ page }) => {
-    await page.locator('.done-table .th-select input[type="checkbox"]').check();
+  test('confirming the uncheck reopens the task and leaves it the Done list', async ({ page }) => {
+    await page.locator('.done-table .td-select input[type="checkbox"]').first().click();
 
-    await expect(page.locator('.bulk-count')).toHaveText('2 selected');
-    await expect(page.locator('.done-table .list-row.selected')).toHaveCount(2);
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+    await modal.locator('.btn:not(.confirm-cancel-btn)').click();
 
-    await page.locator('.bulk-action-bar .bulk-btn', { hasText: 'Reopen' }).click();
-
-    // Everything reopened → the Done list empties and the bulk bar clears.
-    await expect(page.locator('.done-table')).toHaveCount(0);
-    await expect(page.locator('.done-view-empty')).toBeVisible();
-    await expect(page.locator('.bulk-action-bar')).toHaveCount(0);
-  });
-
-  test('per-row Reopen still reopens a single task', async ({ page }) => {
-    await page.locator('.done-table .done-table-row').first().locator('.done-reopen-btn').click();
     await expect(page.locator('.done-table .done-table-row')).toHaveCount(1);
     await expect(page.locator('.done-table .done-task-title', { hasText: 'Write release notes' })).toBeVisible();
+  });
+
+  test('checking the box again is a no-op while done; row click still opens detail', async ({ page }) => {
+    // Checkbox cell must not trigger the row's open-detail click.
+    await page.locator('.done-table .td-select input[type="checkbox"]').first().click();
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await expect(page.locator('.task-detail-panel')).toHaveCount(0);
+    await page.locator('.confirm-modal .confirm-cancel-btn').click();
+
+    await page.locator('.done-table .done-table-row').first().locator('.done-td-task').click();
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 });

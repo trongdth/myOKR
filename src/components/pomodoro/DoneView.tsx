@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { RotateCcw, CheckCircle2, Search } from 'lucide-react';
+import { CheckCircle2, Search } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
-import { useTaskMultiSelect } from '../../hooks/useTaskMultiSelect';
 import { Select } from '../shared/Select';
+import ConfirmModal from '../ConfirmModal';
 import { PRIORITY_OPTIONS, krOptions } from './taskSelectOptions';
 
 interface Props {
@@ -42,8 +42,9 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
   const [krFilter, setKrFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
-  // Bulk selection — same machinery as the Tasks list view (2026-08-29)
-  const { selectedTaskIds, isSelected: isTaskSelected, isGroupSelected, toggleTask, toggleGroup, deselect, clear } = useTaskMultiSelect();
+  // Reopen asks for confirmation (2026-08-30 feedback): unchecking a row's
+  // done-state checkbox stages the task here until the modal decides.
+  const [reopenCandidate, setReopenCandidate] = useState<PomodoroTask | null>(null);
 
   const krCycleMap = useMemo(
     () => buildKrCycleMap(keyResults, objectives, cycles),
@@ -144,19 +145,9 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
     });
   }, [completedTasks, todayStr, yesterdayStr]);
 
-  // Bulk actions only touch what the current filters show, then clear — same
-  // posture as the Tasks list view's bulk bar.
-  const selectedCompleted = completedTasks.filter(t => selectedTaskIds.has(t.id));
-
-  const handleBulkReopen = () => {
-    if (selectedCompleted.length === 0) return;
-    onReopenTasks(selectedCompleted);
-    clear();
-  };
-
-  const handleRowReopen = (task: PomodoroTask) => {
-    onReopenTasks([task]);
-    deselect(task.id);
+  const handleReopenConfirmed = () => {
+    if (reopenCandidate) onReopenTasks([reopenCandidate]);
+    setReopenCandidate(null);
   };
 
   return (
@@ -210,17 +201,6 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
         </span>
       </div>
 
-      {/* Bulk Action Bar — same anatomy as the Tasks list view's; Reopen is
-          the one bulk action completed tasks can take */}
-      {selectedCompleted.length > 0 && (
-        <div className="bulk-action-bar">
-          <span className="bulk-count">{selectedCompleted.length} selected</span>
-          <div className="bulk-buttons">
-            <button onClick={handleBulkReopen} className="bulk-btn">Reopen</button>
-          </div>
-        </div>
-      )}
-
       {completedTasks.length === 0 ? (
         <div className="done-view-empty">
           <CheckCircle2 size={36} className="empty-icon" />
@@ -237,24 +217,17 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                 </span>
               </div>
 
-              {/* P5 columns in the Tasks list-view table anatomy (2026-08-29):
-                  select · TASK | KEY RESULT | POMODOROS | FINISHED | UNDO */}
+              {/* P5 columns in the Tasks list-view table anatomy (2026-08-29),
+                  with the checkbox as the done state (2026-08-30 feedback):
+                  select · TASK | KEY RESULT | POMODOROS | FINISHED */}
               <table className="list-table done-table">
                 <thead>
                   <tr>
-                    <th className="th-select">
-                      <input
-                        type="checkbox"
-                        checked={isGroupSelected(group.tasks)}
-                        onChange={e => toggleGroup(group.tasks, e.target.checked)}
-                        aria-label={`Select all tasks finished ${group.label}`}
-                      />
-                    </th>
+                    <th className="th-select" aria-label="Done" />
                     <th className="done-th-task">TASK</th>
                     <th className="done-th-kr">KEY RESULT</th>
                     <th className="done-th-pomos">POMODOROS</th>
                     <th className="done-th-finished">FINISHED</th>
-                    <th className="done-th-undo">UNDO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -263,20 +236,19 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                     const finishedTime = task.completedAt
                       ? new Date(task.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       : '—';
-                    const isSelected = isTaskSelected(task.id);
 
                     return (
                       <tr
                         key={task.id}
-                        className={`list-row done-table-row${isSelected ? ' selected' : ''}`}
+                        className="list-row done-table-row"
                         onClick={() => onSelectTask?.(task)}
                       >
                         <td className="td-select" onClick={e => e.stopPropagation()}>
                           <input
                             type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleTask(task.id)}
-                            aria-label={`Select ${task.title}`}
+                            checked={task.isCompleted}
+                            onChange={() => setReopenCandidate(task)}
+                            aria-label={`Reopen ${task.title}`}
                           />
                         </td>
                         <td className="done-td-task">
@@ -289,16 +261,6 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                           {task.completedPomodoros} / {task.estimatedPomodoros || 1}
                         </td>
                         <td className="done-td-finished">{finishedTime}</td>
-                        <td className="done-td-undo" onClick={e => e.stopPropagation()}>
-                          <button
-                            className="done-reopen-btn"
-                            onClick={() => handleRowReopen(task)}
-                            title="Reopen task and return to bucket"
-                          >
-                            <RotateCcw size={13} />
-                            <span>Reopen</span>
-                          </button>
-                        </td>
                       </tr>
                     );
                   })}
@@ -308,6 +270,26 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
           ))}
         </div>
       )}
+
+      {/* Reopen confirm — the checkbox never flips until this decides, since
+          it is controlled by task.isCompleted. */}
+      <ConfirmModal
+        isOpen={reopenCandidate !== null}
+        onClose={() => setReopenCandidate(null)}
+        onConfirm={handleReopenConfirmed}
+        title="Reopen task"
+        danger={false}
+        confirmText="Reopen"
+        message={
+          reopenCandidate && (
+            <>
+              “{reopenCandidate.title}” will leave the Done list and return to
+              its bucket as an open task. Its {reopenCandidate.completedPomodoros || 0}{' '}
+              logged {reopenCandidate.completedPomodoros === 1 ? 'pomodoro is' : 'pomodoros are'} kept.
+            </>
+          )
+        }
+      />
     </div>
   );
 }
