@@ -887,9 +887,56 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   (`.okr-overall-text` unchanged) — plus regenerated 1280×800 / 1024×720
   visual baselines.
 
-### ⌘K search (P6, structural parity)
+### ⌘K search (P6, structural parity) — reworked 2026-08-30
 
-- Results grouped into **OPEN · N / COMPLETED · N / INSIDE TASKS · N**
-  (sub-task & note matches) with per-section counts. Scope chips, cycle
-  selector, `Start`/`Reopen` row actions stay as implemented. **No** matched-term
-  highlighting, **no** footer shortcut legend (no-shortcuts policy).
+> The 2026-08-30 rework supersedes the earlier P6 decisions (which had "no
+> matched-term highlighting" and a cycle selector). Spec'd directly by the
+> app owner against a reference mockup.
+
+- **Container.** Left-anchored panel (`.search-modal-overlay`), **max-width
+  840px**, so rows don't stretch and the meta line stays near the title. The
+  header (input + scope chips) is pinned; only `.command-k-results` scrolls.
+- **Header is a flat row** — small search icon, borderless input (~14px,
+  the global `input`/`input:focus` chrome and `--glow-cyan` focus ring are
+  explicitly stripped), then right-aligned `N results` text + a mono `esc`
+  chip. No X clear button: **Esc clears the query first, then closes**.
+- **Scope chips only.** Everything (default) / Open / Completed / Sub-tasks /
+  Notes. Active chip = cyan text on a cyan tint with a cyan border (never
+  white-on-dark). **The cycle/month dropdown is removed** — chips are the only
+  scope, and the choice **persists for the app session** (module variable,
+  deliberately not storage: every launch starts on Everything).
+- **Result meta — per-task, `·`-joined segments** (`MetaLine`: each segment its
+  own element, separators rendered between them — text can never glue):
+  `<bucket> · <priority> · <key result | "no key result"> · <done/total
+  sub-tasks>` (segments drop out when absent). Completed rows read
+  `Finished <EEE d MMM> · N pomodoros`; inside rows read
+  `in <parent title> · <bucket | completed <Weekday>>`. **Dates are always
+  formatted, never raw ISO.**
+- **Match highlighting is ON** (supersedes the earlier "no"): every
+  case-insensitive occurrence of the query gets a cyan-tinted `<mark>`
+  (`.command-k-hl`) in titles, matched sub-task/note text, and the KR segment.
+  Long note bodies trim to a ±60-char window around the match.
+- **Rows.** Compact two-line (title 14px medium over 12px muted meta),
+  transparent by default — **only the highlighted row** wears an elevated
+  background + 1px cyan-mixed border. Leading checkbox is a rounded square
+  (outlined open; green-filled + white check when done, mirroring
+  `.done-check`). Row-density icon sizes are intentionally sub-16px (the
+  content-icon rule's dense-surface exception, like the menu's 14px): inside
+  icons 15px, check glyph 12px, Start-pill play 11px.
+- **Groups.** `OPEN · N / COMPLETED · N / INSIDE TASKS · N` — uppercase mono
+  header, bare `·` count (no badge pill). Open before completed; recency
+  (updatedAt → completedAt → createdAt) desc within. INSIDE TASKS rows are the
+  matches *inside* a task — `Sub-task — "<text>"` (checkbox glyph) and
+  `Note — "<text>"` (document glyph), quoted + highlighted — and clicking one
+  opens the parent task. A title-matching task and its matching sub-tasks can
+  both appear (matching the mockup).
+- **Selection / keyboard.** First result preselected; ↑/↓ move; **Enter
+  starts a focus session** on the highlighted open task (completed → Reopen,
+  inside → open parent); the solid-cyan **Start pill renders only on the
+  highlighted row**; completed rows always show the muted `Reopen` text link.
+  These are palette-intrinsic keys scoped to the open modal — a deliberate,
+  user-requested carve-out from the no-global-shortcuts policy
+  ([ADR-0011](./adr/0011-no-keyboard-shortcuts.md)), not a legend'd global
+  binding.
+- Guarded by `tests/command-k-search.spec.ts` (+ the chips-removal test in
+  `tests/select-modal-filter-migration.spec.ts`).

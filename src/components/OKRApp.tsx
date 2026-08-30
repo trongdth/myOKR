@@ -410,9 +410,6 @@ export default function OKRApp() {
           onClose={() => setIsSearchOpen(false)}
           tasks={tasks}
           keyResults={keyResults}
-          objectives={objectives}
-          cycles={cycles}
-          activeCycleId={activeCycleId || null}
           onSelectTask={(t) => setSelectedDetailTask(t)}
           onStartFocusTask={() => {
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));

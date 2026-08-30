@@ -2,10 +2,11 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Ticket 03 — .scratch/custom-select/issues/03-pomodoro-modal-filter-surfaces.md
- * TaskDetailModal property rows, Done filters, ⌘K cycle filter, and the
- * PlanTabStrip cycle·week picker run on the shared Select. The portal-inside-
- * a-modal shakedown: panels stack above the modal layer and Esc closes the
- * panel without dismissing the modal.
+ * TaskDetailModal property rows, Done filters, and the PlanTabStrip cycle·week
+ * picker run on the shared Select. The portal-inside-a-modal shakedown: panels
+ * stack above the modal layer and Esc closes the panel without dismissing the
+ * modal. (The ⌘K cycle filter was removed in the 2026-08-30 search rework —
+ * its scope chips are plain buttons now; that test guards the removal.)
  */
 test.describe('Modal & filter Select migration', () => {
   test.beforeEach(async ({ page }) => {
@@ -108,40 +109,30 @@ test.describe('Modal & filter Select migration', () => {
     await expect(krFilter).toContainText('All key results');
   });
 
-  test('⌘K cycle filter runs on Select above the modal overlay', async ({ page }) => {
+  test('⌘K scope chips filter the results; the cycle dropdown is gone (2026-08-30 rework)', async ({ page }) => {
     await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'done'));
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.locator('.search-trigger-btn').click();
     await expect(page.locator('.command-k-modal')).toBeVisible();
     // The modal auto-focuses its input on a ~50ms timeout; let that land
-    // before touching the filter, or the steal blurs the Select trigger and
-    // closes the panel mid-interaction (seen on slow CI).
     await expect(page.locator('.command-k-input')).toBeFocused();
 
-    const cycleFilter = page.locator('[aria-label="Cycle filter"]');
-    await cycleFilter.click();
-    const panel = page.locator('.sel-panel');
-    await expect(panel).toBeVisible();
-    const hitsPanel = await panel.evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return !!hit && !!hit.closest('.sel-panel');
-    });
-    expect(hitsPanel).toBe(true);
+    // The month/cycle Select is removed — scope is controlled by chips only.
+    await expect(page.locator('.command-k-modal select')).toHaveCount(0);
+    await expect(page.locator('[aria-label="Cycle filter"]')).toHaveCount(0);
 
-    await panel.locator('.sel-row', { hasText: 'May cycle (Active)' }).click();
-    await expect(cycleFilter).toContainText('May cycle (Active)');
-    await cycleFilter.click();
-    await expect(page.locator('.sel-panel .sel-chosen')).toHaveText(/May cycle/);
-    await page.locator('.sel-panel .sel-row', { hasText: 'All Cycles' }).click();
-    await expect(cycleFilter).toContainText('All Cycles');
+    // Sub-tasks (hyphenated) chip scopes the results to inside rows only
+    await page.locator('.command-k-scope-chip', { hasText: 'Sub-tasks' }).click();
+    await expect(page.locator('.command-k-scope-chip.active')).toHaveText('Sub-tasks');
+    await expect(page.locator('.command-k-group-header', { hasText: 'OPEN' })).toHaveCount(0);
+    await expect(page.locator('.command-k-group-header', { hasText: 'COMPLETED' })).toHaveCount(0);
 
-    // Esc closes the panel; the search modal stays open
-    await cycleFilter.click();
+    // Scope persists for the session: close and reopen keeps the chip.
     await page.keyboard.press('Escape');
-    await expect(page.locator('.sel-panel')).toHaveCount(0);
-    await expect(page.locator('.command-k-modal')).toBeVisible();
+    await expect(page.locator('.command-k-modal')).toHaveCount(0);
+    await page.locator('.search-trigger-btn').click();
+    await expect(page.locator('.command-k-scope-chip.active')).toHaveText('Sub-tasks');
   });
 
   test('PlanTabStrip cycle·week runs on Select; overlay-chevron wrapper is gone', async ({ page }) => {

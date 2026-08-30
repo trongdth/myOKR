@@ -205,9 +205,6 @@ export default function PomodoroApp({
           onClose={() => setIsSearchOpen(false)}
           tasks={tasks}
           keyResults={keyResults}
-          objectives={objectives}
-          cycles={cycles}
-          activeCycleId={activeCycle?.id}
           onSelectTask={(t) => setSelectedDetailTask(t)}
           onStartFocusTask={(t) => {
             setActiveTask(t.id);
