@@ -3668,11 +3668,14 @@
 /* Task Detail Panel Upgrades (P4) */
 .task-detail-panel {
   width: 90%;
-  max-width: 720px;
+  /* 880px (was 720): the four meta-bar columns and full-length note lines
+     don't fit 720 without squeezing (2026-08-29 detail-panel polish). */
+  max-width: 880px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  /* 1.5rem outer breathing room — content shouldn't crowd the panel border. */
+  /* 1.5rem outer breathing room — content shouldn't crowd the panel border.
+     The meta bar + pomodoros band bleed through it with negative margins. */
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -3690,8 +3693,9 @@
   gap: 0.75rem;
 }
 
-/* Scrolling region: weekly line, notes, tabs, footer. min-height:0 is required
-   for a flex child to scroll instead of growing past the panel's 90vh cap. */
+/* Scrolling region: pomodoros band, notes, tabs, footer. min-height:0 is
+   required for a flex child to scroll instead of growing past the panel's
+   90vh cap. No top padding — the band sits flush under the meta bar. */
 .detail-scroll-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -3699,22 +3703,21 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding-top: 1rem;
+  padding-top: 0;
   padding-right: 0.25rem;
 }
 
 /* --- P4 detail header: eyebrow on its own line, title left + actions right --- */
 /* Two-row grid: eyebrow on its own line, then title (left, wraps to 2 lines
    when long) + actions (right, top-aligned so Start focus/Complete/X stay pinned
-   top-right and never wrap below the title — point 1). */
+   top-right and never wrap below the title — point 1). No bottom divider:
+   the meta bar's own top border separates the header from the meta row. */
 .detail-panel-header {
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-areas: "eyebrow eyebrow" "title actions";
   align-items: start;
   gap: 0.35rem 1rem;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--border-color);
 }
 .detail-eyebrow { grid-area: eyebrow; }
 
@@ -3771,29 +3774,44 @@
 }
 .detail-action-btn:hover { border-color: var(--color-primary); }
 
-/* Start focus is THE single primary action on this screen (design-system.md). */
+/* Start focus is THE single primary action on this screen (design-system.md).
+   Extra padding makes it read larger than the ghost secondary beside it. */
 .start-focus-btn {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-on-primary);
+  padding: 0.55rem 1.15rem;
 }
 .start-focus-btn:hover {
   border-color: var(--color-primary);
   filter: brightness(1.08);
 }
 
+/* Complete is the secondary action: text-only ghost — transparent fill with
+   a quiet 1px border, no icon (2026-08-29 detail polish). */
+.complete-btn {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+.complete-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
 .complete-btn.completed {
   color: var(--text-secondary);
 }
 
-/* Close button — scoped to the detail panel so the CommandK modal is untouched. */
+/* Close button — scoped to the detail panel so the CommandK modal is untouched.
+   Small and muted: it's the tertiary affordance of the header row. */
 .task-detail-panel .modal-close-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
@@ -3804,22 +3822,33 @@
   color: var(--text-primary);
 }
 
+/* Properties row (2026-08-29): not a card — a full-bleed 4-cell strip.
+   Negative margins escape the panel's 1.5rem padding so the band stretches
+   edge-to-edge; top/bottom borders only (the header above has no divider of
+   its own); cells split by 1px vertical rules. Four `minmax(0, 1fr)` tracks
+   so a long KR label ellipsizes inside its cell instead of blowing the grid. */
 .detail-properties-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  margin: 0.9rem -1.5rem 0;
+  padding: 0.7rem 1.5rem;
+  background: none;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
 }
 
 .prop-group {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0 1.25rem;
 }
+.prop-group:first-child { padding-left: 0; }
+.prop-group:last-child { padding-right: 0; }
+.prop-group + .prop-group { border-left: 1px solid var(--border-color); }
 
 .prop-label {
   font-family: var(--font-mono);
@@ -3827,20 +3856,84 @@
   color: var(--text-muted);
 }
 
-.prop-date-input {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 4px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  width: 100%;
+/* Due: the native date input is only the picker host — visually hidden but
+   still rendered, because showPicker() throws on a display:none element. */
+.prop-due { position: relative; display: flex; min-width: 0; }
+.detail-properties-bar .prop-date-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  padding: 0;
 }
+.prop-due-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+.prop-due-btn > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prop-due-btn.empty > span:first-child { color: var(--menu-placeholder); }
+.prop-due-btn:hover .prop-chevron { color: var(--menu-chevron-hover); }
+.prop-chevron { flex-shrink: 0; color: var(--menu-chevron-rest); }
 
-/* Task-detail property rows fill their column (custom-select ticket 03) */
-.prop-group .sel-trigger {
+/* Trigger dressing (2026-08-29): the meta cells show the shared Select's
+   value as plain text — the boxed chrome (bg/border/padding) is stripped
+   here, the menu panel/states/keyboard stay the standard system (ADR-0018).
+   Height stays 32px so the four values align across cells. */
+.detail-properties-bar .sel-trigger.boxed {
+  background: transparent;
+  border: none;
+  height: 32px;
+  padding: 0;
+  max-width: 100%;
+}
+.detail-properties-bar .sel-trigger.boxed:hover:not(:disabled):not(.sel-open) {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.detail-properties-bar .sel-trigger.boxed.sel-open,
+.detail-properties-bar .sel-trigger.boxed:active:not(:disabled) {
+  border: none;
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+/* Priority value wears its Eisenhower category color (--prop-accent is set
+   inline from EISENHOWER_META — the canonical by-value palette). */
+.detail-properties-bar .prop-priority .sel-text {
+  color: var(--prop-accent, var(--text-primary));
+}
+/* Key result: bare variant (no chevron, no box); the full label reads in KR
+   violet and may use the whole cell width before ellipsizing. */
+.detail-properties-bar .prop-kr .sel-trigger.bare {
+  height: 32px;
+  padding: 0;
+  align-items: center;
+  max-width: 100%;
+}
+.detail-properties-bar .prop-kr .sel-text {
+  font-size: 0.78rem;
   max-width: none;
-  width: 100%;
+}
+.detail-properties-bar .prop-kr .sel-text:not(.sel-placeholder) {
+  color: var(--color-objective);
+}
+.detail-properties-bar .sel-trigger.bare.sel-open {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
 }
 
 .detail-tabs-section {
@@ -4419,35 +4512,71 @@
   background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
-/* --- P4 Task detail: eyebrow hint + mono readout --- */
+/* --- P4 Task detail: eyebrow label + lower-contrast hint (plain gap, no ·) --- */
 .detail-eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
-  /* Full-width flex item: sits on its own line above the title/actions row. */
-  flex: 1 1 100%;
+  text-transform: uppercase;
 }
+.detail-eyebrow .eyebrow-label { color: var(--text-muted); }
+.detail-eyebrow .eyebrow-hint { color: color-mix(in srgb, var(--text-muted), transparent 40%); }
 .pomo-mono {
   font-family: var(--font-mono);
   color: var(--text-secondary);
 }
 
-/* --- P4 notes: wrapped links with copy button --- */
-.md-link-row { display: inline; }
-.md-link-row.has-copy { display: inline-flex; align-items: center; gap: 0.35rem; }
-.md-link-row a { overflow-wrap: anywhere; }
-.md-link-copy {
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  color: var(--text-muted);
-  font-size: 0.62rem;
-  padding: 0.25rem 0.4rem;
-  cursor: pointer;
-  flex: none;
+/* --- P4 notes: rendered markdown typography (2026-08-29) ---
+   Links keep to their whole word when the line allows it — mid-URL breaks
+   only when the URL alone can't fit a line. Copy chips are gone; code blocks
+   carry their own block-level Copy button (see .md-code-block). */
+.notes-content-view a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: break-word;
 }
-.md-link-copy:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* Fenced code block: monospace on its own raised surface, one Copy button
+   top-right of the block. */
+.md-code-block {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  margin: 0.45rem 0;
+}
+.md-code-block pre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  overflow-x: auto;
+}
+.md-code-block code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.md-code-copy {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+.md-code-copy:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
 /* --- P6 ⌘K: grouped results --- */
 .command-k-group { padding-bottom: 0.5rem; }
@@ -4469,13 +4598,18 @@
 }
 .command-k-item-meta .meta-kr { color: var(--text-muted); }
 
-/* --- P4: POMODOROS block — one row: label · readout · bar --- */
+/* --- P4: POMODOROS band — label · bar · readout on one row (2026-08-29).
+   The bar comes first and flexes to fill; the readout trails. Slightly
+   elevated surface + bottom divider reads as its own section; it bleeds
+   edge-to-edge like the meta bar above it. (No top divider: the meta bar's
+   bottom border is the shared line while the band sits flush beneath it.) */
 .weekly-plan-block {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--border-color);
+  margin: 0 -1.5rem;
+  padding: 0.65rem 1.5rem;
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
 }
 /* Task-detail readout: the shared estimate-popover trigger rendered as plain
@@ -4501,15 +4635,6 @@
 /* ==========================================================================
    P4 Task detail — fidelity polish (progress bars, notes, sub-tasks, props)
    ========================================================================== */
-
-/* Properties row: equal-width columns. Selects keep their native affordance —
-   a custom chevron needs a raw-hex data-URI glyph, which breaks the no-raw-hex
-   rule (see docs/design-system.md). width:100% on the controls (above) makes
-   each fill its column. */
-.detail-properties-bar .prop-group {
-  flex: 1 1 0;
-  min-width: 7rem;
-}
 
 /* POMODOROS — readout + muted cyan progress bar. The bar flexes to fill the
    remaining row width; thin (4px) and muted (color-mix) so the readout
@@ -4542,11 +4667,6 @@
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
-.notes-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
 .notes-format-hint {
   font-family: var(--font-mono);
   font-size: 0.65rem;
@@ -4565,38 +4685,40 @@
   border-radius: 6px;
 }
 .text-btn:hover { color: var(--color-primary); }
-.notes-content-view { position: relative; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; cursor: text; }
+/* Notes render in full — no cap, fade, or counter (2026-08-29; supersedes the
+   2026-08-04 220px cap + Expand). Body copy is regular-weight UI sans at body
+   size; the notes block must not dominate the panel. */
+.notes-content-view { position: relative; font-size: 0.85rem; font-weight: 400; color: var(--text-secondary); line-height: 1.55; cursor: text; }
 .notes-content-view.empty { cursor: pointer; }
-/* 220px cap (note #4) — keeps Sub-tasks/Comments tabs on screen. */
-.notes-content-view.collapsed { max-height: 220px; overflow: hidden; }
-.notes-fade {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 2.75rem;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-primary), transparent), var(--bg-primary));
-  pointer-events: none;
+.notes-content-view p { margin: 0 0 0.4rem; font-weight: 400; }
+.notes-content-view > :last-child { margin-bottom: 0; }
+/* Ordered lists: numbers live in a muted mono gutter column (small,
+   right-aligned), not inline in the body text. */
+.notes-content-view ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: notes-ol;
 }
-.notes-count {
+.notes-content-view ol > li {
+  counter-increment: notes-ol;
+  position: relative;
+  padding-left: 1.9rem;
+  margin: 0 0 0.3rem;
+}
+.notes-content-view ol > li:last-child { margin-bottom: 0; }
+.notes-content-view ol > li::before {
+  content: counter(notes-ol);
   position: absolute;
-  right: 0.15rem; bottom: 0.25rem;
+  left: 0;
+  top: 0;
+  width: 1.35rem;
+  text-align: right;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.66rem;
+  line-height: inherit;
   color: var(--text-muted);
-  background: var(--bg-primary);
-  padding: 0.05rem 0.35rem;
-  border-radius: 4px;
-  pointer-events: none;
 }
-.notes-expand-btn {
-  display: inline-flex; align-items: center; gap: 0.25rem;
-  background: none; border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.notes-expand-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .notes-textarea {
   width: 100%;
   min-height: 140px;
@@ -4616,17 +4738,20 @@
 .empty-notes-hint { color: var(--text-muted); font-size: 0.82rem; margin: 0; }
 
 /* Estimate editor folded into the weekly line (was the 5th properties column). */
-/* Tab count badges (4/8, 0). */
+/* Tab count badges (4/8, 0) — UI sans, subdued (2026-08-29 mono audit). The
+   sub-task ratio is a quiet muted chip; the comment count is bare text. */
 .tab-badge {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
   background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  padding: 0.05rem 0.4rem;
+  color: var(--text-muted);
+  padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
 }
-.detail-tab-btn.active .tab-badge { color: var(--color-primary); border-color: var(--color-primary); }
+.tab-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
 
 /* Footer: created / updated / logged + Delete task. */
 .detail-footer {
@@ -4730,6 +4855,9 @@
   color: var(--text-muted);
   flex-shrink: 0;
 }
+/* Add row first (2026-08-29), progress bar below it. The input is full-width
+   with the Add button as a fixed-width sibling; Add is an outlined ghost in
+   the primary hue — the solid cyan stays reserved for Start focus. */
 .add-todo-row,
 .add-comment-row {
   display: flex;
@@ -4738,12 +4866,13 @@
 .add-todo-input,
 .add-comment-input {
   flex: 1 1 auto;
+  min-width: 0;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 0.4rem 0.5rem;
+  padding: 0.6rem 0.7rem;
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
 }
 .add-todo-input:focus,
 .add-comment-input:focus {
@@ -4751,14 +4880,20 @@
   border-color: var(--color-primary);
 }
 .add-todo-btn {
-  background: var(--color-primary);
-  border: none;
+  flex: none;
+  min-width: 4.25rem;
+  background: transparent;
+  border: 1px solid var(--color-primary);
   border-radius: 6px;
-  color: var(--color-on-primary);
-  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
   font-weight: 600;
   padding: 0.4rem 0.9rem;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.add-todo-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 .add-comment-btn {
   background: var(--bg-tertiary);
@@ -4770,27 +4905,32 @@
   padding: 0.4rem 0.9rem;
   cursor: pointer;
 }
+/* Sub-task rows are cards: subtle surface, real padding, visible separation
+   (2026-08-29). Completed rows keep the card surface + strikethrough. */
 .todos-list,
 .comments-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 .todo-item-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.2rem;
-  border-radius: 6px;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border-radius: 8px;
+  background: var(--bg-secondary);
 }
 .todo-item-row input[type='checkbox'] {
   accent-color: var(--color-primary);
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 }
 .todo-text {
   flex: 1 1 auto;
-  font-size: 0.82rem;
+  min-width: 0;
+  font-size: 0.85rem;
   color: var(--text-primary);
   cursor: text;
 }
@@ -4798,6 +4938,19 @@
   color: var(--text-muted);
   text-decoration: line-through;
 }
+/* Collapse line under the 4 visible rows (2026-08-29): muted, expands on
+   click. Sits left-aligned so it reads as part of the list, not the panel. */
+.todos-more-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+.todos-more-btn:hover { color: var(--text-secondary); }
 .delete-sub-btn {
   display: inline-flex;
   align-items: center;
@@ -4808,6 +4961,14 @@
   cursor: pointer;
   padding: 0.15rem;
   border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0.35;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+.todo-item-row:hover .delete-sub-btn,
+.comment-item-card:hover .delete-sub-btn,
+.delete-sub-btn:focus-visible {
+  opacity: 1;
 }
 .delete-sub-btn:hover { color: var(--color-risk); }
 .comment-item-card {
@@ -4826,4 +4987,30 @@
   font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-muted);
+}
+
+/* Touch rule (design-system.md): hover-revealed row actions are always
+   visible ≤900px — touch has no hover. */
+@media (max-width: 900px) {
+  .delete-sub-btn { opacity: 1; }
+}
+
+/* Narrow panels re-stack the meta bar to 2×2 (nothing hidden, only
+   re-stacked): dividers follow the new cell edges. */
+@media (max-width: 700px) {
+  .detail-properties-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 0.7rem;
+  }
+  .detail-properties-bar .prop-group {
+    padding: 0 1rem;
+  }
+  .detail-properties-bar .prop-group:nth-child(odd) { padding-left: 0; }
+  .detail-properties-bar .prop-group:nth-child(even) { padding-right: 0; }
+  .detail-properties-bar .prop-group + .prop-group { border-left: none; }
+  .detail-properties-bar .prop-group:nth-child(even) { border-left: 1px solid var(--border-color); }
+  .detail-properties-bar .prop-group:nth-child(n+3) {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.7rem;
+  }
 }

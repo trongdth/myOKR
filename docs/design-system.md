@@ -632,6 +632,61 @@ identically; there is no separate long-break case.
 > resolved — see 2026-08-04 redesign below: four columns, estimate folded into
 > the pomodoro line.)*
 
+> **Rework 2026-08-29 (detail-panel polish round)** — supersedes the pieces of
+> the 2026-08-02/04/05 decisions it names:
+>
+> - **Header.** Eyebrow splits into `TASK` + `click any field to edit` with a
+>   plain gap (no `·`); the hint renders a step lower-contrast than the label.
+>   `Complete` is a text-only **ghost** (transparent fill + 1px muted border,
+>   no icon) reading secondary to `Start focus`, which grows its padding as
+>   the sole solid-cyan primary. Close `×` drops to 14px muted. The header's
+>   own divider is gone — the meta bar's top border separates.
+> - **Meta bar is a strip, not a card.** Full-bleed 4-cell row (negative
+>   margins through the panel padding): top/bottom borders only, 1px vertical
+>   rules between cells, no inner background, no per-field boxes. Each cell =
+>   mono uppercase label over a plain-text value + chevron. Priority/Bucket
+>   triggers are the shared Select with its boxed chrome stripped (menu
+>   panel/states stay standard per ADR-0018); the priority value text wears
+>   its Eisenhower category color (`EISENHOWER_META` by value) and Bucket
+>   drops its calendar icon. **Due renders `EEE d MMM`** ("Fri 31 Jul") + a
+>   chevron and opens the native picker on click (`showPicker()`; the raw
+>   `input[type=date]` stays as a visually-hidden host — it can't be
+>   `display:none` or the picker refuses). **Key result** switches to the
+>   bare variant: full label in KR violet with the swatch dot, **no chevron,
+>   no box**, ellipsis only at the full cell width. ≤700px re-stacks 2×2.
+> - **Pomodoros band.** Label reads `POMODOROS THIS WEEK` (mockup copy); the
+>   **data stays the lifetime `completed / estimated` totals** from the
+>   2026-08-05 decision — only the label changed. Order flips to bar-first
+>   (flex-1) then the readout, and the row becomes a slightly elevated band
+>   (`--bg-secondary`, bottom divider) that bleeds edge-to-edge like the meta
+>   bar; it sits flush beneath it, so no top divider of its own.
+> - **Notes render in full.** No 220px cap, no fade, no `N lines · M chars`
+>   counter, no Expand button (supersedes the 2026-08-04 cap). Body copy is
+>   regular-weight UI sans at body size; ordered-list numbers move into a
+>   muted right-aligned mono gutter column. Link display text strips the
+>   protocol (`anthropic.skilljar.com/…`), renders cyan underlined, and wraps
+>   mid-URL only when the URL alone can't fit a line. **Per-link copy chips
+>   are removed** (supersedes the 2026-08-02 "links wrapped with a copy
+>   button"); fenced code blocks get **one** Copy button top-right of the
+>   block instead. (The `label — link` em-dash separator is note content, not
+>   UI — the renderer only strips link protocols.)
+> - **Sub-tasks.** Add row (input + Add) sits **above** the progress bar
+>   (supersedes the 2026-08-02 bar-first order); the Add button is an
+>   **outlined cyan ghost** (supersedes "cyan primary" — solid cyan stays
+>   reserved for `Start focus`), placeholder `Add a sub-task`. Rows become
+>   cards (subtle surface, radius, real padding, 8px gaps) and the list
+>   **collapses to 4 rows** behind a muted `N more · M completed` line that
+>   expands on click (supersedes "show all sub-tasks"). Delete `×` sits at
+>   35% opacity and reveals on row hover (always visible ≤900px — touch
+>   rule). Tab counts go **sans**: `4/8` is a subdued muted chip (no cyan
+>   outline when active), the comment count is bare muted text; the cyan
+>   active-tab underline stays.
+> - **Panel.** Max-width 720 → **880px** so the four meta columns and full
+>   note lines stop squeezing. Mono audit: monospace stays on section labels,
+>   counters, code, and the footer — body copy and tab badges are UI sans.
+> - Guarded by `tests/task-detail-restyle.spec.ts` (+ updated label
+>   assertions in `tests/task-detail-pomodoro.spec.ts`).
+
 > **Redesign 2026-08-04 (task-detail grilling session):**
 >
 > - **Pin / scroll.** The header + 4-column properties row are pinned; the body
