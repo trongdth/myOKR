@@ -1,18 +1,28 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { CheckCircle, X, SquareCheck, MessageSquare, Play, RotateCcw, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, SquareCheck, MessageSquare, Play, GripVertical } from 'lucide-react';
 import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
-import { generateId, reorderTodoItems } from '../../lib/pomodoro-storage';
+import { EISENHOWER_META, generateId, reorderTodoItems } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
 import { useModalEffects } from '../../hooks/useModalEffects';
 import ConfirmModal from '../ConfirmModal';
 import PomoEstimatePopover from './PomoEstimatePopover';
-import { Select } from '../shared/Select';
+import { Select, type SelectOption } from '../shared/Select';
+import DatePicker from '../shared/DatePicker';
 import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions } from './taskSelectOptions';
 
 const Markdown = lazy(() => import('../shared/Markdown'));
 
 type DetailTab = 'todos' | 'comments';
 type PendingDelete = { kind: 'todo' | 'comment' | 'task'; id: string } | null;
+
+/** Sub-task rows shown before the "N more · M completed" expander. */
+const SUBTASKS_VISIBLE = 4;
+
+/** Meta-bar bucket options: value + label only — the cell is text + chevron,
+ *  so the calendar glyphs the Tasks toolbar uses are dropped here. */
+const META_BUCKET_OPTIONS: SelectOption<TaskBucket>[] = BUCKET_OPTIONS.map(
+  ({ value, label }) => ({ value, label }),
+);
 
 /** Progress percentage 0–100, divide-by-zero safe (pomodoro + sub-task bars). */
 const pct = (done: number, total: number) =>
@@ -53,13 +63,6 @@ function formatRelative(iso: string | undefined, now: number): string {
   return formatShortDate(iso);
 }
 
-/** A note is "long" once it would overflow the 220px cap. Heuristic on the raw
- *  markdown so the fade + Expand chevron appear deterministically (no DOM
- *  measurement), matching how the cap is meant to safeguard the tabs below. */
-function notesIsLong(markdown: string): boolean {
-  return markdown.split('\n').length > 8 || markdown.length > 400;
-}
-
 interface Props {
   /** The full task list — feeds the KR picker's open-linked counts (ticket 07). */
   tasks?: PomodoroTask[];
@@ -75,7 +78,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
-  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [showAllTodos, setShowAllTodos] = useState(false);
   const [newTodoText, setNewTodoText] = useState('');
   const [newComment, setNewComment] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -103,6 +106,12 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
 
   const doneCount = todos.filter(t => t.completed).length;
   const nowMs = Date.now();
+
+  // 4-row collapse: rows past SUBTASKS_VISIBLE hide behind the muted
+  // "N more · M completed" line until clicked.
+  const visibleTodos = showAllTodos ? todos : todos.slice(0, SUBTASKS_VISIBLE);
+  const hiddenTodos = todos.slice(visibleTodos.length);
+  const hiddenCompletedCount = hiddenTodos.filter(t => t.completed).length;
 
   useModalEffects(onClose);
 
@@ -168,7 +177,6 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   // Autosaves on blur / ⌘+Enter (NOT per keystroke — persistence rules); Esc reverts.
   const startEditNotes = () => {
     setDescription(task.description || '');
-    setNotesExpanded(false);
     setIsEditingDesc(true);
   };
   const commitNotes = () => {
@@ -290,17 +298,22 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
     deleteModalProps = { title: 'Delete this task?', message: taskDeleteMessage(task), confirmText: 'Delete task' };
   }
 
-  const notesLong = notesIsLong(task.description || '');
   const updatedIso = task.updatedAt ?? task.completedAt ?? task.createdAt;
 
   return (
     <div className="app-modal-overlay" onClick={onClose}>
       <div className="app-modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
-        {/* Pinned: header + properties row (note #4 — body scrolls under these) */}
+        {/* Pinned: header + properties row + pomodoros band. The band lives in
+            the pinned stack (flush under the bar) — its full-bleed negative
+            margins are only safe where overflow is hidden; inside the scroll
+            container they became horizontal swipe (2026-08-30 feedback). */}
         <div className="detail-pinned">
           {/* Panel Header */}
           <div className="detail-panel-header">
-            <span className="detail-eyebrow">TASK · click any field to edit</span>
+            <span className="detail-eyebrow">
+              <span className="eyebrow-label">TASK</span>
+              <span className="eyebrow-hint">click any field to edit</span>
+            </span>
             <div className="detail-title-block">
               {isEditingTitle ? (
                 <input
@@ -346,20 +359,24 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                 className={`detail-action-btn complete-btn${task.isCompleted ? ' completed' : ''}`}
                 onClick={handleToggleComplete}
               >
-                {task.isCompleted ? <RotateCcw size={14} /> : <CheckCircle size={14} />}
-                <span>{task.isCompleted ? 'Reopen' : 'Complete'}</span>
+                {task.isCompleted ? 'Reopen' : 'Complete'}
               </button>
 
               <button className="modal-close-btn" onClick={onClose} aria-label="Close panel">
-                <X size={18} />
+                <X size={14} />
               </button>
             </div>
           </div>
 
-          {/* Properties strip — mockup's 4 columns (the 5th POMODOROS column was
-              folded into the pomodoro line below; see docs/design-system.md P4). */}
+          {/* Properties strip — a full-bleed 4-cell row (label over value,
+              1px column dividers; no card, no per-field boxes). The 5th
+              POMODOROS column was folded into the pomodoro line below; see
+              docs/design-system.md P4. */}
           <div className="detail-properties-bar">
-            <div className="prop-group">
+            <div
+              className="prop-group prop-priority"
+              style={{ '--prop-accent': EISENHOWER_META[task.category || 'do'].color } as React.CSSProperties}
+            >
               <span className="prop-label">PRIORITY</span>
               <Select
                 options={PRIORITY_OPTIONS}
@@ -372,7 +389,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
             <div className="prop-group">
               <span className="prop-label">BUCKET</span>
               <Select
-                options={BUCKET_OPTIONS}
+                options={META_BUCKET_OPTIONS}
                 value={task.bucket || 'backlog'}
                 onChange={handleUpdateBucket}
                 ariaLabel="Bucket"
@@ -381,17 +398,23 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
 
             <div className="prop-group">
               <span className="prop-label">DUE</span>
-              <input
-                type="date"
-                className="prop-date-input"
-                value={task.dueDate || ''}
-                onChange={e => handleUpdateDueDate(e.target.value)}
-              />
+              <div className="prop-due">
+                <DatePicker
+                  className="prop-due-btn"
+                  ariaLabel="Due date"
+                  value={task.dueDate}
+                  onChange={handleUpdateDueDate}
+                  placeholder="Set a due date"
+                  onClear={() => handleUpdateDueDate('')}
+                  clearLabel="No due date"
+                />
+              </div>
             </div>
 
-            <div className="prop-group">
+            <div className="prop-group prop-kr">
               <span className="prop-label">KEY RESULT</span>
               <Select
+                variant="bare"
                 options={krOptions(keyResults, tasks)}
                 value={task.keyResultId || null}
                 onChange={(krId) => handleUpdateKR(krId || '')}
@@ -402,16 +425,19 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               />
             </div>
           </div>
-        </div>
 
-        {/* Scrolling body: pomodoro line → notes → tabs → footer */}
-        <div className="detail-scroll-body">
-          {/* P4: POMODOROS — total completed / estimated on one row. The readout
-              IS the estimate editor: click `2 / 4 planned` to open the shared
-              Adjust Total Pomodoros popover (same component as the Tasks rows).
-              The bar mirrors the same completed/estimated ratio. */}
+          {/* P4: POMODOROS — an elevated band: label · bar · readout on one row.
+              The readout IS the estimate editor: click `2 / 4 planned` to open the
+              shared Adjust Total Pomodoros popover (same component as the
+              Tasks rows). The bar mirrors the completed/estimated ratio. */}
           <div className="weekly-plan-block">
-            <span className="prop-label">POMODOROS</span>
+            <span className="prop-label">POMODOROS THIS WEEK</span>
+            <div className="weekly-plan-bar" role="progressbar"
+              aria-valuenow={task.completedPomodoros} aria-valuemin={0}
+              aria-valuemax={task.estimatedPomodoros || 1}>
+              <div className="weekly-plan-fill"
+                style={{ width: `${pct(task.completedPomodoros, task.estimatedPomodoros || 1)}%` }} />
+            </div>
             <PomoEstimatePopover
               completed={task.completedPomodoros}
               estimated={task.estimatedPomodoros || 1}
@@ -420,31 +446,18 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               showIcon={false}
               onChange={n => onUpdate({ ...task, estimatedPomodoros: n })}
             />
-            <div className="weekly-plan-bar" role="progressbar"
-              aria-valuenow={task.completedPomodoros} aria-valuemin={0}
-              aria-valuemax={task.estimatedPomodoros || 1}>
-              <div className="weekly-plan-fill"
-                style={{ width: `${pct(task.completedPomodoros, task.estimatedPomodoros || 1)}%` }} />
-            </div>
           </div>
+        </div>
 
-          {/* Notes & Links — one markdown field; click anywhere to edit. */}
+        {/* Scrolling body: notes → tabs. min-height:0 is required for a flex
+            child to scroll instead of growing past the panel's 90vh cap. */}
+        <div className="detail-scroll-body">
+          {/* Notes & Links — one markdown field; click anywhere to edit.
+              Full render, no cap/fade/Expand: notes of any length stay whole. */}
           <div className="detail-body-section">
             <div className="notes-header">
               <span className="section-title">NOTES</span>
-              <div className="notes-header-actions">
-                <span className="notes-format-hint">Markdown</span>
-                {notesLong && !isEditingDesc && (
-                  <button
-                    className="notes-expand-btn"
-                    onClick={() => setNotesExpanded(v => !v)}
-                    title={notesExpanded ? 'Collapse notes' : 'Expand notes'}
-                  >
-                    {notesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    <span>{notesExpanded ? 'Less' : 'Expand'}</span>
-                  </button>
-                )}
-              </div>
+              <span className="notes-format-hint">Markdown</span>
             </div>
 
             {isEditingDesc ? (
@@ -474,23 +487,15 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               />
             ) : (
               <div
-                className={`notes-content-view${task.description ? '' : ' empty'}${notesLong && !notesExpanded ? ' collapsed' : ''}`}
+                className={`notes-content-view${task.description ? '' : ' empty'}`}
                 onClick={onNotesViewClick}
               >
                 {task.description ? (
                   <Suspense fallback={<div>Loading notes…</div>}>
-                    <Markdown showLinkCopy>{task.description}</Markdown>
+                    <Markdown>{task.description}</Markdown>
                   </Suspense>
                 ) : (
                   <p className="empty-notes-hint">Click to add notes, context, or links (Markdown supported).</p>
-                )}
-                {notesLong && !notesExpanded && task.description && (
-                  <>
-                    <div className="notes-fade" aria-hidden="true" />
-                    <span className="notes-count">
-                      {(task.description || '').split('\n').length} lines · {(task.description || '').length} chars
-                    </span>
-                  </>
                 )}
               </div>
             )}
@@ -514,13 +519,25 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               >
                 <MessageSquare size={16} />
                 <span>Comments</span>
-                <span className="tab-badge">{comments.length}</span>
+                <span className="tab-count">{comments.length}</span>
               </button>
             </div>
 
             <div className="detail-tab-content">
               {activeTab === 'todos' ? (
                 <div className="todos-tab-body">
+                  <div className="add-todo-row">
+                    <input
+                      type="text"
+                      className="add-todo-input"
+                      placeholder="Add a sub-task"
+                      value={newTodoText}
+                      onChange={e => setNewTodoText(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addTodo()}
+                    />
+                    <button className="add-todo-btn" onClick={addTodo}>Add</button>
+                  </div>
+
                   {todos.length > 0 && (
                     <div className="detail-tab-progress">
                       <div className="detail-tab-progress-bar">
@@ -532,17 +549,6 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                       </span>
                     </div>
                   )}
-                  <div className="add-todo-row">
-                    <input
-                      type="text"
-                      className="add-todo-input"
-                      placeholder="Add a sub-task..."
-                      value={newTodoText}
-                      onChange={e => setNewTodoText(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && addTodo()}
-                    />
-                    <button className="add-todo-btn" onClick={addTodo}>Add</button>
-                  </div>
 
                   {reorderMovingId && (
                     <div className="reorder-hint">
@@ -553,62 +559,73 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                   {todos.length === 0 ? (
                     <p className="empty-tab-hint">No sub-tasks yet. Add one above.</p>
                   ) : (
-                    <div className="todos-list">
-                      {todos.map(todo => {
-                        const moving = reorderMovingId === todo.id;
-                        const targeting = reorderMovingId && !moving;
-                        return (
-                          <div
-                            key={todo.id}
-                            className={`todo-item-row${todo.completed ? ' completed' : ''}${moving ? ' reordering' : ''}${targeting ? ' reorder-target' : ''}`}
-                            onClick={targeting ? () => commitReorder(todo.id) : undefined}
-                          >
-                            <button
-                              className="todo-grip"
-                              onClick={e => { e.stopPropagation(); togglePickup(todo.id); }}
-                              title="Click, then click a row to move this above it"
-                              aria-label="Reorder sub-task"
+                    <>
+                      <div className="todos-list">
+                        {visibleTodos.map(todo => {
+                          const moving = reorderMovingId === todo.id;
+                          const targeting = reorderMovingId && !moving;
+                          return (
+                            <div
+                              key={todo.id}
+                              className={`todo-item-row${todo.completed ? ' completed' : ''}${moving ? ' reordering' : ''}${targeting ? ' reorder-target' : ''}`}
+                              onClick={targeting ? () => commitReorder(todo.id) : undefined}
                             >
-                              <GripVertical size={14} />
-                            </button>
-                            <input
-                              type="checkbox"
-                              checked={todo.completed}
-                              onChange={() => toggleTodo(todo.id)}
-                            />
-                            {editingTodoId === todo.id ? (
+                              <button
+                                className="todo-grip"
+                                onClick={e => { e.stopPropagation(); togglePickup(todo.id); }}
+                                title="Click, then click a row to move this above it"
+                                aria-label="Reorder sub-task"
+                              >
+                                <GripVertical size={14} />
+                              </button>
                               <input
-                                type="text"
-                                className="todo-edit-input"
-                                value={editingTodoText}
-                                autoFocus
-                                onChange={e => setEditingTodoText(e.target.value)}
-                                onBlur={() => {
-                                  if (skipBlurSaveRef.current) {
-                                    skipBlurSaveRef.current = false;
-                                    return;
-                                  }
-                                  commitTodo(todo.id);
-                                }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') commitTodo(todo.id);
-                                  if (e.key === 'Escape') cancelTodo();
-                                }}
+                                type="checkbox"
+                                checked={todo.completed}
+                                onChange={() => toggleTodo(todo.id)}
                               />
-                            ) : (
-                              <span className="todo-text" onClick={() => startEditTodo(todo)}>{todo.text}</span>
-                            )}
-                            <button
-                              className="delete-sub-btn"
-                              onClick={e => { e.stopPropagation(); setPendingDelete({ kind: 'todo', id: todo.id }); }}
-                              aria-label="Delete sub-task"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                              {editingTodoId === todo.id ? (
+                                <input
+                                  type="text"
+                                  className="todo-edit-input"
+                                  value={editingTodoText}
+                                  autoFocus
+                                  onChange={e => setEditingTodoText(e.target.value)}
+                                  onBlur={() => {
+                                    if (skipBlurSaveRef.current) {
+                                      skipBlurSaveRef.current = false;
+                                      return;
+                                    }
+                                    commitTodo(todo.id);
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') commitTodo(todo.id);
+                                    if (e.key === 'Escape') cancelTodo();
+                                  }}
+                                />
+                              ) : (
+                                <span className="todo-text" onClick={() => startEditTodo(todo)}>{todo.text}</span>
+                              )}
+                              <button
+                                className="delete-sub-btn"
+                                onClick={e => { e.stopPropagation(); setPendingDelete({ kind: 'todo', id: todo.id }); }}
+                                aria-label="Delete sub-task"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {hiddenTodos.length > 0 && (
+                        <button
+                          type="button"
+                          className="todos-more-btn"
+                          onClick={() => setShowAllTodos(true)}
+                        >
+                          {hiddenTodos.length} more{hiddenCompletedCount > 0 ? ` · ${hiddenCompletedCount} completed` : ''}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
@@ -671,18 +688,19 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
               )}
             </div>
           </div>
+        </div>
 
-          {/* Footer: created/updated/logged + Delete task */}
-          <div className="detail-footer">
-            <span className="detail-meta">
-              Created {formatShortDate(task.createdAt)}
-              {updatedIso ? <> · updated {formatRelative(updatedIso, nowMs)}</> : null}
-              {' · '}{task.completedPomodoros} pomodoro{task.completedPomodoros === 1 ? '' : 's'} logged
-            </span>
-            <button className="delete-task-btn" onClick={() => setPendingDelete({ kind: 'task', id: task.id })}>
-              Delete task
-            </button>
-          </div>
+        {/* Footer: created/updated/logged + Delete task — pinned to the panel's
+            bottom edge; only notes → tabs scroll (2026-08-30 feedback). */}
+        <div className="detail-footer">
+          <span className="detail-meta">
+            Created {formatShortDate(task.createdAt)}
+            {updatedIso ? <> · updated {formatRelative(updatedIso, nowMs)}</> : null}
+            {' · '}{task.completedPomodoros} pomodoro{task.completedPomodoros === 1 ? '' : 's'} logged
+          </span>
+          <button className="delete-task-btn" onClick={() => setPendingDelete({ kind: 'task', id: task.id })}>
+            Delete task
+          </button>
         </div>
       </div>
       <ConfirmModal

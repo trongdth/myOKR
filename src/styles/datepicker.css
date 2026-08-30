@@ -1,0 +1,133 @@
+/* DatePicker — the DUE cell's in-app calendar (2026-08-30). Panel anatomy
+   follows the Select system (portaled, fixed-position, z-1100 above the
+   modal layer); tokens only, no raw hex. The clear row echoes Select's
+   dashed clear affordance. */
+
+.date-picker-panel {
+  position: fixed;
+  z-index: 1100; /* above the app's modal layer (1000), same as .sel-panel */
+  min-width: 280px;
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  animation: sel-slide-down 150ms ease;
+  user-select: none;
+}
+
+.date-picker-panel.dp-open-above {
+  animation-name: sel-slide-up;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .date-picker-panel { animation: none; }
+}
+
+/* Header: prev · month-year · next */
+.dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 2px 2px 8px;
+}
+.dp-month-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+.dp-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.dp-nav:hover {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: var(--text-primary);
+}
+
+/* Weekday row + day grid share the 7-column rhythm (34px cells). */
+.dp-weekdays,
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 34px);
+  gap: 2px;
+  justify-content: center;
+}
+.dp-weekday {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+}
+.dp-day {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.dp-day:hover {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: var(--text-primary);
+}
+.dp-day.today {
+  box-shadow: inset 0 0 0 1px var(--border-color);
+  color: var(--text-primary);
+}
+.dp-day.selected {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Footer: dashed clear row below a divider — Select's clear affordance. */
+.dp-footer {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+}
+.dp-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--menu-row-height, 34px);
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.dp-clear:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+.dp-clear-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+.dp-dash {
+  width: 12px;
+  height: 12px;
+  border: 1px dashed var(--menu-hint);
+  border-radius: 3px;
+}
+.dp-clear-label { color: var(--text-secondary); }

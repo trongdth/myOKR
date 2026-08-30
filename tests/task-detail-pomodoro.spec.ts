@@ -69,11 +69,12 @@ test.describe('Pomodoro block — task detail modal (Seam C)', () => {
     await page.locator('.board-task-card .card-title').first().click();
   });
 
-  test('shows POMODOROS with lifetime completed / estimated, no weekly plan button', async ({ page }) => {
-    await expect(page.locator('.weekly-plan-block')).toContainText('POMODOROS');
+  test('shows POMODOROS THIS WEEK with lifetime completed / estimated, no weekly plan button', async ({ page }) => {
+    // 2026-08-29: the label reads POMODOROS THIS WEEK (mockup copy) while the
+    // readout stays the lifetime `completed / estimated` totals.
+    await expect(page.locator('.weekly-plan-block')).toContainText('POMODOROS THIS WEEK');
     await expect(page.locator('.weekly-plan-block .task-pomo-count')).toHaveText('2 / 4 planned');
     await expect(page.locator('.weekly-plan-edit-btn')).toHaveCount(0);
-    await expect(page.locator('.weekly-plan-block')).not.toContainText('THIS WEEK');
   });
 
   // The block must sit on ONE row (label · readout · bar) and fit the panel

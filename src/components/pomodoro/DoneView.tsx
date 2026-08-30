@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
-import { RotateCcw, CheckCircle2, Search } from 'lucide-react';
+import { Check, CheckCircle2, Search } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { Select } from '../shared/Select';
+import ConfirmModal from '../ConfirmModal';
 import { PRIORITY_OPTIONS, krOptions } from './taskSelectOptions';
 
 interface Props {
   tasks: PomodoroTask[];
-  onReopenTask: (task: PomodoroTask) => void;
+  /** Bulk-shaped so a multi-select reopen is one write, not N sequential ones. */
+  onReopenTasks: (tasks: PomodoroTask[]) => void;
   keyResults?: KeyResult[];
   objectives?: Objective[];
   cycles?: OKRCycle[];
@@ -34,11 +36,15 @@ function dayGroupLabel(dateStr: string, todayStr: string, yesterdayStr: string):
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()].toUpperCase()}`;
 }
 
-export default function DoneView({ tasks, onReopenTask, keyResults = [], objectives = [], cycles = [], activeCycle, onSelectTask, onOpenSearch }: Props) {
+export default function DoneView({ tasks, onReopenTasks, keyResults = [], objectives = [], cycles = [], activeCycle, onSelectTask, onOpenSearch }: Props) {
   // Filters (P5): This week / All key results / All priorities
   const [weekOnly, setWeekOnly] = useState(false);
   const [krFilter, setKrFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+
+  // Reopen asks for confirmation (2026-08-30 feedback): unchecking a row's
+  // done-state checkbox stages the task here until the modal decides.
+  const [reopenCandidate, setReopenCandidate] = useState<PomodoroTask | null>(null);
 
   const krCycleMap = useMemo(
     () => buildKrCycleMap(keyResults, objectives, cycles),
@@ -139,6 +145,11 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
     });
   }, [completedTasks, todayStr, yesterdayStr]);
 
+  const handleReopenConfirmed = () => {
+    if (reopenCandidate) onReopenTasks([reopenCandidate]);
+    setReopenCandidate(null);
+  };
+
   return (
     <div className="done-view-container">
       {/* Header (P5): PLAN + cycle pill + Search ⌘K */}
@@ -206,15 +217,17 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
                 </span>
               </div>
 
-              {/* P5: table TASK | KEY RESULT | POMODOROS | FINISHED | UNDO */}
-              <table className="done-table">
+              {/* P5 columns in the Tasks list-view table anatomy (2026-08-29),
+                  with the checkbox as the done state (2026-08-30 feedback):
+                  select · TASK | KEY RESULT | POMODOROS | FINISHED */}
+              <table className="list-table done-table">
                 <thead>
                   <tr>
+                    <th className="th-select" aria-label="Done" />
                     <th className="done-th-task">TASK</th>
                     <th className="done-th-kr">KEY RESULT</th>
                     <th className="done-th-pomos">POMODOROS</th>
                     <th className="done-th-finished">FINISHED</th>
-                    <th className="done-th-undo">UNDO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,9 +240,26 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
                     return (
                       <tr
                         key={task.id}
-                        className="done-table-row"
+                        className="list-row done-table-row"
                         onClick={() => onSelectTask?.(task)}
                       >
+                        <td className="td-select" onClick={e => e.stopPropagation()}>
+                          {/* Done-state tick (2026-08-30 style round): the
+                              mockup's rounded-square tick, not a native box.
+                              Controlled by task.isCompleted, so it never
+                              flips until the confirm modal decides. */}
+                          <button
+                            type="button"
+                            className={`done-check${task.isCompleted ? ' checked' : ''}`}
+                            onClick={() => setReopenCandidate(task)}
+                            role="checkbox"
+                            aria-checked={task.isCompleted}
+                            aria-label={`Reopen ${task.title}`}
+                            title="Uncheck to reopen this task"
+                          >
+                            <Check size={13} />
+                          </button>
+                        </td>
                         <td className="done-td-task">
                           <span className="done-task-title">{task.title}</span>
                         </td>
@@ -240,16 +270,6 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
                           {task.completedPomodoros} / {task.estimatedPomodoros || 1}
                         </td>
                         <td className="done-td-finished">{finishedTime}</td>
-                        <td className="done-td-undo" onClick={e => e.stopPropagation()}>
-                          <button
-                            className="done-reopen-btn"
-                            onClick={() => onReopenTask(task)}
-                            title="Reopen task and return to bucket"
-                          >
-                            <RotateCcw size={13} />
-                            <span>Reopen</span>
-                          </button>
-                        </td>
                       </tr>
                     );
                   })}
@@ -259,6 +279,26 @@ export default function DoneView({ tasks, onReopenTask, keyResults = [], objecti
           ))}
         </div>
       )}
+
+      {/* Reopen confirm — the checkbox never flips until this decides, since
+          it is controlled by task.isCompleted. */}
+      <ConfirmModal
+        isOpen={reopenCandidate !== null}
+        onClose={() => setReopenCandidate(null)}
+        onConfirm={handleReopenConfirmed}
+        title="Reopen task"
+        danger={false}
+        confirmText="Reopen"
+        message={
+          reopenCandidate && (
+            <>
+              “{reopenCandidate.title}” will leave the Done list and return to
+              its bucket as an open task. Its {reopenCandidate.completedPomodoros || 0}{' '}
+              logged {reopenCandidate.completedPomodoros === 1 ? 'pomodoro is' : 'pomodoros are'} kept.
+            </>
+          )
+        }
+      />
     </div>
   );
 }

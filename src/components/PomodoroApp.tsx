@@ -184,8 +184,9 @@ export default function PomodoroApp({
           cycles={cycles}
           activeCycle={activeCycle}
           onOpenSearch={() => setIsSearchOpen(true)}
-          onReopenTask={(task) => {
-            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+          onReopenTasks={(reopening) => {
+            const ids = new Set(reopening.map(t => t.id));
+            const updated = tasks.map(t => ids.has(t.id) ? { ...t, isCompleted: false, completedAt: undefined } : t);
             handleTasksChange(updated);
           }}
           onSelectTask={(t) => setSelectedDetailTask(t)}
@@ -204,9 +205,6 @@ export default function PomodoroApp({
           onClose={() => setIsSearchOpen(false)}
           tasks={tasks}
           keyResults={keyResults}
-          objectives={objectives}
-          cycles={cycles}
-          activeCycleId={activeCycle?.id}
           onSelectTask={(t) => setSelectedDetailTask(t)}
           onStartFocusTask={(t) => {
             setActiveTask(t.id);
@@ -214,6 +212,10 @@ export default function PomodoroApp({
           }}
           onReopenTask={(task) => {
             const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+            handleTasksChange(updated);
+          }}
+          onCompleteTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t);
             handleTasksChange(updated);
           }}
         />

@@ -565,9 +565,29 @@ identically; there is no separate long-break case.
   focus` or ⌘K `Start`. No emoji (🎯🍅📅 → mono text / Lucide).
 - **Bucket headers**: `Today · N · X pomos` (mono count pill + planned-pomo
   sum; mockup numbers are illustrative).
-- **Completed strip**: `N completed today · Show` collapsed **at the foot of
-  the Backlog column** (not below the grid). Filtered to tasks completed today
-  *in this cycle* (ADR-0012).
+- **Completed strip** (reworked 2026-08-30, 10-point spec): `✓ N completed
+  today · Show ⌄` in a boxed rounded row **at the foot of the Backlog column**
+  (not below the grid). Filtered to tasks completed today *in this cycle*
+  (ADR-0012). **Show ↔ Hide**: the chevron rotates 180° and label + chevron
+  join the strip green `#6ee7b7` while open (the count and check glyph are
+  always green); the strip itself never moves — cards expand below it. Cards
+  are the board card **dimmed, not greyed**: line-through title `#727c8c`,
+  meta `#5a6474` (`priority · KR · N pomo(s)` — logged pomodoros), surface
+  `#0e1218`, and the left accent switches to the strip green at 45% instead
+  of the priority colour; a mono 10.5px completion time on the right is the
+  only element an open card doesn't have. Order is completion-time ascending
+  (newest last, so a fresh check-off slides in as the last row). The green
+  rounded-square tick un-completes (same-session undo — strip stays open,
+  count decrements; at zero the strip disappears entirely); the card body
+  opens P4 as normal, not a locked state. Expansion animates height 160ms
+  ease-out (0fr→1fr grid trick) with a 120ms card fade, no stagger; the
+  column list grows and the page scrolls — the sticky quick-add row stays
+  pinned. Expanded state is **per column and per session** (never persisted),
+  resetting collapsed at the day boundary along with the count. At the
+  2-column tier (≤1100px) the strip renders **at the foot of This week** —
+  it never rides in the collapsed Backlog bar. Values are mockup-exact,
+  named once as scoped `--ct-*` vars on the strip. Guarded by
+  `tests/completed-today-strip.spec.ts`.
 - **Responsive ≤1100px (P2)**: Today + This week stay open; **Backlog collapses
   to a slim bar** (`Backlog · N · X pomos`, "drop a card here to defer it")
   that expands to a mini-list on click. **Board bucket-moving/deferring uses
@@ -631,6 +651,84 @@ identically; there is no separate long-break case.
 > button is cyan primary. *(The old "Open: 4 vs 5 property columns" item is
 > resolved — see 2026-08-04 redesign below: four columns, estimate folded into
 > the pomodoro line.)*
+
+> **Rework 2026-08-29 (detail-panel polish round)** — supersedes the pieces of
+> the 2026-08-02/04/05 decisions it names:
+>
+> - **Header.** Eyebrow splits into `TASK` + `click any field to edit` with a
+>   plain gap (no `·`); the hint renders a step lower-contrast than the label
+>   and keeps its authored sentence case — the uppercase mono treatment is
+>   the label's alone (2026-08-30 review).
+>   `Complete` is a text-only **ghost** (transparent fill + 1px muted border,
+>   no icon) reading secondary to `Start focus`, which grows its padding as
+>   the sole solid-cyan primary. Close `×` drops to 14px muted. The header's
+>   own divider is gone — the meta bar's top border separates.
+> - **Meta bar is a strip, not a card.** Full-bleed 4-cell row (negative
+>   margins through the panel padding): top/bottom borders only, 1px vertical
+>   rules between cells, no inner background, no per-field boxes. Each cell =
+>   mono uppercase label over a plain-text value + chevron. Priority/Bucket
+>   triggers are the shared Select with its boxed chrome stripped (menu
+>   panel/states stay standard per ADR-0018); the priority value text wears
+>   its Eisenhower category color (`EISENHOWER_META` by value) and Bucket
+>   drops its calendar icon. **Due renders `EEE d MMM`** ("Fri 31 Jul") + a
+>   chevron and opens the native picker on click (`showPicker()`; the raw
+>   `input[type=date]` stays as a visually-hidden host — it can't be
+>   `display:none` or the picker refuses). **Key result** switches to the
+>   bare variant: full label in KR violet with the swatch dot, **no chevron,
+>   no box**, ellipsis only at the full cell width. ≤700px re-stacks 2×2.
+> - **Pomodoros band.** Label reads `POMODOROS THIS WEEK` (mockup copy); the
+>   **data stays the lifetime `completed / estimated` totals** from the
+>   2026-08-05 decision — only the label changed. Order flips to bar-first
+>   (flex-1) then the readout, and the row becomes a slightly elevated band
+>   (`--bg-secondary`, bottom divider) that bleeds edge-to-edge like the meta
+>   bar; it sits flush beneath it, so no top divider of its own.
+> - **Notes render in full.** No 220px cap, no fade, no `N lines · M chars`
+>   counter, no Expand button (supersedes the 2026-08-04 cap). Body copy is
+>   regular-weight UI sans at body size; ordered-list numbers move into a
+>   muted right-aligned mono gutter column. Link display text strips the
+>   protocol (`anthropic.skilljar.com/…`), renders cyan underlined, and wraps
+>   mid-URL only when the URL alone can't fit a line. **Per-link copy chips
+>   are removed** (supersedes the 2026-08-02 "links wrapped with a copy
+>   button"); fenced code blocks get **one** Copy button top-right of the
+>   block instead. (The `label — link` em-dash separator is note content, not
+>   UI — the renderer only strips link protocols.)
+> - **Sub-tasks.** Add row (input + Add) sits **above** the progress bar
+>   (supersedes the 2026-08-02 bar-first order); the Add button is an
+>   **outlined cyan ghost** (supersedes "cyan primary" — solid cyan stays
+>   reserved for `Start focus`), placeholder `Add a sub-task`. Rows become
+>   cards (subtle surface, radius, real padding, 8px gaps) and the list
+>   **collapses to 4 rows** behind a muted `N more · M completed` line that
+>   expands on click (supersedes "show all sub-tasks"). Delete `×` sits at
+>   35% opacity and reveals on row hover (always visible ≤900px — touch
+>   rule). Tab counts go **sans**: `4/8` is a subdued muted chip (no cyan
+>   outline when active), the comment count is bare muted text; the cyan
+>   active-tab underline stays.
+> - **Panel.** Max-width 720 → **880px** so the four meta columns and full
+>   note lines stop squeezing. Mono audit: monospace stays on section labels,
+>   counters, code, and the footer — body copy and tab badges are UI sans.
+> - **Follow-up 2026-08-30 (width + pinning feedback).** The POMODOROS band
+>   joins the **pinned** stack, flush-attached under the meta bar (the bar's
+>   bottom border is the band's top line), and the **footer pins to the
+>   panel's bottom edge** — the scroll region is notes → tabs only. Rule
+>   behind it: the panel's 1.5rem-padding negative-margin bleed is only safe
+>   where overflow is hidden (the pinned stack, clipped by the panel); inside
+>   the scroll container it becomes scrollable overflow — the band's bleed
+>   there made the whole body swipe sideways. `.detail-scroll-body` carries
+>   `overflow-x: hidden` as belt-and-braces, and nothing inside it may bleed.
+> - **Follow-up 2026-08-30 (DUE picker feedback).** The Due cell's native
+>   `input[type=date]` popover rendered tiny in WKWebView and outlived the
+>   panel (outside clicks never dismissed it) — the hidden-host +
+>   `showPicker()` approach above is **superseded** by the shared
+>   **`DatePicker`** (`src/components/shared/DatePicker.tsx`): a portaled
+>   in-app calendar on the Select panel system (fixed-positioned from the
+>   trigger, flips above, z-1100, outside-mousedown closes unchanged, Esc
+>   closes with the modal spared via the panel's `mousedown` preventDefault
+>   keeping focus on the trigger). Monday-start 6×7 grid, ≥280px, month
+>   seeded from the value; values are `YYYY-MM-DD` composed from the viewed
+>   month — never round-tripped through `new Date(iso)` (UTC parse shifts
+>   the picked day across timezones). Guarded by `tests/date-picker.spec.ts`.
+> - Guarded by `tests/task-detail-restyle.spec.ts` (+ updated label
+>   assertions in `tests/task-detail-pomodoro.spec.ts`).
 
 > **Redesign 2026-08-04 (task-detail grilling session):**
 >
@@ -700,6 +798,30 @@ identically; there is no separate long-break case.
   `Reopen`), grouped by day (`TODAY · MONDAY 25 MAY — 2 tasks · 7 pomodoros`,
   `YESTERDAY · SUNDAY 24 MAY — …`). "This week" is a date-range filter;
   "All key results" / "All priorities" are dropdowns defaulting to All.
+- **Row anatomy matches the Tasks list view (2026-08-29; revised 2026-08-30
+  feedback)** — a deliberate deviation from the mockup's bare table for
+  cross-tab consistency: the table carries the `.list-table` class (same card
+  chrome, header row, paddings). The leading **checkbox is the task's done
+  state**, checked by default — unchecking it opens a **`ConfirmModal`**
+  ("Reopen task", non-danger, copy names the cost: the task leaves the Done
+  list and returns to its bucket, logged pomodoros are kept); the checkbox is
+  controlled by `task.isCompleted`, so it never flips until the modal decides.
+  This replaced the earlier bulk-selection bar **and the mockup's UNDO
+  column** (`Reopen` button gone with it — the checkbox is the reopen
+  affordance). Titles are **not struck through** (done-ness is the checkbox's
+  job). P5 columns otherwise unchanged (`TASK | KEY RESULT | POMODOROS |
+  FINISHED`; no PRIORITY/BUCKET/DUE cells — those are editing controls for
+  open tasks). Numeric columns stay right-aligned mono (scoped `.done-table`
+  selectors, which also fixed the headers losing their right-alignment to the
+  shared `text-align: left`). Reopen is one write (`onReopenTasks`), and the
+  `.selected` tint stays list-view-only. **Style round (2026-08-30):** the
+  tick is the mockup's **rounded-square green tick** (`.done-check`, 20px,
+  `--okr-on-track` fill + white `Check` glyph — not a native checkbox), and
+  the tables use **`table-layout: fixed` with shared column widths** — each
+  day group renders its own `<table>` and auto layout let their columns
+  drift apart. Long task/KR text truncates rather than re-flowing. Guarded
+  by `tests/done-view-list-parity.spec.ts` (including a cross-group column
+  alignment assertion).
 
 ### Objectives (P7, flagship)
 
@@ -787,9 +909,72 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   (`.okr-overall-text` unchanged) — plus regenerated 1280×800 / 1024×720
   visual baselines.
 
-### ⌘K search (P6, structural parity)
+### ⌘K search (P6, structural parity) — reworked 2026-08-30
 
-- Results grouped into **OPEN · N / COMPLETED · N / INSIDE TASKS · N**
-  (sub-task & note matches) with per-section counts. Scope chips, cycle
-  selector, `Start`/`Reopen` row actions stay as implemented. **No** matched-term
-  highlighting, **no** footer shortcut legend (no-shortcuts policy).
+> The 2026-08-30 rework supersedes the earlier P6 decisions (which had "no
+> matched-term highlighting" and a cycle selector). Spec'd directly by the
+> app owner against a reference mockup.
+
+- **Container.** Standard **centered** modal overlay (`.app-modal-overlay`),
+  panel **max-width 840px**, so rows don't stretch and the meta line stays
+  near the title. The header (input + scope chips) is pinned; only
+  `.command-k-results` scrolls.
+- **Header is a flat row** — small search icon, borderless input (~14px,
+  the global `input`/`input:focus` chrome and `--glow-cyan` focus ring are
+  explicitly stripped; since the 2026-08-30 review a faint primary
+  `color-mix` tint on `:focus` keeps keyboard focus visible without
+  reinstating the ring), then right-aligned `N results` text + a mono `esc`
+  chip. No X clear button: **Esc clears the query first, then closes**.
+- **Scope chips only.** Everything (default) / Open / Completed / Sub-tasks /
+  Notes. Active chip = cyan text on a cyan tint with a cyan border (never
+  white-on-dark). **The cycle/month dropdown is removed** — chips are the only
+  scope, and the choice **persists for the app session** (module variable,
+  deliberately not storage: every launch starts on Everything).
+- **Result meta — per-task, `·`-joined segments** (`MetaLine`: each segment its
+  own element, separators rendered between them — text can never glue):
+  `<bucket> · <priority> · <key result | "no key result"> · <done/total
+  sub-tasks>` (segments drop out when absent). Completed rows read
+  `Finished <EEE d MMM> · N pomodoros`; inside rows read
+  `in <parent title> · <bucket | completed <Weekday>>`. **Dates are always
+  formatted, never raw ISO.**
+- **Match highlighting is ON** (supersedes the earlier "no"): every
+  case-insensitive occurrence of the query gets a cyan-tinted `<mark>`
+  (`.command-k-hl`) in titles, matched sub-task/note text, and the KR segment.
+  Long note bodies trim to a ±60-char window around the match.
+- **Rows.** Compact two-line (title 14px medium over 12px muted meta),
+  transparent by default — **only the highlighted row** wears an elevated
+  background + 1px cyan-mixed border. Leading checkbox is a rounded square
+  (outlined open; green-filled + white check when done, mirroring
+  `.done-check`). Row-density icon sizes are intentionally sub-16px (the
+  content-icon rule's dense-surface exception, like the menu's 14px): inside
+  icons 15px, check glyph 12px, Start-pill play 11px.
+- **Groups.** `OPEN · N / COMPLETED · N / INSIDE TASKS · N` — uppercase mono
+  header, bare `·` count (no badge pill). Open before completed; recency
+  (updatedAt → completedAt → createdAt) desc within. INSIDE TASKS rows are the
+  matches *inside* a task — `Sub-task — "<text>"` (checkbox glyph) and
+  `Note — "<text>"` (document glyph), quoted + highlighted — and clicking one
+  opens the parent task. A title-matching task and its matching sub-tasks can
+  both appear (matching the mockup).
+- **Selection / keyboard.** First result preselected; ↑/↓ move; **Enter
+  starts a focus session** on the highlighted open task (completed → the
+  reopen dialog, inside → open parent); the solid-cyan **Start pill renders
+  only on the highlighted row**; completed rows always show the muted
+  `Reopen` text link. **Clicking a row body is the same activation as
+  Enter** (2026-08-30 review — a highlight-only click left completed rows
+  with no usable affordance at all). These are palette-intrinsic keys scoped
+  to the open
+  modal — a deliberate, user-requested carve-out from the
+  no-global-shortcuts policy
+  ([ADR-0011](./adr/0011-no-keyboard-shortcuts.md)), not a legend'd global
+  binding.
+- **Done toggle + reopen confirm (2026-08-30 feedback).** The row checkbox
+  is the task's done state, not decoration: clicking it on an open row
+  completes the task instantly (the Tasks-board posture; the check appears
+  and the row moves to COMPLETED live). Every un-complete path — the
+  completed row's checkbox, the `Reopen` link, Enter on a completed row —
+  opens the Done screen's **"Reopen task" `ConfirmModal`** (non-danger;
+  copy names the cost: leaves the Done list, returns to its bucket, logged
+  pomodoros kept) and only confirms then writes. While that dialog is open
+  the palette's own keys are suspended.
+- Guarded by `tests/command-k-search.spec.ts` (+ the chips-removal test in
+  `tests/select-modal-filter-migration.spec.ts`).

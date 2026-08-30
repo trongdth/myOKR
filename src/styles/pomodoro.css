@@ -3533,8 +3533,7 @@
 }
 
 .done-task-title {
-  text-decoration: line-through;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 0.9rem;
 }
 
@@ -3550,129 +3549,275 @@
   font-size: 0.8rem;
 }
 
-.done-reopen-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.6rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
+/* Command-K Search Modal (2026-08-30 rework): a flat results panel on the
+   standard centered modal overlay — no boxed input-in-a-box, no per-row
+   cards. The header (input + scope chips) pins; only .command-k-results
+   scrolls. */
 
-/* Command-K Search Modal */
 .command-k-modal {
-  width: 90%;
-  max-width: 680px;
+  width: 100%;
+  max-width: 840px;
+  max-height: 82vh;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 1rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  /* Overrides .app-modal-content's scroll: the panel itself never scrolls,
+     the results region beneath the pinned header does. */
+  overflow: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.8);
 }
 
 .command-k-header {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.5rem 0.8rem;
+  gap: 0.7rem;
+  padding: 0.8rem 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.command-k-header .search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .command-k-input {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   outline: none;
+  /* Undo the global `input` chrome (padding + bg) — the header row is flat. */
+  padding: 0;
+  border-radius: 0;
+}
+
+/* The global `input:focus` glow/border outranks the class at rest; this
+   keeps the search input borderless and glow-free while focused — but focus
+   is never invisible: a faint primary tint marks the field for keyboard
+   users (2026-08-30 review). */
+.command-k-input:focus,
+.command-k-input:focus-visible {
+  border: none;
+  box-shadow: none;
+  outline: none;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.command-k-input::placeholder { color: var(--text-muted); }
+
+.command-k-result-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.command-k-esc-chip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 0.1rem 0.45rem;
 }
 
 .command-k-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.4rem;
+  padding: 0.65rem 1.1rem;
+  flex-shrink: 0;
 }
 
 .command-k-scopes {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .command-k-scope-chip {
-  padding: 0.25rem 0.6rem;
-  border-radius: 6px;
-  background: var(--bg-secondary);
+  padding: 0.28rem 0.7rem;
+  border-radius: 8px;
+  background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
   font-size: 0.75rem;
   cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
 }
 
+.command-k-scope-chip:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--text-primary) 25%, transparent);
+}
+
+/* Active chip: cyan text on a cyan tint with a cyan border — never a solid
+   dark fill with white text (the 2026-08-30 regression). */
 .command-k-scope-chip.active {
-  background: var(--accent-primary);
-  color: #000;
-  font-weight: 600;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
 }
 
 .command-k-results {
-  max-height: 380px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  padding: 0.3rem 0.55rem 0.75rem;
 }
 
+.command-k-empty {
+  padding: 2.2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Compact two-line rows: transparent by default; only the highlighted row
+   wears a background + border. */
 .command-k-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.8rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  gap: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
 }
 
-.command-k-item:hover {
-  border-color: var(--accent-primary);
+.command-k-item.selected {
+  background: var(--bg-secondary);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
-.command-k-item-actions {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.command-k-act-btn {
+/* Rounded-square status checkbox (mirrors .done-check): a working done
+   toggle — outlined open (click completes), green-filled with a white check
+   when done (click asks to reopen). */
+.command-k-check {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 5px;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  border: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  justify-content: center;
+  flex-shrink: 0;
+  color: transparent;
+  background: transparent;
+  padding: 0;
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
+
+.command-k-check:not(.done):hover {
+  border-color: var(--text-secondary);
+}
+
+.command-k-check.done {
+  background: var(--okr-on-track);
+  border-color: var(--okr-on-track);
+  color: var(--bg-primary);
+}
+
+.command-k-inside-icon {
+  display: flex;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.command-k-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.command-k-item-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-k-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.command-k-item-meta .meta-seg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta-sep {
+  color: var(--text-muted);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* Matched-substring highlight — subtle cyan tint, slightly stronger text. */
+.command-k-hl {
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  color: var(--text-primary);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+/* Solid cyan pill — the highlighted row's only action. */
+.command-k-start-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--color-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.command-k-start-btn:hover { filter: brightness(1.08); }
+
+.command-k-reopen-link {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.command-k-reopen-link:hover { color: var(--text-primary); }
 
 /* Task Detail Panel Upgrades (P4) */
 .task-detail-panel {
   width: 90%;
-  max-width: 720px;
+  /* 880px (was 720): the four meta-bar columns and full-length note lines
+     don't fit 720 without squeezing (2026-08-29 detail-panel polish). */
+  max-width: 880px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  /* 1.5rem outer breathing room — content shouldn't crowd the panel border. */
+  /* 1.5rem outer breathing room — content shouldn't crowd the panel border.
+     The meta bar + pomodoros band bleed through it with negative margins. */
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -3682,31 +3827,41 @@
   overflow: hidden;
 }
 
-/* Pinned region (header + properties) — never scrolls. */
+/* Pinned region (header + properties + pomodoros band) — never scrolls.
+   Gap 0: the properties bar and the band are flush-attached (the bar's
+   bottom border is the band's top line); the header carries its own
+   padding-bottom instead of relying on the old gap. */
 .detail-pinned {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0;
 }
 
-/* Scrolling region: weekly line, notes, tabs, footer. min-height:0 is required
-   for a flex child to scroll instead of growing past the panel's 90vh cap. */
+/* Scrolling region: notes → tabs only (band + footer are pinned). min-height:0
+   is required for a flex child to scroll instead of growing past the panel's
+   90vh cap. overflow-x is pinned to hidden — `overflow-y: auto` alone admits
+   horizontal swipe from any child that outgrows the box (2026-08-30
+   feedback). Nothing in here may use the negative-margin bleed. */
 .detail-scroll-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   padding-top: 1rem;
+  padding-bottom: 0.5rem;
   padding-right: 0.25rem;
 }
 
 /* --- P4 detail header: eyebrow on its own line, title left + actions right --- */
 /* Two-row grid: eyebrow on its own line, then title (left, wraps to 2 lines
    when long) + actions (right, top-aligned so Start focus/Complete/X stay pinned
-   top-right and never wrap below the title — point 1). */
+   top-right and never wrap below the title — point 1). No bottom divider:
+   the meta bar's own top border separates the header from the meta row;
+   the padding re-establishes the gap the pinned stack no longer provides. */
 .detail-panel-header {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -3714,7 +3869,6 @@
   align-items: start;
   gap: 0.35rem 1rem;
   padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--border-color);
 }
 .detail-eyebrow { grid-area: eyebrow; }
 
@@ -3771,29 +3925,44 @@
 }
 .detail-action-btn:hover { border-color: var(--color-primary); }
 
-/* Start focus is THE single primary action on this screen (design-system.md). */
+/* Start focus is THE single primary action on this screen (design-system.md).
+   Extra padding makes it read larger than the ghost secondary beside it. */
 .start-focus-btn {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-on-primary);
+  padding: 0.55rem 1.15rem;
 }
 .start-focus-btn:hover {
   border-color: var(--color-primary);
   filter: brightness(1.08);
 }
 
+/* Complete is the secondary action: text-only ghost — transparent fill with
+   a quiet 1px border, no icon (2026-08-29 detail polish). */
+.complete-btn {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+.complete-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
 .complete-btn.completed {
   color: var(--text-secondary);
 }
 
-/* Close button — scoped to the detail panel so the CommandK modal is untouched. */
+/* Close button — scoped to the detail panel so the CommandK modal is untouched.
+   Small and muted: it's the tertiary affordance of the header row. */
 .task-detail-panel .modal-close-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
@@ -3804,22 +3973,33 @@
   color: var(--text-primary);
 }
 
+/* Properties row (2026-08-29): not a card — a full-bleed 4-cell strip.
+   Negative margins escape the panel's 1.5rem padding so the band stretches
+   edge-to-edge; top/bottom borders only (the header above has no divider of
+   its own); cells split by 1px vertical rules. Four `minmax(0, 1fr)` tracks
+   so a long KR label ellipsizes inside its cell instead of blowing the grid. */
 .detail-properties-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  margin: 0 -1.5rem;
+  padding: 0.7rem 1.5rem;
+  background: none;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
 }
 
 .prop-group {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0 1.25rem;
 }
+.prop-group:first-child { padding-left: 0; }
+.prop-group:last-child { padding-right: 0; }
+.prop-group + .prop-group { border-left: 1px solid var(--border-color); }
 
 .prop-label {
   font-family: var(--font-mono);
@@ -3827,20 +4007,75 @@
   color: var(--text-muted);
 }
 
-.prop-date-input {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+/* Due: the cell opens the shared DatePicker popover (2026-08-30) — the
+   trigger is plain text + chevron; the calendar panel is portaled to body. */
+.prop-due { display: flex; min-width: 0; }
+.prop-due-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.78rem;
   color: var(--text-primary);
-  border-radius: 4px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  width: 100%;
+  cursor: pointer;
+  text-align: left;
 }
+.prop-due-btn > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prop-due-btn.empty > span:first-child { color: var(--menu-placeholder); }
+.prop-due-btn:hover .dp-chevron { color: var(--menu-chevron-hover); }
+.prop-due-btn .dp-chevron { flex-shrink: 0; color: var(--menu-chevron-rest); }
 
-/* Task-detail property rows fill their column (custom-select ticket 03) */
-.prop-group .sel-trigger {
+/* Trigger dressing (2026-08-29): the meta cells show the shared Select's
+   value as plain text — the boxed chrome (bg/border/padding) is stripped
+   here, the menu panel/states/keyboard stay the standard system (ADR-0018).
+   Height stays 32px so the four values align across cells. */
+.detail-properties-bar .sel-trigger.boxed {
+  background: transparent;
+  border: none;
+  height: 32px;
+  padding: 0;
+  max-width: 100%;
+}
+.detail-properties-bar .sel-trigger.boxed:hover:not(:disabled):not(.sel-open) {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.detail-properties-bar .sel-trigger.boxed.sel-open,
+.detail-properties-bar .sel-trigger.boxed:active:not(:disabled) {
+  border: none;
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+/* Priority value wears its Eisenhower category color (--prop-accent is set
+   inline from EISENHOWER_META — the canonical by-value palette). */
+.detail-properties-bar .prop-priority .sel-text {
+  color: var(--prop-accent, var(--text-primary));
+}
+/* Key result: bare variant (no chevron, no box); the full label reads in KR
+   violet and may use the whole cell width before ellipsizing. */
+.detail-properties-bar .prop-kr .sel-trigger.bare {
+  height: 32px;
+  padding: 0;
+  align-items: center;
+  max-width: 100%;
+}
+.detail-properties-bar .prop-kr .sel-text {
+  font-size: 0.78rem;
   max-width: none;
-  width: 100%;
+}
+.detail-properties-bar .prop-kr .sel-text:not(.sel-placeholder) {
+  color: var(--color-objective);
+}
+.detail-properties-bar .sel-trigger.bare.sel-open {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
 }
 
 .detail-tabs-section {
@@ -4205,59 +4440,151 @@
   color: var(--color-primary);
 }
 
-/* --- P1 completed-today strip (inside Backlog column) --- */
+/* --- P1 completed-today strip (2026-08-30 rework, 10-point spec) ---
+   Sits at the foot of the Backlog column at 3-column width and at the foot of
+   This week at the 2-column tier (the Backlog bar never hosts it). Flagship
+   board: mockup-exact values, named once as scoped vars. */
 .completed-today-strip {
+  --ct-green: #6ee7b7;   /* open-state accent (count, check glyph, open label) */
+  --ct-title: #727c8c;   /* completed title — dimmed, not greyed */
+  --ct-meta: #5a6474;    /* completed meta + completion time */
+  --ct-card-bg: #0e1218; /* completed card surface */
   margin-top: auto;
   border-top: 1px solid var(--border-color);
   padding-top: 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
 }
 .completed-today-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: none;
-  border: none;
+  gap: 0.6rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
   font-size: 0.78rem;
-  color: #6ee7b7;
+  color: var(--ct-green);
   cursor: pointer;
-  padding: 0;
   font-weight: 600;
+  text-align: left;
+  width: 100%;
 }
-.completed-today-toggle .toggle-label { color: var(--text-muted); font-weight: 400; }
-.completed-today-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.completed-today-item {
-  display: flex;
+.completed-today-toggle:hover { border-color: color-mix(in srgb, var(--ct-green) 35%, var(--border-color)); }
+.completed-today-toggle .toggle-summary {
+  display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.75rem;
 }
-.completed-today-item .done-icon { color: #6ee7b7; flex: none; }
-.completed-today-item .item-title {
+.completed-today-toggle .toggle-label {
+  color: var(--text-muted);
+  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  transition: color 120ms ease-out;
+}
+/* Open: label + chevron join the green; the chevron flips 180° (point 1). */
+.completed-today-toggle.is-open .toggle-label { color: var(--ct-green); }
+.toggle-chevron { transition: transform 160ms ease-out; }
+.completed-today-toggle.is-open .toggle-chevron { transform: rotate(180deg); }
+
+/* Point 9: height 160ms ease-out via the 0fr→1fr grid trick (animating to
+   height:auto); cards fade in over 120ms, no stagger. The list stays mounted
+   while collapsed (visibility deferred until the collapse ends) so closing
+   animates too; the padding-top rides inside the collapsed row. */
+.completed-today-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 160ms ease-out;
+}
+.completed-today-reveal.is-open { grid-template-rows: 1fr; }
+.completed-today-list {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease-out, visibility 0s linear 160ms;
+}
+.completed-today-reveal.is-open .completed-today-list {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 120ms ease-out;
+}
+
+/* Completed card (points 2+3): the board card dimmed, not greyed — darker
+   surface, line-through title, muted meta — and the left accent switches to
+   the strip green at 45% instead of the priority colour. The mono completion
+   time on the right is the only element an open card doesn't have. */
+.completed-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: var(--ct-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.7rem 0.75rem;
+  cursor: pointer;
+  min-width: 0;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ct-green) 45%, transparent);
+}
+.completed-card:hover {
+  border-color: color-mix(in srgb, var(--ct-green) 40%, var(--border-color));
+}
+/* Checked tick — mirrors the Done screen's rounded-square green tick; clicking
+   it un-completes (same-session undo). */
+.completed-check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ct-green);
+  border-radius: 5px;
+  background: var(--ct-green);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0;
+  cursor: pointer;
+  transition: filter 150ms ease;
+}
+.completed-check:hover { filter: brightness(1.15); }
+.completed-card-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.completed-card-title {
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ct-title);
+  text-decoration: line-through;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-secondary);
 }
-.undo-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  cursor: pointer;
+.completed-card-meta {
+  font-size: 0.75rem;
+  color: var(--ct-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.undo-btn:hover { color: var(--color-primary); }
+.completed-card-time {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--ct-meta);
+}
 
 /* --- P2: Backlog collapses to a bar ≤1100px (click-and-place, no drag-drop) --- */
 .backlog-bar-toggle {
@@ -4297,13 +4624,9 @@
     padding: 0.7rem 1rem;
   }
   .column-backlog .column-cards { display: none; }
-  .column-backlog .completed-today-strip {
-    margin-top: 0;
-    margin-left: auto;
-    border-top: none;
-    padding-top: 0;
-    flex: none;
-  }
+  /* The completed strip no longer rides in the Backlog bar at this tier — it
+     renders in the This week column (point 10), with its default foot-pinned
+     styling. */
   .backlog-bar-toggle { cursor: pointer; }
   .backlog-bar-hint { display: inline; flex: 1; }
   .backlog-expanded-panel {
@@ -4370,121 +4693,171 @@
   border-color: rgba(34, 211, 238, 0.4);
   background: rgba(34, 211, 238, 0.1);
 }
-/* Done filters + ⌘K cycle filter (custom-select ticket 03) */
+/* Done filters (custom-select ticket 03) — the ⌘K cycle filter is gone
+   (2026-08-30 rework: scope is chips-only). */
 .done-filters-row .sel-trigger {
   max-width: 170px;
 }
 
-.command-k-controls .sel-trigger {
-  max-width: 180px;
-}
 .done-view-summary {
   margin-left: auto;
   font-size: 0.78rem;
   color: var(--text-muted);
 }
-.done-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-.done-table th {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-align: left;
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--border-color);
-  white-space: nowrap;
-}
-.done-table td {
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-}
-.done-table-row { cursor: pointer; }
-.done-table-row:hover { background: rgba(255, 255, 255, 0.03); }
-.done-th-pomos, .done-th-finished, .done-th-undo { text-align: right; }
-.done-td-pomos, .done-td-finished, .done-td-undo {
+/* Done table (2026-08-29): carries the .list-table class in the markup, so it
+   inherits the Tasks list view's card chrome (surface, border, header row,
+   padding) — this block keeps only the Done-specific layer. Selectors are
+   .done-table-qualified so they outrank .list-table th's text-align: left. */
+.done-table .done-th-pomos, .done-table .done-th-finished { text-align: right; }
+.done-table .done-td-pomos, .done-table .done-td-finished {
   font-family: var(--font-mono);
   text-align: right;
   font-size: 0.78rem;
   color: var(--text-muted);
 }
+.done-table-row { cursor: pointer; }
+.done-table-row:hover { background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
 .done-task-title { font-weight: 500; }
 .done-task-kr { font-size: 0.75rem; color: var(--text-muted); }
-.done-reopen-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.done-reopen-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
-/* --- P4 Task detail: eyebrow hint + mono readout --- */
+/* Fixed layout + explicit column widths (2026-08-30 feedback): every day
+   group renders its own <table>, and auto layout sized each independently —
+   columns drifted between groups. Shared widths keep them identical. */
+.done-table { table-layout: fixed; }
+.done-table .th-select { width: 56px; }
+.done-table .done-th-task { width: 34%; }
+.done-table .done-th-kr { width: 30%; }
+.done-table .done-th-pomos { width: 12%; }
+/* FINISHED takes the remainder. Long text truncates instead of re-flowing. */
+.done-td-task .done-task-title,
+.done-td-kr .done-task-kr {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Done-state tick (2026-08-30 style round): the mockup's rounded-square
+   green tick with a white check — not a native checkbox. */
+.done-check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  padding: 0;
+  color: transparent;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.done-check.checked {
+  background: var(--okr-on-track);
+  border-color: var(--okr-on-track);
+  color: var(--bg-primary);
+}
+.done-check:hover { border-color: var(--okr-on-track); }
+
+/* Bulk-selection state of the Tasks list rows (Done's checkbox is the done
+   state, not a selection — 2026-08-30 feedback). */
+.list-row.selected {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+/* --- P4 Task detail: eyebrow label + lower-contrast hint (plain gap, no ·) --- */
 .detail-eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
-  /* Full-width flex item: sits on its own line above the title/actions row. */
-  flex: 1 1 100%;
 }
+/* Uppercase is the label's styling only — the hint keeps its authored
+   sentence case (2026-08-30 review). */
+.detail-eyebrow .eyebrow-label { color: var(--text-muted); text-transform: uppercase; }
+.detail-eyebrow .eyebrow-hint { color: color-mix(in srgb, var(--text-muted), transparent 40%); }
 .pomo-mono {
   font-family: var(--font-mono);
   color: var(--text-secondary);
 }
 
-/* --- P4 notes: wrapped links with copy button --- */
-.md-link-row { display: inline; }
-.md-link-row.has-copy { display: inline-flex; align-items: center; gap: 0.35rem; }
-.md-link-row a { overflow-wrap: anywhere; }
-.md-link-copy {
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  color: var(--text-muted);
-  font-size: 0.62rem;
-  padding: 0.25rem 0.4rem;
-  cursor: pointer;
-  flex: none;
+/* --- P4 notes: rendered markdown typography (2026-08-29) ---
+   Links keep to their whole word when the line allows it — mid-URL breaks
+   only when the URL alone can't fit a line. Copy chips are gone; code blocks
+   carry their own block-level Copy button (see .md-code-block). */
+.notes-content-view a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: break-word;
 }
-.md-link-copy:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
-/* --- P6 ⌘K: grouped results --- */
-.command-k-group { padding-bottom: 0.5rem; }
-.command-k-group + .command-k-group { border-top: 1px solid var(--border-color); }
+/* Fenced code block: monospace on its own raised surface, one Copy button
+   top-right of the block. */
+.md-code-block {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  margin: 0.45rem 0;
+}
+.md-code-block pre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  overflow-x: auto;
+}
+.md-code-block code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.md-code-copy {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+.md-code-copy:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* --- P6 ⌘K: grouped results (2026-08-30 rework) --- */
+.command-k-group { padding-bottom: 0.35rem; }
 .command-k-group-header {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
   color: var(--text-muted);
-  padding: 0.55rem 0.9rem 0.35rem;
+  padding: 0.6rem 0.55rem 0.4rem;
 }
-.command-k-group-count {
-  background: var(--bg-tertiary);
-  border-radius: 5px;
-  padding: 0.05rem 0.4rem;
-}
-.command-k-item-meta .meta-kr { color: var(--text-muted); }
 
-/* --- P4: POMODOROS block — one row: label · readout · bar --- */
+/* --- P4: POMODOROS band — label · bar · readout on one row (2026-08-30).
+   Pinned with the meta bar it's attached to: the bar's bottom border is the
+   band's top line, the band's own bottom divider closes the section. It
+   bleeds edge-to-edge like the bar; the scroll region below never bleeds. */
 .weekly-plan-block {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--border-color);
+  margin: 0 -1.5rem;
+  padding: 0.65rem 1.5rem;
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
 }
 /* Task-detail readout: the shared estimate-popover trigger rendered as plain
@@ -4510,15 +4883,6 @@
 /* ==========================================================================
    P4 Task detail — fidelity polish (progress bars, notes, sub-tasks, props)
    ========================================================================== */
-
-/* Properties row: equal-width columns. Selects keep their native affordance —
-   a custom chevron needs a raw-hex data-URI glyph, which breaks the no-raw-hex
-   rule (see docs/design-system.md). width:100% on the controls (above) makes
-   each fill its column. */
-.detail-properties-bar .prop-group {
-  flex: 1 1 0;
-  min-width: 7rem;
-}
 
 /* POMODOROS — readout + muted cyan progress bar. The bar flexes to fill the
    remaining row width; thin (4px) and muted (color-mix) so the readout
@@ -4551,11 +4915,6 @@
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
-.notes-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
 .notes-format-hint {
   font-family: var(--font-mono);
   font-size: 0.65rem;
@@ -4574,38 +4933,66 @@
   border-radius: 6px;
 }
 .text-btn:hover { color: var(--color-primary); }
-.notes-content-view { position: relative; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; cursor: text; }
+/* Notes render in full — no cap, fade, or counter (2026-08-29; supersedes the
+   2026-08-04 220px cap + Expand). Body copy is regular-weight UI sans at body
+   size; the notes block must not dominate the panel. */
+.notes-content-view { position: relative; font-size: 0.85rem; font-weight: 400; color: var(--text-secondary); line-height: 1.55; cursor: text; }
 .notes-content-view.empty { cursor: pointer; }
-/* 220px cap (note #4) — keeps Sub-tasks/Comments tabs on screen. */
-.notes-content-view.collapsed { max-height: 220px; overflow: hidden; }
-.notes-fade {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 2.75rem;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-primary), transparent), var(--bg-primary));
-  pointer-events: none;
+.notes-content-view p { margin: 0 0 0.4rem; font-weight: 400; }
+.notes-content-view > :last-child { margin-bottom: 0; }
+/* Ordered lists: numbers live in a muted mono gutter column (small,
+   right-aligned), not inline in the body text. */
+.notes-content-view ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: notes-ol;
 }
-.notes-count {
+.notes-content-view ol > li {
+  counter-increment: notes-ol;
+  position: relative;
+  padding-left: 1.9rem;
+  margin: 0 0 0.3rem;
+}
+.notes-content-view ol > li:last-child { margin-bottom: 0; }
+.notes-content-view ol > li::before {
+  content: counter(notes-ol);
   position: absolute;
-  right: 0.15rem; bottom: 0.25rem;
+  left: 0;
+  top: 0;
+  width: 1.35rem;
+  text-align: right;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.66rem;
+  line-height: inherit;
   color: var(--text-muted);
-  background: var(--bg-primary);
-  padding: 0.05rem 0.35rem;
-  border-radius: 4px;
-  pointer-events: none;
 }
-.notes-expand-btn {
-  display: inline-flex; align-items: center; gap: 0.25rem;
-  background: none; border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 6px;
-  cursor: pointer;
+/* Bullet lists share the ol rhythm: the browser-default disc and ~40px
+   padding are replaced by the same muted mono gutter, with a centered dot
+   (the app's · separator) in place of the number (2026-08-30 review). */
+.notes-content-view ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.notes-expand-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.notes-content-view ul > li {
+  position: relative;
+  padding-left: 1.9rem;
+  margin: 0 0 0.3rem;
+}
+.notes-content-view ul > li:last-child { margin-bottom: 0; }
+.notes-content-view ul > li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.35rem;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: inherit;
+  color: var(--text-muted);
+}
 .notes-textarea {
   width: 100%;
   min-height: 140px;
@@ -4625,25 +5012,32 @@
 .empty-notes-hint { color: var(--text-muted); font-size: 0.82rem; margin: 0; }
 
 /* Estimate editor folded into the weekly line (was the 5th properties column). */
-/* Tab count badges (4/8, 0). */
+/* Tab count badges (4/8, 0) — UI sans, subdued (2026-08-29 mono audit). The
+   sub-task ratio is a quiet muted chip; the comment count is bare text. */
 .tab-badge {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
   background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  padding: 0.05rem 0.4rem;
+  color: var(--text-muted);
+  padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
 }
-.detail-tab-btn.active .tab-badge { color: var(--color-primary); border-color: var(--color-primary); }
+.tab-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
 
-/* Footer: created / updated / logged + Delete task. */
+/* Footer: created / updated / logged + Delete task. Pinned to the panel's
+   bottom edge (direct child of the flex panel, after the scroll body) — it
+   never scrolls away with the notes/tabs body (2026-08-30 feedback). */
 .detail-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
+  margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-color);
 }
@@ -4739,6 +5133,9 @@
   color: var(--text-muted);
   flex-shrink: 0;
 }
+/* Add row first (2026-08-29), progress bar below it. The input is full-width
+   with the Add button as a fixed-width sibling; Add is an outlined ghost in
+   the primary hue — the solid cyan stays reserved for Start focus. */
 .add-todo-row,
 .add-comment-row {
   display: flex;
@@ -4747,12 +5144,13 @@
 .add-todo-input,
 .add-comment-input {
   flex: 1 1 auto;
+  min-width: 0;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 0.4rem 0.5rem;
+  padding: 0.6rem 0.7rem;
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
 }
 .add-todo-input:focus,
 .add-comment-input:focus {
@@ -4760,14 +5158,20 @@
   border-color: var(--color-primary);
 }
 .add-todo-btn {
-  background: var(--color-primary);
-  border: none;
+  flex: none;
+  min-width: 4.25rem;
+  background: transparent;
+  border: 1px solid var(--color-primary);
   border-radius: 6px;
-  color: var(--color-on-primary);
-  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
   font-weight: 600;
   padding: 0.4rem 0.9rem;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.add-todo-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 .add-comment-btn {
   background: var(--bg-tertiary);
@@ -4779,27 +5183,32 @@
   padding: 0.4rem 0.9rem;
   cursor: pointer;
 }
+/* Sub-task rows are cards: subtle surface, real padding, visible separation
+   (2026-08-29). Completed rows keep the card surface + strikethrough. */
 .todos-list,
 .comments-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 .todo-item-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.2rem;
-  border-radius: 6px;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border-radius: 8px;
+  background: var(--bg-secondary);
 }
 .todo-item-row input[type='checkbox'] {
   accent-color: var(--color-primary);
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 }
 .todo-text {
   flex: 1 1 auto;
-  font-size: 0.82rem;
+  min-width: 0;
+  font-size: 0.85rem;
   color: var(--text-primary);
   cursor: text;
 }
@@ -4807,6 +5216,19 @@
   color: var(--text-muted);
   text-decoration: line-through;
 }
+/* Collapse line under the 4 visible rows (2026-08-29): muted, expands on
+   click. Sits left-aligned so it reads as part of the list, not the panel. */
+.todos-more-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+.todos-more-btn:hover { color: var(--text-secondary); }
 .delete-sub-btn {
   display: inline-flex;
   align-items: center;
@@ -4817,6 +5239,14 @@
   cursor: pointer;
   padding: 0.15rem;
   border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0.35;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+.todo-item-row:hover .delete-sub-btn,
+.comment-item-card:hover .delete-sub-btn,
+.delete-sub-btn:focus-visible {
+  opacity: 1;
 }
 .delete-sub-btn:hover { color: var(--color-risk); }
 .comment-item-card {
@@ -4835,4 +5265,30 @@
   font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-muted);
+}
+
+/* Touch rule (design-system.md): hover-revealed row actions are always
+   visible ≤900px — touch has no hover. */
+@media (max-width: 900px) {
+  .delete-sub-btn { opacity: 1; }
+}
+
+/* Narrow panels re-stack the meta bar to 2×2 (nothing hidden, only
+   re-stacked): dividers follow the new cell edges. */
+@media (max-width: 700px) {
+  .detail-properties-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 0.7rem;
+  }
+  .detail-properties-bar .prop-group {
+    padding: 0 1rem;
+  }
+  .detail-properties-bar .prop-group:nth-child(odd) { padding-left: 0; }
+  .detail-properties-bar .prop-group:nth-child(even) { padding-right: 0; }
+  .detail-properties-bar .prop-group + .prop-group { border-left: none; }
+  .detail-properties-bar .prop-group:nth-child(even) { border-left: 1px solid var(--border-color); }
+  .detail-properties-bar .prop-group:nth-child(n+3) {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.7rem;
+  }
 }

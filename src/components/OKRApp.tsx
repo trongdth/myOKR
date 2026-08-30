@@ -410,9 +410,6 @@ export default function OKRApp() {
           onClose={() => setIsSearchOpen(false)}
           tasks={tasks}
           keyResults={keyResults}
-          objectives={objectives}
-          cycles={cycles}
-          activeCycleId={activeCycleId || null}
           onSelectTask={(t) => setSelectedDetailTask(t)}
           onStartFocusTask={() => {
             window.dispatchEvent(new CustomEvent('myokr-navigate-to-section', { detail: 'session' }));
@@ -420,6 +417,11 @@ export default function OKRApp() {
           }}
           onReopenTask={(task) => {
             const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: false, completedAt: undefined } : t);
+            setTasks(updated);
+            saveTasks(updated);
+          }}
+          onCompleteTask={(task) => {
+            const updated = tasks.map(t => t.id === task.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t);
             setTasks(updated);
             saveTasks(updated);
           }}
