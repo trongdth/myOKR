@@ -771,8 +771,14 @@ identically; there is no separate long-break case.
   open tasks). Numeric columns stay right-aligned mono (scoped `.done-table`
   selectors, which also fixed the headers losing their right-alignment to the
   shared `text-align: left`). Reopen is one write (`onReopenTasks`), and the
-  `.selected` tint stays list-view-only. Guarded by
-  `tests/done-view-list-parity.spec.ts`.
+  `.selected` tint stays list-view-only. **Style round (2026-08-30):** the
+  tick is the mockup's **rounded-square green tick** (`.done-check`, 20px,
+  `--okr-on-track` fill + white `Check` glyph — not a native checkbox), and
+  the tables use **`table-layout: fixed` with shared column widths** — each
+  day group renders its own `<table>` and auto layout let their columns
+  drift apart. Long task/KR text truncates rather than re-flowing. Guarded
+  by `tests/done-view-list-parity.spec.ts` (including a cross-group column
+  alignment assertion).
 
 ### Objectives (P7, flagship)
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Search } from 'lucide-react';
+import { Check, CheckCircle2, Search } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
@@ -244,12 +244,21 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
                         onClick={() => onSelectTask?.(task)}
                       >
                         <td className="td-select" onClick={e => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={task.isCompleted}
-                            onChange={() => setReopenCandidate(task)}
+                          {/* Done-state tick (2026-08-30 style round): the
+                              mockup's rounded-square tick, not a native box.
+                              Controlled by task.isCompleted, so it never
+                              flips until the confirm modal decides. */}
+                          <button
+                            type="button"
+                            className={`done-check${task.isCompleted ? ' checked' : ''}`}
+                            onClick={() => setReopenCandidate(task)}
+                            role="checkbox"
+                            aria-checked={task.isCompleted}
                             aria-label={`Reopen ${task.title}`}
-                          />
+                            title="Uncheck to reopen this task"
+                          >
+                            <Check size={13} />
+                          </button>
                         </td>
                         <td className="done-td-task">
                           <span className="done-task-title">{task.title}</span>

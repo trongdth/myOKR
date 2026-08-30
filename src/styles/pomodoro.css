@@ -4478,6 +4478,47 @@
 .done-task-title { font-weight: 500; }
 .done-task-kr { font-size: 0.75rem; color: var(--text-muted); }
 
+/* Fixed layout + explicit column widths (2026-08-30 feedback): every day
+   group renders its own <table>, and auto layout sized each independently —
+   columns drifted between groups. Shared widths keep them identical. */
+.done-table { table-layout: fixed; }
+.done-table .th-select { width: 56px; }
+.done-table .done-th-task { width: 34%; }
+.done-table .done-th-kr { width: 30%; }
+.done-table .done-th-pomos { width: 12%; }
+/* FINISHED takes the remainder. Long text truncates instead of re-flowing. */
+.done-td-task .done-task-title,
+.done-td-kr .done-task-kr {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Done-state tick (2026-08-30 style round): the mockup's rounded-square
+   green tick with a white check — not a native checkbox. */
+.done-check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  padding: 0;
+  color: transparent;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.done-check.checked {
+  background: var(--okr-on-track);
+  border-color: var(--okr-on-track);
+  color: var(--bg-primary);
+}
+.done-check:hover { border-color: var(--okr-on-track); }
+
 /* Bulk-selection state of the Tasks list rows (Done's checkbox is the done
    state, not a selection — 2026-08-30 feedback). */
 .list-row.selected {
