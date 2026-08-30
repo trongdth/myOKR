@@ -170,7 +170,6 @@ export default function DatePicker({
         aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
-        disabled={false}
         onClick={() => (open ? setOpen(false) : openAtValue())}
         onKeyDown={e => {
           if (e.key === 'Escape' && open) {
@@ -195,6 +194,17 @@ export default function DatePicker({
             className={`date-picker-panel${pos?.above ? ' dp-open-above' : ''}`}
             style={pos ? { top: pos.top, left: pos.left, minWidth: pos.minWidth } : undefined}
             onMouseDown={e => e.preventDefault()}
+            onKeyDown={e => {
+              // Esc is handled here, not only on the trigger: Tab can move
+              // focus onto a panel button, and an unhandled Esc would bubble
+              // to the modal's document-level listener and dismiss the whole
+              // task detail. Same contract as the trigger's handler.
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+              }
+            }}
           >
             <div className="dp-header">
               <button

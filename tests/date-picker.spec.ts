@@ -92,6 +92,18 @@ test.describe('DatePicker (task-detail DUE cell)', () => {
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 
+  test('Esc with focus on a panel button closes the picker, not the modal', async ({ page }) => {
+    // Tab can move focus into the panel's buttons (a day, say); Esc must
+    // still close only the picker — not dismiss the whole task detail.
+    await page.locator('[aria-label="Due date"]').click();
+    const panel = page.locator('.date-picker-panel');
+    await expect(panel).toBeVisible();
+    await panel.locator('.dp-day', { hasText: /^15$/ }).focus();
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+  });
+
   test('a click elsewhere inside the panel dismisses the picker, not the modal', async ({ page }) => {
     await page.locator('[aria-label="Due date"]').click();
     await expect(page.locator('.date-picker-panel')).toBeVisible();

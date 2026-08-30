@@ -217,6 +217,33 @@ export default function CommandKModal({
     resultsRef.current?.querySelector('[data-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [activeIdx, rows]);
 
+  // Every reopen path — Reopen link, Enter, a body click, the completed row's
+  // checkbox — asks first; the write itself happens only on confirm.
+  const requestReopen = (task: PomodoroTask) => {
+    if (onReopenTask) setReopenCandidate(task);
+  };
+
+  const activateRow = (row: Row | undefined) => {
+    if (!row) return;
+    if (row.kind === 'open') {
+      if (onStartFocusTask) {
+        onStartFocusTask(row.task);
+        onClose();
+      } else {
+        onSelectTask(row.task);
+        onClose();
+      }
+      return;
+    }
+    if (row.kind === 'completed') {
+      // Reopen keeps the modal open — the row simply leaves the group.
+      requestReopen(row.task);
+      return;
+    }
+    onSelectTask(row.match.parent);
+    onClose();
+  };
+
   // Palette-intrinsic keys (scoped to this open modal — not global app
   // shortcuts): ↑/↓ move, Enter activates, Esc clears the query, then closes.
   useEffect(() => {
@@ -246,7 +273,7 @@ export default function CommandKModal({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [isOpen, query, rows, activeIdx, onClose]);
+  }, [isOpen, query, rows, activeIdx, onClose, activateRow]);
 
   // Body scroll lock (was useModalEffects; its Esc handler is replaced by the
   // clear-then-close behavior above).
@@ -257,33 +284,6 @@ export default function CommandKModal({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
-
-  // Every reopen path — Reopen link, Enter, the completed row's checkbox —
-  // asks first; the write itself happens only on confirm.
-  const requestReopen = (task: PomodoroTask) => {
-    if (onReopenTask) setReopenCandidate(task);
-  };
-
-  const activateRow = (row: Row | undefined) => {
-    if (!row) return;
-    if (row.kind === 'open') {
-      if (onStartFocusTask) {
-        onStartFocusTask(row.task);
-        onClose();
-      } else {
-        onSelectTask(row.task);
-        onClose();
-      }
-      return;
-    }
-    if (row.kind === 'completed') {
-      // Reopen keeps the modal open — the row simply leaves the group.
-      requestReopen(row.task);
-      return;
-    }
-    onSelectTask(row.match.parent);
-    onClose();
-  };
 
   const pickScope = (s: SearchScope) => {
     sessionScope = s;
@@ -370,6 +370,7 @@ export default function CommandKModal({
                       onRequestReopen={onReopenTask ? requestReopen : undefined}
                       onComplete={onCompleteTask}
                       onOpenParent={onSelectTask}
+                      onActivate={activateRow}
                       onClose={onClose}
                     />
                   ))}
@@ -423,6 +424,7 @@ function CommandKRow({
   onRequestReopen,
   onComplete,
   onOpenParent,
+  onActivate,
   onClose,
 }: {
   row: Row;
@@ -435,6 +437,7 @@ function CommandKRow({
   onRequestReopen?: (task: PomodoroTask) => void;
   onComplete?: (task: PomodoroTask) => void;
   onOpenParent: (task: PomodoroTask) => void;
+  onActivate: (row: Row) => void;
   onClose: () => void;
 }) {
   // The checkbox is the task's done toggle: completing is instant (the Tasks
@@ -458,7 +461,10 @@ function CommandKRow({
           onClose();
           return;
         }
-        onHighlight(index);
+        // Open/completed rows: a body click is the row's action — Enter's
+        // contract (start focus / reopen confirm). Highlight-only left
+        // completed rows with no clickable affordance at all.
+        onActivate(row);
       }}
     >
       <RowLeading row={row} onToggle={toggleDone} />

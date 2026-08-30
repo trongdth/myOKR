@@ -11,8 +11,9 @@ const NEXT_DAY = '2026-05-25T12:00:00.000Z';
 //   3. Completion time, mono 10.5px, right — the only extra element vs an open card.
 //   4. Completion-time ascending — newest at the bottom.
 //   5. Expanding grows the column; the quick-add row stays pinned.
-//   6. Unchecking returns the card to the open list, decrements, strip stays
-//      open; at zero the strip disappears entirely.
+//   6. Unchecking asks first (the shared reopen confirm, like Done/⌘K), then
+//      returns the card to the open list, decrements, strip stays open; at
+//      zero the strip disappears entirely.
 //   7. State per column + per session; resets collapsed at the day boundary.
 //   8. Clicking a completed card opens P4 — fields still editable.
 //   9. Height 160ms ease-out, cards fade 120ms, no stagger.
@@ -147,19 +148,31 @@ test.describe('Completed-today strip rework', () => {
       .toHaveText(expectedLocalTime(FIXED));
   });
 
-  test('unchecking returns the card to the open list; strip stays open until zero', async ({ page }) => {
+  test('unchecking asks for confirmation, then returns the card to the open list', async ({ page }) => {
     await page.locator('.completed-today-toggle').click();
     const early = page.locator('.completed-card', { hasText: 'Clear the support inbox' });
     await early.locator('.completed-check').click();
 
-    // Count decremented, strip still open (list still visible)…
+    // Same dialog as the Done screen and ⌘K: cancelling keeps the task done.
+    const confirm = page.locator('.confirm-modal');
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText('Reopen task');
+    await expect(confirm).toContainText('Clear the support inbox');
+    await page.locator('.confirm-cancel-btn').click();
+    await expect(confirm).toHaveCount(0);
+    await expect(page.locator('.completed-today-toggle')).toContainText('2 completed today');
+
+    // Confirming reopens: count decremented, strip still open (list still
+    // visible), and the task is back on the board as an open card.
+    await early.locator('.completed-check').click();
+    await confirm.locator('.btn:not(.confirm-cancel-btn)').click();
     await expect(page.locator('.completed-today-toggle')).toContainText('1 completed today');
     await expect(page.locator('.completed-today-toggle')).toHaveAttribute('aria-expanded', 'true');
-    // …and the task is back on the board as an open card.
     await expect(page.locator('.column-backlog .board-task-card', { hasText: 'Clear the support inbox' })).toBeVisible();
 
     // At zero the strip disappears entirely.
     await page.locator('.completed-card', { hasText: 'Ship the changelog entry' }).locator('.completed-check').click();
+    await confirm.locator('.btn:not(.confirm-cancel-btn)').click();
     await expect(page.locator('.completed-today-strip')).toHaveCount(0);
   });
 

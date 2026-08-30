@@ -196,6 +196,27 @@ test.describe('⌘K search rework', () => {
     await expect(page.locator('[aria-label="Active task: Document auth error codes"]')).toBeVisible();
   });
 
+  test('clicking a row body activates it — open starts focus, completed asks to reopen', async ({ page }) => {
+    // Completed row: the body click is the row's action — the reopen confirm…
+    await page.keyboard.type('Rotate');
+    await page.locator('.command-k-item', { hasText: 'Rotate auth tokens on release' })
+      .locator('.command-k-item-title').click();
+    const confirm = page.locator('.confirm-modal');
+    await expect(confirm).toBeVisible();
+    await confirm.locator('.btn:not(.confirm-cancel-btn)').click();
+    await expect(page.locator('.command-k-group-header', { hasText: 'OPEN' })).toBeVisible();
+
+    // …and an open row: click the title (not the Start pill) — same as Enter.
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.locator('.search-trigger-btn').click();
+    await page.keyboard.type('Document');
+    await page.locator('.command-k-item', { hasText: 'Document auth error codes' })
+      .locator('.command-k-item-title').click();
+    await expect(page.locator('.command-k-modal')).toHaveCount(0);
+    await expect(page.locator('[aria-label="Active task: Document auth error codes"]')).toBeVisible();
+  });
+
   test('Esc clears the query first, then closes the modal', async ({ page }) => {
     await page.keyboard.type('auth');
     await expect(page.locator('.command-k-result-count')).toHaveText('7 results');

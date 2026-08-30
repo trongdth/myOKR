@@ -656,7 +656,9 @@ identically; there is no separate long-break case.
 > the 2026-08-02/04/05 decisions it names:
 >
 > - **Header.** Eyebrow splits into `TASK` + `click any field to edit` with a
->   plain gap (no `·`); the hint renders a step lower-contrast than the label.
+>   plain gap (no `·`); the hint renders a step lower-contrast than the label
+>   and keeps its authored sentence case — the uppercase mono treatment is
+>   the label's alone (2026-08-30 review).
 >   `Complete` is a text-only **ghost** (transparent fill + 1px muted border,
 >   no icon) reading secondary to `Start focus`, which grows its padding as
 >   the sole solid-cyan primary. Close `×` drops to 14px muted. The header's
@@ -919,7 +921,9 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   `.command-k-results` scrolls.
 - **Header is a flat row** — small search icon, borderless input (~14px,
   the global `input`/`input:focus` chrome and `--glow-cyan` focus ring are
-  explicitly stripped), then right-aligned `N results` text + a mono `esc`
+  explicitly stripped; since the 2026-08-30 review a faint primary
+  `color-mix` tint on `:focus` keeps keyboard focus visible without
+  reinstating the ring), then right-aligned `N results` text + a mono `esc`
   chip. No X clear button: **Esc clears the query first, then closes**.
 - **Scope chips only.** Everything (default) / Open / Completed / Sub-tasks /
   Notes. Active chip = cyan text on a cyan tint with a cyan border (never
@@ -955,7 +959,10 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   starts a focus session** on the highlighted open task (completed → the
   reopen dialog, inside → open parent); the solid-cyan **Start pill renders
   only on the highlighted row**; completed rows always show the muted
-  `Reopen` text link. These are palette-intrinsic keys scoped to the open
+  `Reopen` text link. **Clicking a row body is the same activation as
+  Enter** (2026-08-30 review — a highlight-only click left completed rows
+  with no usable affordance at all). These are palette-intrinsic keys scoped
+  to the open
   modal — a deliberate, user-requested carve-out from the
   no-global-shortcuts policy
   ([ADR-0011](./adr/0011-no-keyboard-shortcuts.md)), not a legend'd global

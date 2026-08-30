@@ -3598,12 +3598,15 @@
 }
 
 /* The global `input:focus` glow/border outranks the class at rest; this
-   keeps the search input borderless and glow-free while focused. */
+   keeps the search input borderless and glow-free while focused — but focus
+   is never invisible: a faint primary tint marks the field for keyboard
+   users (2026-08-30 review). */
 .command-k-input:focus,
 .command-k-input:focus-visible {
   border: none;
   box-shadow: none;
   outline: none;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
 }
 
 .command-k-input::placeholder { color: var(--text-muted); }
@@ -4772,9 +4775,10 @@
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
-.detail-eyebrow .eyebrow-label { color: var(--text-muted); }
+/* Uppercase is the label's styling only — the hint keeps its authored
+   sentence case (2026-08-30 review). */
+.detail-eyebrow .eyebrow-label { color: var(--text-muted); text-transform: uppercase; }
 .detail-eyebrow .eyebrow-hint { color: color-mix(in srgb, var(--text-muted), transparent 40%); }
 .pomo-mono {
   font-family: var(--font-mono);
@@ -4953,6 +4957,32 @@
 .notes-content-view ol > li:last-child { margin-bottom: 0; }
 .notes-content-view ol > li::before {
   content: counter(notes-ol);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.35rem;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: inherit;
+  color: var(--text-muted);
+}
+/* Bullet lists share the ol rhythm: the browser-default disc and ~40px
+   padding are replaced by the same muted mono gutter, with a centered dot
+   (the app's · separator) in place of the number (2026-08-30 review). */
+.notes-content-view ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.notes-content-view ul > li {
+  position: relative;
+  padding-left: 1.9rem;
+  margin: 0 0 0.3rem;
+}
+.notes-content-view ul > li:last-child { margin-bottom: 0; }
+.notes-content-view ul > li::before {
+  content: '·';
   position: absolute;
   left: 0;
   top: 0;

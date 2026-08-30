@@ -8,6 +8,7 @@ import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
 import { useTaskMultiSelect } from '../../hooks/useTaskMultiSelect';
 import { navigateToSection } from '../../lib/navigation';
 import { Select, type SelectOption } from '../shared/Select';
+import ConfirmModal from '../ConfirmModal';
 import { PRIORITY_OPTIONS, BUCKET_OPTIONS, krOptions, BUCKET_LABELS, GROUP_BY_OPTIONS, SORT_BY_OPTIONS } from './taskSelectOptions';
 
 export type ViewMode = 'board' | 'list';
@@ -250,6 +251,10 @@ export default function TasksView({
     onTasksChange(updated);
   };
 
+  // The completed strip's un-check asks first — same dialog as the Done
+  // screen and ⌘K; the write above happens only on confirm.
+  const [reopenCandidate, setReopenCandidate] = useState<PomodoroTask | null>(null);
+
   // Bulk actions (P3) — selection machinery comes from the shared hook
   const handleBulkMoveBucket = (bucket: TaskBucket) => {
     const updated = tasks.map(t => selectedTaskIds.has(t.id) ? { ...t, bucket } : t);
@@ -360,7 +365,7 @@ export default function TasksView({
       open={openSlots[completedStripSlot]}
       keyResults={keyResults}
       onToggle={() => setOpenSlots(s => ({ ...s, [completedStripSlot]: !s[completedStripSlot] }))}
-      onReopen={handleReopen}
+      onRequestReopen={setReopenCandidate}
       onOpenTask={onSelectTask}
     />
   );
@@ -757,6 +762,28 @@ export default function TasksView({
           )}
         </div>
       )}
+
+      {/* Completed strip's un-check confirm — same dialog and copy as the
+          Done screen and ⌘K (every reopen path asks first). */}
+      <ConfirmModal
+        isOpen={reopenCandidate !== null}
+        onClose={() => setReopenCandidate(null)}
+        onConfirm={() => {
+          if (reopenCandidate) handleReopen(reopenCandidate);
+        }}
+        title="Reopen task"
+        danger={false}
+        confirmText="Reopen"
+        message={
+          reopenCandidate && (
+            <>
+              “{reopenCandidate.title}” will leave the completed list and return
+              to its bucket as an open task. Its {reopenCandidate.completedPomodoros || 0}{' '}
+              logged {reopenCandidate.completedPomodoros === 1 ? 'pomodoro is' : 'pomodoros are'} kept.
+            </>
+          )
+        }
+      />
     </div>
   );
 }
@@ -906,14 +933,14 @@ function CompletedTodayStrip({
   tasks,
   open,
   onToggle,
-  onReopen,
+  onRequestReopen,
   onOpenTask,
   keyResults,
 }: {
   tasks: PomodoroTask[];
   open: boolean;
   onToggle: () => void;
-  onReopen: (task: PomodoroTask) => void;
+  onRequestReopen: (task: PomodoroTask) => void;
   onOpenTask: (task: PomodoroTask) => void;
   keyResults: KeyResult[];
 }) {
@@ -945,7 +972,7 @@ function CompletedTodayStrip({
               key={t.id}
               task={t}
               krTitle={keyResults.find(kr => kr.id === t.keyResultId)?.title}
-              onReopen={onReopen}
+              onRequestReopen={onRequestReopen}
               onOpen={onOpenTask}
             />
           ))}
@@ -957,17 +984,18 @@ function CompletedTodayStrip({
 
 // Dimmed card mirror of a board card: line-through title + muted meta, and the
 // completion time (mono, right) is the only element an open card doesn't have
-// (point 3). The tick un-completes — same-session undo, strip stays open
-// (point 6); the card body opens P4 as normal, not a locked state (point 8).
+// (point 3). The tick un-completes behind the reopen confirm — same dialog as
+// Done/⌘K, strip stays open (point 6); the card body opens P4 as normal, not a
+// locked state (point 8).
 function CompletedCard({
   task,
   krTitle,
-  onReopen,
+  onRequestReopen,
   onOpen,
 }: {
   task: PomodoroTask;
   krTitle?: string;
-  onReopen: (task: PomodoroTask) => void;
+  onRequestReopen: (task: PomodoroTask) => void;
   onOpen: (task: PomodoroTask) => void;
 }) {
   const meta = task.category ? EISENHOWER_META[task.category] || null : null;
@@ -982,7 +1010,7 @@ function CompletedCard({
     <div className="completed-card" onClick={() => onOpen(task)}>
       <button
         className="completed-check"
-        onClick={e => { e.stopPropagation(); onReopen(task); }}
+        onClick={e => { e.stopPropagation(); onRequestReopen(task); }}
         title="Reopen task"
         aria-label={`Reopen ${task.title}`}
       >
@@ -1000,5 +1028,7 @@ function CompletedCard({
 function formatCompletedTime(iso: string | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
+  // Malformed stamps (legacy/edge data) render no time, never "NaN:NaN".
+  if (Number.isNaN(d.getTime())) return '';
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
