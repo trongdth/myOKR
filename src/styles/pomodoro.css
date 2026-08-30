@@ -4437,59 +4437,151 @@
   color: var(--color-primary);
 }
 
-/* --- P1 completed-today strip (inside Backlog column) --- */
+/* --- P1 completed-today strip (2026-08-30 rework, 10-point spec) ---
+   Sits at the foot of the Backlog column at 3-column width and at the foot of
+   This week at the 2-column tier (the Backlog bar never hosts it). Flagship
+   board: mockup-exact values, named once as scoped vars. */
 .completed-today-strip {
+  --ct-green: #6ee7b7;   /* open-state accent (count, check glyph, open label) */
+  --ct-title: #727c8c;   /* completed title — dimmed, not greyed */
+  --ct-meta: #5a6474;    /* completed meta + completion time */
+  --ct-card-bg: #0e1218; /* completed card surface */
   margin-top: auto;
   border-top: 1px solid var(--border-color);
   padding-top: 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
 }
 .completed-today-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: none;
-  border: none;
+  gap: 0.6rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
   font-size: 0.78rem;
-  color: #6ee7b7;
+  color: var(--ct-green);
   cursor: pointer;
-  padding: 0;
   font-weight: 600;
+  text-align: left;
+  width: 100%;
 }
-.completed-today-toggle .toggle-label { color: var(--text-muted); font-weight: 400; }
-.completed-today-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.completed-today-item {
-  display: flex;
+.completed-today-toggle:hover { border-color: color-mix(in srgb, var(--ct-green) 35%, var(--border-color)); }
+.completed-today-toggle .toggle-summary {
+  display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.75rem;
 }
-.completed-today-item .done-icon { color: #6ee7b7; flex: none; }
-.completed-today-item .item-title {
+.completed-today-toggle .toggle-label {
+  color: var(--text-muted);
+  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  transition: color 120ms ease-out;
+}
+/* Open: label + chevron join the green; the chevron flips 180° (point 1). */
+.completed-today-toggle.is-open .toggle-label { color: var(--ct-green); }
+.toggle-chevron { transition: transform 160ms ease-out; }
+.completed-today-toggle.is-open .toggle-chevron { transform: rotate(180deg); }
+
+/* Point 9: height 160ms ease-out via the 0fr→1fr grid trick (animating to
+   height:auto); cards fade in over 120ms, no stagger. The list stays mounted
+   while collapsed (visibility deferred until the collapse ends) so closing
+   animates too; the padding-top rides inside the collapsed row. */
+.completed-today-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 160ms ease-out;
+}
+.completed-today-reveal.is-open { grid-template-rows: 1fr; }
+.completed-today-list {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease-out, visibility 0s linear 160ms;
+}
+.completed-today-reveal.is-open .completed-today-list {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 120ms ease-out;
+}
+
+/* Completed card (points 2+3): the board card dimmed, not greyed — darker
+   surface, line-through title, muted meta — and the left accent switches to
+   the strip green at 45% instead of the priority colour. The mono completion
+   time on the right is the only element an open card doesn't have. */
+.completed-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: var(--ct-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.7rem 0.75rem;
+  cursor: pointer;
+  min-width: 0;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ct-green) 45%, transparent);
+}
+.completed-card:hover {
+  border-color: color-mix(in srgb, var(--ct-green) 40%, var(--border-color));
+}
+/* Checked tick — mirrors the Done screen's rounded-square green tick; clicking
+   it un-completes (same-session undo). */
+.completed-check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ct-green);
+  border-radius: 5px;
+  background: var(--ct-green);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0;
+  cursor: pointer;
+  transition: filter 150ms ease;
+}
+.completed-check:hover { filter: brightness(1.15); }
+.completed-card-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.completed-card-title {
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ct-title);
+  text-decoration: line-through;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-secondary);
 }
-.undo-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  cursor: pointer;
+.completed-card-meta {
+  font-size: 0.75rem;
+  color: var(--ct-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.undo-btn:hover { color: var(--color-primary); }
+.completed-card-time {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--ct-meta);
+}
 
 /* --- P2: Backlog collapses to a bar ≤1100px (click-and-place, no drag-drop) --- */
 .backlog-bar-toggle {
@@ -4529,13 +4621,9 @@
     padding: 0.7rem 1rem;
   }
   .column-backlog .column-cards { display: none; }
-  .column-backlog .completed-today-strip {
-    margin-top: 0;
-    margin-left: auto;
-    border-top: none;
-    padding-top: 0;
-    flex: none;
-  }
+  /* The completed strip no longer rides in the Backlog bar at this tier — it
+     renders in the This week column (point 10), with its default foot-pinned
+     styling. */
   .backlog-bar-toggle { cursor: pointer; }
   .backlog-bar-hint { display: inline; flex: 1; }
   .backlog-expanded-panel {

@@ -1,5 +1,5 @@
-import { useState, useMemo, type CSSProperties } from 'react';
-import { LayoutGrid, List, Search, CheckCircle2, Check, RotateCcw, ArrowRight, Calendar, KanbanSquare, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { LayoutGrid, List, Search, CheckCircle2, Check, ArrowRight, Calendar, KanbanSquare, ChevronDown } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
@@ -35,6 +35,21 @@ interface Props {
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// Board tier (design-system 2a): at ≤1100px the board drops to two columns and
+// Backlog collapses to its bar — the completed strip relocates to the This
+// week column there (point 10). JS-driven so exactly one strip is ever in the
+// DOM; the breakpoint mirrors the CSS media query in pomodoro.css.
+function useTwoColumnBoard(): boolean {
+  const [twoColumns, setTwoColumns] = useState(() => window.matchMedia('(max-width: 1100px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1100px)');
+    const onChange = (e: MediaQueryListEvent) => setTwoColumns(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return twoColumns;
+}
+
 function formatDueLabel(dueDate: string | undefined): { label: string; overdue: boolean } | null {
   if (!dueDate) return null;
   const today = new Date();
@@ -60,13 +75,31 @@ export default function TasksView({
   activeFocusTaskId = null,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('board');
+  const twoColumnBoard = useTwoColumnBoard();
   const { selectedTaskIds, isSelected: isTaskSelected, isGroupSelected, toggleTask: toggleSelectTask, toggleGroup, clear: clearSelection } = useTaskMultiSelect();
 
   // Click-to-place task selection (ADR-0010)
   const [selectedForMoveId, setSelectedForMoveId] = useState<string | null>(null);
 
-  // Same-session undo collapsed footer toggle
-  const [showCompletedToday, setShowCompletedToday] = useState(false);
+  // Completed-today strip (2026-08-30 rework): expanded state lives per column
+  // slot ('backlog' at 3 columns, 'week' at the 2-column tier) and per session
+  // only — never persisted, and reset collapsed at the day boundary below.
+  const [openSlots, setOpenSlots] = useState<{ backlog: boolean; week: boolean }>({ backlog: false, week: false });
+
+  // Day boundary for the strip's count. The key is the UTC day — the same
+  // convention DoneView uses to group completions — and re-arming the timeout
+  // on every flip resets the strip (count rolls over, state back to collapsed)
+  // even when the app sits open across midnight.
+  const [todayKey, setTodayKey] = useState(() => new Date().toISOString().slice(0, 10));
+  useEffect(() => {
+    const now = new Date();
+    const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    const id = window.setTimeout(() => {
+      setTodayKey(new Date().toISOString().slice(0, 10));
+      setOpenSlots({ backlog: false, week: false });
+    }, nextUtcMidnight - now.getTime() + 1000);
+    return () => window.clearTimeout(id);
+  }, [todayKey]);
 
   // Responsive Backlog collapse (P2): expanded panel below the bar
   const [backlogOpen, setBacklogOpen] = useState(false);
@@ -124,11 +157,17 @@ export default function TasksView({
   }, [krCycleMap, activeCycle]);
 
   const completedTodayInCycle = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
     return tasks.filter(t =>
-      t.isCompleted && t.completedAt && t.completedAt.slice(0, 10) === todayStr && inCycle(t),
+      t.isCompleted && t.completedAt && t.completedAt.slice(0, 10) === todayKey && inCycle(t),
     );
-  }, [tasks, inCycle]);
+  }, [tasks, inCycle, todayKey]);
+
+  // Completion time ascending (point 4): oldest first, so a task just checked
+  // off slides in as the strip's last row.
+  const completedTodaySorted = useMemo(
+    () => [...completedTodayInCycle].sort((a, b) => (a.completedAt || '').localeCompare(b.completedAt || '')),
+    [completedTodayInCycle],
+  );
 
   const openInCycleCount = useMemo(() => openTasks.filter(inCycle).length, [openTasks, inCycle]);
   const completedInCycleCount = useMemo(() => tasks.filter(t => t.isCompleted && inCycle(t)).length, [tasks, inCycle]);
@@ -312,6 +351,20 @@ export default function TasksView({
     return groups;
   }, [groupBy, sortOpenTasks, keyResults]);
 
+  // Completed-today strip: one instance in the DOM, hosted by Backlog at
+  // 3 columns and by This week at the 2-column tier (point 10).
+  const completedStripSlot: 'backlog' | 'week' = twoColumnBoard ? 'week' : 'backlog';
+  const completedTodayStrip = (
+    <CompletedTodayStrip
+      tasks={completedTodaySorted}
+      open={openSlots[completedStripSlot]}
+      keyResults={keyResults}
+      onToggle={() => setOpenSlots(s => ({ ...s, [completedStripSlot]: !s[completedStripSlot] }))}
+      onReopen={handleReopen}
+      onOpenTask={onSelectTask}
+    />
+  );
+
   return (
     <div className="tasks-view-container">
       {/* Top Header Controls Bar (Redesign 08.53.52.png: Board/List switcher only, no header New task button) */}
@@ -484,6 +537,9 @@ export default function TasksView({
                 />
               ))}
             </div>
+
+            {/* At the 2-column tier the completed strip lives here (point 10). */}
+            {twoColumnBoard && completedTodayStrip}
           </div>
 
           {/* BACKLOG COLUMN (Responsive Collapse P2) */}
@@ -532,33 +588,10 @@ export default function TasksView({
               ))}
             </div>
 
-            {/* Same-Session Undo Footer — inside the Backlog column (P1) */}
-            {completedTodayInCycle.length > 0 && (
-              <div className="completed-today-strip">
-                <button
-                  className="completed-today-toggle"
-                  onClick={() => setShowCompletedToday(!showCompletedToday)}
-                >
-                  <span>{completedTodayInCycle.length} completed today</span>
-                  <span className="toggle-label">{showCompletedToday ? 'Hide' : 'Show'}</span>
-                </button>
-
-                {showCompletedToday && (
-                  <div className="completed-today-list">
-                    {completedTodayInCycle.map(t => (
-                      <div key={t.id} className="completed-today-item">
-                        <CheckCircle2 size={14} className="done-icon" />
-                        <span className="item-title">{t.title}</span>
-                        <button onClick={() => handleReopen(t)} className="undo-btn">
-                          <RotateCcw size={12} />
-                          <span>Undo</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Same-session undo footer — at the Backlog column foot on the
+                3-column board (P1); moves to This week when the board drops
+                to two columns. */}
+            {!twoColumnBoard && completedTodayStrip}
           </div>
         </div>
 
@@ -864,4 +897,108 @@ function BoardTaskCard({
       </div>
     </div>
   );
+}
+
+// Completed-today strip (P1, 2026-08-30 rework — 10-point spec): mockup-styled
+// toggle (green check glyph + count + Show/Hide with a rotating chevron) and
+// dimmed completed cards that expand below the strip, which itself never moves.
+function CompletedTodayStrip({
+  tasks,
+  open,
+  onToggle,
+  onReopen,
+  onOpenTask,
+  keyResults,
+}: {
+  tasks: PomodoroTask[];
+  open: boolean;
+  onToggle: () => void;
+  onReopen: (task: PomodoroTask) => void;
+  onOpenTask: (task: PomodoroTask) => void;
+  keyResults: KeyResult[];
+}) {
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="completed-today-strip">
+      <button
+        className={`completed-today-toggle${open ? ' is-open' : ''}`}
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className="toggle-summary">
+          <Check size={13} strokeWidth={2.75} className="toggle-check" aria-hidden="true" />
+          <span>{tasks.length} completed today</span>
+        </span>
+        <span className="toggle-label">
+          {open ? 'Hide' : 'Show'}
+          <ChevronDown size={13} className="toggle-chevron" aria-hidden="true" />
+        </span>
+      </button>
+
+      {/* Height animates via the 0fr→1fr grid trick (160ms ease-out, point 9);
+          the list stays mounted so closing animates too, fading 120ms. */}
+      <div className={`completed-today-reveal${open ? ' is-open' : ''}`}>
+        <div className="completed-today-list">
+          {tasks.map(t => (
+            <CompletedCard
+              key={t.id}
+              task={t}
+              krTitle={keyResults.find(kr => kr.id === t.keyResultId)?.title}
+              onReopen={onReopen}
+              onOpen={onOpenTask}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Dimmed card mirror of a board card: line-through title + muted meta, and the
+// completion time (mono, right) is the only element an open card doesn't have
+// (point 3). The tick un-completes — same-session undo, strip stays open
+// (point 6); the card body opens P4 as normal, not a locked state (point 8).
+function CompletedCard({
+  task,
+  krTitle,
+  onReopen,
+  onOpen,
+}: {
+  task: PomodoroTask;
+  krTitle?: string;
+  onReopen: (task: PomodoroTask) => void;
+  onOpen: (task: PomodoroTask) => void;
+}) {
+  const meta = task.category ? EISENHOWER_META[task.category] || null : null;
+  const pomos = task.completedPomodoros || 0;
+  const metaLine = [
+    meta?.label,
+    krTitle,
+    `${pomos} ${pomos === 1 ? 'pomo' : 'pomos'}`,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <div className="completed-card" onClick={() => onOpen(task)}>
+      <button
+        className="completed-check"
+        onClick={e => { e.stopPropagation(); onReopen(task); }}
+        title="Reopen task"
+        aria-label={`Reopen ${task.title}`}
+      >
+        <Check size={12} strokeWidth={3} aria-hidden="true" />
+      </button>
+      <div className="completed-card-main">
+        <span className="completed-card-title">{task.title}</span>
+        <span className="completed-card-meta">{metaLine}</span>
+      </div>
+      <span className="completed-card-time">{formatCompletedTime(task.completedAt)}</span>
+    </div>
+  );
+}
+
+function formatCompletedTime(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }

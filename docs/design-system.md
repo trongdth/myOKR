@@ -565,9 +565,29 @@ identically; there is no separate long-break case.
   focus` or ⌘K `Start`. No emoji (🎯🍅📅 → mono text / Lucide).
 - **Bucket headers**: `Today · N · X pomos` (mono count pill + planned-pomo
   sum; mockup numbers are illustrative).
-- **Completed strip**: `N completed today · Show` collapsed **at the foot of
-  the Backlog column** (not below the grid). Filtered to tasks completed today
-  *in this cycle* (ADR-0012).
+- **Completed strip** (reworked 2026-08-30, 10-point spec): `✓ N completed
+  today · Show ⌄` in a boxed rounded row **at the foot of the Backlog column**
+  (not below the grid). Filtered to tasks completed today *in this cycle*
+  (ADR-0012). **Show ↔ Hide**: the chevron rotates 180° and label + chevron
+  join the strip green `#6ee7b7` while open (the count and check glyph are
+  always green); the strip itself never moves — cards expand below it. Cards
+  are the board card **dimmed, not greyed**: line-through title `#727c8c`,
+  meta `#5a6474` (`priority · KR · N pomo(s)` — logged pomodoros), surface
+  `#0e1218`, and the left accent switches to the strip green at 45% instead
+  of the priority colour; a mono 10.5px completion time on the right is the
+  only element an open card doesn't have. Order is completion-time ascending
+  (newest last, so a fresh check-off slides in as the last row). The green
+  rounded-square tick un-completes (same-session undo — strip stays open,
+  count decrements; at zero the strip disappears entirely); the card body
+  opens P4 as normal, not a locked state. Expansion animates height 160ms
+  ease-out (0fr→1fr grid trick) with a 120ms card fade, no stagger; the
+  column list grows and the page scrolls — the sticky quick-add row stays
+  pinned. Expanded state is **per column and per session** (never persisted),
+  resetting collapsed at the day boundary along with the count. At the
+  2-column tier (≤1100px) the strip renders **at the foot of This week** —
+  it never rides in the collapsed Backlog bar. Values are mockup-exact,
+  named once as scoped `--ct-*` vars on the strip. Guarded by
+  `tests/completed-today-strip.spec.ts`.
 - **Responsive ≤1100px (P2)**: Today + This week stay open; **Backlog collapses
   to a slim bar** (`Backlog · N · X pomos`, "drop a card here to defer it")
   that expands to a mini-list on click. **Board bucket-moving/deferring uses
