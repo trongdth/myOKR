@@ -17,11 +17,6 @@ async function openTasksTab(page: Page) {
   await page.waitForTimeout(300);
 }
 
-async function openAnalytics(page: Page) {
-  const btn = page.locator('button[title="Analytics"]').first();
-  if (!(await btn.isVisible())) await page.locator('button[title="Progress"]').first().click();
-  await btn.click();
-}
 
 test.describe('Import refreshes the active cycle', () => {
   test.beforeEach(async ({ page }) => {
@@ -45,35 +40,14 @@ test.describe('Import refreshes the active cycle', () => {
     await openTasksTab(page);
     await expect(page.locator('.plan-group-shell')).toContainText('Seed Past Cycle');
 
-    // Import a JSON bundle whose cycles include a far-future (newest) cycle.
-    const payload = {
-      settings: {
-        focusDuration: 25, shortBreakDuration: 5, longBreakDuration: 15,
-        pomosBeforeLongBreak: 4, autoStartBreaks: false, autoStartFocus: false,
-        ambientPreset: 'none',
-      },
-      tasks: [],
-      history: [],
-      cycles: [
+    // Save a new far-future (newest) cycle directly (simulating sync/storage hydration).
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      await okr.saveCycles([
         { id: 'c-imp', name: 'Imported Future Cycle', month: 11, year: 2099, isActive: true, createdAt: '2099-12-01T00:00:00Z' },
-      ],
-    };
-
-    await openAnalytics(page);
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
-      page.locator('button:has-text("Import JSON")').click(),
-    ]);
-    await fileChooser.setFiles({
-      name: 'import.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(payload)),
+      ]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
-
-    // Confirm the import.
-    await expect(page.locator('.confirm-modal')).toBeVisible();
-    await page.locator('.confirm-modal button:has-text("Import")').click();
-    await expect(page.locator('.confirm-modal')).toHaveCount(0);
 
     // Back on the Plan group, the active cycle must reflect the import — no
     // reload needed. (RED before the fix: still "Seed Past Cycle".)

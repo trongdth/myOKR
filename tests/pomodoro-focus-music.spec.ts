@@ -123,28 +123,14 @@ test.describe('Pomodoro: Ambient sound preset picker (ADR-0015)', () => {
       cycles: [],
     };
 
-    // Import the legacy bundle via the Analytics import surface (Analytics
-    // lives under the Progress nav group — expand it first, mirroring the
-    // import-refreshes-active-cycle.spec.ts helper).
-    const analyticsBtn = page.locator('button[title="Analytics"]').first();
-    if (!(await analyticsBtn.isVisible())) {
-      await page.locator('button[title="Progress"]').first().click();
-    }
-    await analyticsBtn.click();
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
-      page.locator('button:has-text("Import JSON")').click(),
-    ]);
-    await fileChooser.setFiles({
-      name: 'legacy.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(legacyBundle)),
-    });
-
-    // Confirm the import (the import flow shows a confirm modal).
-    await expect(page.locator('.confirm-modal')).toBeVisible();
-    await page.locator('.confirm-modal button:has-text("Import")').click();
-    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    // Inject the legacy bundle directly into storage to test schema migration.
+    await page.evaluate(async (bundle) => {
+      const storage = await import('/src/lib/automerge-storage.ts');
+      await storage.updateAutomergeDoc('Load legacy bundle', (d: any) => {
+        d.settings = bundle.settings;
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    }, legacyBundle);
 
     // After import, the Session settings panel must show None active — the
     // legacy boolean migrated to 'none', not to any sound preset.

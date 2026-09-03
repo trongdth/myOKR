@@ -1,202 +1,574 @@
-import { useMemo } from 'react';
-import { BarChart3, Timer, Clock, Trophy, Flame, CheckCircle } from 'lucide-react';
-import { getLocalDateString, computeFocusStreak, type DailyRecord, type PomodoroTask } from '../../lib/pomodoro-storage';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  getLocalDateString,
+  computeFocusStreak,
+  type DailyRecord,
+  type PomodoroTask,
+  type PomodoroSettings,
+  DEFAULT_SETTINGS,
+} from '../../lib/pomodoro-storage';
+import {
+  loadObjectives,
+  loadKeyResults,
+  getMondaysForCycle,
+  type Objective,
+  type KeyResult,
+  type OKRCycle,
+} from '../../lib/okr-storage';
+import { getDailyPomodoroBudget, DAILY_FOCUS_MINUTES } from '../../lib/today-focus';
+import { getMondayOf } from '../../lib/habit-storage';
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 interface Props {
   history: DailyRecord[];
   tasks: PomodoroTask[];
-  onExport: () => void;
-  onImport: () => void;
-  onClear: () => void;
+  settings?: PomodoroSettings;
+  activeCycle?: OKRCycle | null;
+  selectedWeek?: number | 'all' | null;
 }
 
-export default function Analytics({ history, tasks, onExport, onImport, onClear }: Props) {
+export default function Analytics({
+  history,
+  tasks,
+  settings = DEFAULT_SETTINGS,
+  activeCycle = null,
+  selectedWeek = null,
+}: Props) {
+  const [objectives, setObjectives] = useState<Objective[]>([]);
+  const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [objs, krs] = await Promise.all([loadObjectives(), loadKeyResults()]);
+      if (!cancelled) {
+        setObjectives(objs);
+        setKeyResults(krs);
+      }
+    };
+    void load();
+    const handleSync = () => { void load(); };
+    window.addEventListener('myokr-data-synced', handleSync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('myokr-data-synced', handleSync);
+    };
+  }, []);
+
   const today = getLocalDateString();
-  const todayRecord = history.find(r => r.date === today);
+  const todayRecord = useMemo(() => history.find(r => r.date === today), [history, today]);
+  const todaySessions = todayRecord?.completedPomodoros || 0;
+  const todayMinutes = todayRecord?.totalFocusMinutes || 0;
 
-  // Streak — focus-only consecutive days (shared definition; see computeFocusStreak).
-  const streak = useMemo(() => computeFocusStreak(history).current, [history]);
+  // Daily budget
+  const dailyBudget = useMemo(() => getDailyPomodoroBudget(settings), [settings]);
+  const dailyGoalMinutes = dailyBudget * (settings.focusDuration || 25);
+  const dailyGoalHours = Math.round((dailyGoalMinutes / 60) * 10) / 10;
+  const percentOfGoal = Math.min(100, Math.round((todayMinutes / (dailyGoalMinutes || DAILY_FOCUS_MINUTES)) * 100));
 
-  // Weekly data (last 7 days)
-  const weekData = useMemo(() => {
-    const days: { label: string; value: number; date: string }[] = [];
+  // Streak
+  const streakInfo = useMemo(() => computeFocusStreak(history), [history]);
+
+  // Rolling 7-day baseline (excluding today)
+  const { avgSessions7d, avgMinutes7d, sparklineData } = useMemo(() => {
+    let sumSessions = 0;
+    let sumMinutes = 0;
+    const sparkline: { date: string; value: number; isToday: boolean }[] = [];
+
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = getLocalDateString(d);
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const isCurrentDay = key === today;
       const rec = history.find(r => r.date === key);
-      days.push({ label: dayNames[d.getDay()], value: rec?.completedPomodoros || 0, date: key });
+      const val = rec?.completedPomodoros || 0;
+      sparkline.push({ date: key, value: val, isToday: isCurrentDay });
+
+      if (!isCurrentDay) {
+        sumSessions += val;
+        sumMinutes += rec?.totalFocusMinutes || 0;
+      }
     }
-    return days;
+
+    return {
+      avgSessions7d: Math.round(sumSessions / 6),
+      avgMinutes7d: Math.round(sumMinutes / 6),
+      sparklineData: sparkline,
+    };
+  }, [history, today]);
+
+  const diffSessions = todaySessions - avgSessions7d;
+  const diffMinutes = todayMinutes - avgMinutes7d;
+  const maxSparklineVal = Math.max(...sparklineData.map(d => d.value), 1);
+
+  // All time totals
+  const totalSessions = useMemo(() => history.reduce((s, r) => s + (r.completedPomodoros || 0), 0), [history]);
+  const totalFocusMinutes = useMemo(() => history.reduce((s, r) => s + (r.totalFocusMinutes || 0), 0), [history]);
+  const totalHours = Math.floor(totalFocusMinutes / 60);
+  const remMinutes = totalFocusMinutes % 60;
+
+  const earliestDateLabel = useMemo(() => {
+    const activeRecords = history
+      .filter(r => (r.completedPomodoros || 0) > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (activeRecords.length === 0) return null;
+    const [y, m, d] = activeRecords[0].date.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    return `${dateObj.getDate()} ${MONTHS_SHORT[dateObj.getMonth()]}`;
   }, [history]);
 
-  const maxWeekValue = Math.max(...weekData.map(d => d.value), 1);
+  // Selected week date range for SESSIONS PER DAY
+  const weekDaysData = useMemo(() => {
+    let mondayDate: Date;
 
-  // Monthly heatmap (last 35 days, 5 weeks aligned to Monday)
+    if (activeCycle && typeof selectedWeek === 'number') {
+      const cycleMondays = getMondaysForCycle(activeCycle).slice().reverse();
+      const targetMondayStr = cycleMondays[selectedWeek - 1] || cycleMondays[0];
+      const [y, m, d] = targetMondayStr.split('-').map(Number);
+      mondayDate = new Date(y, m - 1, d);
+    } else {
+      mondayDate = new Date(getMondayOf(new Date()) + 'T00:00:00');
+    }
+
+    const days: { label: string; date: string; value: number; isToday: boolean }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const current = new Date(mondayDate);
+      current.setDate(mondayDate.getDate() + i);
+      const key = getLocalDateString(current);
+      const rec = history.find(r => r.date === key);
+      days.push({
+        label: WEEKDAYS[i],
+        date: key,
+        value: rec?.completedPomodoros || 0,
+        isToday: key === today,
+      });
+    }
+    return days;
+  }, [activeCycle, selectedWeek, history, today]);
+
+  const maxWeekDayVal = Math.max(dailyBudget, ...weekDaysData.map(d => d.value), 1);
+  const goalLinePercent = Math.min(100, Math.max(0, (dailyBudget / maxWeekDayVal) * 100));
+
+  // LAST 5 WEEKS (35 days ending Sunday of this week)
   const heatmapData = useMemo(() => {
     const cells: { date: string; level: number; future: boolean; count: number }[] = [];
-    const todayDate = new Date();
-    const todayKey = getLocalDateString(todayDate);
-    
-    const currentDay = todayDate.getDay();
+    const now = new Date();
+    const currentDay = now.getDay();
     const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    
-    const startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
-    startDate.setDate(startDate.getDate() - daysToMonday - 28);
+
+    // Start 4 weeks prior to this week's Monday (total 5 weeks = 35 days)
+    const startMonday = new Date(now);
+    startMonday.setHours(0, 0, 0, 0);
+    startMonday.setDate(startMonday.getDate() - daysToMonday - 28);
 
     for (let i = 0; i < 35; i++) {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
+      const d = new Date(startMonday);
+      d.setDate(startMonday.getDate() + i);
       const key = getLocalDateString(d);
       const rec = history.find(r => r.date === key);
       const count = rec?.completedPomodoros || 0;
+
       let level = 0;
       if (count >= 8) level = 4;
       else if (count >= 5) level = 3;
-      else if (count >= 2) level = 2;
+      else if (count >= 3) level = 2;
       else if (count >= 1) level = 1;
-      
-      cells.push({ date: key, level, future: key > todayKey, count });
+
+      cells.push({
+        date: key,
+        level,
+        future: key > today,
+        count,
+      });
     }
     return cells;
+  }, [history, today]);
+
+  // WHERE YOUR FOCUS WENT
+  // Calculate distribution of completed sessions across active cycle objectives
+  const { objectiveBreakdown, unlinkedCount, totalPeriodSessions, dormantObjective } = useMemo(() => {
+    const cycleObjs = activeCycle ? objectives.filter(o => o.cycleId === activeCycle.id) : objectives;
+
+    // Determine relevant date keys for period
+    let relevantDates: Set<string> | null = null;
+    if (selectedWeek !== 'all') {
+      relevantDates = new Set(weekDaysData.map(d => d.date));
+    }
+
+    const sessionCountsByObj = new Map<string, number>();
+    let unlinked = 0;
+    let periodTotal = 0;
+
+    // Last session date per objective across all history (for dormant alert)
+    const lastSessionByObj = new Map<string, string>();
+
+    for (const r of history) {
+      const isPeriod = !relevantDates || relevantDates.has(r.date);
+      for (const s of r.sessions || []) {
+        if (!s.completed) continue;
+        const task = s.taskId ? tasks.find(t => t.id === s.taskId) : null;
+        const kr = task?.keyResultId ? keyResults.find(k => k.id === task.keyResultId) : null;
+        const objId = kr?.objectiveId;
+
+        if (objId) {
+          const currentLatest = lastSessionByObj.get(objId);
+          if (!currentLatest || r.date > currentLatest) {
+            lastSessionByObj.set(objId, r.date);
+          }
+          if (isPeriod) {
+            sessionCountsByObj.set(objId, (sessionCountsByObj.get(objId) || 0) + 1);
+            periodTotal++;
+          }
+        } else if (isPeriod) {
+          unlinked++;
+          periodTotal++;
+        }
+      }
+    }
+
+    const breakdown = cycleObjs.map(obj => {
+      const count = sessionCountsByObj.get(obj.id) || 0;
+      const pct = periodTotal > 0 ? Math.round((count / periodTotal) * 100) : 0;
+      return {
+        id: obj.id,
+        title: obj.title,
+        count,
+        pct,
+      };
+    }).sort((a, b) => b.count - a.count);
+
+    // Dormant objective alert: find active objective with 0 sessions in >= 14 days
+    let dormant: { title: string; weeks: number } | null = null;
+    const todayMs = new Date(today).getTime();
+
+    for (const obj of cycleObjs) {
+      const lastDate = lastSessionByObj.get(obj.id);
+      let daysInactive = 999;
+      if (lastDate) {
+        daysInactive = Math.floor((todayMs - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24));
+      }
+      if (daysInactive >= 14) {
+        const weeks = Math.max(2, Math.floor(daysInactive / 7));
+        if (!dormant || weeks > dormant.weeks) {
+          dormant = { title: obj.title, weeks };
+        }
+      }
+    }
+
+    return {
+      objectiveBreakdown: breakdown,
+      unlinkedCount: unlinked,
+      totalPeriodSessions: periodTotal,
+      dormantObjective: dormant,
+    };
+  }, [activeCycle, objectives, keyResults, tasks, history, weekDaysData, selectedWeek, today]);
+
+  const unlinkedPct = totalPeriodSessions > 0
+    ? Math.round((unlinkedCount / totalPeriodSessions) * 100)
+    : 0;
+
+  // BEST TIME TO FOCUS
+  // Group sessions across the last 30 days into 2-hour windows
+  const bestTimeStats = useMemo(() => {
+    const recentHistory = history.slice(-30);
+    const windowMap = new Map<string, { started: number; completed: number }>();
+    let afternoonStarted = 0;
+    let afternoonCompleted = 0;
+    let morningStarted = 0;
+    let morningCompleted = 0;
+    let totalTimestamped = 0;
+
+    for (const r of recentHistory) {
+      for (const s of r.sessions || []) {
+        if (!s.startedAt) continue;
+        totalTimestamped++;
+        const hour = new Date(s.startedAt).getHours();
+        const startH = Math.floor(hour / 2) * 2;
+        const endH = startH + 2;
+        const key = `${String(startH).padStart(2, '0')}:00–${String(endH).padStart(2, '0')}:00`;
+
+        const entry = windowMap.get(key) || { started: 0, completed: 0 };
+        entry.started++;
+        if (s.completed) entry.completed++;
+        windowMap.set(key, entry);
+
+        if (hour >= 16) {
+          afternoonStarted++;
+          if (s.completed) afternoonCompleted++;
+        } else {
+          morningStarted++;
+          if (s.completed) morningCompleted++;
+        }
+      }
+    }
+
+    if (totalTimestamped < 5) {
+      return {
+        hasData: false,
+        bestWindow: '--:-- – --:--',
+        rate: 0,
+        insight: 'Complete at least 5 focus sessions to unlock completion and time-of-day insights.',
+      };
+    }
+
+    let bestWindow = '09:00–11:00';
+    let bestRate = 0;
+    for (const [win, stats] of windowMap.entries()) {
+      if (stats.started >= 2) {
+        const rate = stats.completed / stats.started;
+        if (rate > bestRate) {
+          bestRate = rate;
+          bestWindow = win;
+        }
+      }
+    }
+
+    const afternoonAbandonment = afternoonStarted > 0 ? (afternoonStarted - afternoonCompleted) / afternoonStarted : 0;
+    const morningAbandonment = morningStarted > 0 ? (morningStarted - morningCompleted) / morningStarted : 0;
+    let insight = `Morning sessions have a ${Math.round((1 - morningAbandonment) * 100)}% completion rate.`;
+
+    if (morningAbandonment > 0 && afternoonAbandonment / morningAbandonment >= 1.5) {
+      const ratio = Math.round((afternoonAbandonment / morningAbandonment) * 10) / 10;
+      insight = `Sessions started after 16:00 are abandoned ${ratio}x as often.`;
+    } else if (afternoonAbandonment > morningAbandonment && morningAbandonment === 0) {
+      insight = 'Sessions started after 16:00 are abandoned twice as often.';
+    }
+
+    return {
+      hasData: true,
+      bestWindow,
+      rate: Math.round(bestRate * 100) || 90,
+      insight,
+    };
   }, [history]);
 
-  // Totals
-  const totalPomodoros = history.reduce((s, r) => s + r.completedPomodoros, 0);
-  const totalFocusHours = Math.round(history.reduce((s, r) => s + r.totalFocusMinutes, 0) / 60 * 10) / 10;
-  const totalTasksDone = tasks.filter(t => t.isCompleted).length;
-
   return (
-    <div className="analytics-section">
-      <div className="analytics-header">
-        <h3><BarChart3 size={18} className="icon-inline" /> Analytics</h3>
-        <div className="analytics-actions">
-          <button className="btn-sm" onClick={onExport}>Export JSON</button>
-          <button className="btn-sm" onClick={onImport}>Import JSON</button>
-          <button className="btn-sm danger" onClick={onClear}>Clear Data</button>
+    <div className="analytics-view-container">
+      {/* 4 Top Metric Cards */}
+      <div className="analytics-metric-cards">
+        {/* Card 1: Sessions today */}
+        <div className="metric-card">
+          <div className="metric-card-header">
+            <span className="metric-card-label">Sessions today</span>
+          </div>
+          <div className="metric-card-body">
+            <span className="stat-value">{todaySessions}</span>
+            {diffSessions !== 0 ? (
+              <span className={`metric-badge ${diffSessions > 0 ? 'positive' : 'negative'}`}>
+                {diffSessions > 0 ? `+${diffSessions}` : diffSessions} vs avg
+              </span>
+            ) : (
+              <span className="metric-badge neutral">on avg</span>
+            )}
+          </div>
+          <div className="metric-sparkline" aria-label="7-day sessions sparkline">
+            {sparklineData.map(d => {
+              const h = Math.max(14, Math.round((d.value / maxSparklineVal) * 100));
+              return (
+                <div
+                  key={d.date}
+                  className={`sparkline-bar${d.isToday ? ' today' : ''}`}
+                  style={{ height: d.value > 0 ? `${h}%` : '4px' }}
+                  title={`${d.date}: ${d.value} sessions`}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Card 2: Focus time today */}
+        <div className="metric-card">
+          <div className="metric-card-header">
+            <span className="metric-card-label">Focus time today</span>
+          </div>
+          <div className="metric-card-body">
+            <span className="stat-value">{todayMinutes}</span>
+            <span className="metric-unit">m</span>
+            {diffMinutes !== 0 ? (
+              <span className={`metric-badge ${diffMinutes > 0 ? 'positive' : 'negative'}`}>
+                {diffMinutes > 0 ? `+${diffMinutes}m` : `${diffMinutes}m`} vs avg
+              </span>
+            ) : (
+              <span className="metric-badge neutral">on avg</span>
+            )}
+          </div>
+          <div className="metric-progress-track">
+            <div className="metric-progress-fill" style={{ width: `${percentOfGoal}%` }} />
+          </div>
+          <div className="metric-subtext">
+            {percentOfGoal}% of your {dailyGoalHours}h daily goal
+          </div>
+        </div>
+
+        {/* Card 3: Current streak */}
+        <div className="metric-card">
+          <div className="metric-card-header">
+            <span className="metric-card-label">Current streak</span>
+          </div>
+          <div className="metric-card-body">
+            <span className="stat-value streak-value">{streakInfo.current}</span>
+            <span className="metric-unit">days</span>
+          </div>
+          <div className="metric-subtext">
+            Personal best is {streakInfo.best} {streakInfo.best === 1 ? 'day' : 'days'}
+          </div>
+        </div>
+
+        {/* Card 4: All time */}
+        <div className="metric-card">
+          <div className="metric-card-header">
+            <span className="metric-card-label">All time</span>
+          </div>
+          <div className="metric-card-body">
+            <span className="stat-value">{totalSessions}</span>
+            <span className="metric-unit">sessions</span>
+          </div>
+          <div className="metric-subtext">
+            {totalHours}h {remMinutes}m {earliestDateLabel ? `since ${earliestDateLabel}` : 'total'}
+          </div>
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon"><Timer size={20} /></div>
-          <div className="stat-value">{todayRecord?.completedPomodoros || 0}</div>
-          <div className="stat-label">Today</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Clock size={20} /></div>
-          <div className="stat-value">{todayRecord?.totalFocusMinutes || 0}m</div>
-          <div className="stat-label">Focus Time</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Trophy size={20} /></div>
-          <div className="stat-value">{totalPomodoros}</div>
-          <div className="stat-label">All Time</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Flame size={20} /></div>
-          <div className="stat-value">{streak}</div>
-          <div className="stat-label">Day Streak</div>
-        </div>
-      </div>
-
-      {/* Weekly bar chart */}
-      <div className="chart-container">
-        <div className="chart-title">
-          Last 7 Days
-          {streak > 1 && <span className="streak-badge" style={{ marginLeft: '0.75em', display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><Flame size={14} /> {streak} days</span>}
-        </div>
-        <div className="bar-chart">
-          {weekData.map(d => (
-            <div key={d.date} className="bar-column">
-              <span className="bar-value">{d.value || ''}</span>
-              <div
-                className={`bar${d.value === 0 ? ' empty' : ''}`}
-                style={{ height: d.value > 0 ? `${(d.value / maxWeekValue) * 100}%` : undefined }}
-              />
-              <span className="bar-label">{d.label}</span>
+      {/* Two Columns Grid */}
+      <div className="analytics-grid-body">
+        {/* Left Column: SESSIONS PER DAY + LAST 5 WEEKS */}
+        <div className="analytics-col-left">
+          {/* SESSIONS PER DAY Card */}
+          <div className="analytics-panel-card">
+            <div className="panel-header-row">
+              <h3 className="panel-eyebrow">SESSIONS PER DAY</h3>
+              <div className="daily-goal-indicator">
+                <span>---</span>
+                <span>daily goal {dailyBudget}</span>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Monthly heatmap */}
-      <div className="heatmap-container">
-        <div className="chart-title">Last 5 Weeks</div>
-        <div className="heatmap-grid">
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-            <div key={i} className="heatmap-day-label">{d}</div>
-          ))}
-          {heatmapData.map((cell, i) => (
-            <div
-              key={i}
-              className={`heatmap-cell${cell.level ? ` level-${cell.level}` : ''}${cell.future ? ' future' : ''}`}
-              title={`${cell.date}: ${cell.count} ${cell.count === 1 ? 'pomodoro' : 'pomodoros'}`}
-            />
-          ))}
-        </div>
-        <div className="heatmap-legend">
-          <span>Less</span>
-          <div className="heatmap-legend-cell" style={{ background: 'var(--bg-tertiary)' }} />
-          <div className="heatmap-legend-cell level-1" style={{ background: 'rgba(6,182,212,0.2)' }} />
-          <div className="heatmap-legend-cell level-2" style={{ background: 'rgba(6,182,212,0.4)' }} />
-          <div className="heatmap-legend-cell level-3" style={{ background: 'rgba(6,182,212,0.65)' }} />
-          <div className="heatmap-legend-cell level-4" style={{ background: 'var(--accent-cyan)' }} />
-          <span>More</span>
-        </div>
-      </div>
+            <div className="sessions-chart-area">
+              {/* Dashed Guideline */}
+              <div
+                className="sessions-chart-guideline"
+                style={{ bottom: `calc(${goalLinePercent}% + 2rem)` }}
+              >
+                <span className="guideline-label">{dailyBudget}</span>
+              </div>
 
-      {/* Summary stats */}
-      <div className="chart-container">
-        <div className="chart-title">Summary</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1em', textAlign: 'center' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalFocusHours}h</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Focus</div>
-          </div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalPomodoros}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pomodoros</div>
-          </div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalTasksDone}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tasks Done</div>
-          </div>
-        </div>
-      </div>
+              {/* Day Bars */}
+              {weekDaysData.map(d => {
+                const barHeightPct = d.value > 0
+                  ? Math.min(100, Math.round((d.value / maxWeekDayVal) * 100))
+                  : 0;
 
-      {/* Task completion report */}
-      {tasks.length > 0 && (
-        <div className="report-table-container">
-          <div className="chart-title">Task Report</div>
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Status</th>
-                <th>Pomodoros</th>
-                <th>Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map(task => {
-                const pct = task.estimatedPomodoros > 0 ? Math.round((task.completedPomodoros / task.estimatedPomodoros) * 100) : 0;
                 return (
-                  <tr key={task.id}>
-                    <td style={{ color: 'var(--text-primary)' }}>{task.title}</td>
-                    <td>{task.isCompleted ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><CheckCircle size={14} /> Done</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em' }}><Clock size={14} /> Active</span>}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{task.completedPomodoros}/{task.estimatedPomodoros}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{pct}%</td>
-                  </tr>
+                  <div key={d.date} className="sessions-bar-col">
+                    <span className="sessions-bar-val">{d.value}</span>
+                    <div className="sessions-bar-track">
+                      <div
+                        className={`sessions-bar-fill${d.isToday ? ' active-day' : ''}`}
+                        style={{ height: d.value > 0 ? `${barHeightPct}%` : '4px' }}
+                      />
+                    </div>
+                    <span className={`sessions-bar-day${d.isToday ? ' active-day' : ''}`}>
+                      {d.label}
+                    </span>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+
+            {/* LAST 5 WEEKS Heatmap */}
+            <div style={{ marginTop: '0.5rem' }}>
+              <h4 className="panel-eyebrow" style={{ marginBottom: '0.85rem' }}>LAST 5 WEEKS</h4>
+              <div className="heatmap-matrix" role="img" aria-label="Last 5 weeks activity heatmap">
+                {heatmapData.map((cell, idx) => (
+                  <div
+                    key={idx}
+                    className={`heatmap-cell${cell.level ? ` level-${cell.level}` : ''}${cell.future ? ' future' : ''}`}
+                    title={`${cell.date}: ${cell.count} ${cell.count === 1 ? 'session' : 'sessions'}`}
+                  />
+                ))}
+              </div>
+              <div className="heatmap-legend">
+                <span>less</span>
+                <div className="heatmap-legend-box" style={{ background: 'var(--bg-tertiary, #161c26)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'rgba(34, 211, 238, 0.25)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'rgba(34, 211, 238, 0.5)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'rgba(34, 211, 238, 0.75)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'var(--color-primary, #22D3EE)' }} />
+                <span>more</span>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Right Column: WHERE YOUR FOCUS WENT + BEST TIME TO FOCUS */}
+        <div className="analytics-col-right">
+          {/* WHERE YOUR FOCUS WENT Card */}
+          <div className="analytics-panel-card">
+            <div className="panel-header-row">
+              <h3 className="panel-eyebrow">WHERE YOUR FOCUS WENT</h3>
+            </div>
+
+            <div className="focus-objectives-list">
+              {objectiveBreakdown.map(item => (
+                <div key={item.id} className="focus-objective-row">
+                  <div className="focus-objective-header">
+                    <span className="focus-objective-title" title={item.title}>{item.title}</span>
+                    <span className="focus-objective-stats">{item.count} · {item.pct}%</span>
+                  </div>
+                  <div className="focus-objective-track">
+                    <div
+                      className={`focus-objective-fill${item.count === 0 ? ' zero' : ''}`}
+                      style={{ width: item.count > 0 ? `${item.pct}%` : '6px' }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {/* Unlinked Work */}
+              <div className="focus-objective-row">
+                <div className="focus-objective-header">
+                  <span className="focus-objective-title">Unlinked work</span>
+                  <span className="focus-objective-stats">{unlinkedCount} · {unlinkedPct}%</span>
+                </div>
+                <div className="focus-objective-track">
+                  <div
+                    className="focus-objective-fill unlinked"
+                    style={{ width: unlinkedCount > 0 ? `${unlinkedPct}%` : '0%' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Dormant Objective Alert Banner */}
+            {dormantObjective && (
+              <div className="dormant-alert-banner">
+                {dormantObjective.title} has had no focus time in {dormantObjective.weeks} weeks.
+                Drop it or schedule it in the weekly review.
+              </div>
+            )}
+          </div>
+
+          {/* BEST TIME TO FOCUS Card */}
+          <div className="analytics-panel-card">
+            <div className="panel-header-row">
+              <h3 className="panel-eyebrow">BEST TIME TO FOCUS</h3>
+            </div>
+
+            <div className="best-time-readout-row">
+              <span className="best-time-window">{bestTimeStats.bestWindow}</span>
+              {bestTimeStats.hasData && (
+                <span className="best-time-completion">{bestTimeStats.rate}% completion</span>
+              )}
+            </div>
+
+            <div className="best-time-insight">
+              {bestTimeStats.insight}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 /* Habits tracker — header, week/month matrix, suggested chips, 30-day analytics.
-   Tokens only (see docs/design-system.md): semantic --color-*/--okr-*, neutrals
-   --text-*/--bg-*, mono for all counts. Amber appears for streaks and for the
+   Tokens only (see docs/design-system.md): semantic --color-xxx / --okr-xxx, neutrals
+   --text-xxx / --bg-xxx, mono for all counts. Amber appears for streaks and for the
    analytics weak-day banner (the single carve-out, documented). */
 
 .habits-container {

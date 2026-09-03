@@ -70,7 +70,7 @@ async function repairReviews(
   return { repaired, changed };
 }
 
-export default function ReviewApp() {
+export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
@@ -310,10 +310,12 @@ export default function ReviewApp() {
 
   if (!activeCycle) {
     return (
-      <div className="review-container">
-        <div className="review-header">
-          <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly review</h2>
-        </div>
+      <div className={`review-container${hideHeader ? ' embed-mode' : ''}`}>
+        {!hideHeader && (
+          <div className="review-header">
+            <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly review</h2>
+          </div>
+        )}
         <div className="review-start-card">
           <div className="review-start-card-icon"><Target size={24} /></div>
           <div className="review-start-card-title">No OKR cycle found</div>
@@ -326,22 +328,24 @@ export default function ReviewApp() {
   }
 
   return (
-    <div className="review-container">
-      <div className="review-header">
-        <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center' }}>
-            Cycle:
-            <Select
-              options={cycles.map(c => ({ value: c.id, label: c.name }))}
-              value={activeCycle.id}
-              disabled={showWizard}
-              onChange={(cycleId) => setExplicitCycleId(cycleId)}
-              ariaLabel="Cycle"
-            />
-          </label>
+    <div className={`review-container${hideHeader ? ' embed-mode' : ''}`}>
+      {!hideHeader && (
+        <div className="review-header">
+          <h2 className="review-header-title"><ClipboardList size={18} className="icon-inline" /> Weekly Review</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center' }}>
+              Cycle:
+              <Select
+                options={cycles.map(c => ({ value: c.id, label: c.name }))}
+                value={activeCycle.id}
+                disabled={showWizard}
+                onChange={(cycleId) => setExplicitCycleId(cycleId)}
+                ariaLabel="Cycle"
+              />
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Wizard or Start card */}
       {showWizard ? (
