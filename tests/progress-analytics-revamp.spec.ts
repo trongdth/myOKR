@@ -29,10 +29,13 @@ test.describe('Progress / Analytics Screen Revamp', () => {
         { id: 'c-test', name: 'May cycle', month: mm, year: yyyy, isActive: true, createdAt: new Date().toISOString() },
       ]);
 
+      const threeWeeksAgo = new Date(now);
+      threeWeeksAgo.setDate(now.getDate() - 21);
+
       await okr.saveObjectives([
         { id: 'o-1', cycleId: 'c-test', title: 'Ship myOKR v2.0', order: 0, createdAt: new Date().toISOString() },
         { id: 'o-2', cycleId: 'c-test', title: 'Build eng culture', order: 1, createdAt: new Date().toISOString() },
-        { id: 'o-3', cycleId: 'c-test', title: 'Improve productivity', order: 2, createdAt: new Date().toISOString() },
+        { id: 'o-3', cycleId: 'c-test', title: 'Improve productivity', order: 2, createdAt: threeWeeksAgo.toISOString() },
       ]);
 
       await okr.saveKeyResults([

@@ -71,8 +71,8 @@ export default function Analytics({
   // Streak
   const streakInfo = useMemo(() => computeFocusStreak(history), [history]);
 
-  // Rolling 7-day baseline (excluding today)
-  const { avgSessions7d, avgMinutes7d, sparklineData } = useMemo(() => {
+  // Rolling 6-day baseline (past 6 days excluding today)
+  const { avgSessionsRolling, avgMinutesRolling, sparklineData } = useMemo(() => {
     let sumSessions = 0;
     let sumMinutes = 0;
     const sparkline: { date: string; value: number; isToday: boolean }[] = [];
@@ -93,14 +93,14 @@ export default function Analytics({
     }
 
     return {
-      avgSessions7d: Math.round(sumSessions / 6),
-      avgMinutes7d: Math.round(sumMinutes / 6),
+      avgSessionsRolling: Math.round(sumSessions / 6),
+      avgMinutesRolling: Math.round(sumMinutes / 6),
       sparklineData: sparkline,
     };
   }, [history, today]);
 
-  const diffSessions = todaySessions - avgSessions7d;
-  const diffMinutes = todayMinutes - avgMinutes7d;
+  const diffSessions = todaySessions - avgSessionsRolling;
+  const diffMinutes = todayMinutes - avgMinutesRolling;
   const maxSparklineVal = Math.max(...sparklineData.map(d => d.value), 1);
 
   // All time totals
@@ -191,7 +191,6 @@ export default function Analytics({
   const { objectiveBreakdown, unlinkedCount, totalPeriodSessions, dormantObjective } = useMemo(() => {
     const cycleObjs = activeCycle ? objectives.filter(o => o.cycleId === activeCycle.id) : objectives;
 
-    // Determine relevant date keys for period
     let relevantDates: Set<string> | null = null;
     if (selectedWeek !== 'all') {
       relevantDates = new Set(weekDaysData.map(d => d.date));
@@ -204,13 +203,22 @@ export default function Analytics({
     // Last session date per objective across all history (for dormant alert)
     const lastSessionByObj = new Map<string, string>();
 
+    // Build task -> objId index map for fast resolution
+    const taskToObjMap = new Map<string, string>();
+    for (const t of tasks) {
+      if (t.keyResultId) {
+        const kr = keyResults.find(k => k.id === t.keyResultId);
+        if (kr?.objectiveId) {
+          taskToObjMap.set(t.id, kr.objectiveId);
+        }
+      }
+    }
+
     for (const r of history) {
       const isPeriod = !relevantDates || relevantDates.has(r.date);
       for (const s of r.sessions || []) {
         if (!s.completed) continue;
-        const task = s.taskId ? tasks.find(t => t.id === s.taskId) : null;
-        const kr = task?.keyResultId ? keyResults.find(k => k.id === task.keyResultId) : null;
-        const objId = kr?.objectiveId;
+        const objId = s.taskId ? taskToObjMap.get(s.taskId) : undefined;
 
         if (objId) {
           const currentLatest = lastSessionByObj.get(objId);
@@ -245,9 +253,11 @@ export default function Analytics({
 
     for (const obj of cycleObjs) {
       const lastDate = lastSessionByObj.get(obj.id);
-      let daysInactive = 999;
+      let daysInactive = 0;
       if (lastDate) {
         daysInactive = Math.floor((todayMs - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24));
+      } else if (obj.createdAt) {
+        daysInactive = Math.floor((todayMs - new Date(obj.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       }
       if (daysInactive >= 14) {
         const weeks = Math.max(2, Math.floor(daysInactive / 7));
@@ -327,19 +337,23 @@ export default function Analytics({
 
     const afternoonAbandonment = afternoonStarted > 0 ? (afternoonStarted - afternoonCompleted) / afternoonStarted : 0;
     const morningAbandonment = morningStarted > 0 ? (morningStarted - morningCompleted) / morningStarted : 0;
-    let insight = `Morning sessions have a ${Math.round((1 - morningAbandonment) * 100)}% completion rate.`;
+    let insight = '';
 
     if (morningAbandonment > 0 && afternoonAbandonment / morningAbandonment >= 1.5) {
       const ratio = Math.round((afternoonAbandonment / morningAbandonment) * 10) / 10;
       insight = `Sessions started after 16:00 are abandoned ${ratio}x as often.`;
-    } else if (afternoonAbandonment > morningAbandonment && morningAbandonment === 0) {
+    } else if (afternoonAbandonment > morningAbandonment && morningAbandonment === 0 && afternoonAbandonment > 0) {
       insight = 'Sessions started after 16:00 are abandoned twice as often.';
+    } else if (morningStarted > 0) {
+      insight = `Morning sessions have a ${Math.round((1 - morningAbandonment) * 100)}% completion rate.`;
+    } else {
+      insight = 'Sessions started during this window have the highest completion rate.';
     }
 
     return {
       hasData: true,
       bestWindow,
-      rate: Math.round(bestRate * 100) || 90,
+      rate: Math.round(bestRate * 100),
       insight,
     };
   }, [history]);
@@ -446,10 +460,10 @@ export default function Analytics({
             </div>
 
             <div className="sessions-chart-area">
-              {/* Dashed Guideline */}
+              {/* Dashed Guideline: positioned directly relative to the bar track area */}
               <div
                 className="sessions-chart-guideline"
-                style={{ bottom: `calc(${goalLinePercent}% + 2rem)` }}
+                style={{ bottom: `calc(2rem + ${goalLinePercent * 0.01} * (100% - 2.5rem))` }}
               >
                 <span className="guideline-label">{dailyBudget}</span>
               </div>
@@ -491,11 +505,11 @@ export default function Analytics({
               </div>
               <div className="heatmap-legend">
                 <span>less</span>
-                <div className="heatmap-legend-box" style={{ background: 'var(--bg-tertiary, #161c26)' }} />
-                <div className="heatmap-legend-box" style={{ background: 'rgba(34, 211, 238, 0.25)' }} />
-                <div className="heatmap-legend-box" style={{ background: 'rgba(34, 211, 238, 0.5)' }} />
-                <div className="heatmap-legend-box" style={{ background: 'rgba(34, 211, 238, 0.75)' }} />
-                <div className="heatmap-legend-box" style={{ background: 'var(--color-primary, #22D3EE)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'var(--bg-tertiary)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'color-mix(in srgb, var(--color-primary) 25%, transparent)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'color-mix(in srgb, var(--color-primary) 50%, transparent)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'color-mix(in srgb, var(--color-primary) 75%, transparent)' }} />
+                <div className="heatmap-legend-box" style={{ background: 'var(--color-primary)' }} />
                 <span>more</span>
               </div>
             </div>

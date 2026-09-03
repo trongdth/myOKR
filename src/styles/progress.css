@@ -1,7 +1,7 @@
 /*
   Progress group shell & Analytics screen styles
   Following design-system.md: padding parity with .plan-group-shell & .focus-shell,
-  semantic tokens, 3-tier responsive re-stacking.
+  semantic tokens, zero raw hex, 3-tier responsive re-stacking.
 */
 
 /* ===== PROGRESS SHELL ===== */
@@ -56,8 +56,8 @@
 }
 
 .metric-card {
-  background: var(--bg-card, #111827);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 1.25rem;
   display: flex;
@@ -76,7 +76,7 @@
 
 .metric-card-label {
   font-size: 0.8rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -91,17 +91,17 @@
   font-family: var(--font-mono, monospace);
   font-size: 2.2rem;
   font-weight: 700;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary);
   line-height: 1;
 }
 
 .metric-card-body .stat-value.streak-value {
-  color: var(--color-streak, #f59e0b);
+  color: var(--color-streak);
 }
 
 .metric-unit {
   font-size: 0.95rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -115,18 +115,18 @@
 }
 
 .metric-badge.positive {
-  color: var(--okr-on-track, #22c55e);
-  background: rgba(34, 197, 94, 0.12);
+  color: var(--okr-on-track);
+  background: color-mix(in srgb, var(--okr-on-track) 12%, transparent);
 }
 
 .metric-badge.negative {
-  color: var(--color-risk, #f43f5e);
-  background: rgba(244, 63, 94, 0.12);
+  color: var(--color-risk);
+  background: color-mix(in srgb, var(--color-risk) 12%, transparent);
 }
 
 .metric-badge.neutral {
-  color: var(--text-muted, #94a3b8);
-  background: var(--bg-tertiary, #1f2937);
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
 }
 
 /* Card 1 Mini Sparkline */
@@ -142,14 +142,14 @@
 .sparkline-bar {
   flex: 1;
   border-radius: 2px 2px 0 0;
-  background: rgba(34, 211, 238, 0.3);
+  background: color-mix(in srgb, var(--color-primary) 30%, transparent);
   min-height: 4px;
   transition: height 0.2s ease;
 }
 
 .sparkline-bar.today {
-  background: var(--color-primary, #22D3EE);
-  box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+  background: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 /* Card 2 Progress Bar */
@@ -157,7 +157,7 @@
   width: 100%;
   height: 6px;
   border-radius: 999px;
-  background: var(--bg-tertiary, #1e293b);
+  background: var(--bg-tertiary);
   overflow: hidden;
   margin-top: 0.25rem;
 }
@@ -165,13 +165,13 @@
 .metric-progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--color-primary, #22D3EE);
+  background: var(--color-primary);
   transition: width 0.3s ease;
 }
 
 .metric-subtext {
   font-size: 0.78rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-weight: 400;
   line-height: 1.35;
 }
@@ -193,8 +193,8 @@
 }
 
 .analytics-panel-card {
-  background: var(--bg-card, #111827);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 1.5rem;
   display: flex;
@@ -214,14 +214,14 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   margin: 0;
 }
 
 .daily-goal-indicator {
   font-family: var(--font-mono, monospace);
   font-size: 0.75rem;
-  color: var(--color-streak, #f59e0b);
+  color: var(--color-primary);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -236,14 +236,14 @@
   align-items: flex-end;
   justify-content: space-between;
   padding-bottom: 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .sessions-chart-guideline {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed rgba(245, 158, 11, 0.45);
+  border-top: 1px dashed color-mix(in srgb, var(--color-primary) 40%, transparent);
   pointer-events: none;
   z-index: 1;
 }
@@ -254,8 +254,8 @@
   top: -14px;
   font-size: 0.68rem;
   font-family: var(--font-mono, monospace);
-  color: var(--color-streak, #f59e0b);
-  opacity: 0.8;
+  color: var(--color-primary);
+  opacity: 0.9;
 }
 
 .sessions-bar-col {
@@ -272,7 +272,7 @@
 .sessions-bar-val {
   font-family: var(--font-mono, monospace);
   font-size: 0.82rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   margin-bottom: 0.4rem;
 }
 
@@ -287,25 +287,25 @@
 .sessions-bar-fill {
   width: 100%;
   border-radius: 4px 4px 0 0;
-  background: rgba(34, 211, 238, 0.35);
+  background: color-mix(in srgb, var(--color-primary) 35%, transparent);
   transition: height 0.3s ease;
   min-height: 4px;
 }
 
 .sessions-bar-fill.active-day {
-  background: var(--color-primary, #22D3EE);
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+  background: var(--color-primary);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
 .sessions-bar-day {
   position: absolute;
   bottom: 0;
   font-size: 0.78rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .sessions-bar-day.active-day {
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -321,7 +321,7 @@
 .heatmap-cell {
   aspect-ratio: 1.55;
   border-radius: 4px;
-  background: var(--bg-tertiary, #161c26);
+  background: var(--bg-tertiary);
   transition: all 0.15s ease;
   cursor: pointer;
 }
@@ -331,20 +331,20 @@
 }
 
 .heatmap-cell.level-1 {
-  background: rgba(34, 211, 238, 0.25);
+  background: color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
 .heatmap-cell.level-2 {
-  background: rgba(34, 211, 238, 0.5);
+  background: color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
 .heatmap-cell.level-3 {
-  background: rgba(34, 211, 238, 0.75);
+  background: color-mix(in srgb, var(--color-primary) 75%, transparent);
 }
 
 .heatmap-cell.level-4 {
-  background: var(--color-primary, #22D3EE);
-  box-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
+  background: var(--color-primary);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 .heatmap-cell.future {
@@ -358,7 +358,7 @@
   justify-content: flex-end;
   gap: 6px;
   font-size: 0.72rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
@@ -391,7 +391,7 @@
 
 .focus-objective-title {
   font-weight: 500;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -401,39 +401,39 @@
 .focus-objective-stats {
   font-family: var(--font-mono, monospace);
   font-size: 0.8rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .focus-objective-track {
   width: 100%;
   height: 6px;
   border-radius: 999px;
-  background: var(--bg-tertiary, #1e293b);
+  background: var(--bg-tertiary);
   overflow: hidden;
 }
 
 .focus-objective-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--color-objective, #a855f7);
+  background: var(--color-objective);
   transition: width 0.3s ease;
 }
 
 .focus-objective-fill.unlinked {
-  background: #64748b;
+  background: var(--text-muted);
 }
 
 .focus-objective-fill.zero {
-  background: var(--color-risk, #f43f5e);
+  background: color-mix(in srgb, var(--color-objective) 50%, transparent);
   width: 6px !important;
 }
 
 .dormant-alert-banner {
-  background: rgba(244, 63, 94, 0.08);
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  background: color-mix(in srgb, var(--color-risk) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-risk) 25%, transparent);
   border-radius: 10px;
   padding: 0.9rem 1rem;
-  color: #fca5a5;
+  color: var(--color-risk);
   font-size: 0.8rem;
   line-height: 1.45;
   margin-top: 0.5rem;
@@ -451,19 +451,19 @@
   font-family: var(--font-mono, monospace);
   font-size: 1.65rem;
   font-weight: 700;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
 .best-time-completion {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--okr-on-track, #22c55e);
+  color: var(--okr-on-track);
 }
 
 .best-time-insight {
   font-size: 0.82rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   line-height: 1.4;
 }
 

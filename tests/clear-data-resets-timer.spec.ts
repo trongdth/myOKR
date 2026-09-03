@@ -38,12 +38,12 @@ test.describe('Clear Data resets the timer to the current focus duration', () =>
     await page.locator('.timer-controls button[title="Settings"]').click(); // close settings
     await expect(page.locator('.timer-digits')).toHaveText('40:00');
 
-    // Analytics → Clear Data → confirm.
-    await gotoAnalytics(page);
-    await page.locator('button.btn-sm.danger', { hasText: 'Clear Data' }).click();
-    await expect(page.locator('.confirm-modal')).toBeVisible();
-    await page.locator('.confirm-modal button:has-text("Clear")').click();
-    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    // Clear session data in storage (Clear Data button was removed from UI).
+    await page.evaluate(async () => {
+      const storage = await import('/src/lib/pomodoro-storage.ts');
+      await storage.saveHistory([]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
 
     // Back on Session, the timer must still read the customized 40 min — not
     // snap back to the 25-min default captured by the stale closure.
