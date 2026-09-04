@@ -270,4 +270,39 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await page.waitForTimeout(300);
     await expect(page.locator('.analytics-metric-cards')).toBeVisible();
   });
+
+  test('displays floating tooltip on hover and drills down into day view on week click with back-navigation', async ({ page }) => {
+    await openAnalytics(page);
+
+    const chartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")');
+    await expect(chartCard).toBeVisible();
+
+    const weekCols = chartCard.locator('.sessions-bar-col.weekly');
+    const firstWeekCol = weekCols.first();
+
+    // Hover over the first week column
+    await firstWeekCol.hover();
+    const tooltip = firstWeekCol.locator('.sessions-week-tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText('session');
+
+    // Click the first week column to drill down
+    await firstWeekCol.click();
+    await page.waitForTimeout(300);
+
+    // Now zoomed in to SESSIONS PER DAY
+    const dayChartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER DAY")');
+    await expect(dayChartCard).toBeVisible();
+    await expect(dayChartCard.locator('.sessions-bar-col')).toHaveCount(7);
+
+    // Back button exists
+    const backBtn = dayChartCard.locator('.cycle-overview-back-btn');
+    await expect(backBtn).toBeVisible();
+    await expect(backBtn).toHaveText('← Cycle overview');
+
+    // Click back button to return to SESSIONS PER WEEK
+    await backBtn.click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")')).toBeVisible();
+  });
 });

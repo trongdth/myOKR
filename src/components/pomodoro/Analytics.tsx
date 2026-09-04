@@ -23,6 +23,35 @@ import { getMondayOf } from '../../lib/habit-storage';
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+function formatWeekDateSpan(mondayStr: string, sundayStr: string): string {
+  const [, mm, md] = mondayStr.split('-').map(Number);
+  const [, sm, sd] = sundayStr.split('-').map(Number);
+  const mMonth = MONTHS_SHORT[mm - 1];
+  const sMonth = MONTHS_SHORT[sm - 1];
+
+  if (mm === sm) {
+    return `${md}–${sd} ${mMonth}`;
+  }
+  return `${md} ${mMonth} – ${sd} ${sMonth}`;
+}
+
+function formatWeekTooltip(w: {
+  mondayStr: string;
+  sundayStr: string;
+  isUnstarted: boolean;
+  sessions: number;
+  minutes: number;
+}): string {
+  const span = formatWeekDateSpan(w.mondayStr, w.sundayStr);
+  if (w.isUnstarted) {
+    return `${span} · Not started yet`;
+  }
+  const hours = Math.floor(w.minutes / 60);
+  const remMins = w.minutes % 60;
+  const durStr = `${hours}h ${remMins}m`;
+  return `${span} · ${w.sessions} ${w.sessions === 1 ? 'session' : 'sessions'} · ${durStr}`;
+}
+
 interface Props {
   history: DailyRecord[];
   tasks: PomodoroTask[];
@@ -42,6 +71,7 @@ export default function Analytics({
 }: Props) {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
+  const [hoveredWeek, setHoveredWeek] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -452,9 +482,21 @@ export default function Analytics({
           {/* SESSIONS PER DAY / WEEK Card */}
           <div className="analytics-panel-card">
             <div className="panel-header-row">
-              <h3 className="panel-eyebrow">
-                {isCycleView ? 'SESSIONS PER WEEK' : 'SESSIONS PER DAY'}
-              </h3>
+              <div className="panel-header-left-group">
+                <h3 className="panel-eyebrow">
+                  {isCycleView ? 'SESSIONS PER WEEK' : 'SESSIONS PER DAY'}
+                </h3>
+                {!isCycleView && onSelectWeek && (
+                  <button
+                    type="button"
+                    className="cycle-overview-back-btn"
+                    onClick={() => onSelectWeek('all')}
+                    title="Return to cycle overview"
+                  >
+                    ← Cycle overview
+                  </button>
+                )}
+              </div>
               <div className="daily-goal-indicator">
                 <span>---</span>
                 <span>{isCycleView ? `weekly goal ${weeklyGoal}` : `daily goal ${dailyBudget}`}</span>
@@ -478,9 +520,23 @@ export default function Analytics({
               {/* Day or Week Bars */}
               {isCycleView ? (
                 cycleWeeksData.map(w => {
+                  const tooltipText = formatWeekTooltip(w);
+                  const isHovered = hoveredWeek === w.weekNum;
+
                   if (w.isUnstarted) {
                     return (
-                      <div key={w.weekNum} className="sessions-bar-col weekly unstarted">
+                      <div
+                        key={w.weekNum}
+                        className="sessions-bar-col weekly unstarted"
+                        onMouseEnter={() => setHoveredWeek(w.weekNum)}
+                        onMouseLeave={() => setHoveredWeek(null)}
+                        title={tooltipText}
+                      >
+                        {isHovered && (
+                          <div className="sessions-week-tooltip" role="tooltip">
+                            {tooltipText}
+                          </div>
+                        )}
                         <span className="sessions-bar-val unstarted">—</span>
                         <div className="sessions-bar-track unstarted-slot" />
                         <span className="sessions-bar-day unstarted">{w.label}</span>
@@ -498,8 +554,16 @@ export default function Analytics({
                       key={w.weekNum}
                       className="sessions-bar-col weekly"
                       onClick={() => onSelectWeek?.(w.weekNum)}
+                      onMouseEnter={() => setHoveredWeek(w.weekNum)}
+                      onMouseLeave={() => setHoveredWeek(null)}
                       style={{ cursor: 'pointer' }}
+                      title={tooltipText}
                     >
+                      {isHovered && (
+                        <div className="sessions-week-tooltip" role="tooltip">
+                          {tooltipText}
+                        </div>
+                      )}
                       <span className="sessions-bar-val">{w.sessions}</span>
                       <div className="sessions-bar-track">
                         <div
