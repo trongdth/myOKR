@@ -181,7 +181,18 @@ test.describe('Progress / Analytics Screen Revamp', () => {
 
     const bestTimeCard = page.locator('.analytics-panel-card:has-text("BEST TIME TO FOCUS")');
     await expect(bestTimeCard).toBeVisible();
-    await expect(bestTimeCard.locator('.best-time-window')).toBeVisible();
+    // Either a winning window (with its sample-size chip) or the honest
+    // no-standout readout — which one depends on the runner's timezone,
+    // since seeded session hours land in different 2h windows per TZ.
+    const readout = bestTimeCard.locator('.best-time-window, .best-time-none');
+    await expect(readout).toBeVisible();
+    if (await bestTimeCard.locator('.best-time-window').isVisible()) {
+      await expect(bestTimeCard.locator('.best-time-completion')).toContainText('completion');
+      await expect(bestTimeCard.locator('.best-time-completion')).toContainText('sessions');
+    } else {
+      await expect(bestTimeCard.locator('.best-time-none')).toHaveText('No standout time yet');
+    }
+    await expect(bestTimeCard.locator('.best-time-insight')).not.toBeEmpty();
   });
 
   test('switches tabs between Analytics and Weekly review within ProgressApp', async ({ page }) => {

@@ -16,6 +16,7 @@ import {
   type OKRCycle,
 } from '../../lib/okr-storage';
 import { getDailyPomodoroBudget, DAILY_FOCUS_MINUTES } from '../../lib/today-focus';
+import { computeBestFocusWindow } from '../../lib/best-focus-window';
 import { getMondayOf } from '../../lib/habit-storage';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -280,83 +281,8 @@ export default function Analytics({
     : 0;
 
   // BEST TIME TO FOCUS
-  // Group sessions across the last 30 days into 2-hour windows
-  const bestTimeStats = useMemo(() => {
-    const recentHistory = history.slice(-30);
-    const windowMap = new Map<string, { started: number; completed: number }>();
-    let afternoonStarted = 0;
-    let afternoonCompleted = 0;
-    let morningStarted = 0;
-    let morningCompleted = 0;
-    let totalTimestamped = 0;
-
-    for (const r of recentHistory) {
-      for (const s of r.sessions || []) {
-        if (!s.startedAt) continue;
-        totalTimestamped++;
-        const hour = new Date(s.startedAt).getHours();
-        const startH = Math.floor(hour / 2) * 2;
-        const endH = startH + 2;
-        const key = `${String(startH).padStart(2, '0')}:00–${String(endH).padStart(2, '0')}:00`;
-
-        const entry = windowMap.get(key) || { started: 0, completed: 0 };
-        entry.started++;
-        if (s.completed) entry.completed++;
-        windowMap.set(key, entry);
-
-        if (hour >= 16) {
-          afternoonStarted++;
-          if (s.completed) afternoonCompleted++;
-        } else {
-          morningStarted++;
-          if (s.completed) morningCompleted++;
-        }
-      }
-    }
-
-    if (totalTimestamped < 5) {
-      return {
-        hasData: false,
-        bestWindow: '--:-- – --:--',
-        rate: 0,
-        insight: 'Complete at least 5 focus sessions to unlock completion and time-of-day insights.',
-      };
-    }
-
-    let bestWindow = '09:00–11:00';
-    let bestRate = 0;
-    for (const [win, stats] of windowMap.entries()) {
-      if (stats.started >= 2) {
-        const rate = stats.completed / stats.started;
-        if (rate > bestRate) {
-          bestRate = rate;
-          bestWindow = win;
-        }
-      }
-    }
-
-    const afternoonAbandonment = afternoonStarted > 0 ? (afternoonStarted - afternoonCompleted) / afternoonStarted : 0;
-    const morningAbandonment = morningStarted > 0 ? (morningStarted - morningCompleted) / morningStarted : 0;
-    let insight = '';
-
-    if (morningAbandonment > 0 && afternoonAbandonment / morningAbandonment >= 1.5) {
-      const ratio = Math.round((afternoonAbandonment / morningAbandonment) * 10) / 10;
-      insight = `Sessions started after 16:00 are abandoned ${ratio}x as often.`;
-    } else if (afternoonAbandonment > morningAbandonment && morningAbandonment === 0 && afternoonAbandonment > 0) {
-      insight = 'Sessions started after 16:00 are abandoned twice as often.';
-    } else if (morningStarted > 0) {
-      insight = `Morning sessions have a ${Math.round((1 - morningAbandonment) * 100)}% completion rate.`;
-    } else {
-      insight = 'Sessions started during this window have the highest completion rate.';
-    }
-
-    return {
-      hasData: true,
-      bestWindow,
-      rate: Math.round(bestRate * 100),
-      insight,
-    };
-  }, [history]);
+  // Group sessions from the last 30 calendar days into 2-hour windows
+  const bestTimeStats = useMemo(() => computeBestFocusWindow(history), [history]);
 
   return (
     <div className="analytics-view-container">
@@ -571,9 +497,18 @@ export default function Analytics({
             </div>
 
             <div className="best-time-readout-row">
-              <span className="best-time-window">{bestTimeStats.bestWindow}</span>
-              {bestTimeStats.hasData && (
-                <span className="best-time-completion">{bestTimeStats.rate}% completion</span>
+              {bestTimeStats.hasStandout ? (
+                <>
+                  <span className="best-time-window">{bestTimeStats.bestWindow}</span>
+                  <span className="best-time-completion">
+                    {bestTimeStats.rate}% completion · {bestTimeStats.sessionCount}{' '}
+                    {bestTimeStats.sessionCount === 1 ? 'session' : 'sessions'}
+                  </span>
+                </>
+              ) : bestTimeStats.hasData ? (
+                <span className="best-time-none">No standout time yet</span>
+              ) : (
+                <span className="best-time-window">--:-- – --:--</span>
               )}
             </div>
 

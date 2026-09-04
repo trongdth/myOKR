@@ -461,6 +461,14 @@
   color: var(--okr-on-track);
 }
 
+/* No qualifying window: honest "not enough signal" readout instead of a time. */
+.best-time-none {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
 .best-time-insight {
   font-size: 0.82rem;
   color: var(--text-muted);
