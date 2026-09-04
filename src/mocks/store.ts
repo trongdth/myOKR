@@ -39,9 +39,12 @@ const SEED_DATA: Record<string, any> = {
   cycles: [
     {
       id: 'cycle-1',
-      name: 'May 2026',
-      month: 4,
-      year: 2026,
+      // Current-month cycle so cycle-scoped UI (e.g. Analytics KPI cards)
+      // contains the relative-date seed history. Frozen-clock tests (May
+      // 2026) still see 'May 2026'.
+      name: `${new Date().toLocaleString('en-US', { month: 'long' })} ${new Date().getFullYear()}`,
+      month: new Date().getMonth(),
+      year: new Date().getFullYear(),
       isActive: true,
       createdAt: new Date().toISOString(),
     },

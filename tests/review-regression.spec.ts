@@ -13,16 +13,21 @@ async function pickSelectRow(page: import('@playwright/test').Page, triggerText:
 }
 
 test.describe('Weekly Review Regressions & UI Enhancements', () => {
-  test('verifies cycle selection changes review weeks, cycle selector position/disabled state, and start button visibility for in-progress weeks', async ({ page }) => {
+  // The Progress revamp embedded the review in the Progress shell: the
+  // header and its cycle picker are gone (cycle comes from the active
+  // cycle / inferred from the selected week). This test now covers the
+  // week picker, wizard entry/exit, and start-button visibility by week
+  // state — the surfaces that still exist.
+  test('verifies review week picker, wizard entry/cancel, and start button visibility by week state', async ({ page }) => {
     await waitForApp(page);
 
-    // Go to Review section
+    // Go to Review section — headerless inside the Progress shell
     await page.locator('button[title="Progress"]').click();
     await page.locator('button[title="Weekly review"]').click();
-    await expect(page.locator('.review-header-title')).toBeVisible();
+    await expect(page.locator('.review-start-card')).toBeVisible();
 
-    // 1. Seed two cycles: May 2026 (month=4, year=2026) and June 2026 (month=5, year=2026)
-    // and an objective + KR for June
+    // 1. Seed two cycles (June active with an objective + KR) — the review
+    // falls back to the active cycle when today's week has no cycle.
     await page.evaluate(async () => {
       const updateDoc = (window as any).__updateAutomergeDoc;
       if (!updateDoc) throw new Error('Automerge test hooks not exposed');
@@ -75,41 +80,22 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    // Wait for the UI to reload and the cycle Select to be visible
-    const cycleSelect = page.locator('[aria-label="Cycle"]');
-    await expect(cycleSelect).toBeVisible();
-
-    // Explicitly select June 2026 to ensure the test starts in a known state
-    await pickSelectRow(page, 'Cycle', 'June 2026');
-    await expect(cycleSelect).toContainText('June 2026');
-
-    // 2. Test Bug 1: Choose the cycle in May and check that the review weeks dropdown updates
-    // Select May 2026
-    await pickSelectRow(page, 'Cycle', 'May 2026');
-
-    // Check that the week Select's rows are now May weeks
-    // May 2026 weeks start around 2026-04-27 or 2026-05-04
+    // The review week Select lists the June cycle's weeks
     const weekSelect = page.locator('[aria-label="Review week"]');
     await expect(weekSelect).toBeVisible();
     await weekSelect.click();
     const weekRows = await page.locator('.sel-panel .sel-row').allTextContents();
-    await page.keyboard.press('Escape'); // close before switching cycles
+    await page.keyboard.press('Escape'); // close before interacting further
     expect(weekRows.length).toBeGreaterThan(0);
     for (const rowText of weekRows) {
-      // The rows should contain weeks within May 2026.
-      // Format is "YYYY-MM-DD to YYYY-MM-DD"
-      // Check that at least one date in the text matches 2026-05 or 2026-04
-      expect(rowText).toMatch(/2026-0(4|5)/);
+      // June 2026 weeks start 2026-06-01 at the earliest
+      expect(rowText).toMatch(/2026-0[567]/);
     }
 
-    // 3. Test Bug 2: Cycle dropdown is in the header, and is disabled during review wizard
-    // Select June 2026 back to test review wizard
-    await pickSelectRow(page, 'Cycle', 'June 2026');
-
-    // Select a completed week in June (e.g. 2026-06-01 to 2026-06-07)
+    // 2. Select a completed week in June (2026-06-01 to 2026-06-07) and open
+    // the wizard, then cancel back out
     await pickSelectRow(page, 'Review week', '2026-06-01 to 2026-06-07');
 
-    // Click Start Weekly Review
     const startBtn = page.locator('button:has-text("Start Weekly Review")');
     await expect(startBtn).toBeVisible();
     await startBtn.click();
@@ -117,25 +103,11 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
     // The wizard should be open
     await expect(page.locator('text=Step 1 of')).toBeVisible();
 
-    // The cycle select dropdown should be disabled now
-    await expect(cycleSelect).toBeDisabled();
-
     // Cancel the wizard to return
     await page.locator('button:has-text("Cancel")').click();
-    await expect(cycleSelect).toBeEnabled();
+    await expect(startBtn).toBeVisible();
 
-    // 4. Test Bug 3: Start Weekly Review should not appear if today's date < weekEnd
-    // Let's select a future week or the current week.
-    // Since today's year is 2026, let's find the current week or a future week in the dropdown.
-    // Let's get today's date in local YYYY-MM-DD format from the browser
-    const todayStr = await page.evaluate(() => {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    });
-
+    // 3. Start Weekly Review must not appear if the week is current or future
     // Let's populate the active cycle to be the current month/year
     await page.evaluate(async () => {
       const updateDoc = (window as any).__updateAutomergeDoc;
@@ -155,8 +127,6 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
       });
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
-
-    await expect(cycleSelect).toContainText('Current');
 
     // Calculate current week start date (Monday)
     const currentWeekStart = (() => {
@@ -227,12 +197,12 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    // Navigate to Review screen
+    // Navigate to Review screen (headerless inside the Progress shell)
     await page.locator('button[title="Progress"]').click();
     await page.locator('button[title="Weekly review"]').click();
 
-    // The review header must be visible without throwing RangeError: Invalid time value
-    await expect(page.locator('.review-header-title')).toBeVisible();
+    // The review must render without throwing RangeError: Invalid time value
+    await expect(page.locator('.review-container')).toBeVisible();
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
   });
 });

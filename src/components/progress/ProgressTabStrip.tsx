@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
-import { getCycleWeeks } from '../pomodoro/PlanTabStrip';
+import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
 import type { OKRCycle } from '../../lib/okr-storage';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -45,7 +45,22 @@ export default function ProgressTabStrip({
   selectedWeek,
   onSelectWeek,
 }: ProgressTabStripProps) {
-  const { currentWeek, totalWeeks, weeks } = getCycleWeeks(activeCycle);
+  // Weeks follow the exclusive cycle-window rule (cycle-windows.ts), so the
+  // option count always matches what Analytics renders per cycle.
+  const cycleMondays = activeCycle ? getExclusiveCycleMondays(activeCycle) : [];
+  const totalWeeks = Math.max(cycleMondays.length, 1);
+  const weeks = Array.from({ length: cycleMondays.length }, (_, i) => i + 1);
+  const todayISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const currentWeek = Math.max(1,
+    cycleMondays.findIndex(monday => {
+      const end = new Date(`${monday}T00:00:00Z`);
+      end.setUTCDate(end.getUTCDate() + 6);
+      return monday <= todayISO && todayISO <= end.toISOString().slice(0, 10);
+    }) + 1
+  );
   const cycleName = activeCycle ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`) : 'Cycle';
 
   const weekOptions: { value: string; label: string }[] = [

@@ -10,7 +10,6 @@ import {
 import {
   loadObjectives,
   loadKeyResults,
-  getMondaysForCycle,
   getWeekEndFromStart,
   type Objective,
   type KeyResult,
@@ -18,6 +17,7 @@ import {
 } from '../../lib/okr-storage';
 import { getDailyPomodoroBudget, DAILY_FOCUS_MINUTES } from '../../lib/today-focus';
 import { computeBestFocusWindow } from '../../lib/best-focus-window';
+import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
 import { getMondayOf } from '../../lib/habit-storage';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -168,7 +168,7 @@ export default function Analytics({
     let mondayDate: Date;
 
     if (activeCycle && typeof selectedWeek === 'number') {
-      const cycleMondays = getMondaysForCycle(activeCycle).slice().reverse();
+      const cycleMondays = getExclusiveCycleMondays(activeCycle);
       const targetMondayStr = cycleMondays[selectedWeek - 1] || cycleMondays[0];
       const [y, m, d] = targetMondayStr.split('-').map(Number);
       mondayDate = new Date(y, m - 1, d);
@@ -198,7 +198,7 @@ export default function Analytics({
   // Weekly aggregation for SESSIONS PER WEEK when isCycleView is true
   const cycleWeeksData = useMemo(() => {
     if (!activeCycle) return [];
-    const cycleMondays = getMondaysForCycle(activeCycle).slice().reverse();
+    const cycleMondays = getExclusiveCycleMondays(activeCycle);
 
     return cycleMondays.map((mondayStr, idx) => {
       const weekNum = idx + 1;
@@ -285,7 +285,7 @@ export default function Analytics({
 
     const prevMonth = activeCycle.month === 0 ? 11 : activeCycle.month - 1;
     const prevYear = activeCycle.month === 0 ? activeCycle.year - 1 : activeCycle.year;
-    const prevMondays = getMondaysForCycle({ month: prevMonth, year: prevYear }).slice().reverse();
+    const prevMondays = getExclusiveCycleMondays({ month: prevMonth, year: prevYear });
 
     if (prevMondays.length === 0) {
       return { hasPrevCycleData: false, diffCycleSessions: 0, diffCycleMinutes: 0 };

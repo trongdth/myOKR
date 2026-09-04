@@ -10,10 +10,11 @@ test.describe('Weekly Review Calculations & Repair', () => {
   test('correctly calculates previous and current values dynamically across weeks', async ({ page }) => {
     await waitForApp(page);
 
-    // Go to Review section
+    // Go to Review section — since the Progress revamp it renders headerless
+    // inside the Progress shell (start card, no review-header-title).
     await page.locator('button[title="Progress"]').click();
     await page.locator('button[title="Weekly review"]').click();
-    await expect(page.locator('.review-header-title')).toBeVisible();
+    await expect(page.locator('.review-start-card')).toBeVisible();
 
     // Seed mock cycle, objective, KR, task, and history into Automerge doc
     await page.evaluate(async () => {
@@ -117,8 +118,9 @@ test.describe('Weekly Review Calculations & Repair', () => {
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    // Wait for the UI to reload and show the June 2026 cycle in the header
-    await expect(page.locator('[aria-label="Cycle"]')).toContainText('June 2026', { timeout: 10000 });
+    // Wait for the UI to reload and show the June 2026 cycle in the Progress
+    // header (the review's own cycle picker is gone in embed mode)
+    await expect(page.locator('.plan-header-title')).toContainText('June 2026', { timeout: 10000 });
 
     // Select Week 1: June 1st to June 7th
     await page.locator('[aria-label="Review week"]').click();

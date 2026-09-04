@@ -148,11 +148,13 @@ test.describe('Habits Tracker Layout and Styles', () => {
     const okrPaddingLeft = await okrContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(okrPaddingLeft, 10)).toBeGreaterThan(0);
 
-    // 2. Check Review tab
+    // 2. Check Review tab — embedded in the Progress shell, so its horizontal
+    //    padding comes from .progress-shell-inner (.review-container's own is
+    //    neutralised in embed mode).
     await clickNav('Review');
     const reviewContainer = page.locator('.review-container');
     await expect(reviewContainer).toBeVisible();
-    const reviewPaddingLeft = await reviewContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
+    const reviewPaddingLeft = await page.locator('.progress-shell-inner').first().evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(reviewPaddingLeft, 10)).toBeGreaterThan(0);
 
     // 3. Check Cloud Sync tab

@@ -142,9 +142,9 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(card4.locator('.metric-subtext')).toContainText('2h 5m');
 
     // Switch to single week via select dropdown to verify adaptation
-    const selectTrigger = page.locator('.progress-week-select .select-trigger');
+    const selectTrigger = page.locator('.progress-week-select .sel-trigger');
     await selectTrigger.click();
-    await page.locator('.select-panel [role="option"]').nth(1).click();
+    await page.locator('.sel-panel .sel-row').nth(1).click();
     await page.waitForTimeout(300);
 
     // Adapts to selected week mode
@@ -168,7 +168,7 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     // Whole Cycle View: SESSIONS PER WEEK
     const chartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")');
     await expect(chartCard).toBeVisible();
-    await expect(chartCard.locator('.panel-eyebrow')).toHaveText('SESSIONS PER WEEK');
+    await expect(chartCard.locator('h3.panel-eyebrow')).toHaveText('SESSIONS PER WEEK');
     await expect(chartCard.locator('.daily-goal-indicator')).toContainText('weekly goal');
     await expect(chartCard.locator('.sessions-chart-guideline')).toBeVisible();
 
@@ -183,16 +183,16 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(chartCard.locator('.heatmap-legend')).toBeVisible();
 
     // Switch to single week via select dropdown
-    const selectTrigger = page.locator('.progress-week-select .select-trigger');
+    const selectTrigger = page.locator('.progress-week-select .sel-trigger');
     await selectTrigger.click();
     // Select the second option (first week option)
-    await page.locator('.select-panel [role="option"]').nth(1).click();
+    await page.locator('.sel-panel .sel-row').nth(1).click();
     await page.waitForTimeout(300);
 
     // Now renders SESSIONS PER DAY
     const dayChartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER DAY")');
     await expect(dayChartCard).toBeVisible();
-    await expect(dayChartCard.locator('.panel-eyebrow')).toHaveText('SESSIONS PER DAY');
+    await expect(dayChartCard.locator('h3.panel-eyebrow')).toHaveText('SESSIONS PER DAY');
     await expect(dayChartCard.locator('.daily-goal-indicator')).toContainText('daily goal');
     await expect(dayChartCard.locator('.sessions-bar-col')).toHaveCount(7);
   });
@@ -309,9 +309,9 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(focusCard).toBeVisible();
 
     // The early week objective should have 4 sessions counted in whole-cycle view
-    const earlyObjRow = focusCard.locator('.objective-focus-row:has-text("Early Week Objective")');
+    const earlyObjRow = focusCard.locator('.focus-objective-row:has-text("Early Week Objective")');
     await expect(earlyObjRow).toBeVisible();
-    await expect(earlyObjRow).toContainText('4 sessions');
+    await expect(earlyObjRow.locator('.focus-objective-stats')).toHaveText('4 · 100%');
   });
 
   test('renders BEST TIME TO FOCUS card', async ({ page }) => {
