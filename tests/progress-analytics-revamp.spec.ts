@@ -339,7 +339,7 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     // Cycle overview is the default landing view; every week bar carries
     // the week summary in its native title…
     const weekBar = page.locator('.sessions-bar-col.weekly').first();
-    await expect(weekBar).toHaveAttribute('title', /sessions|Not started yet/);
+    await expect(weekBar).toHaveAttribute('title', /sessions?|Not started yet/);
 
     // …so hovering must not spawn the redundant custom tooltip on top.
     await weekBar.hover();

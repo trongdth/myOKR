@@ -457,6 +457,16 @@ at ≤900px; **row actions (status select + delete) are always visible at ≤900
 feedback). Nothing else re-stacks — the matrix stays a matrix ("nothing hidden,
 only re-stacked").
 
+## Progress / Analytics screen — per-screen rules
+
+### SESSIONS PER WEEK tooltips (2026-09-04)
+
+Cycle week bars carry the week summary (`31 Aug – 6 Sep · 25 sessions ·
+16h 40m`, or `Not started yet` for unstarted weeks) in the **native
+`title` only**. A floating custom tooltip shipped alongside it briefly and
+was removed for duplicating the same text — don't reintroduce one. Pinned by
+the "cycle week bars keep only the native title tooltip" spec test.
+
 ## Plan group screens (P1–P7) — per-screen rules
 
 Decided in the Plan-group grilling session (2026-08-01); all rules below apply
