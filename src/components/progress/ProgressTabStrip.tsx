@@ -46,14 +46,12 @@ export default function ProgressTabStrip({
   onSelectWeek,
 }: ProgressTabStripProps) {
   // Weeks follow the exclusive cycle-window rule (cycle-windows.ts), so the
-  // option count always matches what Analytics renders per cycle.
+  // option count always matches what Analytics renders per cycle. Today is
+  // taken in UTC to match the windows' UTC-midnight arithmetic.
   const cycleMondays = activeCycle ? getExclusiveCycleMondays(activeCycle) : [];
   const totalWeeks = Math.max(cycleMondays.length, 1);
   const weeks = Array.from({ length: cycleMondays.length }, (_, i) => i + 1);
-  const todayISO = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
+  const todayISO = new Date().toISOString().slice(0, 10);
   const currentWeek = Math.max(1,
     cycleMondays.findIndex(monday => {
       const end = new Date(`${monday}T00:00:00Z`);

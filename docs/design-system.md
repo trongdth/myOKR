@@ -467,8 +467,9 @@ the cycle it *opens*, never the one it closes — `getExclusiveCycleMondays`
 cycle-vs-last-cycle KPI windows, and the tab strip's week filter. Without
 this, a week like Aug 31–Sep 6 2026 counts toward both August and September
 and the trajectory badge double-counts it ("0 vs last cycle" when the prior
-month had no data of its own). The weekly-review week picker and the Plan
-tabs still use the intersect rule (`getMondaysForCycle`).
+month had no data of its own). The weekly-review week picker keeps the
+intersect rule (`getMondaysForCycle`); the Plan tabs derive weeks their own
+way (`getCycleWeeks` in PlanTabStrip).
 
 ### SESSIONS PER WEEK tooltips (2026-09-04)
 
