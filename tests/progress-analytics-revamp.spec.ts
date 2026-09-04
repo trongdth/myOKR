@@ -106,36 +106,60 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(shell.locator('.progress-week-select')).toBeVisible();
   });
 
-  test('renders 4 top metric cards with correct values and sparkline', async ({ page }) => {
+  test('renders 4 top metric cards with cycle-scoped values in whole cycle view and adapts when week filtered', async ({ page }) => {
     await openAnalytics(page);
 
     const cards = page.locator('.analytics-metric-cards .metric-card');
     await expect(cards).toHaveCount(4);
 
-    // Card 1: Sessions today
+    // In Whole Cycle View (selectedWeek === 'all'):
+    // Card 1: Sessions this cycle
     const card1 = cards.nth(0);
-    await expect(card1.locator('.metric-card-label')).toHaveText('Sessions today');
-    await expect(card1.locator('.stat-value')).toHaveText('3');
-    await expect(card1.locator('.metric-sparkline')).toBeVisible();
+    await expect(card1.locator('.metric-card-label')).toHaveText('Sessions this cycle');
+    await expect(card1.locator('.stat-value')).toHaveText('5');
+    await expect(card1.locator('.metric-badge')).toHaveText('— vs last cycle');
+    await expect(card1.locator('.metric-sparkline')).toHaveAttribute('aria-label', 'Cycle weeks sparkline');
 
-    // Card 2: Focus time today
+    // Card 2: Focus time this cycle
     const card2 = cards.nth(1);
-    await expect(card2.locator('.metric-card-label')).toHaveText('Focus time today');
-    await expect(card2.locator('.stat-value')).toHaveText('75');
-    await expect(card2.locator('.metric-unit')).toHaveText('m');
+    await expect(card2.locator('.metric-card-label')).toHaveText('Focus time this cycle');
+    await expect(card2.locator('.stat-value').first()).toHaveText('2');
+    await expect(card2.locator('.metric-unit').first()).toHaveText('h');
+    await expect(card2.locator('.metric-badge')).toHaveText('— vs last cycle');
     await expect(card2.locator('.metric-progress-track')).toBeVisible();
+    await expect(card2.locator('.metric-subtext')).toContainText('cycle goal');
 
-    // Card 3: Current streak
+    // Card 3: Best streak in cycle
     const card3 = cards.nth(2);
-    await expect(card3.locator('.metric-card-label')).toHaveText('Current streak');
+    await expect(card3.locator('.metric-card-label')).toHaveText('Best streak in cycle');
     await expect(card3.locator('.stat-value')).toHaveText('2');
-    await expect(card3.locator('.metric-subtext')).toContainText('Personal best is 2 days');
+    await expect(card3.locator('.metric-subtext')).toContainText('Personal best is 2 days all-time');
 
     // Card 4: All time
     const card4 = cards.nth(3);
     await expect(card4.locator('.metric-card-label')).toHaveText('All time');
     await expect(card4.locator('.stat-value')).toHaveText('5');
     await expect(card4.locator('.metric-subtext')).toContainText('2h 5m');
+
+    // Switch to single week via select dropdown to verify adaptation
+    const selectTrigger = page.locator('.progress-week-select .select-trigger');
+    await selectTrigger.click();
+    await page.locator('.select-panel [role="option"]').nth(1).click();
+    await page.waitForTimeout(300);
+
+    // Adapts to day/week mode
+    await expect(card1.locator('.metric-card-label')).toHaveText('Sessions today');
+    await expect(card1.locator('.stat-value')).toHaveText('3');
+    await expect(card1.locator('.metric-sparkline')).toHaveAttribute('aria-label', '7-day sessions sparkline');
+
+    await expect(card2.locator('.metric-card-label')).toHaveText('Focus time today');
+    await expect(card2.locator('.stat-value')).toHaveText('75');
+    await expect(card2.locator('.metric-unit')).toHaveText('m');
+    await expect(card2.locator('.metric-subtext')).toContainText('daily goal');
+
+    await expect(card3.locator('.metric-card-label')).toHaveText('Current streak');
+    await expect(card3.locator('.stat-value')).toHaveText('2');
+    await expect(card3.locator('.metric-subtext')).toHaveText('Personal best is 2 days');
   });
 
   test('renders SESSIONS PER WEEK in cycle overview and SESSIONS PER DAY when week filtered', async ({ page }) => {
@@ -304,5 +328,57 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await backBtn.click();
     await page.waitForTimeout(300);
     await expect(page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")')).toBeVisible();
+  });
+
+  test('renders cycle trajectory comparison deltas when prior cycle history exists', async ({ page }) => {
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+      const prevMondays = okr.getMondaysForCycle({ month: prevMonth, year: prevYear }).slice().reverse();
+      const curMondays = okr.getMondaysForCycle({ month: currentMonth, year: currentYear }).slice().reverse();
+
+      const history = [
+        {
+          date: prevMondays[0],
+          completedPomodoros: 2,
+          totalFocusMinutes: 50,
+          tasksCompleted: 1,
+          sessions: [],
+        },
+        {
+          date: curMondays[0],
+          completedPomodoros: 5,
+          totalFocusMinutes: 125,
+          tasksCompleted: 2,
+          sessions: [],
+        },
+      ];
+
+      await pomo.saveHistory(history as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openAnalytics(page);
+
+    const cards = page.locator('.analytics-metric-cards .metric-card');
+
+    // Card 1: 5 sessions, diff is +3 vs last cycle (5 - 2 = 3)
+    const card1 = cards.nth(0);
+    await expect(card1.locator('.stat-value')).toHaveText('5');
+    await expect(card1.locator('.metric-badge.positive')).toHaveText('+3 vs last cycle');
+
+    // Card 2: 2h 5m (125m), diff is +1h 15m vs last cycle (125 - 50 = 75m)
+    const card2 = cards.nth(1);
+    await expect(card2.locator('.metric-badge.positive')).toHaveText('+1h 15m vs last cycle');
   });
 });

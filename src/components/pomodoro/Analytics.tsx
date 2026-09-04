@@ -253,6 +253,88 @@ export default function Analytics({
     return `One bar per cycle week · ${labels} ${verb} not started · dashed means not yet, not zero`;
   }, [isCycleView, cycleWeeksData]);
 
+  // Cycle totals and date boundaries
+  const cycleStart = cycleWeeksData[0]?.mondayStr;
+  const cycleEnd = cycleWeeksData[cycleWeeksData.length - 1]?.sundayStr;
+
+  const { cycleSessions, cycleMinutes } = useMemo(() => {
+    let s = 0;
+    let m = 0;
+    for (const w of cycleWeeksData) {
+      s += w.sessions;
+      m += w.minutes;
+    }
+    return { cycleSessions: s, cycleMinutes: m };
+  }, [cycleWeeksData]);
+
+  const cycleHours = Math.floor(cycleMinutes / 60);
+  const cycleRemMinutes = cycleMinutes % 60;
+
+  // Previous cycle comparison baseline
+  const { hasPrevCycleData, diffCycleSessions, diffCycleMinutes } = useMemo(() => {
+    if (!activeCycle) return { hasPrevCycleData: false, diffCycleSessions: 0, diffCycleMinutes: 0 };
+
+    const prevMonth = activeCycle.month === 0 ? 11 : activeCycle.month - 1;
+    const prevYear = activeCycle.month === 0 ? activeCycle.year - 1 : activeCycle.year;
+    const prevMondays = getMondaysForCycle({ month: prevMonth, year: prevYear }).slice().reverse();
+
+    if (prevMondays.length === 0) {
+      return { hasPrevCycleData: false, diffCycleSessions: 0, diffCycleMinutes: 0 };
+    }
+
+    const prevStart = prevMondays[0];
+    const prevEnd = getWeekEndFromStart(prevMondays[prevMondays.length - 1]);
+
+    let prevSessions = 0;
+    let prevMinutes = 0;
+    let recordCount = 0;
+
+    for (const r of history) {
+      if (r.date >= prevStart && r.date <= prevEnd) {
+        prevSessions += r.completedPomodoros || 0;
+        prevMinutes += r.totalFocusMinutes || 0;
+        recordCount++;
+      }
+    }
+
+    if (recordCount === 0) {
+      return { hasPrevCycleData: false, diffCycleSessions: 0, diffCycleMinutes: 0 };
+    }
+
+    return {
+      hasPrevCycleData: true,
+      diffCycleSessions: cycleSessions - prevSessions,
+      diffCycleMinutes: cycleMinutes - prevMinutes,
+    };
+  }, [activeCycle, history, cycleSessions, cycleMinutes]);
+
+  const formattedCycleMinutesDiff = useMemo(() => {
+    const absDiff = Math.abs(diffCycleMinutes);
+    const sign = diffCycleMinutes > 0 ? '+' : '-';
+    if (absDiff >= 60) {
+      const h = Math.floor(absDiff / 60);
+      const m = absDiff % 60;
+      return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
+    }
+    return `${sign}${absDiff}m`;
+  }, [diffCycleMinutes]);
+
+  // Cycle target and progress
+  const totalCycleWeeks = cycleWeeksData.length || 5;
+  const cycleGoalMinutes = weeklyGoal * (settings.focusDuration || 25) * totalCycleWeeks;
+  const cycleGoalHours = Math.round((cycleGoalMinutes / 60) * 10) / 10;
+  const percentOfCycleGoal = Math.min(100, Math.round((cycleMinutes / (cycleGoalMinutes || 1)) * 100));
+
+  // Best streak in cycle
+  const cycleStreakInfo = useMemo(() => {
+    if (!cycleStart || !cycleEnd) return { current: 0, best: 0 };
+    const cycleRecords = history.filter(r => r.date >= cycleStart && r.date <= cycleEnd);
+    return computeFocusStreak(cycleRecords);
+  }, [history, cycleStart, cycleEnd]);
+
+  // Card 1 mini sparkline data for cycle view
+  const maxCycleSparklineVal = Math.max(...cycleWeeksData.map(w => w.sessions), 1);
+
   const maxWeekDayVal = Math.max(dailyBudget, ...weekDaysData.map(d => d.value), 1);
   const goalLinePercent = Math.min(100, Math.max(0, (dailyBudget / maxWeekDayVal) * 100));
 
@@ -299,6 +381,13 @@ export default function Analytics({
     let relevantDates: Set<string> | null = null;
     if (selectedWeek !== 'all') {
       relevantDates = new Set(weekDaysData.map(d => d.date));
+    } else if (cycleStart && cycleEnd) {
+      relevantDates = new Set();
+      for (const r of history) {
+        if (r.date >= cycleStart && r.date <= cycleEnd) {
+          relevantDates.add(r.date);
+        }
+      }
     }
 
     const sessionCountsByObj = new Map<string, number>();
@@ -378,7 +467,7 @@ export default function Analytics({
       totalPeriodSessions: periodTotal,
       dormantObjective: dormant,
     };
-  }, [activeCycle, objectives, keyResults, tasks, history, weekDaysData, selectedWeek, today]);
+  }, [activeCycle, objectives, keyResults, tasks, history, weekDaysData, selectedWeek, today, cycleStart, cycleEnd]);
 
   const unlinkedPct = totalPeriodSessions > 0
     ? Math.round((unlinkedCount / totalPeriodSessions) * 100)
@@ -392,71 +481,157 @@ export default function Analytics({
     <div className="analytics-view-container">
       {/* 4 Top Metric Cards */}
       <div className="analytics-metric-cards">
-        {/* Card 1: Sessions today */}
+        {/* Card 1: Sessions today / Sessions this cycle */}
         <div className="metric-card">
           <div className="metric-card-header">
-            <span className="metric-card-label">Sessions today</span>
+            <span className="metric-card-label">
+              {isCycleView ? 'Sessions this cycle' : 'Sessions today'}
+            </span>
           </div>
           <div className="metric-card-body">
-            <span className="stat-value">{todaySessions}</span>
-            {diffSessions !== 0 ? (
-              <span className={`metric-badge ${diffSessions > 0 ? 'positive' : 'negative'}`}>
-                {diffSessions > 0 ? `+${diffSessions}` : diffSessions} vs avg
-              </span>
+            <span className="stat-value">{isCycleView ? cycleSessions : todaySessions}</span>
+            {isCycleView ? (
+              hasPrevCycleData ? (
+                diffCycleSessions !== 0 ? (
+                  <span className={`metric-badge ${diffCycleSessions > 0 ? 'positive' : 'negative'}`}>
+                    {diffCycleSessions > 0 ? `+${diffCycleSessions}` : diffCycleSessions} vs last cycle
+                  </span>
+                ) : (
+                  <span className="metric-badge neutral">on par vs last cycle</span>
+                )
+              ) : (
+                <span className="metric-badge neutral">— vs last cycle</span>
+              )
             ) : (
-              <span className="metric-badge neutral">on avg</span>
+              diffSessions !== 0 ? (
+                <span className={`metric-badge ${diffSessions > 0 ? 'positive' : 'negative'}`}>
+                  {diffSessions > 0 ? `+${diffSessions}` : diffSessions} vs avg
+                </span>
+              ) : (
+                <span className="metric-badge neutral">on avg</span>
+              )
             )}
           </div>
-          <div className="metric-sparkline" aria-label="7-day sessions sparkline">
-            {sparklineData.map(d => {
-              const h = Math.max(14, Math.round((d.value / maxSparklineVal) * 100));
-              return (
-                <div
-                  key={d.date}
-                  className={`sparkline-bar${d.isToday ? ' today' : ''}`}
-                  style={{ height: d.value > 0 ? `${h}%` : '4px' }}
-                  title={`${d.date}: ${d.value} sessions`}
-                />
-              );
-            })}
+          <div className="metric-sparkline" aria-label={isCycleView ? 'Cycle weeks sparkline' : '7-day sessions sparkline'}>
+            {isCycleView ? (
+              cycleWeeksData.map(w => {
+                const isAccent = w.isCompleted && maxCompletedSessions > 0 && w.sessions === maxCompletedSessions;
+                const h = Math.max(14, Math.round((w.sessions / maxCycleSparklineVal) * 100));
+                return (
+                  <div
+                    key={w.weekNum}
+                    className={`sparkline-bar${isAccent ? ' today' : ''}${w.isUnstarted ? ' unstarted' : ''}`}
+                    style={{
+                      height: w.sessions > 0 ? `${h}%` : '4px',
+                      opacity: w.isUnstarted ? 0.35 : 1,
+                    }}
+                    title={`${w.label}: ${w.sessions} sessions`}
+                  />
+                );
+              })
+            ) : (
+              sparklineData.map(d => {
+                const h = Math.max(14, Math.round((d.value / maxSparklineVal) * 100));
+                return (
+                  <div
+                    key={d.date}
+                    className={`sparkline-bar${d.isToday ? ' today' : ''}`}
+                    style={{ height: d.value > 0 ? `${h}%` : '4px' }}
+                    title={`${d.date}: ${d.value} sessions`}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Card 2: Focus time today */}
+        {/* Card 2: Focus time today / Focus time this cycle */}
         <div className="metric-card">
           <div className="metric-card-header">
-            <span className="metric-card-label">Focus time today</span>
+            <span className="metric-card-label">
+              {isCycleView ? 'Focus time this cycle' : 'Focus time today'}
+            </span>
           </div>
           <div className="metric-card-body">
-            <span className="stat-value">{todayMinutes}</span>
-            <span className="metric-unit">m</span>
-            {diffMinutes !== 0 ? (
-              <span className={`metric-badge ${diffMinutes > 0 ? 'positive' : 'negative'}`}>
-                {diffMinutes > 0 ? `+${diffMinutes}m` : `${diffMinutes}m`} vs avg
-              </span>
+            {isCycleView ? (
+              cycleHours > 0 ? (
+                <>
+                  <span className="stat-value">{cycleHours}</span>
+                  <span className="metric-unit">h</span>
+                  {cycleRemMinutes > 0 && (
+                    <>
+                      <span className="stat-value" style={{ marginLeft: '0.25rem' }}>{cycleRemMinutes}</span>
+                      <span className="metric-unit">m</span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="stat-value">{cycleMinutes}</span>
+                  <span className="metric-unit">m</span>
+                </>
+              )
             ) : (
-              <span className="metric-badge neutral">on avg</span>
+              <>
+                <span className="stat-value">{todayMinutes}</span>
+                <span className="metric-unit">m</span>
+              </>
+            )}
+
+            {isCycleView ? (
+              hasPrevCycleData ? (
+                diffCycleMinutes !== 0 ? (
+                  <span className={`metric-badge ${diffCycleMinutes > 0 ? 'positive' : 'negative'}`}>
+                    {formattedCycleMinutesDiff} vs last cycle
+                  </span>
+                ) : (
+                  <span className="metric-badge neutral">on par vs last cycle</span>
+                )
+              ) : (
+                <span className="metric-badge neutral">— vs last cycle</span>
+              )
+            ) : (
+              diffMinutes !== 0 ? (
+                <span className={`metric-badge ${diffMinutes > 0 ? 'positive' : 'negative'}`}>
+                  {diffMinutes > 0 ? `+${diffMinutes}m` : `${diffMinutes}m`} vs avg
+                </span>
+              ) : (
+                <span className="metric-badge neutral">on avg</span>
+              )
             )}
           </div>
           <div className="metric-progress-track">
-            <div className="metric-progress-fill" style={{ width: `${percentOfGoal}%` }} />
+            <div
+              className="metric-progress-fill"
+              style={{ width: `${isCycleView ? percentOfCycleGoal : percentOfGoal}%` }}
+            />
           </div>
           <div className="metric-subtext">
-            {percentOfGoal}% of your {dailyGoalHours}h daily goal
+            {isCycleView
+              ? `${percentOfCycleGoal}% of your ${cycleGoalHours}h cycle goal`
+              : `${percentOfGoal}% of your ${dailyGoalHours}h daily goal`}
           </div>
         </div>
 
-        {/* Card 3: Current streak */}
+        {/* Card 3: Current streak / Best streak in cycle */}
         <div className="metric-card">
           <div className="metric-card-header">
-            <span className="metric-card-label">Current streak</span>
+            <span className="metric-card-label">
+              {isCycleView ? 'Best streak in cycle' : 'Current streak'}
+            </span>
           </div>
           <div className="metric-card-body">
-            <span className="stat-value streak-value">{streakInfo.current}</span>
-            <span className="metric-unit">days</span>
+            <span className="stat-value streak-value">
+              {isCycleView ? cycleStreakInfo.best : streakInfo.current}
+            </span>
+            <span className="metric-unit">
+              {(isCycleView ? cycleStreakInfo.best : streakInfo.current) === 1 ? 'day' : 'days'}
+            </span>
           </div>
           <div className="metric-subtext">
-            Personal best is {streakInfo.best} {streakInfo.best === 1 ? 'day' : 'days'}
+            {isCycleView
+              ? `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'} all-time`
+              : `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'}`}
           </div>
         </div>
 
