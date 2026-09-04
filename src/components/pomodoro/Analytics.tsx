@@ -35,6 +35,20 @@ function formatWeekDateSpan(mondayStr: string, sundayStr: string): string {
   return `${md} ${mMonth} – ${sd} ${sMonth}`;
 }
 
+function formatDuration(minutes: number): { hours: number; remMinutes: number; text: string } {
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  let text = '';
+  if (hours > 0 && remMinutes > 0) {
+    text = `${hours}h ${remMinutes}m`;
+  } else if (hours > 0) {
+    text = `${hours}h`;
+  } else {
+    text = `${remMinutes}m`;
+  }
+  return { hours, remMinutes, text };
+}
+
 function formatWeekTooltip(w: {
   mondayStr: string;
   sundayStr: string;
@@ -46,10 +60,8 @@ function formatWeekTooltip(w: {
   if (w.isUnstarted) {
     return `${span} · Not started yet`;
   }
-  const hours = Math.floor(w.minutes / 60);
-  const remMins = w.minutes % 60;
-  const durStr = `${hours}h ${remMins}m`;
-  return `${span} · ${w.sessions} ${w.sessions === 1 ? 'session' : 'sessions'} · ${durStr}`;
+  const dur = formatDuration(w.minutes);
+  return `${span} · ${w.sessions} ${w.sessions === 1 ? 'session' : 'sessions'} · ${dur.text}`;
 }
 
 interface Props {
@@ -140,8 +152,7 @@ export default function Analytics({
   // All time totals
   const totalSessions = useMemo(() => history.reduce((s, r) => s + (r.completedPomodoros || 0), 0), [history]);
   const totalFocusMinutes = useMemo(() => history.reduce((s, r) => s + (r.totalFocusMinutes || 0), 0), [history]);
-  const totalHours = Math.floor(totalFocusMinutes / 60);
-  const remMinutes = totalFocusMinutes % 60;
+  const { hours: totalHours, remMinutes } = formatDuration(totalFocusMinutes);
 
   const earliestDateLabel = useMemo(() => {
     const activeRecords = history
@@ -267,8 +278,7 @@ export default function Analytics({
     return { cycleSessions: s, cycleMinutes: m };
   }, [cycleWeeksData]);
 
-  const cycleHours = Math.floor(cycleMinutes / 60);
-  const cycleRemMinutes = cycleMinutes % 60;
+  const { hours: cycleHours, remMinutes: cycleRemMinutes } = formatDuration(cycleMinutes);
 
   // Previous cycle comparison baseline
   const { hasPrevCycleData, diffCycleSessions, diffCycleMinutes } = useMemo(() => {
@@ -311,13 +321,44 @@ export default function Analytics({
   const formattedCycleMinutesDiff = useMemo(() => {
     const absDiff = Math.abs(diffCycleMinutes);
     const sign = diffCycleMinutes > 0 ? '+' : '-';
-    if (absDiff >= 60) {
-      const h = Math.floor(absDiff / 60);
-      const m = absDiff % 60;
-      return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
-    }
-    return `${sign}${absDiff}m`;
+    const dur = formatDuration(absDiff);
+    return `${sign}${dur.text}`;
   }, [diffCycleMinutes]);
+
+  // Single week mode calculations
+  const isWeekView = typeof selectedWeek === 'number';
+  const { selectedWeekSessions, selectedWeekMinutes, selectedWeekStreak } = useMemo(() => {
+    if (!isWeekView) return { selectedWeekSessions: 0, selectedWeekMinutes: 0, selectedWeekStreak: { current: 0, best: 0 } };
+    const dateSet = new Set(weekDaysData.map(d => d.date));
+    let s = 0;
+    let m = 0;
+    for (const d of weekDaysData) {
+      s += d.value;
+    }
+    const weekRecords = history.filter(r => dateSet.has(r.date));
+    for (const r of weekRecords) {
+      m += r.totalFocusMinutes || 0;
+    }
+    return {
+      selectedWeekSessions: s,
+      selectedWeekMinutes: m,
+      selectedWeekStreak: computeFocusStreak(weekRecords),
+    };
+  }, [isWeekView, weekDaysData, history]);
+
+  const { hours: selectedWeekHours, remMinutes: selectedWeekRemMinutes } = formatDuration(selectedWeekMinutes);
+  const weeklyGoalMinutes = weeklyGoal * (settings.focusDuration || 25);
+  const weeklyGoalHours = Math.round((weeklyGoalMinutes / 60) * 10) / 10;
+  const percentOfWeeklyGoal = Math.min(100, Math.round((selectedWeekMinutes / (weeklyGoalMinutes || 1)) * 100));
+
+  // Previous week comparison for week view
+  const prevWeekData = useMemo(() => {
+    if (typeof selectedWeek !== 'number' || selectedWeek <= 1) return null;
+    return cycleWeeksData[selectedWeek - 2] || null;
+  }, [selectedWeek, cycleWeeksData]);
+
+  const diffPrevWeekSessions = prevWeekData ? selectedWeekSessions - prevWeekData.sessions : null;
+  const diffPrevWeekMinutes = prevWeekData ? selectedWeekMinutes - prevWeekData.minutes : null;
 
   // Cycle target and progress
   const totalCycleWeeks = cycleWeeksData.length || 5;
@@ -379,7 +420,7 @@ export default function Analytics({
     const cycleObjs = activeCycle ? objectives.filter(o => o.cycleId === activeCycle.id) : objectives;
 
     let relevantDates: Set<string> | null = null;
-    if (selectedWeek !== 'all') {
+    if (!isCycleView) {
       relevantDates = new Set(weekDaysData.map(d => d.date));
     } else if (cycleStart && cycleEnd) {
       relevantDates = new Set();
@@ -477,61 +518,173 @@ export default function Analytics({
   // Group sessions from the last 30 calendar days into 2-hour windows
   const bestTimeStats = useMemo(() => computeBestFocusWindow(history), [history]);
 
+  // Metric Cards Presentation ViewModel
+  const cardMetrics = useMemo(() => {
+    if (isCycleView) {
+      return {
+        card1: {
+          label: 'Sessions this cycle',
+          value: cycleSessions,
+          badge: hasPrevCycleData
+            ? (diffCycleSessions !== 0
+                ? { text: (diffCycleSessions > 0 ? `+${diffCycleSessions}` : `${diffCycleSessions}`) + ' vs last cycle', cls: diffCycleSessions > 0 ? 'positive' : 'negative' }
+                : { text: '0 vs last cycle', cls: 'neutral' })
+            : { text: '— vs last cycle', cls: 'neutral' },
+          sparklineType: 'cycle' as const,
+        },
+        card2: {
+          label: 'Focus time this cycle',
+          hours: cycleHours,
+          remMinutes: cycleRemMinutes,
+          totalMinutes: cycleMinutes,
+          badge: hasPrevCycleData
+            ? (diffCycleMinutes !== 0
+                ? { text: `${formattedCycleMinutesDiff} vs last cycle`, cls: diffCycleMinutes > 0 ? 'positive' : 'negative' }
+                : { text: '0m vs last cycle', cls: 'neutral' })
+            : { text: '— vs last cycle', cls: 'neutral' },
+          percent: percentOfCycleGoal,
+          subtext: `${percentOfCycleGoal}% of your ${cycleGoalHours}h cycle goal`,
+        },
+        card3: {
+          label: 'Best streak in cycle',
+          value: cycleStreakInfo.best,
+          unit: cycleStreakInfo.best === 1 ? 'day' : 'days',
+          subtext: `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'} all-time`,
+        },
+      };
+    }
+
+    if (isWeekView) {
+      const formattedWeekDiff = diffPrevWeekMinutes !== null ? formatDuration(Math.abs(diffPrevWeekMinutes)).text : '';
+      return {
+        card1: {
+          label: 'Sessions this week',
+          value: selectedWeekSessions,
+          badge: diffPrevWeekSessions !== null
+            ? (diffPrevWeekSessions !== 0
+                ? { text: (diffPrevWeekSessions > 0 ? `+${diffPrevWeekSessions}` : `${diffPrevWeekSessions}`) + ' vs last week', cls: diffPrevWeekSessions > 0 ? 'positive' : 'negative' }
+                : { text: '0 vs last week', cls: 'neutral' })
+            : { text: '— vs last week', cls: 'neutral' },
+          sparklineType: 'week' as const,
+        },
+        card2: {
+          label: 'Focus time this week',
+          hours: selectedWeekHours,
+          remMinutes: selectedWeekRemMinutes,
+          totalMinutes: selectedWeekMinutes,
+          badge: diffPrevWeekMinutes !== null
+            ? (diffPrevWeekMinutes !== 0
+                ? { text: (diffPrevWeekMinutes > 0 ? `+${formattedWeekDiff}` : `-${formattedWeekDiff}`) + ' vs last week', cls: diffPrevWeekMinutes > 0 ? 'positive' : 'negative' }
+                : { text: '0m vs last week', cls: 'neutral' })
+            : { text: '— vs last week', cls: 'neutral' },
+          percent: percentOfWeeklyGoal,
+          subtext: `${percentOfWeeklyGoal}% of your ${weeklyGoalHours}h weekly goal`,
+        },
+        card3: {
+          label: 'Best streak this week',
+          value: selectedWeekStreak.best,
+          unit: selectedWeekStreak.best === 1 ? 'day' : 'days',
+          subtext: `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'}`,
+        },
+      };
+    }
+
+    // Default daily fallback (e.g. no active cycle)
+    return {
+      card1: {
+        label: 'Sessions today',
+        value: todaySessions,
+        badge: diffSessions !== 0
+          ? { text: (diffSessions > 0 ? `+${diffSessions}` : `${diffSessions}`) + ' vs avg', cls: diffSessions > 0 ? 'positive' : 'negative' }
+          : { text: 'on avg', cls: 'neutral' },
+        sparklineType: 'day' as const,
+      },
+      card2: {
+        label: 'Focus time today',
+        hours: 0,
+        remMinutes: todayMinutes,
+        totalMinutes: todayMinutes,
+        badge: diffMinutes !== 0
+          ? { text: (diffMinutes > 0 ? `+${diffMinutes}m` : `${diffMinutes}m`) + ' vs avg', cls: diffMinutes > 0 ? 'positive' : 'negative' }
+          : { text: 'on avg', cls: 'neutral' },
+        percent: percentOfGoal,
+        subtext: `${percentOfGoal}% of your ${dailyGoalHours}h daily goal`,
+      },
+      card3: {
+        label: 'Current streak',
+        value: streakInfo.current,
+        unit: streakInfo.current === 1 ? 'day' : 'days',
+        subtext: `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'}`,
+      },
+    };
+  }, [
+    isCycleView,
+    isWeekView,
+    cycleSessions,
+    hasPrevCycleData,
+    diffCycleSessions,
+    cycleHours,
+    cycleRemMinutes,
+    cycleMinutes,
+    diffCycleMinutes,
+    formattedCycleMinutesDiff,
+    percentOfCycleGoal,
+    cycleGoalHours,
+    cycleStreakInfo,
+    streakInfo,
+    selectedWeekSessions,
+    diffPrevWeekSessions,
+    selectedWeekHours,
+    selectedWeekRemMinutes,
+    selectedWeekMinutes,
+    diffPrevWeekMinutes,
+    percentOfWeeklyGoal,
+    weeklyGoalHours,
+    selectedWeekStreak,
+    todaySessions,
+    diffSessions,
+    todayMinutes,
+    diffMinutes,
+    percentOfGoal,
+    dailyGoalHours,
+  ]);
+
   return (
     <div className="analytics-view-container">
       {/* 4 Top Metric Cards */}
       <div className="analytics-metric-cards">
-        {/* Card 1: Sessions today / Sessions this cycle */}
+        {/* Card 1: Sessions today / Sessions this cycle / Sessions this week */}
         <div className="metric-card">
           <div className="metric-card-header">
-            <span className="metric-card-label">
-              {isCycleView ? 'Sessions this cycle' : 'Sessions today'}
-            </span>
+            <span className="metric-card-label">{cardMetrics.card1.label}</span>
           </div>
           <div className="metric-card-body">
-            <span className="stat-value">{isCycleView ? cycleSessions : todaySessions}</span>
-            {isCycleView ? (
-              hasPrevCycleData ? (
-                diffCycleSessions !== 0 ? (
-                  <span className={`metric-badge ${diffCycleSessions > 0 ? 'positive' : 'negative'}`}>
-                    {diffCycleSessions > 0 ? `+${diffCycleSessions}` : diffCycleSessions} vs last cycle
-                  </span>
-                ) : (
-                  <span className="metric-badge neutral">on par vs last cycle</span>
-                )
-              ) : (
-                <span className="metric-badge neutral">— vs last cycle</span>
-              )
-            ) : (
-              diffSessions !== 0 ? (
-                <span className={`metric-badge ${diffSessions > 0 ? 'positive' : 'negative'}`}>
-                  {diffSessions > 0 ? `+${diffSessions}` : diffSessions} vs avg
-                </span>
-              ) : (
-                <span className="metric-badge neutral">on avg</span>
-              )
-            )}
+            <span className="stat-value">{cardMetrics.card1.value}</span>
+            <span className={`metric-badge ${cardMetrics.card1.badge.cls}`}>
+              {cardMetrics.card1.badge.text}
+            </span>
           </div>
-          <div className="metric-sparkline" aria-label={isCycleView ? 'Cycle weeks sparkline' : '7-day sessions sparkline'}>
-            {isCycleView ? (
+          <div
+            className="metric-sparkline"
+            aria-label={cardMetrics.card1.sparklineType === 'cycle' ? 'Cycle weeks sparkline' : '7-day sessions sparkline'}
+          >
+            {cardMetrics.card1.sparklineType === 'cycle' ? (
               cycleWeeksData.map(w => {
                 const isAccent = w.isCompleted && maxCompletedSessions > 0 && w.sessions === maxCompletedSessions;
                 const h = Math.max(14, Math.round((w.sessions / maxCycleSparklineVal) * 100));
                 return (
                   <div
                     key={w.weekNum}
-                    className={`sparkline-bar${isAccent ? ' today' : ''}${w.isUnstarted ? ' unstarted' : ''}`}
-                    style={{
-                      height: w.sessions > 0 ? `${h}%` : '4px',
-                      opacity: w.isUnstarted ? 0.35 : 1,
-                    }}
+                    className={`sparkline-bar${isAccent ? ' cycle-accent' : ''}${w.isUnstarted ? ' cycle-unstarted' : ''}`}
+                    style={{ height: w.sessions > 0 ? `${h}%` : '4px' }}
                     title={`${w.label}: ${w.sessions} sessions`}
                   />
                 );
               })
             ) : (
-              sparklineData.map(d => {
-                const h = Math.max(14, Math.round((d.value / maxSparklineVal) * 100));
+              (cardMetrics.card1.sparklineType === 'week' ? weekDaysData : sparklineData).map(d => {
+                const maxVal = cardMetrics.card1.sparklineType === 'week' ? maxWeekDayVal : maxSparklineVal;
+                const h = Math.max(14, Math.round((d.value / maxVal) * 100));
                 return (
                   <div
                     key={d.date}
@@ -545,93 +698,55 @@ export default function Analytics({
           </div>
         </div>
 
-        {/* Card 2: Focus time today / Focus time this cycle */}
+        {/* Card 2: Focus time today / Focus time this cycle / Focus time this week */}
         <div className="metric-card">
           <div className="metric-card-header">
-            <span className="metric-card-label">
-              {isCycleView ? 'Focus time this cycle' : 'Focus time today'}
-            </span>
+            <span className="metric-card-label">{cardMetrics.card2.label}</span>
           </div>
           <div className="metric-card-body">
-            {isCycleView ? (
-              cycleHours > 0 ? (
-                <>
-                  <span className="stat-value">{cycleHours}</span>
-                  <span className="metric-unit">h</span>
-                  {cycleRemMinutes > 0 && (
-                    <>
-                      <span className="stat-value" style={{ marginLeft: '0.25rem' }}>{cycleRemMinutes}</span>
-                      <span className="metric-unit">m</span>
-                    </>
-                  )}
-                </>
-              ) : (
-                <>
-                  <span className="stat-value">{cycleMinutes}</span>
-                  <span className="metric-unit">m</span>
-                </>
-              )
+            {cardMetrics.card2.hours > 0 ? (
+              <>
+                <span className="stat-value">{cardMetrics.card2.hours}</span>
+                <span className="metric-unit">h</span>
+                {cardMetrics.card2.remMinutes > 0 && (
+                  <>
+                    <span className="stat-value" style={{ marginLeft: '0.25rem' }}>{cardMetrics.card2.remMinutes}</span>
+                    <span className="metric-unit">m</span>
+                  </>
+                )}
+              </>
             ) : (
               <>
-                <span className="stat-value">{todayMinutes}</span>
+                <span className="stat-value">{cardMetrics.card2.totalMinutes}</span>
                 <span className="metric-unit">m</span>
               </>
             )}
-
-            {isCycleView ? (
-              hasPrevCycleData ? (
-                diffCycleMinutes !== 0 ? (
-                  <span className={`metric-badge ${diffCycleMinutes > 0 ? 'positive' : 'negative'}`}>
-                    {formattedCycleMinutesDiff} vs last cycle
-                  </span>
-                ) : (
-                  <span className="metric-badge neutral">on par vs last cycle</span>
-                )
-              ) : (
-                <span className="metric-badge neutral">— vs last cycle</span>
-              )
-            ) : (
-              diffMinutes !== 0 ? (
-                <span className={`metric-badge ${diffMinutes > 0 ? 'positive' : 'negative'}`}>
-                  {diffMinutes > 0 ? `+${diffMinutes}m` : `${diffMinutes}m`} vs avg
-                </span>
-              ) : (
-                <span className="metric-badge neutral">on avg</span>
-              )
-            )}
+            <span className={`metric-badge ${cardMetrics.card2.badge.cls}`}>
+              {cardMetrics.card2.badge.text}
+            </span>
           </div>
           <div className="metric-progress-track">
             <div
               className="metric-progress-fill"
-              style={{ width: `${isCycleView ? percentOfCycleGoal : percentOfGoal}%` }}
+              style={{ width: `${cardMetrics.card2.percent}%` }}
             />
           </div>
           <div className="metric-subtext">
-            {isCycleView
-              ? `${percentOfCycleGoal}% of your ${cycleGoalHours}h cycle goal`
-              : `${percentOfGoal}% of your ${dailyGoalHours}h daily goal`}
+            {cardMetrics.card2.subtext}
           </div>
         </div>
 
-        {/* Card 3: Current streak / Best streak in cycle */}
+        {/* Card 3: Current streak / Best streak in cycle / Best streak this week */}
         <div className="metric-card">
           <div className="metric-card-header">
-            <span className="metric-card-label">
-              {isCycleView ? 'Best streak in cycle' : 'Current streak'}
-            </span>
+            <span className="metric-card-label">{cardMetrics.card3.label}</span>
           </div>
           <div className="metric-card-body">
-            <span className="stat-value streak-value">
-              {isCycleView ? cycleStreakInfo.best : streakInfo.current}
-            </span>
-            <span className="metric-unit">
-              {(isCycleView ? cycleStreakInfo.best : streakInfo.current) === 1 ? 'day' : 'days'}
-            </span>
+            <span className="stat-value streak-value">{cardMetrics.card3.value}</span>
+            <span className="metric-unit">{cardMetrics.card3.unit}</span>
           </div>
           <div className="metric-subtext">
-            {isCycleView
-              ? `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'} all-time`
-              : `Personal best is ${streakInfo.best} ${streakInfo.best === 1 ? 'day' : 'days'}`}
+            {cardMetrics.card3.subtext}
           </div>
         </div>
 
@@ -688,9 +803,6 @@ export default function Analytics({
               >
                 <span className="guideline-label">{isCycleView ? weeklyGoal : dailyBudget}</span>
               </div>
-
-              {/* Baseline divider */}
-              <div className="sessions-chart-baseline" />
 
               {/* Day or Week Bars */}
               {isCycleView ? (

@@ -31,7 +31,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--border-color, var(--border-subtle));
   margin-bottom: 0.5rem;
 }
 
@@ -234,7 +234,7 @@
 .cycle-overview-back-btn:hover {
   background: color-mix(in srgb, var(--color-primary) 18%, transparent);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .panel-eyebrow {
@@ -264,16 +264,6 @@
   align-items: flex-end;
   justify-content: space-between;
   padding-bottom: 2rem;
-}
-
-.sessions-chart-baseline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 2rem;
-  border-bottom: 1px solid var(--border-subtle);
-  pointer-events: none;
-  z-index: 1;
 }
 
 .sessions-chart-guideline {
@@ -319,7 +309,7 @@
 }
 
 .sessions-bar-val.unstarted {
-  color: #3F4753;
+  color: var(--text-tertiary);
 }
 
 .sessions-bar-track {
@@ -333,9 +323,9 @@
 .sessions-bar-track.unstarted-slot {
   width: 76%;
   max-width: 96px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed var(--border-subtle);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.015);
+  background: color-mix(in srgb, var(--bg-card) 30%, transparent);
   box-sizing: border-box;
 }
 
@@ -352,12 +342,12 @@
 }
 
 .sessions-bar-fill.weekly-dimmed {
-  background: rgba(34, 211, 238, 0.55);
+  background: color-mix(in srgb, var(--color-primary) 55%, transparent);
 }
 
 .sessions-bar-fill.accent {
-  background: #22D3EE;
-  box-shadow: 0 0 14px rgba(34, 211, 238, 0.4);
+  background: var(--color-primary);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 .sessions-bar-fill.active-day {
@@ -373,7 +363,7 @@
 }
 
 .sessions-bar-day.unstarted {
-  color: #3F4753;
+  color: var(--text-tertiary);
 }
 
 .sessions-bar-day.active-day {
@@ -395,7 +385,7 @@
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  background: #0B0E14;
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 0.35rem 0.65rem;
@@ -405,7 +395,7 @@
   white-space: nowrap;
   pointer-events: none;
   z-index: 20;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px color-mix(in srgb, black 50%, transparent);
   animation: tooltipFadeIn 0.15s ease;
 }
 
@@ -417,7 +407,18 @@
   transform: translateX(-50%);
   border-width: 5px;
   border-style: solid;
-  border-color: #0B0E14 transparent transparent transparent;
+  border-color: var(--bg-card) transparent transparent transparent;
+}
+
+/* Cycle sparkline styling */
+.sparkline-bar.cycle-accent {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent);
+}
+
+.sparkline-bar.cycle-unstarted {
+  background: var(--text-tertiary);
+  opacity: 0.35;
 }
 
 @keyframes tooltipFadeIn {

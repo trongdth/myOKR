@@ -147,19 +147,19 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await page.locator('.select-panel [role="option"]').nth(1).click();
     await page.waitForTimeout(300);
 
-    // Adapts to day/week mode
-    await expect(card1.locator('.metric-card-label')).toHaveText('Sessions today');
-    await expect(card1.locator('.stat-value')).toHaveText('3');
+    // Adapts to selected week mode
+    await expect(card1.locator('.metric-card-label')).toHaveText('Sessions this week');
+    await expect(card1.locator('.stat-value')).toHaveText('5');
     await expect(card1.locator('.metric-sparkline')).toHaveAttribute('aria-label', '7-day sessions sparkline');
 
-    await expect(card2.locator('.metric-card-label')).toHaveText('Focus time today');
-    await expect(card2.locator('.stat-value')).toHaveText('75');
-    await expect(card2.locator('.metric-unit')).toHaveText('m');
-    await expect(card2.locator('.metric-subtext')).toContainText('daily goal');
+    await expect(card2.locator('.metric-card-label')).toHaveText('Focus time this week');
+    await expect(card2.locator('.stat-value').first()).toHaveText('2');
+    await expect(card2.locator('.metric-unit').first()).toHaveText('h');
+    await expect(card2.locator('.metric-subtext')).toContainText('weekly goal');
 
-    await expect(card3.locator('.metric-card-label')).toHaveText('Current streak');
+    await expect(card3.locator('.metric-card-label')).toHaveText('Best streak this week');
     await expect(card3.locator('.stat-value')).toHaveText('2');
-    await expect(card3.locator('.metric-subtext')).toHaveText('Personal best is 2 days');
+    await expect(card3.locator('.metric-subtext')).toContainText('Personal best is 2 days');
   });
 
   test('renders SESSIONS PER WEEK in cycle overview and SESSIONS PER DAY when week filtered', async ({ page }) => {
@@ -257,6 +257,61 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(alert).toBeVisible();
     await expect(alert).toContainText('Improve productivity has had no focus time');
     await expect(alert).toContainText('Drop it or schedule it in the weekly review.');
+  });
+
+  test('bounds WHERE YOUR FOCUS WENT to full cycle dates even when selectedWeek is null', async ({ page }) => {
+    // Seed sessions in an earlier week of the cycle
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+
+      const now = new Date();
+      const cycle = { id: 'c-focus-test', name: 'Focus Test Cycle', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: new Date().toISOString() };
+      await okr.saveCycles([cycle]);
+
+      const mondays = okr.getMondaysForCycle(cycle).slice().reverse();
+      const firstMonday = mondays[0];
+
+      await okr.saveObjectives([
+        { id: 'o-early', cycleId: 'c-focus-test', title: 'Early Week Objective', order: 0, createdAt: new Date().toISOString() },
+      ]);
+      await okr.saveKeyResults([
+        { id: 'kr-early', objectiveId: 'o-early', title: 'Early KR', targetValue: 5, currentValue: 2, unit: 'items', createdAt: new Date().toISOString() },
+      ]);
+      await pomo.saveTasks([
+        { id: 't-early', title: 'Early Task', keyResultId: 'kr-early', completedPomodoros: 4, estimatedPomodoros: 4, isCompleted: false, createdAt: new Date().toISOString() },
+      ]);
+
+      // Seed 4 sessions on the first Monday of the cycle
+      const history = [
+        {
+          date: firstMonday,
+          completedPomodoros: 4,
+          totalFocusMinutes: 100,
+          tasksCompleted: 1,
+          sessions: [
+            { startedAt: `${firstMonday}T09:00:00.000Z`, endedAt: `${firstMonday}T09:25:00.000Z`, type: 'focus', taskId: 't-early', completed: true },
+            { startedAt: `${firstMonday}T10:00:00.000Z`, endedAt: `${firstMonday}T10:25:00.000Z`, type: 'focus', taskId: 't-early', completed: true },
+            { startedAt: `${firstMonday}T11:00:00.000Z`, endedAt: `${firstMonday}T11:25:00.000Z`, type: 'focus', taskId: 't-early', completed: true },
+            { startedAt: `${firstMonday}T12:00:00.000Z`, endedAt: `${firstMonday}T12:25:00.000Z`, type: 'focus', taskId: 't-early', completed: true },
+          ],
+        },
+      ];
+      await pomo.saveHistory(history as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openAnalytics(page);
+
+    const focusCard = page.locator('.analytics-panel-card:has-text("WHERE YOUR FOCUS WENT")');
+    await expect(focusCard).toBeVisible();
+
+    // The early week objective should have 4 sessions counted in whole-cycle view
+    const earlyObjRow = focusCard.locator('.objective-focus-row:has-text("Early Week Objective")');
+    await expect(earlyObjRow).toBeVisible();
+    await expect(earlyObjRow).toContainText('4 sessions');
   });
 
   test('renders BEST TIME TO FOCUS card', async ({ page }) => {
@@ -380,5 +435,57 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     // Card 2: 2h 5m (125m), diff is +1h 15m vs last cycle (125 - 50 = 75m)
     const card2 = cards.nth(1);
     await expect(card2.locator('.metric-badge.positive')).toHaveText('+1h 15m vs last cycle');
+  });
+
+  test('renders neutral 0 vs last cycle when session/duration trajectory delta is 0', async ({ page }) => {
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+      const prevMondays = okr.getMondaysForCycle({ month: prevMonth, year: prevYear }).slice().reverse();
+      const curMondays = okr.getMondaysForCycle({ month: currentMonth, year: currentYear }).slice().reverse();
+
+      const history = [
+        {
+          date: prevMondays[0],
+          completedPomodoros: 4,
+          totalFocusMinutes: 100,
+          tasksCompleted: 1,
+          sessions: [],
+        },
+        {
+          date: curMondays[0],
+          completedPomodoros: 4,
+          totalFocusMinutes: 100,
+          tasksCompleted: 1,
+          sessions: [],
+        },
+      ];
+
+      await pomo.saveHistory(history as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openAnalytics(page);
+
+    const cards = page.locator('.analytics-metric-cards .metric-card');
+
+    // Card 1: 4 sessions, diff is 0 vs last cycle
+    const card1 = cards.nth(0);
+    await expect(card1.locator('.stat-value')).toHaveText('4');
+    await expect(card1.locator('.metric-badge.neutral')).toHaveText('0 vs last cycle');
+
+    // Card 2: 1h 40m, diff is 0m vs last cycle
+    const card2 = cards.nth(1);
+    await expect(card2.locator('.metric-badge.neutral')).toHaveText('0m vs last cycle');
   });
 });
