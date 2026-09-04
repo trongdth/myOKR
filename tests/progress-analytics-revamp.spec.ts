@@ -333,6 +333,19 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(bestTimeCard.locator('.best-time-insight')).not.toBeEmpty();
   });
 
+  test('cycle week bars keep only the native title tooltip', async ({ page }) => {
+    await openAnalytics(page);
+
+    // Cycle overview is the default landing view; every week bar carries
+    // the week summary in its native title…
+    const weekBar = page.locator('.sessions-bar-col.weekly').first();
+    await expect(weekBar).toHaveAttribute('title', /sessions|Not started yet/);
+
+    // …so hovering must not spawn the redundant custom tooltip on top.
+    await weekBar.hover();
+    await expect(page.locator('.sessions-week-tooltip')).toHaveCount(0);
+  });
+
   test('switches tabs between Analytics and Weekly review within ProgressApp', async ({ page }) => {
     await openAnalytics(page);
 
@@ -350,7 +363,7 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(page.locator('.analytics-metric-cards')).toBeVisible();
   });
 
-  test('displays floating tooltip on hover and drills down into day view on week click with back-navigation', async ({ page }) => {
+  test('drills down into day view on week click with back-navigation', async ({ page }) => {
     await openAnalytics(page);
 
     const chartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")');
@@ -358,12 +371,6 @@ test.describe('Progress / Analytics Screen Revamp', () => {
 
     const weekCols = chartCard.locator('.sessions-bar-col.weekly');
     const firstWeekCol = weekCols.first();
-
-    // Hover over the first week column
-    await firstWeekCol.hover();
-    const tooltip = firstWeekCol.locator('.sessions-week-tooltip');
-    await expect(tooltip).toBeVisible();
-    await expect(tooltip).toContainText('session');
 
     // Click the first week column to drill down
     await firstWeekCol.click();
@@ -383,9 +390,6 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await backBtn.click();
     await page.waitForTimeout(300);
     await expect(page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")')).toBeVisible();
-
-    // Tooltip must NOT linger after navigating back to cycle overview
-    await expect(page.locator('.sessions-week-tooltip')).toHaveCount(0);
   });
 
   test('renders cycle trajectory comparison deltas when prior cycle history exists', async ({ page }) => {

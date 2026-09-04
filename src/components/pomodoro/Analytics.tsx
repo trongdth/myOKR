@@ -83,11 +83,6 @@ export default function Analytics({
 }: Props) {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
-  const [hoveredWeek, setHoveredWeek] = useState<number | null>(null);
-
-  useEffect(() => {
-    setHoveredWeek(null);
-  }, [selectedWeek]);
 
   useEffect(() => {
     let cancelled = false;
@@ -785,7 +780,6 @@ export default function Analytics({
                     type="button"
                     className="cycle-overview-back-btn"
                     onClick={() => {
-                      setHoveredWeek(null);
                       onSelectWeek('all');
                     }}
                     title="Return to cycle overview"
@@ -815,22 +809,14 @@ export default function Analytics({
               {isCycleView ? (
                 cycleWeeksData.map(w => {
                   const tooltipText = formatWeekTooltip(w);
-                  const isHovered = hoveredWeek === w.weekNum;
 
                   if (w.isUnstarted) {
                     return (
                       <div
                         key={w.weekNum}
                         className="sessions-bar-col weekly unstarted"
-                        onMouseEnter={() => setHoveredWeek(w.weekNum)}
-                        onMouseLeave={() => setHoveredWeek(null)}
                         title={tooltipText}
                       >
-                        {isHovered && (
-                          <div className="sessions-week-tooltip" role="tooltip">
-                            {tooltipText}
-                          </div>
-                        )}
                         <span className="sessions-bar-val unstarted">—</span>
                         <div className="sessions-bar-track unstarted-slot" />
                         <span className="sessions-bar-day unstarted">{w.label}</span>
@@ -848,19 +834,11 @@ export default function Analytics({
                       key={w.weekNum}
                       className="sessions-bar-col weekly"
                       onClick={() => {
-                        setHoveredWeek(null);
                         onSelectWeek?.(w.weekNum);
                       }}
-                      onMouseEnter={() => setHoveredWeek(w.weekNum)}
-                      onMouseLeave={() => setHoveredWeek(null)}
                       style={{ cursor: 'pointer' }}
                       title={tooltipText}
                     >
-                      {isHovered && (
-                        <div className="sessions-week-tooltip" role="tooltip">
-                          {tooltipText}
-                        </div>
-                      )}
                       <span className="sessions-bar-val">{w.sessions}</span>
                       <div className="sessions-bar-track">
                         <div
