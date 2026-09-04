@@ -11,6 +11,7 @@ import {
   loadObjectives,
   loadKeyResults,
   getMondaysForCycle,
+  getWeekEndFromStart,
   type Objective,
   type KeyResult,
   type OKRCycle,
@@ -28,6 +29,7 @@ interface Props {
   settings?: PomodoroSettings;
   activeCycle?: OKRCycle | null;
   selectedWeek?: number | 'all' | null;
+  onSelectWeek?: (week: number | 'all') => void;
 }
 
 export default function Analytics({
@@ -36,6 +38,7 @@ export default function Analytics({
   settings = DEFAULT_SETTINGS,
   activeCycle = null,
   selectedWeek = null,
+  onSelectWeek,
 }: Props) {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
@@ -148,6 +151,77 @@ export default function Analytics({
     }
     return days;
   }, [activeCycle, selectedWeek, history, today]);
+
+  const isCycleView = selectedWeek === 'all' || (selectedWeek == null && !!activeCycle);
+  const weeklyGoal = dailyBudget * 7;
+
+  // Weekly aggregation for SESSIONS PER WEEK when isCycleView is true
+  const cycleWeeksData = useMemo(() => {
+    if (!activeCycle) return [];
+    const cycleMondays = getMondaysForCycle(activeCycle).slice().reverse();
+
+    return cycleMondays.map((mondayStr, idx) => {
+      const weekNum = idx + 1;
+      const sundayStr = getWeekEndFromStart(mondayStr);
+
+      const isUnstarted = mondayStr > today;
+      const isCompleted = sundayStr < today;
+      const isInProgress = mondayStr <= today && today <= sundayStr;
+
+      let weekSessions = 0;
+      let weekMinutes = 0;
+
+      if (!isUnstarted) {
+        for (const r of history) {
+          if (r.date >= mondayStr && r.date <= sundayStr) {
+            weekSessions += r.completedPomodoros || 0;
+            weekMinutes += r.totalFocusMinutes || 0;
+          }
+        }
+      }
+
+      return {
+        weekNum,
+        label: `W${weekNum}`,
+        mondayStr,
+        sundayStr,
+        isUnstarted,
+        isCompleted,
+        isInProgress,
+        sessions: weekSessions,
+        minutes: weekMinutes,
+      };
+    });
+  }, [activeCycle, history, today]);
+
+  // Tallest completed week (only completed weeks with sessions > 0 compete)
+  const maxCompletedSessions = useMemo(() => {
+    let max = 0;
+    for (const w of cycleWeeksData) {
+      if (w.isCompleted && w.sessions > max) {
+        max = w.sessions;
+      }
+    }
+    return max;
+  }, [cycleWeeksData]);
+
+  const maxCycleWeekVal = Math.max(weeklyGoal, ...cycleWeeksData.map(w => w.sessions), 1);
+  const weeklyGoalLinePercent = Math.min(100, Math.max(0, (weeklyGoal / maxCycleWeekVal) * 100));
+
+  // Dynamic caption below baseline for cycle view
+  const cycleCaption = useMemo(() => {
+    if (!isCycleView) return null;
+    const unstarted = cycleWeeksData.filter(w => w.isUnstarted);
+    if (unstarted.length === 0) {
+      const allCompleted = cycleWeeksData.length > 0 && cycleWeeksData.every(w => w.isCompleted);
+      return allCompleted
+        ? 'One bar per cycle week · all weeks completed'
+        : 'One bar per cycle week · all weeks underway';
+    }
+    const labels = unstarted.map(w => `W${w.weekNum}`).join(', ');
+    const verb = unstarted.length === 1 ? 'has' : 'have';
+    return `One bar per cycle week · ${labels} ${verb} not started · dashed means not yet, not zero`;
+  }, [isCycleView, cycleWeeksData]);
 
   const maxWeekDayVal = Math.max(dailyBudget, ...weekDaysData.map(d => d.value), 1);
   const goalLinePercent = Math.min(100, Math.max(0, (dailyBudget / maxWeekDayVal) * 100));
@@ -375,47 +449,98 @@ export default function Analytics({
       <div className="analytics-grid-body">
         {/* Left Column: SESSIONS PER DAY + LAST 5 WEEKS */}
         <div className="analytics-col-left">
-          {/* SESSIONS PER DAY Card */}
+          {/* SESSIONS PER DAY / WEEK Card */}
           <div className="analytics-panel-card">
             <div className="panel-header-row">
-              <h3 className="panel-eyebrow">SESSIONS PER DAY</h3>
+              <h3 className="panel-eyebrow">
+                {isCycleView ? 'SESSIONS PER WEEK' : 'SESSIONS PER DAY'}
+              </h3>
               <div className="daily-goal-indicator">
                 <span>---</span>
-                <span>daily goal {dailyBudget}</span>
+                <span>{isCycleView ? `weekly goal ${weeklyGoal}` : `daily goal ${dailyBudget}`}</span>
               </div>
             </div>
 
             <div className="sessions-chart-area">
-              {/* Dashed Guideline: positioned directly relative to the bar track area */}
+              {/* Dashed Guideline */}
               <div
                 className="sessions-chart-guideline"
-                style={{ bottom: `calc(2rem + ${goalLinePercent * 0.01} * (100% - 2.5rem))` }}
+                style={{
+                  bottom: `calc(2rem + ${(isCycleView ? weeklyGoalLinePercent : goalLinePercent) * 0.01} * (100% - 2.5rem))`
+                }}
               >
-                <span className="guideline-label">{dailyBudget}</span>
+                <span className="guideline-label">{isCycleView ? weeklyGoal : dailyBudget}</span>
               </div>
 
-              {/* Day Bars */}
-              {weekDaysData.map(d => {
-                const barHeightPct = d.value > 0
-                  ? Math.min(100, Math.round((d.value / maxWeekDayVal) * 100))
-                  : 0;
+              {/* Baseline divider */}
+              <div className="sessions-chart-baseline" />
 
-                return (
-                  <div key={d.date} className="sessions-bar-col">
-                    <span className="sessions-bar-val">{d.value}</span>
-                    <div className="sessions-bar-track">
-                      <div
-                        className={`sessions-bar-fill${d.isToday ? ' active-day' : ''}`}
-                        style={{ height: d.value > 0 ? `${barHeightPct}%` : '4px' }}
-                      />
+              {/* Day or Week Bars */}
+              {isCycleView ? (
+                cycleWeeksData.map(w => {
+                  if (w.isUnstarted) {
+                    return (
+                      <div key={w.weekNum} className="sessions-bar-col weekly unstarted">
+                        <span className="sessions-bar-val unstarted">—</span>
+                        <div className="sessions-bar-track unstarted-slot" />
+                        <span className="sessions-bar-day unstarted">{w.label}</span>
+                      </div>
+                    );
+                  }
+
+                  const isAccent = w.isCompleted && maxCompletedSessions > 0 && w.sessions === maxCompletedSessions;
+                  const barHeightPct = w.sessions > 0
+                    ? Math.min(100, Math.round((w.sessions / maxCycleWeekVal) * 100))
+                    : 0;
+
+                  return (
+                    <div
+                      key={w.weekNum}
+                      className="sessions-bar-col weekly"
+                      onClick={() => onSelectWeek?.(w.weekNum)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className="sessions-bar-val">{w.sessions}</span>
+                      <div className="sessions-bar-track">
+                        <div
+                          className={`sessions-bar-fill weekly-bar${isAccent ? ' accent' : ' weekly-dimmed'}`}
+                          style={{ height: w.sessions > 0 ? `${barHeightPct}%` : '4px' }}
+                        />
+                      </div>
+                      <span className="sessions-bar-day">{w.label}</span>
                     </div>
-                    <span className={`sessions-bar-day${d.isToday ? ' active-day' : ''}`}>
-                      {d.label}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                weekDaysData.map(d => {
+                  const barHeightPct = d.value > 0
+                    ? Math.min(100, Math.round((d.value / maxWeekDayVal) * 100))
+                    : 0;
+
+                  return (
+                    <div key={d.date} className="sessions-bar-col">
+                      <span className="sessions-bar-val">{d.value}</span>
+                      <div className="sessions-bar-track">
+                        <div
+                          className={`sessions-bar-fill${d.isToday ? ' active-day' : ''}`}
+                          style={{ height: d.value > 0 ? `${barHeightPct}%` : '4px' }}
+                        />
+                      </div>
+                      <span className={`sessions-bar-day${d.isToday ? ' active-day' : ''}`}>
+                        {d.label}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
+
+            {/* Dynamic baseline caption for cycle view */}
+            {isCycleView && cycleCaption && (
+              <div className="sessions-chart-caption">
+                {cycleCaption}
+              </div>
+            )}
 
             {/* LAST 5 WEEKS Heatmap */}
             <div style={{ marginTop: '0.5rem' }}>

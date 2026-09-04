@@ -138,23 +138,82 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(card4.locator('.metric-subtext')).toContainText('2h 5m');
   });
 
-  test('renders SESSIONS PER DAY bar chart with goal line and LAST 5 WEEKS heatmap', async ({ page }) => {
+  test('renders SESSIONS PER WEEK in cycle overview and SESSIONS PER DAY when week filtered', async ({ page }) => {
     await openAnalytics(page);
 
-    // SESSIONS PER DAY
-    const chartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER DAY")');
+    // Whole Cycle View: SESSIONS PER WEEK
+    const chartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")');
     await expect(chartCard).toBeVisible();
-    await expect(chartCard.locator('.daily-goal-indicator')).toContainText('daily goal');
+    await expect(chartCard.locator('.panel-eyebrow')).toHaveText('SESSIONS PER WEEK');
+    await expect(chartCard.locator('.daily-goal-indicator')).toContainText('weekly goal');
     await expect(chartCard.locator('.sessions-chart-guideline')).toBeVisible();
 
-    const barCols = chartCard.locator('.sessions-bar-col');
-    await expect(barCols).toHaveCount(7);
+    const weeklyBarCols = chartCard.locator('.sessions-bar-col.weekly');
+    const weekCount = await weeklyBarCols.count();
+    expect(weekCount).toBeGreaterThanOrEqual(4);
 
     // LAST 5 WEEKS Heatmap
     const heatmap = chartCard.locator('.heatmap-matrix');
     await expect(heatmap).toBeVisible();
     await expect(heatmap.locator('.heatmap-cell')).toHaveCount(35);
     await expect(chartCard.locator('.heatmap-legend')).toBeVisible();
+
+    // Switch to single week via select dropdown
+    const selectTrigger = page.locator('.progress-week-select .select-trigger');
+    await selectTrigger.click();
+    // Select the second option (first week option)
+    await page.locator('.select-panel [role="option"]').nth(1).click();
+    await page.waitForTimeout(300);
+
+    // Now renders SESSIONS PER DAY
+    const dayChartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER DAY")');
+    await expect(dayChartCard).toBeVisible();
+    await expect(dayChartCard.locator('.panel-eyebrow')).toHaveText('SESSIONS PER DAY');
+    await expect(dayChartCard.locator('.daily-goal-indicator')).toContainText('daily goal');
+    await expect(dayChartCard.locator('.sessions-bar-col')).toHaveCount(7);
+  });
+
+  test('renders tallest completed week with accent color, unstarted weeks as dashed slots, and dynamic caption', async ({ page }) => {
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = now.getMonth();
+
+      const cycle = { id: 'c-accent-test', name: 'May cycle', month: mm, year: yyyy, isActive: true, createdAt: new Date().toISOString() };
+      await okr.saveCycles([cycle]);
+
+      const mondays = okr.getMondaysForCycle(cycle).slice().reverse();
+      const history = [
+        { date: mondays[0], completedPomodoros: 20, totalFocusMinutes: 500, tasksCompleted: 5, sessions: [] },
+      ];
+      if (mondays.length > 1) {
+        history.push({ date: mondays[1], completedPomodoros: 36, totalFocusMinutes: 900, tasksCompleted: 8, sessions: [] });
+      }
+      await pomo.saveHistory(history as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openAnalytics(page);
+
+    const chartCard = page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")');
+    await expect(chartCard).toBeVisible();
+
+    // Verify dynamic caption
+    const caption = chartCard.locator('.sessions-chart-caption');
+    await expect(caption).toBeVisible();
+    await expect(caption).toContainText('One bar per cycle week');
+
+    // Verify dashed slots if any unstarted weeks exist
+    const unstarted = chartCard.locator('.sessions-bar-col.unstarted');
+    if (await unstarted.count() > 0) {
+      await expect(unstarted.first().locator('.sessions-bar-val')).toHaveText('—');
+      await expect(unstarted.first().locator('.unstarted-slot')).toBeVisible();
+    }
   });
 
   test('renders WHERE YOUR FOCUS WENT breakdown and dormant objective warning', async ({ page }) => {

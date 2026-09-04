@@ -12,7 +12,7 @@ interface ProgressAppProps {
 
 export default function ProgressApp({ tab }: ProgressAppProps) {
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<number | 'all' | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<number | 'all' | null>('all');
   const { history, tasks, settings } = useSession();
 
   useEffect(() => {
@@ -47,6 +47,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
             settings={settings}
             activeCycle={activeCycle}
             selectedWeek={selectedWeek}
+            onSelectWeek={setSelectedWeek}
           />
         )}
         {tab === 'weekly-review' && (

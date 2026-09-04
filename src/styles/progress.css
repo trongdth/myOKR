@@ -236,7 +236,16 @@
   align-items: flex-end;
   justify-content: space-between;
   padding-bottom: 2rem;
+}
+
+.sessions-chart-baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2rem;
   border-bottom: 1px solid var(--border-subtle);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .sessions-chart-guideline {
@@ -269,11 +278,20 @@
   z-index: 2;
 }
 
+.sessions-bar-col.weekly .sessions-bar-track {
+  width: 76%;
+  max-width: 96px;
+}
+
 .sessions-bar-val {
   font-family: var(--font-mono, monospace);
   font-size: 0.82rem;
   color: var(--text-muted);
   margin-bottom: 0.4rem;
+}
+
+.sessions-bar-val.unstarted {
+  color: #3F4753;
 }
 
 .sessions-bar-track {
@@ -284,12 +302,34 @@
   justify-content: center;
 }
 
+.sessions-bar-track.unstarted-slot {
+  width: 76%;
+  max-width: 96px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.015);
+  box-sizing: border-box;
+}
+
 .sessions-bar-fill {
   width: 100%;
   border-radius: 4px 4px 0 0;
   background: color-mix(in srgb, var(--color-primary) 35%, transparent);
   transition: height 0.3s ease;
   min-height: 4px;
+}
+
+.sessions-bar-fill.weekly-bar {
+  border-radius: 6px 6px 0 0;
+}
+
+.sessions-bar-fill.weekly-dimmed {
+  background: rgba(34, 211, 238, 0.55);
+}
+
+.sessions-bar-fill.accent {
+  background: #22D3EE;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.4);
 }
 
 .sessions-bar-fill.active-day {
@@ -304,9 +344,21 @@
   color: var(--text-muted);
 }
 
+.sessions-bar-day.unstarted {
+  color: #3F4753;
+}
+
 .sessions-bar-day.active-day {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.sessions-chart-caption {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding-top: 0.6rem;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
 }
 
 /* ===== LAST 5 WEEKS HEATMAP ===== */
