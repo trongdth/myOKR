@@ -86,6 +86,10 @@ export default function Analytics({
   const [hoveredWeek, setHoveredWeek] = useState<number | null>(null);
 
   useEffect(() => {
+    setHoveredWeek(null);
+  }, [selectedWeek]);
+
+  useEffect(() => {
     let cancelled = false;
     const load = async () => {
       const [objs, krs] = await Promise.all([loadObjectives(), loadKeyResults()]);
@@ -780,7 +784,10 @@ export default function Analytics({
                   <button
                     type="button"
                     className="cycle-overview-back-btn"
-                    onClick={() => onSelectWeek('all')}
+                    onClick={() => {
+                      setHoveredWeek(null);
+                      onSelectWeek('all');
+                    }}
                     title="Return to cycle overview"
                   >
                     ← Cycle overview
@@ -840,7 +847,10 @@ export default function Analytics({
                     <div
                       key={w.weekNum}
                       className="sessions-bar-col weekly"
-                      onClick={() => onSelectWeek?.(w.weekNum)}
+                      onClick={() => {
+                        setHoveredWeek(null);
+                        onSelectWeek?.(w.weekNum);
+                      }}
                       onMouseEnter={() => setHoveredWeek(w.weekNum)}
                       onMouseLeave={() => setHoveredWeek(null)}
                       style={{ cursor: 'pointer' }}

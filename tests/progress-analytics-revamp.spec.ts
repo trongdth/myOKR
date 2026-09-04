@@ -383,6 +383,9 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await backBtn.click();
     await page.waitForTimeout(300);
     await expect(page.locator('.analytics-panel-card:has-text("SESSIONS PER WEEK")')).toBeVisible();
+
+    // Tooltip must NOT linger after navigating back to cycle overview
+    await expect(page.locator('.sessions-week-tooltip')).toHaveCount(0);
   });
 
   test('renders cycle trajectory comparison deltas when prior cycle history exists', async ({ page }) => {
