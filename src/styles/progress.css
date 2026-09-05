@@ -1,0 +1,578 @@
+/*
+  Progress group shell & Analytics screen styles
+  Following design-system.md: padding parity with .plan-group-shell & .focus-shell,
+  semantic tokens, zero raw hex, 3-tier responsive re-stacking.
+*/
+
+/* ===== PROGRESS SHELL ===== */
+.pomodoro-container.progress-shell {
+  max-width: 1280px;
+}
+
+.progress-shell-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Neutralize ReviewApp's default 900px container inside Progress shell */
+.progress-shell-inner > .review-container.embed-mode {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== PROGRESS TAB STRIP ===== */
+.progress-tab-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-color, var(--border-subtle));
+  margin-bottom: 0.5rem;
+}
+
+.progress-week-select {
+  margin-bottom: 4px;
+}
+
+/* ===== ANALYTICS VIEW ===== */
+.analytics-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* ===== TOP 4 METRIC CARDS ===== */
+.analytics-metric-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 135px;
+  gap: 0.75rem;
+  box-sizing: border-box;
+}
+
+.metric-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-card-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.metric-card-body {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.metric-card-body .stat-value {
+  font-family: var(--font-mono, monospace);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.metric-card-body .stat-value.streak-value {
+  color: var(--color-streak);
+}
+
+.metric-unit {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.metric-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.metric-badge.positive {
+  color: var(--okr-on-track);
+  background: color-mix(in srgb, var(--okr-on-track) 12%, transparent);
+}
+
+.metric-badge.negative {
+  color: var(--color-risk);
+  background: color-mix(in srgb, var(--color-risk) 12%, transparent);
+}
+
+.metric-badge.neutral {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+/* Card 1 Mini Sparkline */
+.metric-sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 26px;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.sparkline-bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  min-height: 4px;
+  transition: height 0.2s ease;
+}
+
+.sparkline-bar.today {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+/* Card 2 Progress Bar */
+.metric-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.metric-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.metric-subtext {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+/* ===== TWO COLUMNS GRID ===== */
+.analytics-grid-body {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1.25rem;
+  width: 100%;
+  align-items: start;
+}
+
+.analytics-col-left,
+.analytics-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.analytics-panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-sizing: border-box;
+}
+
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cycle-overview-back-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.cycle-overview-back-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-color: var(--color-primary);
+  color: var(--text-primary);
+}
+
+.panel-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.daily-goal-indicator {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ===== SESSIONS PER DAY BAR CHART ===== */
+.sessions-chart-area {
+  position: relative;
+  height: 220px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: 2rem;
+}
+
+.sessions-chart-guideline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--color-primary) 40%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.guideline-label {
+  position: absolute;
+  right: 0;
+  top: -14px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-primary);
+  opacity: 0.9;
+}
+
+.sessions-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 2;
+}
+
+.sessions-bar-col.weekly .sessions-bar-track {
+  width: 76%;
+  max-width: 96px;
+}
+
+.sessions-bar-val {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.sessions-bar-val.unstarted {
+  color: var(--text-tertiary);
+}
+
+.sessions-bar-track {
+  width: 60%;
+  height: calc(100% - 2.5rem);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sessions-bar-track.unstarted-slot {
+  width: 76%;
+  max-width: 96px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-card) 30%, transparent);
+  box-sizing: border-box;
+}
+
+.sessions-bar-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  transition: height 0.3s ease;
+  min-height: 4px;
+}
+
+.sessions-bar-fill.weekly-bar {
+  border-radius: 6px 6px 0 0;
+}
+
+.sessions-bar-fill.weekly-dimmed {
+  background: color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.sessions-bar-fill.accent {
+  background: var(--color-primary);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.sessions-bar-fill.active-day {
+  background: var(--color-primary);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.sessions-bar-day {
+  position: absolute;
+  bottom: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.sessions-bar-day.unstarted {
+  color: var(--text-tertiary);
+}
+
+.sessions-bar-day.active-day {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.sessions-chart-caption {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding-top: 0.6rem;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+/* Cycle sparkline styling */
+.sparkline-bar.cycle-accent {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent);
+}
+
+.sparkline-bar.cycle-unstarted {
+  background: var(--text-tertiary);
+  opacity: 0.35;
+}
+
+/* ===== LAST 5 WEEKS HEATMAP ===== */
+.heatmap-matrix {
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1.55;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.08);
+}
+
+.heatmap-cell.level-1 {
+  background: color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.heatmap-cell.level-2 {
+  background: color-mix(in srgb, var(--color-primary) 50%, transparent);
+}
+
+.heatmap-cell.level-3 {
+  background: color-mix(in srgb, var(--color-primary) 75%, transparent);
+}
+
+.heatmap-cell.level-4 {
+  background: var(--color-primary);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.heatmap-cell.future {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.heatmap-legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* ===== WHERE YOUR FOCUS WENT ===== */
+.focus-objectives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.focus-objective-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.focus-objective-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.focus-objective-title {
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}
+
+.focus-objective-stats {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.focus-objective-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.focus-objective-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-objective);
+  transition: width 0.3s ease;
+}
+
+.focus-objective-fill.unlinked {
+  background: var(--text-muted);
+}
+
+.focus-objective-fill.zero {
+  background: color-mix(in srgb, var(--color-objective) 50%, transparent);
+  width: 6px !important;
+}
+
+.dormant-alert-banner {
+  background: color-mix(in srgb, var(--color-risk) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-risk) 25%, transparent);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  color: var(--color-risk);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin-top: 0.5rem;
+}
+
+/* ===== BEST TIME TO FOCUS ===== */
+.best-time-readout-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.best-time-window {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.best-time-completion {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--okr-on-track);
+}
+
+/* No qualifying window: honest "not enough signal" readout instead of a time. */
+.best-time-none {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.best-time-insight {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+@media (max-width: 1100px) {
+  .analytics-metric-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .analytics-metric-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analytics-grid-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sessions-bar-track {
+    width: 75%;
+  }
+}

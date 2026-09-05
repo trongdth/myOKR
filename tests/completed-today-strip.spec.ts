@@ -80,8 +80,11 @@ test.describe('Completed-today strip rework', () => {
     await expect(label).toHaveText(/Hide/);
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(label).toHaveCSS('color', 'rgb(110, 231, 183)');
-    const chevronTransform = await toggle.locator('.toggle-chevron').evaluate(el => getComputedStyle(el).transform);
-    expect(chevronTransform).toContain('-1');
+    // The chevron rotates via a CSS transition — poll until it settles at
+    // 180° instead of sampling the matrix mid-animation.
+    await expect
+      .poll(() => toggle.locator('.toggle-chevron').evaluate(el => getComputedStyle(el).transform))
+      .toContain('-1');
   });
 
   test('the strip never moves — cards expand below it', async ({ page }) => {

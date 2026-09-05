@@ -62,10 +62,12 @@ async function pickFirstPastWeek(page: Page) {
   await weekSelect.click();
   const weekRows = page.locator('.sel-panel .sel-row');
   const weekTexts = await weekRows.allTextContents();
-  // Local date, matching the app's week logic (UTC drift near midnight would
-  // misclassify the current week)
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // Local date IN THE PAGE, matching the app's week logic — the page clock,
+  // not Node's, so frozen-clock runs classify weeks consistently.
+  const todayStr = await page.evaluate(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   const pastWeek = weekTexts.find((t) => t.split(' to ')[1].trim() <= todayStr);
   expect(pastWeek).toBeTruthy();
   await weekRows.filter({ hasText: pastWeek! }).first().click();
@@ -190,9 +192,13 @@ test.describe('Desktop: Pomodoro Workflow', () => {
 
 test.describe('Desktop: Review Workflow', () => {
   test.beforeEach(async ({ page }) => {
+    // Mid-month freeze so the seeded current-month cycle has fully-past weeks
+    // (on e.g. Sep 4 the cycle's week 1 is still in progress).
+    await page.clock.setFixedTime(new Date('2026-09-15T12:00:00.000Z'));
     await waitForApp(page);
     await navDesktop(page, 'Review');
-    await expect(page.locator('.review-header-title')).toBeVisible();
+    // Review renders headerless inside the Progress shell (start card)
+    await expect(page.locator('.review-start-card')).toBeVisible();
   });
 
   test('complete review wizard', async ({ page }) => {
@@ -276,8 +282,14 @@ test.describe('Mobile: Core Workflows', () => {
   });
 
   test('complete review wizard', async ({ page }) => {
+    // Mid-month freeze (see Desktop: Review Workflow) before the app loads
+    await page.clock.setFixedTime(new Date('2026-09-15T12:00:00.000Z'));
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
     await navMobile(page, 'Review');
-    await expect(page.locator('.review-header-title')).toBeVisible();
+    // Review renders headerless inside the Progress shell (start card)
+    await expect(page.locator('.review-start-card')).toBeVisible();
 
     await pickFirstPastWeek(page);
 

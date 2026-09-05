@@ -2,9 +2,11 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Ticket 05 — .scratch/custom-select/issues/05-review-habits-surfaces.md
- * The last native dropdowns: the Weekly Review header's cycle picker (disabled
- * while the wizard is open) and week picker (date-range labels), and the
- * Habits matrix's per-row status picker — all on the shared Select.
+ * The last native dropdowns: the Weekly Review week picker (date-range
+ * labels) and the Habits matrix's per-row status picker — all on the shared
+ * Select. (The review header's cycle picker was removed when the review
+ * moved into the Progress shell, 2026-09; the wizard-disable coverage went
+ * with it.)
  */
 test.describe('Review & Habits Select migration', () => {
   test.beforeEach(async ({ page }) => {
@@ -48,29 +50,6 @@ test.describe('Review & Habits Select migration', () => {
     await page.locator('label', { hasText: 'Review for week of:' }).click();
     await expect(page.locator('.sel-panel')).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.locator('label', { hasText: 'Cycle:' }).click();
-    await expect(page.locator('.sel-panel')).toBeVisible();
-  });
-
-  test('cycle picker disables at 40% while the review wizard is open', async ({ page }) => {
-    await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'weekly-review'));
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    const cycle = page.locator('[aria-label="Cycle"]');
-    await expect(cycle).toContainText('June 2026');
-    await expect(cycle).toBeEnabled();
-
-    // Pick a fully-past week so the Start button appears, then open the wizard
-    const week = page.locator('[aria-label="Review week"]');
-    await week.click();
-    await page.locator('.sel-panel .sel-row', { hasText: '2026-06-01 to 2026-06-07' }).click();
-    await page.locator('button:has-text("Start Weekly Review")').click();
-    await expect(page.locator('.review-wizard, [class*="wizard"]').first()).toBeVisible();
-
-    await expect(cycle).toBeDisabled();
-    await expect(cycle).toHaveCSS('opacity', '0.4');
-    await expect(cycle).toHaveCSS('cursor', 'not-allowed');
   });
 
   test('habit status picker runs on Select per matrix row', async ({ page }) => {

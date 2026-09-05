@@ -37,14 +37,21 @@ const SEED_DATA: Record<string, any> = {
   },
   timerState: null,
   cycles: [
-    {
-      id: 'cycle-1',
-      name: 'May 2026',
-      month: 4,
-      year: 2026,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    },
+    (() => {
+      // Current-month cycle so cycle-scoped UI (e.g. Analytics KPI cards)
+      // contains the relative-date seed history. Frozen-clock tests (May
+      // 2026) still see 'May 2026'. One timestamp so name/month/year can't
+      // tear across a month rollover.
+      const now = new Date();
+      return {
+        id: 'cycle-1',
+        name: `${now.toLocaleString('en-US', { month: 'long' })} ${now.getFullYear()}`,
+        month: now.getMonth(),
+        year: now.getFullYear(),
+        isActive: true,
+        createdAt: now.toISOString(),
+      };
+    })(),
   ],
   objectives: [
     { id: 'obj-1', cycleId: 'cycle-1', title: 'Ship myOKR v2.0', order: 0, createdAt: new Date().toISOString() },

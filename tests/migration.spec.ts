@@ -18,10 +18,15 @@ test.describe('Automerge Migration', () => {
     // Assert that the SEED_DATA from the mock JSON store was migrated!
     expect(migratedData).toBeDefined();
     
-    // Check that cycles were populated from okr-data.json
+    // Check that cycles were populated from the mock seed store. The seed
+    // cycle is the current month (mocks/store.ts) so cycle-scoped UI holds
+    // the relative-date seed history.
     expect(migratedData.cycles).toBeDefined();
     expect(migratedData.cycles.length).toBeGreaterThan(0);
-    expect(migratedData.cycles[0].name).toBe('May 2026');
+    const now = new Date();
+    const expectedCycleName = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getFullYear()}`;
+    expect(migratedData.cycles[0].name).toBe(expectedCycleName);
+    expect(migratedData.cycles[0].month).toBe(now.getMonth());
 
     // Check that tasks were populated from pomodoro-data.json
     expect(migratedData.tasks).toBeDefined();

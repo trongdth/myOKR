@@ -7,6 +7,7 @@ import './styles/global.css';
 import './styles/app.css';
 import PomodoroApp from './components/PomodoroApp';
 import FocusApp from './components/FocusApp';
+import ProgressApp from './components/ProgressApp';
 import SessionWidget from './components/session/SessionWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
@@ -15,7 +16,6 @@ import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown,
 import { LogoMark } from './components/shared/LogoMark';
 
 const OKRApp = lazy(() => import('./components/OKRApp'));
-const ReviewApp = lazy(() => import('./components/ReviewApp'));
 const SettingsApp = lazy(() => import('./components/SettingsApp'));
 const HelpApp = lazy(() => import('./components/HelpApp'));
 const Walkthrough = lazy(() => import('./components/Walkthrough'));
@@ -368,10 +368,17 @@ export default function App() {
           <span className="mobile-topbar-logo"><LogoMark size={20} /> <strong>myOKR</strong></span>
         </div>
 
-        {['tasks', 'done', 'analytics'].includes(activeSection) && (
+        {['tasks', 'done'].includes(activeSection) && (
           <ErrorBoundary mode="section">
             <PomodoroApp
-              tab={activeSection === 'tasks' ? 'tasks' : activeSection === 'done' ? 'done' : 'analytics'}
+              tab={activeSection === 'tasks' ? 'tasks' : 'done'}
+            />
+          </ErrorBoundary>
+        )}
+        {(activeSection === 'analytics' || activeSection === 'weekly-review') && (
+          <ErrorBoundary mode="section">
+            <ProgressApp
+              tab={activeSection}
             />
           </ErrorBoundary>
         )}
@@ -390,9 +397,6 @@ export default function App() {
         <Suspense fallback={<div className="loading-fallback" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', color: 'var(--text-secondary)' }}>Loading...</div>}>
           {activeSection === 'objectives' && (
             <ErrorBoundary mode="section"><OKRApp key="okrs" /></ErrorBoundary>
-          )}
-          {activeSection === 'weekly-review' && (
-            <ErrorBoundary mode="section"><ReviewApp key="review" /></ErrorBoundary>
           )}
           {activeSection === 'settings' && (
             <ErrorBoundary mode="section"><SettingsApp key="settings" /></ErrorBoundary>
