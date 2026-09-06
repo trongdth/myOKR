@@ -8,14 +8,16 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export function ProgressHeader({
   activeCycle,
+  title,
   right,
 }: {
   activeCycle?: OKRCycle | null;
+  title?: string;
   right?: ReactNode;
 }) {
-  const cycleTitle = activeCycle
+  const cycleTitle = title ?? (activeCycle
     ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`)
-    : 'Progress';
+    : 'Progress');
 
   return (
     <div className="tasks-view-header progress-header">
@@ -30,7 +32,19 @@ export function ProgressHeader({
   );
 }
 
-export type ProgressTab = 'analytics' | 'weekly-review';
+export type ProgressTab = 'analytics' | 'objectives-progress' | 'weekly-review';
+
+// "Week of 25–31 May" (same month) / "Week of 29 Sep–5 Oct" (spanning).
+export function formatWeekLabel(monday: string): string {
+  const start = new Date(`${monday}T00:00:00Z`);
+  const end = new Date(`${monday}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const monthShort = (d: Date) => MONTHS[d.getUTCMonth()];
+  if (start.getUTCMonth() === end.getUTCMonth()) {
+    return `Week of ${start.getUTCDate()}–${end.getUTCDate()} ${monthShort(end)}`;
+  }
+  return `Week of ${start.getUTCDate()} ${monthShort(start)}–${end.getUTCDate()} ${monthShort(end)}`;
+}
 
 interface ProgressTabStripProps {
   active: ProgressTab;
@@ -83,7 +97,14 @@ export default function ProgressTabStrip({
           className={`plan-tab${active === 'analytics' ? ' active' : ''}`}
           onClick={() => navigateToSection('analytics')}
         >
-          <span>Analytics</span>
+          <span>Focus analytics</span>
+        </button>
+        <button
+          type="button"
+          className={`plan-tab${active === 'objectives-progress' ? ' active' : ''}`}
+          onClick={() => navigateToSection('objectives-progress')}
+        >
+          <span>Objectives</span>
         </button>
         <button
           type="button"

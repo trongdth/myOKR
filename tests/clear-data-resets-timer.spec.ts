@@ -18,7 +18,7 @@ async function gotoSession(page: Page) {
 }
 
 async function gotoAnalytics(page: Page) {
-  const btn = page.locator('button[title="Analytics"]').first();
+  const btn = page.locator('button[title="Focus analytics"]').first();
   if (!(await btn.isVisible())) await page.locator('button[title="Progress"]').first().click();
   await btn.click();
 }

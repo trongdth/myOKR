@@ -132,7 +132,7 @@ test.describe('Habits Tracker Layout and Styles', () => {
       if (!await itemBtn.isVisible()) {
         if (['Tasks', 'Objectives', 'Done'].includes(target)) {
           await page.locator('button[title="Plan"]').first().click();
-        } else if (['Analytics', 'Weekly review'].includes(target)) {
+        } else if (['Focus analytics', 'Weekly review'].includes(target)) {
           await page.locator('button[title="Progress"]').first().click();
         } else if (['Day plan', 'Session', 'Habits'].includes(target)) {
           await page.locator('button[title="Focus"]').first().click();

@@ -28,6 +28,7 @@ export type Section =
   | 'objectives'
   | 'done'
   | 'analytics'
+  | 'objectives-progress'
   | 'weekly-review'
   | 'settings'
   | 'help';
@@ -48,7 +49,7 @@ export function migrateSection(legacy: string | null): Section {
     case 'settings': return 'settings';
     case 'help': return 'help';
     default:
-      if (['day-plan', 'session', 'habits', 'tasks', 'objectives', 'done', 'analytics', 'weekly-review', 'settings', 'help'].includes(legacy)) {
+      if (['day-plan', 'session', 'habits', 'tasks', 'objectives', 'done', 'analytics', 'objectives-progress', 'weekly-review', 'settings', 'help'].includes(legacy)) {
         return legacy as Section;
       }
       return 'day-plan';
@@ -97,7 +98,8 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: <BarChart2 size={18} />,
     defaultTab: 'analytics',
     items: [
-      { id: 'analytics', label: 'Analytics' },
+      { id: 'analytics', label: 'Focus analytics' },
+      { id: 'objectives-progress', label: 'Objectives' },
       { id: 'weekly-review', label: 'Weekly review' },
     ],
   },
@@ -375,7 +377,7 @@ export default function App() {
             />
           </ErrorBoundary>
         )}
-        {(activeSection === 'analytics' || activeSection === 'weekly-review') && (
+        {(activeSection === 'analytics' || activeSection === 'objectives-progress' || activeSection === 'weekly-review') && (
           <ErrorBoundary mode="section">
             <ProgressApp
               tab={activeSection}

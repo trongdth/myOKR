@@ -15,7 +15,6 @@ import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyReco
 import { reviewInCycle } from '../lib/review-utils';
 import ReviewWizard from './review/ReviewWizard';
 import ReviewHistory from './review/ReviewHistory';
-import ProgressChart from './review/ProgressChart';
 import LoadingState from './shared/LoadingState';
 import { Select } from './shared/Select';
 
@@ -426,10 +425,7 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
         </div>
       )}
 
-      {/* Progress Chart */}
-      <ProgressChart reviews={reviews.filter(r => reviewInCycle(r, activeCycle))} keyResults={keyResults} />
-
-      {/* Review History */}
+      {/* Review History — the progress chart moved to the Objectives tab */}
       <ReviewHistory
         reviews={reviews.filter(r => reviewInCycle(r, activeCycle))}
         keyResults={keyResults}

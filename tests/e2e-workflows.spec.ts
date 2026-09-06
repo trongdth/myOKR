@@ -25,7 +25,7 @@ async function navDesktop(page: Page, label: string) {
   if (!await btn.isVisible()) {
     if (['Tasks', 'Objectives', 'Done'].includes(target)) {
       await page.locator('button[title="Plan"]').first().click();
-    } else if (['Analytics', 'Weekly review'].includes(target)) {
+    } else if (['Focus analytics', 'Weekly review'].includes(target)) {
       await page.locator('button[title="Progress"]').first().click();
     } else if (['Day plan', 'Session', 'Habits'].includes(target)) {
       await page.locator('button[title="Focus"]').first().click();
@@ -42,7 +42,7 @@ async function navMobile(page: Page, label: string) {
   if (!await itemBtn.isVisible()) {
     if (['Tasks', 'Objectives', 'Done'].includes(target)) {
       await page.locator('button[title="Plan"]').first().click();
-    } else if (['Analytics', 'Weekly review'].includes(target)) {
+    } else if (['Focus analytics', 'Weekly review'].includes(target)) {
       await page.locator('button[title="Progress"]').first().click();
     } else if (['Day plan', 'Session', 'Habits'].includes(target)) {
       await page.locator('button[title="Focus"]').first().click();

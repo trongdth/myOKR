@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function openAnalytics(page: Page) {
-  const item = page.locator('button[title="Analytics"]').first();
+  const item = page.locator('button[title="Focus analytics"]').first();
   if (!(await item.isVisible().catch(() => false))) {
     await page.getByRole('button', { name: 'Progress', exact: true }).click();
   }
@@ -98,12 +98,100 @@ test.describe('Progress / Analytics Screen Revamp', () => {
 
     // Tabs
     const tabs = shell.locator('.plan-tab');
-    await expect(tabs.nth(0)).toHaveText('Analytics');
-    await expect(tabs.nth(1)).toHaveText('Weekly review');
+    await expect(tabs.nth(0)).toHaveText('Focus analytics');
+    await expect(tabs.nth(1)).toHaveText('Objectives');
+    await expect(tabs.nth(2)).toHaveText('Weekly review');
     await expect(tabs.nth(0)).toHaveClass(/\bactive\b/);
 
     // Week select
     await expect(shell.locator('.progress-week-select')).toBeVisible();
+  });
+
+  test('Objectives tab hosts the progress-over-time chart; Weekly review does not', async ({ page }) => {
+    // Two completed reviews → the chart has something to draw. Weeks come
+    // from the cycle's exclusive Mondays so they always overlap the cycle
+    // month (reviewInCycle visibility).
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const weekA = mondays[0];
+      const weekB = mondays[1] ?? mondays[0];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      const mk = (id: string, weekStart: string, value: number) => ({
+        id, weekStartDate: weekStart, weekEndDate: endOf(weekStart), cycleId: 'c-test',
+        completedAt: `${weekStart}T20:00:00.000Z`,
+        entries: [{ keyResultId: 'kr-1', previousValue: Math.max(0, value - 1), currentValue: value, confidence: 'on_track' }],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      const reviews = weekA === weekB ? [mk('rev-a', weekA, 3)] : [mk('rev-a', weekA, 3), mk('rev-b', weekB, 5)];
+      await okr.saveReviews(reviews);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await openAnalytics(page);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    const shell = page.locator('.progress-shell');
+    await expect(shell.locator('.progress-chart-container')).toBeVisible();
+    await expect(shell.locator('.progress-chart-svg')).toBeVisible();
+
+    // The chart left the Weekly review tab entirely.
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+    await expect(shell.locator('.review-container')).toBeVisible();
+    await expect(shell.locator('.progress-chart-container')).toHaveCount(0);
+  });
+
+  test('draft reviews never chart: one completed + one draft keeps the placeholder', async ({ page }) => {
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const weekB = mondays[0];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      await okr.saveReviews([
+        { id: 'rev-done', weekStartDate: weekB, weekEndDate: endOf(weekB), cycleId: 'c-test',
+          completedAt: `${weekB}T20:00:00.000Z`,
+          entries: [{ keyResultId: 'kr-1', previousValue: 2, currentValue: 3, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+        { id: 'rev-draft', weekStartDate: '2026-06-08', weekEndDate: '2026-06-14', cycleId: 'c-test',
+          entries: [{ keyResultId: 'kr-1', previousValue: 3, currentValue: 5, confidence: 'on_track' }],
+          prompts: [{ id: 'p1', type: 'one_change', text: 'One change for next week?', answer: '' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+      ]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await openAnalytics(page);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    const shell = page.locator('.progress-shell');
+    await expect(shell.locator('.progress-chart-container')).toBeVisible();
+    await expect(shell.locator('.progress-chart-svg')).toHaveCount(0);
+    await expect(shell.locator('.progress-chart-container')).toContainText('Complete at least 2 weekly reviews');
+  });
+
+  test('week h1 on Objectives and Weekly review; cycle h1 stays on Focus analytics', async ({ page }) => {
+    await openAnalytics(page);
+    const shell = page.locator('.progress-shell');
+    await expect(shell.locator('.plan-header-title')).toContainText('May cycle');
+
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    await expect(shell.locator('.plan-header-title')).toHaveText(/^Week of \d+/);
+
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+    await expect(shell.locator('.plan-header-title')).toHaveText(/^Week of \d+/);
+
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
+    await expect(shell.locator('.plan-header-title')).toContainText('May cycle');
   });
 
   test('renders 4 top metric cards with cycle-scoped values in whole cycle view and adapts when week filtered', async ({ page }) => {
@@ -358,7 +446,7 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     await expect(page.locator('.review-start-card')).toBeVisible();
 
     // Switch back to Analytics
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Analytics")').click();
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
     await page.waitForTimeout(300);
     await expect(page.locator('.analytics-metric-cards')).toBeVisible();
   });
