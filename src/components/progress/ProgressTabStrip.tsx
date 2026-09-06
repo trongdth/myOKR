@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
 import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
@@ -59,6 +59,17 @@ export default function ProgressTabStrip({
   selectedWeek,
   onSelectWeek,
 }: ProgressTabStripProps) {
+  // The Weekly review tab carries a "step N/3" badge mirroring the wizard
+  // step in view (the wizard announces it via the myokr-review-step event).
+  const [reviewStep, setReviewStep] = useState<number | null>(null);
+  useEffect(() => {
+    const handleStep = (e: Event) => {
+      const step = (e as CustomEvent).detail?.step;
+      if (typeof step === 'number') setReviewStep(step);
+    };
+    window.addEventListener('myokr-review-step', handleStep);
+    return () => window.removeEventListener('myokr-review-step', handleStep);
+  }, []);
   // Weeks follow the exclusive cycle-window rule (cycle-windows.ts), so the
   // option count always matches what Analytics renders per cycle. Today is
   // taken in UTC to match the windows' UTC-midnight arithmetic.
@@ -112,6 +123,9 @@ export default function ProgressTabStrip({
           onClick={() => navigateToSection('weekly-review')}
         >
           <span>Weekly review</span>
+          {active === 'weekly-review' && reviewStep !== null && (
+            <span className="rw-tab-badge">step {reviewStep}/3</span>
+          )}
         </button>
       </div>
 

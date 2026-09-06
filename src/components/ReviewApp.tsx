@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Target, CheckCircle, Calendar, Hourglass, Rocket } from 'lucide-react';
+import { ClipboardList, Target, CheckCircle, Calendar } from 'lucide-react';
 import '../styles/review.css';
 import {
   loadCycles, loadObjectives, loadKeyResults,
-  loadReviews, saveReviews, saveKeyResults,
+  loadReviews, saveReviews, saveKeyResults, saveCompletedReview,
   getCurrentWeekStart,
-  getMondaysForCycle, getWeekEndFromStart,
+  getWeekEndFromStart,
   getEffectiveCurrentValueAsOf,
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
-import { loadHabits, type Habit } from '../lib/habit-storage';
 import { generateId } from '../lib/pomodoro-storage';
+import { loadHabits, type Habit } from '../lib/habit-storage';
 import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
 import { reviewInCycle } from '../lib/review-utils';
 import ReviewWizard from './review/ReviewWizard';
@@ -69,7 +69,7 @@ async function repairReviews(
   return { repaired, changed };
 }
 
-export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+export default function ReviewApp({ hideHeader = false, weekMonday = null }: { hideHeader?: boolean; weekMonday?: string | null } = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
@@ -79,8 +79,6 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
   const [history, setHistory] = useState<DailyRecord[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
-  const [showWizard, setShowWizard] = useState(false);
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekStart());
   const [explicitCycleId, setExplicitCycleId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -176,40 +174,27 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
     return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, []);
 
-  const weekStart = selectedWeek;
-  const weekEnd = selectedWeek ? getWeekEndFromStart(selectedWeek) : '';
-
-  // Infer the cycle from the week's START month. The review is tagged with this
-  // cycle (so e.g. a 06-29 → 07-05 review wraps up the June KRs it started under).
-  // Visibility across cycles is handled below by `reviewInCycle` (week-overlap),
-  // so a cross-month review still shows under July even though it's tagged June.
-  const selectedDate = new Date(selectedWeek);
+  // Infer the cycle from the selected week's START month. The review is tagged
+  // with this cycle (so e.g. a 06-29 → 07-05 review wraps up the June KRs it
+  // started under). Visibility across cycles is handled below by
+  // `reviewInCycle` (week-overlap), so a cross-month review still shows under
+  // July even though it's tagged June.
+  const selectedDate = new Date(weekMonday ?? getCurrentWeekStart());
   const targetMonth = selectedDate.getUTCMonth();
   const targetYear = selectedDate.getUTCFullYear();
 
-  const inferredCycle = cycles.find(c => c.month === targetMonth && c.year === targetYear) 
-    || cycles.find(c => c.isActive) 
+  const inferredCycle = cycles.find(c => c.month === targetMonth && c.year === targetYear)
+    || cycles.find(c => c.isActive)
     || cycles[0];
 
-  const activeCycle = explicitCycleId 
-    ? cycles.find(c => c.id === explicitCycleId) || inferredCycle 
+  const activeCycle = explicitCycleId
+    ? cycles.find(c => c.id === explicitCycleId) || inferredCycle
     : inferredCycle;
 
-  // Keep selectedWeek in sync with activeCycle's weeks
-  useEffect(() => {
-    if (activeCycle) {
-      const weeks = getMondaysForCycle(activeCycle);
-      if (weeks.length > 0 && !weeks.includes(selectedWeek)) {
-        const todayWeek = getCurrentWeekStart();
-        if (weeks.includes(todayWeek)) {
-          setSelectedWeek(todayWeek);
-        } else {
-          setSelectedWeek(weeks[0]);
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCycle?.id, activeCycle?.month, activeCycle?.year]);
+  // The shared tab-strip week selector drives the review (exclusive weeks,
+  // ADR-0019); unset falls back to the current week.
+  const weekStart = weekMonday ?? getCurrentWeekStart();
+  const weekEnd = weekStart ? getWeekEndFromStart(weekStart) : '';
 
   // Check if current week already has a completed review
   const currentWeekReview = reviews.find(
@@ -225,7 +210,12 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
   })();
 
   const isFutureWeek = todayStr < weekStart;
-  const isCurrentWeekInProgress = selectedWeek === getCurrentWeekStart() && todayStr <= weekEnd;
+
+  // Draft autosaves land straight in the doc; pull them back so history and
+  // the wizard stay in sync.
+  const reloadReviews = async () => {
+    try { setReviews(await loadReviews()); } catch { /* non-fatal */ }
+  };
 
   const syncKeyResultsFromReviews = async (currentReviews: WeeklyReview[], currentKRs: KeyResult[]) => {
     const updatedKRs = currentKRs.map(kr => {
@@ -256,33 +246,22 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
   };
 
   const handleCompleteReview = async (reviewData: Omit<WeeklyReview, 'id'>) => {
-    // Prevent duplicate reviews for the same week by replacing if it already exists
-    const existsIdx = reviews.findIndex(r => r.weekStartDate === reviewData.weekStartDate);
-    let updatedReviews: WeeklyReview[];
-
-    if (existsIdx >= 0) {
-      const updated = {
-        ...reviews[existsIdx],
-        ...reviewData,
-        completedAt: new Date().toISOString(),
-      };
-      updatedReviews = reviews.map((r, idx) => idx === existsIdx ? updated : r);
-    } else {
-      const review: WeeklyReview = {
-        id: generateId(),
-        ...reviewData,
-      };
-      updatedReviews = [...reviews, review];
-    }
-
-    // Save review
+    // One review per week: replace whatever exists (draft or completed) in
+    // place, then sync KR values from the latest completed reviews.
+    const existing = reviews.find(r => r.weekStartDate === reviewData.weekStartDate);
+    const review: WeeklyReview = {
+      id: existing?.id ?? generateId(),
+      ...reviewData,
+      completedAt: new Date().toISOString(),
+    };
+    const updatedReviews = existing
+      ? reviews.map(r => r.weekStartDate === review.weekStartDate ? review : r)
+      : [...reviews, review];
     setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
+    try { await saveCompletedReview(review); } catch { /* storage failure is non-fatal */ }
 
     // Update Key Result values based on the latest completed review
     await syncKeyResultsFromReviews(updatedReviews, keyResults);
-
-    setShowWizard(false);
   };
 
   const handleDeleteReview = async (reviewId: string) => {
@@ -337,7 +316,6 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
               <Select
                 options={cycles.map(c => ({ value: c.id, label: c.name }))}
                 value={activeCycle.id}
-                disabled={showWizard}
                 onChange={(cycleId) => setExplicitCycleId(cycleId)}
                 ariaLabel="Cycle"
               />
@@ -346,12 +324,33 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
         </div>
       )}
 
-      {/* Wizard or Start card */}
-      {showWizard ? (
+      {/* Weekly review — the wizard runs directly for any started or past
+          week without a completed review (ADR-0019). Finished weeks stay
+          editable via history below; future weeks stay blocked. */}
+      {isFutureWeek ? (
+        <div className="review-start-card">
+          <div className="review-start-card-icon"><Calendar size={24} /></div>
+          <div className="review-start-card-title">Week has not started yet</div>
+          <div className="review-start-card-desc">
+            This week (starting {weekStart}) is in the future. You can start the weekly review once the week has begun.
+          </div>
+        </div>
+      ) : currentWeekReview ? (
+        <div className="review-start-card">
+          <div className="review-start-card-icon"><CheckCircle size={24} /></div>
+          <div className="review-start-card-title">This week's review is complete!</div>
+          <div className="review-start-card-desc">
+            Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
+            If you need to edit this review, you can do so in the Past Reviews section below.
+          </div>
+        </div>
+      ) : (
         <ReviewWizard
+          key={`${weekStart}-${activeCycle.id}`}
           weekStart={weekStart}
           weekEnd={weekEnd}
           cycleId={activeCycle.id}
+          todayStr={todayStr}
           objectives={objectives}
           keyResults={keyResults}
           tasks={tasks}
@@ -361,68 +360,8 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
           habits={habits}
           cycles={cycles}
           onComplete={handleCompleteReview}
-          onCancel={() => setShowWizard(false)}
+          onDraftSaved={reloadReviews}
         />
-      ) : (
-        <div className="review-start-card">
-          <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                Review for week of:
-                <Select
-                  options={getMondaysForCycle(activeCycle).map(monday => ({
-                    value: monday,
-                    label: `${monday} to ${getWeekEndFromStart(monday)}`,
-                  }))}
-                  value={selectedWeek}
-                  onChange={(monday) => {
-                    setSelectedWeek(monday);
-                    setExplicitCycleId(null);
-                  }}
-                  ariaLabel="Review week"
-                />
-              </label>
-            </div>
-          </div>
-          {currentWeekReview ? (
-            <>
-              <div className="review-start-card-icon"><CheckCircle size={24} /></div>
-              <div className="review-start-card-title">This week's review is complete!</div>
-              <div className="review-start-card-desc">
-                Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
-                If you need to edit this review, you can do so in the Past Reviews section below.
-              </div>
-            </>
-          ) : isFutureWeek ? (
-            <>
-              <div className="review-start-card-icon"><Calendar size={24} /></div>
-              <div className="review-start-card-title">Week has not started yet</div>
-              <div className="review-start-card-desc">
-                This week (starting {weekStart}) is in the future. You can start the weekly review once the week has ended.
-              </div>
-            </>
-          ) : isCurrentWeekInProgress ? (
-            <>
-              <div className="review-start-card-icon"><Hourglass size={24} /></div>
-              <div className="review-start-card-title">Week is still in progress</div>
-              <div className="review-start-card-desc">
-                This week (ending {weekEnd}) is still ongoing. You can start the weekly review once the week is complete.
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="review-start-card-icon"><ClipboardList size={24} /></div>
-              <div className="review-start-card-title">Time for your weekly review!</div>
-              <div className="review-start-card-desc">
-                Review your progress on each Key Result, assess your confidence, and
-                reflect on the week. This takes about 5 minutes.
-              </div>
-              <button className="review-start-btn" onClick={() => setShowWizard(true)}>
-                <Rocket size={16} className="icon-inline" /> Start Weekly Review
-              </button>
-            </>
-          )}
-        </div>
       )}
 
       {/* Review History — the progress chart moved to the Objectives tab */}

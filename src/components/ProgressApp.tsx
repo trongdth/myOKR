@@ -75,7 +75,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
           <ObjectivesProgressTab activeCycle={activeCycle} />
         )}
         {tab === 'weekly-review' && (
-          <ReviewApp hideHeader />
+          <ReviewApp hideHeader weekMonday={selectedMonday} />
         )}
       </div>
     </div>
