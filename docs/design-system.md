@@ -467,9 +467,15 @@ the cycle it *opens*, never the one it closes — `getExclusiveCycleMondays`
 cycle-vs-last-cycle KPI windows, and the tab strip's week filter. Without
 this, a week like Aug 31–Sep 6 2026 counts toward both August and September
 and the trajectory badge double-counts it ("0 vs last cycle" when the prior
-month had no data of its own). The weekly-review week picker keeps the
-intersect rule (`getMondaysForCycle`); the Plan tabs derive weeks their own
-way (`getCycleWeeks` in PlanTabStrip).
+month had no data of its own). The Plan tabs derive weeks their own way
+(`getCycleWeeks` in PlanTabStrip).
+
+**Superseded (2026-09-07, ADR-0019):** this used to be a deliberate *split* —
+the weekly-review week picker kept the intersect rule (`getMondaysForCycle`)
+while analytics went exclusive. The shared tab-strip week selector ends that:
+every Progress tab, the weekly review included, lists exclusive weeks. Legacy
+reviews created under the intersect rule must still resolve to exactly one
+week/cycle (pinned by test).
 
 ### SESSIONS PER WEEK tooltips (2026-09-04)
 
@@ -478,6 +484,82 @@ Cycle week bars carry the week summary (`31 Aug – 6 Sep · 25 sessions ·
 `title` only**. A floating custom tooltip shipped alongside it briefly and
 was removed for duplicating the same text — don't reintroduce one. Pinned by
 the "cycle week bars keep only the native title tooltip" spec test.
+
+## Weekly review revamp (2026-09-07) — per-screen rules
+
+Three fixed steps (Week at a glance → Score key results → Reflect) per
+[ADR-0019](./adr/0019-three-step-weekly-review-autosaved-drafts.md); glossary
+in `CONTEXT.md`. Desktop-only; no mobile port.
+
+### Tabs & header
+
+- Progress tabs become **Focus analytics · Objectives · Weekly review** (the
+  Objectives tab holds the moved progress-over-time chart; distinct from the
+  Plan group's Objectives screen). The sidebar items match the tab labels.
+- Header h1 is `Week of {d}–{d} {Mon}` on **Objectives and Weekly review
+  only**; Focus analytics keeps its cycle-overview/week-drill-down header
+  logic. Eyebrow stays `PROGRESS`.
+- The Weekly review tab carries a `step N/3` badge mirroring the step in view
+  for the selected week.
+
+### Step rail & wizard chrome
+
+- Left rail: numbered items (1 Week at a glance, 2 Score key results, 3
+  Reflect); completed steps show a check. **Freely clickable** — no gating;
+  unscored KRs don't block Finish. A week with a draft lands on its first
+  step with unanswered work.
+- Save indicator top-right: `Nothing to save yet` (no edits) → `Saving…` →
+  `Saved just now` (check icon, success color). Footer: `Step N of 3 · …`
+  left, Back + primary action right (`Score key results` / `Continue to
+  reflection` / `Finish review`).
+
+### Week at a glance (step 1)
+
+- Four stat cards — Sessions (+ delta vs last week), Focus time (+ per-day
+  average), Tasks done (of KR-linked cohort + `N carried`), Habits % (+
+  missed weekday names). **Habits % uses neutral/success color — never
+  amber** (amber is streak-only; no carve-out added).
+- SESSIONS PER DAY bars reuse the Analytics bar styling + one rule-based
+  insight sentence (peak day; light-days ∩ missed-habit-days).
+- KEY RESULTS THAT MOVED panel: per-KR delta rows — green `+`, rose `−`,
+  neutral `0` — plus the "N other key results had no linked sessions"
+  footnote. Values are **as-of week start/end**, computed whether or not a
+  review exists.
+- Unlinked-sessions banner (attention token, not amber) with the **Link
+  sessions** button; hidden when the cycle has no derived-mode KRs.
+- Previous completed week's One-change answer renders as "Last week you
+  committed to …".
+
+### Score key results (step 2)
+
+- All KRs on one screen. **Confidence chips are `On track / At risk / Off
+  track`** — canonical labels; the mockup's "Confident / Unsure" was rejected
+  (consistency with history + mobile). Unscored = `not_set`, grey.
+- **Derived KRs render their computed value read-only** (no input); only
+  `manual` KRs get the number input with `/target` and a `+N this week` /
+  `no change` chip.
+- At-risk streak banner per qualifying row: "Flagged at risk N weeks
+  running." — no task-level clause.
+- Per-KR linked-tasks detail survives, collapsed under the row.
+- Steps 2–3 show the "This week" sidebar card: sessions / focus / tasks /
+  habits %, plus `N linked to this cycle's KRs · M unlinked or other cycles`.
+
+### Reflect (step 3)
+
+- ≤3 prompts, rule-generated: at-risk streak → biggest positive mover →
+  always **One change for next week?** ("Becomes a note on next week's plan"
+  hint); `free` fallback when nothing notable. Answers autosave into the
+  structured `prompts` array (never the legacy `reflection` string).
+
+### Drafts & history
+
+- Edits autosave (debounced ~1 s) into a draft `WeeklyReview` (`completedAt`
+  undefined); **Finish review** stamps it and triggers KR sync. Drafts are
+  invisible to the chart, streaks, and sync.
+- History stays below the wizard: draft cards ("In progress" + Continue
+  review), finished weeks render the wizard read-only, completed reviews stay
+  editable via history (prompt answers included; legacy no-prompt reviews
+  render exactly as before).
 
 ## Plan group screens (P1–P7) — per-screen rules
 
