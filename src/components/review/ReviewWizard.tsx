@@ -160,6 +160,10 @@ export default function ReviewWizard({
   const draftRef = useRef<WeeklyReview | null>(draft);
   const timerRef = useRef<number | undefined>(undefined);
 
+  // Latest state for the unmount flush (refs stay fresh across renders).
+  const latestRef = useRef({ entries, prompts, pomodoroStats, weekStart, weekEnd, cycleId });
+  latestRef.current = { entries, prompts, pomodoroStats, weekStart, weekEnd, cycleId };
+
   useEffect(() => {
     if (!dirtyRef.current) return;
     setSaveState('saving');
@@ -184,25 +188,27 @@ export default function ReviewWizard({
         setSaveState('idle');
       }
     }, 1000);
-    return () => {
-      window.clearTimeout(timerRef.current);
-      // Week switch / unmount with pending edits: flush instead of dropping
-      // the last keystroke. The closure holds the latest entries/prompts.
-      if (dirtyRef.current) {
-        dirtyRef.current = false;
-        saveReviewDraft({
-          id: draftRef.current?.id ?? `draft-${weekStart}`,
-          weekStartDate: weekStart,
-          weekEndDate: weekEnd,
-          cycleId,
-          entries,
-          prompts,
-          pomodoroStats,
-        }).then(() => onDraftSaved?.()).catch(() => { /* non-fatal */ });
-      }
-    };
+    return () => window.clearTimeout(timerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, prompts]);
+
+  // Week switch / unmount with pending edits: flush instead of dropping the
+  // last keystroke (the debounce effect's cleanup only cancels the timer).
+  useEffect(() => () => {
+    if (!dirtyRef.current) return;
+    dirtyRef.current = false;
+    const l = latestRef.current;
+    saveReviewDraft({
+      id: draftRef.current?.id ?? `draft-${l.weekStart}`,
+      weekStartDate: l.weekStart,
+      weekEndDate: l.weekEnd,
+      cycleId: l.cycleId,
+      entries: l.entries,
+      prompts: l.prompts,
+      pomodoroStats: l.pomodoroStats,
+    }).then(() => onDraftSaved?.()).catch(() => { /* non-fatal */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateEntry = (keyResultId: string, updated: ReviewEntry) => {
     dirtyRef.current = true;
