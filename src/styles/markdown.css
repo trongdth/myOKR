@@ -1,0 +1,201 @@
+/* ==========================================================================
+   Markdown surface — the shared .md-body typography layer (2026-09-06)
+   ==========================================================================
+   Applied by the shared <Markdown> component (src/components/shared/Markdown.tsx);
+   current surface: Task detail Notes. Every GFM block react-markdown can emit
+   is styled explicitly — nothing falls back to browser defaults. Tokens only
+   (docs/design-system.md): --text-*/--bg-*/--border-color/--font-mono.
+   Compact in-modal scale: a task panel, not a document page. */
+
+.md-body {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  overflow-wrap: break-word;
+}
+.md-body > :last-child { margin-bottom: 0; }
+.md-body > :first-child { margin-top: 0; }
+
+/* Paragraphs and thematic breaks */
+.md-body p { margin: 0 0 0.5rem; }
+.md-body hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 0.75rem 0;
+}
+
+/* Headings — bright, semibold, margin above so sections breathe; distinct
+   steps h1→h6 (VS Code-like rhythm at in-modal sizes). */
+.md-body h1, .md-body h2, .md-body h3,
+.md-body h4, .md-body h5, .md-body h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1rem 0 0.4rem;
+}
+.md-body h1 { font-size: 1.15rem; }
+.md-body h2 { font-size: 1.05rem; }
+.md-body h3 { font-size: 0.95rem; }
+.md-body h4 { font-size: 0.9rem; }
+.md-body h5 { font-size: 0.85rem; }
+.md-body h6 { font-size: 0.85rem; }
+
+/* Lists — mono gutter markers (the app's · separator), not browser discs.
+   Nesting differentiates the marker: · level 1, – level 2; levels 3+ reuse ·
+   (a plain-descendant rule can't alternate past two depths — specificity
+   pins deeper matches to the 3-ul rule). */
+.md-body ul, .md-body ol {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+.md-body ol { counter-reset: md-ol; }
+.md-body ul > li, .md-body ol > li {
+  position: relative;
+  padding-left: 1.9rem;
+  margin: 0 0 0.3rem;
+}
+.md-body ol > li { counter-increment: md-ol; }
+.md-body ul > li::before, .md-body ol > li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.35rem;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: inherit;
+  color: var(--text-muted);
+}
+.md-body ul > li::before { content: '·'; }
+.md-body ol > li::before { content: counter(md-ol); }
+.md-body ul ul > li::before { content: '–'; }
+.md-body ul ul ul > li::before { content: '·'; }
+/* Nested lists indent into the parent's content column; loose items (blank
+   line between) wrap their text in <p> — keep the rhythm tight. */
+.md-body li > ul, .md-body li > ol { margin: 0.2rem 0 0.1rem; }
+.md-body li > p { margin: 0; }
+
+/* Task lists (GFM `- [ ]`/`- [x]`) — display-only: the checkbox shows state,
+   toggling happens by editing the notes. Items with a checkbox drop the
+   gutter marker so the box is the marker. */
+.md-body li:has(> input[type='checkbox']) { padding-left: 0; }
+.md-body li:has(> input[type='checkbox'])::before { content: none; }
+.md-body input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0 0.4rem 0 0;
+  vertical-align: -0.125em;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  cursor: default;
+  /* Disabled inputs swallow clicks; pass them through so the notes surface
+     keeps "click anywhere to edit" with no dead zones. */
+  pointer-events: none;
+}
+.md-body input[type='checkbox']:checked {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+.md-body input[type='checkbox']:checked::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: var(--color-primary);
+}
+
+/* Blockquote — quiet left rule, muted text */
+.md-body blockquote {
+  margin: 0.5rem 0;
+  padding: 0.15rem 0 0.15rem 0.75rem;
+  border-left: 2px solid var(--border-color);
+}
+.md-body blockquote p { margin: 0 0 0.25rem; color: var(--text-muted); }
+.md-body blockquote p:last-child { margin-bottom: 0; }
+
+/* Links — the single primary hue; wrap within the column, never overflow it */
+.md-body a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: break-word;
+}
+
+/* Inline code — mono chip (the fenced-block reset below wins by specificity). */
+.md-body code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+/* Fenced code block: monospace on its own raised surface, one Copy button
+   top-right of the block. Scoped .md-body .md-code-block code so the reset
+   beats the inline-chip rule by specificity, not file order. */
+.md-code-block {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  margin: 0.5rem 0;
+}
+.md-code-block pre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  overflow-x: auto;
+}
+.md-body .md-code-block code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: none;
+  padding: 0;
+}
+.md-code-copy {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+.md-code-copy:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* Tables — ruled cells, bright bold header; scroll horizontally rather than
+   widening the notes column. */
+.md-body table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+.md-body th, .md-body td {
+  border: 1px solid var(--border-color);
+  padding: 0.3rem 0.55rem;
+  text-align: left;
+}
+.md-body th {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--bg-secondary);
+}

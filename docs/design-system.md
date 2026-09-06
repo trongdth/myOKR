@@ -658,7 +658,8 @@ identically; there is no separate long-break case.
   `computeWeekTaskPomos` + the review flow are untouched. Desktop-only this
   week — mobile still ships the weekly plan (ticket
   `.scratch/pomodoro-weekly-plan-removal-mobile/`).
-- Notes render Markdown links wrapped with a copy button (presentation only).
+- Notes render in full through the shared **markdown surface** — the `.md-body`
+  typography layer (`src/styles/markdown.css`, 2026-09-06; see the block below).
   The whole block is one Markdown field (not per-line); clicking anywhere in the
   rendered view swaps it for the raw-markdown editor (links/copy still work).
 - Sub-tasks / comments as equal-weight tabs **only where the model has the
@@ -811,6 +812,41 @@ identically; there is no separate long-break case.
 >   (this bullet's predecessor) and reverted the same day — WKWebView won't
 >   start a drag in a scroll region, so the packaged app never dragged.
 >   Click-select (grip pick-up → row place → Esc cancels) works everywhere.
+
+> **Notes typography 2026-09-06 — the shared `.md-body` markdown layer.** The
+> rendered notes (and any future markdown surface — the layer lives on the
+> shared `<Markdown>` component, not on the pomodoro screen) styles every GFM
+> block explicitly; previously headings, blockquotes, tables, inline code, `hr`,
+> and task lists fell back to browser defaults inside a themed modal.
+>
+> - **Compact in-modal heading scale** (VS Code-like rhythm, not document-page
+>   sizes): h1 1.15rem → h2 1.05rem → h3 0.95rem → h4 0.9rem → h5/h6 0.85rem,
+>   all weight 600 in `--text-primary` (body stays `--text-secondary`), with
+>   margin above so sections breathe; the first block sits flush. Body
+>   line-height 1.6 (headings 1.3 — document-wide 1.6 would gap them).
+> - **Lists keep the mono gutter identity**, not browser discs: `·` level 1,
+>   `–` level 2, `·` again from level 3 (plain-descendant CSS can't alternate
+>   past two depths); ordered lists keep bare mono numbers. Wrapped lines
+>   hang-indent to the text column.
+> - **Task-list checkboxes are display-only** — they render the `- [x]` state
+>   (disabled + readOnly; the sanitize schema was extended to admit `input`
+>   with `checked`/`disabled`/`type`), toggling means editing the notes. The
+>   checkbox replaces the gutter marker on its list item, and passes clicks
+>   through (`pointer-events: none`) so "click anywhere to edit" has no dead
+>   zones — disabled inputs otherwise swallow clicks.
+> - **Bare autolink URLs past 60 chars middle-truncate** for display
+>   (34 chars + `…` + 22, keeping domain head and id-bearing tail); the `href`
+>   and hover `title` keep the full URL. Typed `[label](url)` labels are never
+>   rewritten. Short autolinks just drop the protocol, as before.
+> - **Blockquote** (2px `--border-color` left rule, `--text-muted` text),
+>   **table** (ruled cells, bright bold header, scrolls horizontally instead of
+>   widening the column), **inline code** (mono chip on `--bg-tertiary`),
+>   **`hr`** (1px `--border-color` rule) — tokens only, no raw hex.
+> - The 2026-08-29 per-screen notes CSS (`.notes-content-view a`, the list
+>   rules, `.md-code-block*`) migrated into the layer; `.notes-content-view`
+>   is layout-only (cursor/position). The dead legacy description block
+>   (`.task-detail-desc-text` and its section chrome, ~192 lines) was deleted.
+>   Regression: `tests/notes-markdown.spec.ts`.
 
 ### Done (P5, flagship)
 
