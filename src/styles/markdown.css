@@ -56,6 +56,9 @@
   margin: 0 0 0.3rem;
 }
 .md-body ol > li { counter-increment: md-ol; }
+/* Every list closes tight — no stray gap when a list ends the notes. */
+.md-body ul > li:last-child,
+.md-body ol > li:last-child { margin-bottom: 0; }
 .md-body ul > li::before, .md-body ol > li::before {
   position: absolute;
   left: 0;

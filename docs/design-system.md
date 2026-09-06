@@ -833,11 +833,19 @@ identically; there is no separate long-break case.
 >   with `checked`/`disabled`/`type`), toggling means editing the notes. The
 >   checkbox replaces the gutter marker on its list item, and passes clicks
 >   through (`pointer-events: none`) so "click anywhere to edit" has no dead
->   zones — disabled inputs otherwise swallow clicks.
+>   zones — disabled inputs otherwise swallow clicks. That same
+>   `pointer-events: none` makes the checkbox unhoverable, so its
+>   `title="Read-only — edit notes to toggle"` works as an accessibility
+>   string only, never a visible tooltip. The checked state uses
+>   `--color-primary` as an authored-content accent — deliberately not the
+>   done-state green, which marks *app* task state, not notes text.
 > - **Bare autolink URLs past 60 chars middle-truncate** for display
->   (34 chars + `…` + 22, keeping domain head and id-bearing tail); the `href`
->   and hover `title` keep the full URL. Typed `[label](url)` labels are never
->   rewritten. Short autolinks just drop the protocol, as before.
+>   (34 chars + `…` + 22, keeping domain head and id-bearing tail). The `href`
+>   keeps the literal full URL; the hover `title` shows the full
+>   protocol-stripped form. Typed `[label](url)` labels and their authored
+>   titles pass through verbatim — even when the label is itself a URL (the
+>   strip belongs to autolinks alone). Short autolinks just drop the protocol,
+>   as before.
 > - **Blockquote** (2px `--border-color` left rule, `--text-muted` text),
 >   **table** (ruled cells, bright bold header, scrolls horizontally instead of
 >   widening the column), **inline code** (mono chip on `--bg-tertiary`),

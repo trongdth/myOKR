@@ -26,8 +26,8 @@ function hardBreaks(text: string): string {
 
 // Autolinked URLs render their href as the label — strip the protocol for
 // display (anthropic.skilljar.com/…, not https://anthropic.skilljar.com/…).
-// Labels the author typed ([text](href)) are never URL-shaped, so they pass
-// through untouched.
+// The strip (and truncation) applies to autolinks alone: a label the author
+// typed ([text](href)) passes through verbatim even when it is itself a URL.
 function stripProtocol(label: string): string {
   return label.replace(/^https?:\/\//i, '');
 }
@@ -46,7 +46,10 @@ function autolinkLabel(
 ): { label: string; title?: string } {
   const stripped = stripProtocol(children);
   const isAutolink = !!href && stripProtocol(href) === stripped;
-  if (isAutolink && stripped.length > URL_LABEL_MAX) {
+  if (!isAutolink) {
+    return { label: children };
+  }
+  if (stripped.length > URL_LABEL_MAX) {
     return {
       label: `${stripped.slice(0, URL_HEAD)}…${stripped.slice(-URL_TAIL)}`,
       title: stripped,

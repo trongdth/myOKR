@@ -37,6 +37,7 @@ test.describe('Notes markdown rendering', () => {
           '### Product plan checklist',
           '- https://docs.google.com/spreadsheets/d/1H7hN_fL6W7bYk3nSUsbZ1hJ0w9ufsi2j/edit?gid=1759489338#gid=1759489338',
           '- [release doc](https://example.com/a/release/documentation/rolling-out-helm-to-initial-users "external doc")',
+          '- [https://example.com/landing](https://example.com/landing-page)',
           '- https://main.d8irts5m6x146.amplifyapp.com/',
           '',
           '#### Phase 1 — coming soon site',
@@ -86,9 +87,14 @@ test.describe('Notes markdown rendering', () => {
     await expect(links.nth(1)).toHaveText('release doc');
     await expect(links.nth(1)).toHaveAttribute('title', 'external doc');
 
+    // A typed label that IS a URL still passes through verbatim — the
+    // protocol strip belongs to autolinks alone.
+    await expect(links.nth(2)).toHaveText('https://example.com/landing');
+    await expect(links.nth(2)).toHaveAttribute('href', 'https://example.com/landing-page');
+
     // Short autolinks (34 chars) stay whole.
-    await expect(links.nth(2)).toHaveText('main.d8irts5m6x146.amplifyapp.com/');
-    await expect(links.nth(2)).not.toHaveAttribute('title');
+    await expect(links.nth(3)).toHaveText('main.d8irts5m6x146.amplifyapp.com/');
+    await expect(links.nth(3)).not.toHaveAttribute('title');
   });
 
   test('md-body layer: headings scale and brighten, blockquote/table/code/hr styled — no browser defaults', async ({ page }) => {
@@ -150,6 +156,10 @@ test.describe('Notes markdown rendering', () => {
     const level2 = view.locator('ul ul > li', { hasText: 'level-two bullet' });
     await expect(level2).toHaveCount(1);
     expect(await marker(level2)).toBe('"–"');
+
+    // Every list closes tight: the last item of a list carries no bottom
+    // margin, so a list ending the notes leaves no stray gap.
+    await expect(level2).toHaveCSS('margin-bottom', '0px');
   });
 
   test('task lists: checkboxes render display-only (disabled, state visible)', async ({ page }) => {
