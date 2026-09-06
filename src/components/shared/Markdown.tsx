@@ -18,6 +18,17 @@ const sanitizeSchema = {
   },
 };
 
+// A task-list li wraps its checkbox directly when tight, but inside a <p>
+// when loose (blank line after the list) — so look anywhere below it.
+type HastNode = { tagName?: string; children?: readonly unknown[] };
+
+function containsCheckbox(node?: unknown): boolean {
+  if (!node || typeof node !== 'object') return false;
+  const el = node as HastNode;
+  if (el.tagName === 'input') return true;
+  return (el.children ?? []).some(containsCheckbox);
+}
+
 // Convert single \n (not part of \n\n) to markdown hard break (two spaces + \n).
 // This ensures every Enter press creates a visible line break, independent of any plugin.
 function hardBreaks(text: string): string {
@@ -26,8 +37,11 @@ function hardBreaks(text: string): string {
 
 // Autolinked URLs render their href as the label — strip the protocol for
 // display (anthropic.skilljar.com/…, not https://anthropic.skilljar.com/…).
-// The strip (and truncation) applies to autolinks alone: a label the author
-// typed ([text](href)) passes through verbatim even when it is itself a URL.
+// Display rule: a link whose label equals its href after the protocol strip
+// is presentationally a bare URL (every true autolink is; `[url](url)` is
+// indistinguishable from one at the AST level) — it gets the strip and
+// truncation. Any other label is author-typed and passes through verbatim,
+// whatever it contains.
 function stripProtocol(label: string): string {
   return label.replace(/^https?:\/\//i, '');
 }
@@ -108,7 +122,19 @@ export default function Markdown({ children }: { children: string }) {
         },
         pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
         // Task-list checkboxes are display-only: they show the `- [x]` state;
-        // toggling happens by editing the notes (readOnly + disabled).
+        // toggling happens by editing the notes (readOnly + disabled). The
+        // "why can't I toggle" hint rides on the li — the input is
+        // pointer-events: none (click pass-through) and can never be hovered.
+        // Loose lists (blank line after) wrap the checkbox in a <p>, so the
+        // check looks below the li, not just at direct children.
+        li: ({ node, children, ...props }) => (
+          <li
+            {...props}
+            title={containsCheckbox(node) ? 'Read-only — edit notes to toggle' : undefined}
+          >
+            {children}
+          </li>
+        ),
         input: ({ checked, node: _node, ...props }) => (
           <input
             {...props}

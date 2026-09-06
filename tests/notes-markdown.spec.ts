@@ -38,6 +38,7 @@ test.describe('Notes markdown rendering', () => {
           '- https://docs.google.com/spreadsheets/d/1H7hN_fL6W7bYk3nSUsbZ1hJ0w9ufsi2j/edit?gid=1759489338#gid=1759489338',
           '- [release doc](https://example.com/a/release/documentation/rolling-out-helm-to-initial-users "external doc")',
           '- [https://example.com/landing](https://example.com/landing-page)',
+          '- [https://example.com/x](https://example.com/x)',
           '- https://main.d8irts5m6x146.amplifyapp.com/',
           '',
           '#### Phase 1 — coming soon site',
@@ -56,6 +57,10 @@ test.describe('Notes markdown rendering', () => {
           '| 2 | Beta with DeFi |',
           '',
           'Inline `code snippet` and a rule:',
+          '',
+          '```',
+          'drive.google.com/file/d/xyz/preview?usp=sharing_long_line_to_make_the_first_line_wide',
+          '```',
           '',
           '---',
         ].join('\n'),
@@ -92,9 +97,14 @@ test.describe('Notes markdown rendering', () => {
     await expect(links.nth(2)).toHaveText('https://example.com/landing');
     await expect(links.nth(2)).toHaveAttribute('href', 'https://example.com/landing-page');
 
+    // A label identical to its href is presentationally a bare URL — there
+    // is no AST difference from a true autolink, so autolink rules apply.
+    await expect(links.nth(3)).toHaveText('example.com/x');
+    await expect(links.nth(3)).toHaveAttribute('href', 'https://example.com/x');
+
     // Short autolinks (34 chars) stay whole.
-    await expect(links.nth(3)).toHaveText('main.d8irts5m6x146.amplifyapp.com/');
-    await expect(links.nth(3)).not.toHaveAttribute('title');
+    await expect(links.nth(4)).toHaveText('main.d8irts5m6x146.amplifyapp.com/');
+    await expect(links.nth(4)).not.toHaveAttribute('title');
   });
 
   test('md-body layer: headings scale and brighten, blockquote/table/code/hr styled — no browser defaults', async ({ page }) => {
@@ -143,6 +153,20 @@ test.describe('Notes markdown rendering', () => {
     await expect(view.locator('.md-body hr')).toHaveCSS('border-top-width', '1px');
   });
 
+  test('code block: the Copy button sits above the text column, never on the first line', async ({ page }) => {
+    // The button floats top-right inside the block; the block must reserve
+    // headroom so it never covers the code's first line.
+    const geometry = await page.locator('.notes-content-view .md-code-block').evaluate(el => {
+      const btn = el.querySelector('.md-code-copy')!.getBoundingClientRect();
+      const pre = el.querySelector('pre')!;
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const text = range.getBoundingClientRect();
+      return { btnBottom: btn.bottom, textTop: text.top };
+    });
+    expect(geometry.btnBottom).toBeLessThanOrEqual(geometry.textTop + 1);
+  });
+
   test('lists: mono gutter markers, nesting differentiates (· then –)', async ({ page }) => {
     const view = page.locator('.notes-content-view .md-body');
     const marker = (el: Locator) => el.evaluate(e => getComputedStyle(e, '::before').content);
@@ -170,8 +194,15 @@ test.describe('Notes markdown rendering', () => {
     await expect(boxes.nth(1)).not.toBeChecked();
     await expect(boxes.nth(1)).toBeDisabled();
 
+    // The explain-no-toggle hint lives on the list item, which still
+    // receives hover — the input itself is pointer-events: none and could
+    // never show a tooltip.
+    const taskItem = page.locator('.notes-content-view .md-body li', { hasText: 'penetration testing booked' });
+    await expect(taskItem).toHaveAttribute('title', 'Read-only — edit notes to toggle');
+
     // No dead zones: a disabled input swallows clicks, so the box must pass
     // them through — clicking a checkbox still enters the notes editor.
+    // (This swaps the view for the textarea, so it runs last.)
     await boxes.nth(0).click({ force: true });
     await expect(page.locator('.notes-textarea')).toBeVisible();
   });

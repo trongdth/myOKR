@@ -824,28 +824,30 @@ identically; there is no separate long-break case.
 >   all weight 600 in `--text-primary` (body stays `--text-secondary`), with
 >   margin above so sections breathe; the first block sits flush. Body
 >   line-height 1.6 (headings 1.3 — document-wide 1.6 would gap them).
-> - **Lists keep the mono gutter identity**, not browser discs: `·` level 1,
->   `–` level 2, `·` again from level 3 (plain-descendant CSS can't alternate
->   past two depths); ordered lists keep bare mono numbers. Wrapped lines
->   hang-indent to the text column.
+> - **Lists keep the mono gutter identity**, not browser discs: `·` bullet
+>   level 1, `–` bullet level 2, `·` again from level 3 (plain-descendant CSS
+>   can't alternate past two depths) — depth counts *bullet-list* ancestors,
+>   so a `ul` nested inside an `ol` is bullet level 1. Ordered lists keep bare
+>   mono numbers. Wrapped lines hang-indent to the text column.
 > - **Task-list checkboxes are display-only** — they render the `- [x]` state
 >   (disabled + readOnly; the sanitize schema was extended to admit `input`
 >   with `checked`/`disabled`/`type`), toggling means editing the notes. The
 >   checkbox replaces the gutter marker on its list item, and passes clicks
 >   through (`pointer-events: none`) so "click anywhere to edit" has no dead
->   zones — disabled inputs otherwise swallow clicks. That same
->   `pointer-events: none` makes the checkbox unhoverable, so its
->   `title="Read-only — edit notes to toggle"` works as an accessibility
->   string only, never a visible tooltip. The checked state uses
->   `--color-primary` as an authored-content accent — deliberately not the
->   done-state green, which marks *app* task state, not notes text.
+>   zones — disabled inputs otherwise swallow clicks. The "Read-only — edit
+>   notes to toggle" hint rides on the list item (which still receives
+>   hover), not the input — `pointer-events: none` would make an input title
+>   unhoverable. The checked state uses `--color-primary` as an
+>   authored-content accent — deliberately not the done-state green, which
+>   marks *app* task state, not notes text.
 > - **Bare autolink URLs past 60 chars middle-truncate** for display
 >   (34 chars + `…` + 22, keeping domain head and id-bearing tail). The `href`
 >   keeps the literal full URL; the hover `title` shows the full
->   protocol-stripped form. Typed `[label](url)` labels and their authored
->   titles pass through verbatim — even when the label is itself a URL (the
->   strip belongs to autolinks alone). Short autolinks just drop the protocol,
->   as before.
+>   protocol-stripped form. A label that differs from its href is author-typed
+>   and passes through verbatim, whatever it contains — but a label *identical*
+>   to its href is presentationally a bare URL (indistinguishable from a true
+>   autolink) and follows the autolink rules. Short autolinks just drop the
+>   protocol, as before.
 > - **Blockquote** (2px `--border-color` left rule, `--text-muted` text),
 >   **table** (ruled cells, bright bold header, scrolls horizontally instead of
 >   widening the column), **inline code** (mono chip on `--bg-tertiary`),

@@ -41,9 +41,10 @@
 .md-body h6 { font-size: 0.85rem; }
 
 /* Lists — mono gutter markers (the app's · separator), not browser discs.
-   Nesting differentiates the marker: · level 1, – level 2; levels 3+ reuse ·
-   (a plain-descendant rule can't alternate past two depths — specificity
-   pins deeper matches to the 3-ul rule). */
+   Nesting differentiates the marker: · bullet level 1, – bullet level 2;
+   levels 3+ reuse · (a plain-descendant rule can't alternate past two
+   depths — specificity pins deeper matches to the 3-ul rule). Depth counts
+   bullet-list ancestors: a ul nested inside an ol is bullet level 1. */
 .md-body ul, .md-body ol {
   list-style: none;
   margin: 0 0 0.5rem;
@@ -142,14 +143,16 @@
 }
 
 /* Fenced code block: monospace on its own raised surface, one Copy button
-   top-right of the block. Scoped .md-body .md-code-block code so the reset
-   beats the inline-chip rule by specificity, not file order. */
+   top-right of the block. Top padding reserves headroom so the floating
+   button never covers the first code line. Scoped .md-body .md-code-block
+   code so the reset beats the inline-chip rule by specificity, not file
+   order. */
 .md-code-block {
   position: relative;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 0.7rem 0.85rem;
+  padding: 2rem 0.85rem 0.7rem;
   margin: 0.5rem 0;
 }
 .md-code-block pre {
