@@ -232,6 +232,57 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(page.locator('.review-start-card-title')).toContainText("This week's review is complete!");
   });
 
+  test('link sessions modal assigns tasks and recomputes the numbers', async ({ page }) => {
+    // Two unlinked sessions on a task with no key result.
+    await page.evaluate(async () => {
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+      const week1 = window.localStorage.getItem('__test_week1') as string;
+      const sessions = (taskId: string, n: number, date: string) =>
+        Array.from({ length: n }, (_, i) => ({
+          startedAt: `${date}T11:0${i}:00.000Z`, endedAt: `${date}T11:25:00.000Z`,
+          type: 'focus', taskId, completed: true,
+        }));
+      const doc = await (window as any).__getAutomergeDoc();
+      const tasks = [
+        ...doc.tasks,
+        { id: 't-u', title: 'Unlinked task', isCompleted: false, completedPomodoros: 0, estimatedPomodoros: 2, createdAt: new Date().toISOString() },
+      ] as any[];
+      await pomo.saveTasks(tasks);
+      const history = [
+        ...doc.history,
+        { date: week1, completedPomodoros: 2, totalFocusMinutes: 50, tasksCompleted: 0, sessions: sessions('t-u', 2, week1) },
+      ] as any[];
+      await pomo.saveHistory(history);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openReview(page);
+    await selectWeek1(page);
+
+    // Banner appears: 2 of 5 sessions unlinked, and the cycle has a derived KR.
+    const wizard = page.locator('.rw-wizard');
+    await expect(wizard.locator('.rw-link-banner')).toBeVisible();
+    await expect(wizard.locator('.rw-link-banner p')).toContainText('2 of 5 sessions were not linked');
+
+    // Open the modal, assign the task to the derived KR, save.
+    await wizard.locator('.rw-link-btn').click();
+    const modal = page.locator('.rw-link-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('.rw-link-row')).toHaveCount(1);
+    await expect(modal.locator('.rw-link-task-title')).toHaveText('Unlinked task');
+    await modal.locator('.rw-link-picker .sel-trigger').click();
+    await page.waitForTimeout(450); // let the panel's entrance animation settle
+    await page.locator('.sel-panel .sel-row[data-key="kr-1"]').click();
+    await modal.locator('button:has-text("Link sessions")').last().click();
+
+    // Modal closes, tasks reload, the glance recomputes: banner gone, delta +5.
+    await expect(modal).toHaveCount(0);
+    await expect(wizard.locator('.rw-link-banner')).toHaveCount(0);
+    await expect(wizard.locator('.rw-moved-row .rw-delta-pos')).toHaveText('+5');
+    await expect(wizard.locator('.rw-panel-footnote')).toContainText('had no linked sessions');
+  });
+
   test('link banner hidden when the cycle has only manual KRs', async ({ page }) => {
     // Replace KRs with a manual-only set; sessions now all count unlinked but
     // the banner stays hidden (linking changes nothing for manual KRs).

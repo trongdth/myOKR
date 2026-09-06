@@ -14,6 +14,7 @@ import { loadHabits, type Habit } from '../lib/habit-storage';
 import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
 import { reviewInCycle } from '../lib/review-utils';
 import ReviewWizard from './review/ReviewWizard';
+import LinkSessionsModal from './review/LinkSessionsModal';
 import ReviewHistory from './review/ReviewHistory';
 import LoadingState from './shared/LoadingState';
 import { Select } from './shared/Select';
@@ -80,6 +81,7 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
   const [habits, setHabits] = useState<Habit[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
   const [explicitCycleId, setExplicitCycleId] = useState<string | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -215,6 +217,9 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
   // the wizard stay in sync.
   const reloadReviews = async () => {
     try { setReviews(await loadReviews()); } catch { /* non-fatal */ }
+  };
+  const reloadTasks = async () => {
+    try { setTasks(await loadTasks()); } catch { /* non-fatal */ }
   };
 
   const syncKeyResultsFromReviews = async (currentReviews: WeeklyReview[], currentKRs: KeyResult[]) => {
@@ -361,6 +366,24 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
           cycles={cycles}
           onComplete={handleCompleteReview}
           onDraftSaved={reloadReviews}
+          onLinkSessions={() => setShowLinkModal(true)}
+        />
+      )}
+
+      {showLinkModal && activeCycle && (
+        <LinkSessionsModal
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          cycleId={activeCycle.id}
+          tasks={tasks}
+          history={history}
+          keyResults={keyResults}
+          objectives={objectives}
+          onClose={() => setShowLinkModal(false)}
+          onLinked={async () => {
+            setShowLinkModal(false);
+            await reloadTasks();
+          }}
         />
       )}
 

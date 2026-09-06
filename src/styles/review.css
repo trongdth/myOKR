@@ -1571,3 +1571,94 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ----- link-sessions modal (step 1 banner) ----- */
+
+.rw-link-modal {
+  max-width: 520px;
+  width: 90vw;
+}
+
+.rw-link-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rw-link-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.rw-link-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.rw-link-intro,
+.rw-link-orphan {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 0.9rem;
+}
+
+.rw-link-orphan {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.rw-link-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.rw-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.rw-link-task {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.rw-link-task-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rw-link-task-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.rw-link-picker {
+  flex-shrink: 0;
+  min-width: 180px;
+}
+
