@@ -1740,3 +1740,17 @@
   line-height: 1.45;
   white-space: pre-wrap;
 }
+
+/* Past-cycle badge on the review tab header (derived closed date). */
+.rw-closed-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+  white-space: nowrap;
+}

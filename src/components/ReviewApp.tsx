@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Target, Calendar } from 'lucide-react';
+import { ClipboardList, Target } from 'lucide-react';
 import '../styles/review.css';
 import {
   loadCycles, loadObjectives, loadKeyResults,
@@ -70,7 +70,10 @@ async function repairReviews(
   return { repaired, changed };
 }
 
-export default function ReviewApp({ hideHeader = false, weekMonday = null }: { hideHeader?: boolean; weekMonday?: string | null } = {}) {
+// The review tab's week and cycle come from the CycleWeekPicker (only
+// finished weeks are selectable there, so no in-progress/future guards
+// exist in this component — the 2026-09-07 second-round decision).
+export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp = null, cycleId: cycleIdProp = null }: { hideHeader?: boolean; weekStart?: string | null; cycleId?: string | null } = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
@@ -176,16 +179,14 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
     return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, []);
 
-  // Infer the cycle from the selected week's START month. The review is tagged
-  // with this cycle (so e.g. a 06-29 → 07-05 review wraps up the June KRs it
-  // started under). Visibility across cycles is handled below by
-  // `reviewInCycle` (week-overlap), so a cross-month review still shows under
-  // July even though it's tagged June.
-  const selectedDate = new Date(weekMonday ?? getCurrentWeekStart());
+  // The cycle is the picker's selection; fall back to inferring from the
+  // week's START month, then the active cycle (legacy standalone mounts).
+  const selectedDate = new Date(weekStartProp ?? getCurrentWeekStart());
   const targetMonth = selectedDate.getUTCMonth();
   const targetYear = selectedDate.getUTCFullYear();
 
-  const inferredCycle = cycles.find(c => c.month === targetMonth && c.year === targetYear)
+  const inferredCycle = (cycleIdProp && cycles.find(c => c.id === cycleIdProp))
+    || cycles.find(c => c.month === targetMonth && c.year === targetYear)
     || cycles.find(c => c.isActive)
     || cycles[0];
 
@@ -193,9 +194,9 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
     ? cycles.find(c => c.id === explicitCycleId) || inferredCycle
     : inferredCycle;
 
-  // The shared tab-strip week selector drives the review (exclusive weeks,
-  // ADR-0019); unset falls back to the current week.
-  const weekStart = weekMonday ?? getCurrentWeekStart();
+  // The CycleWeekPicker drives the week (exclusive weeks, ADR-0019);
+  // unset falls back to the current week.
+  const weekStart = weekStartProp ?? getCurrentWeekStart();
   const weekEnd = weekStart ? getWeekEndFromStart(weekStart) : '';
 
   // Check if current week already has a completed review
@@ -211,10 +212,8 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
     return `${yyyy}-${mm}-${dd}`;
   })();
 
-  const isFutureWeek = todayStr < weekStart;
-
-  // Draft autosaves land straight in the doc; pull them back so history and
-  // the wizard stay in sync.
+  // Draft autosaves land straight in the doc; pull them back so the wizard
+  // stays in sync.
   const reloadReviews = async () => {
     try { setReviews(await loadReviews()); } catch { /* non-fatal */ }
   };
@@ -329,39 +328,28 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
         </div>
       )}
 
-      {/* Weekly review — the wizard runs directly for any started or past
-          week; finished weeks render read-only (edits via history below);
-          future weeks stay blocked (ADR-0019). */}
-      {isFutureWeek ? (
-        <div className="review-start-card">
-          <div className="review-start-card-icon"><Calendar size={24} /></div>
-          <div className="review-start-card-title">Week has not started yet</div>
-          <div className="review-start-card-desc">
-            This week (starting {weekStart}) is in the future. You can start the weekly review once the week has begun.
-          </div>
-        </div>
-      ) : (
-        <ReviewWizard
-          key={`${weekStart}-${activeCycle.id}`}
-          weekStart={weekStart}
-          weekEnd={weekEnd}
-          cycleId={activeCycle.id}
-          todayStr={todayStr}
-          objectives={objectives}
-          keyResults={keyResults}
-          tasks={tasks}
-          history={history}
-          reviews={reviews}
-          focusDurationMinutes={focusDuration}
-          habits={habits}
-          cycles={cycles}
-          onComplete={handleCompleteReview}
-          onDraftSaved={reloadReviews}
-          onLinkSessions={() => setShowLinkModal(true)}
-          readOnly={!!currentWeekReview}
-          completedAt={currentWeekReview?.completedAt}
-        />
-      )}
+      {/* The wizard runs for the picker-selected (always finished) week —
+          read-only once completed (ADR-0019 as amended 2026-09-07). */}
+      <ReviewWizard
+        key={`${weekStart}-${activeCycle.id}`}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
+        cycleId={activeCycle.id}
+        todayStr={todayStr}
+        objectives={objectives}
+        keyResults={keyResults}
+        tasks={tasks}
+        history={history}
+        reviews={reviews}
+        focusDurationMinutes={focusDuration}
+        habits={habits}
+        cycles={cycles}
+        onComplete={handleCompleteReview}
+        onDraftSaved={reloadReviews}
+        onLinkSessions={() => setShowLinkModal(true)}
+        readOnly={!!currentWeekReview}
+        completedAt={currentWeekReview?.completedAt}
+      />
 
       {showLinkModal && activeCycle && (
         <LinkSessionsModal

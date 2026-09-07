@@ -393,3 +393,23 @@ export default function CycleWeekPicker({
     </>
   );
 }
+
+/** Default review selection: the newest cycle's most recent finished week,
+ *  walking older cycles until one has any (a just-started cycle falls back
+ *  to the previous cycle's last finished week). Null when nothing anywhere
+ *  has finished yet. */
+export function defaultReviewSelection(
+  cycles: OKRCycle[],
+  todayStr: string,
+): CycleWeekSelection | null {
+  const sorted = [...cycles].sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
+  for (const cycle of sorted) {
+    const mondays = getExclusiveCycleMondays(cycle);
+    for (let i = mondays.length - 1; i >= 0; i--) {
+      if (endOfWeek(mondays[i]) < todayStr) {
+        return { cycleId: cycle.id, weekStart: mondays[i] };
+      }
+    }
+  }
+  return null;
+}

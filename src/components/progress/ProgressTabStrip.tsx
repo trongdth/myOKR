@@ -57,6 +57,9 @@ interface ProgressTabStripProps {
   activeCycle?: OKRCycle | null;
   selectedWeek?: number | 'all' | null;
   onSelectWeek?: (week: number | 'all') => void;
+  /** The review tab's own CycleWeekPicker node — replaces the strip's week
+   *  Select there (one selector per tab, 2026-09-07 decision). */
+  reviewPicker?: ReactNode;
 }
 
 export default function ProgressTabStrip({
@@ -64,6 +67,7 @@ export default function ProgressTabStrip({
   activeCycle,
   selectedWeek,
   onSelectWeek,
+  reviewPicker,
 }: ProgressTabStripProps) {
   // The Weekly review tab carries a "step N/3" badge mirroring the wizard
   // step in view (the wizard announces it via the myokr-review-step event).
@@ -136,7 +140,9 @@ export default function ProgressTabStrip({
       </div>
 
       <div className="plan-tab-strip-right">
-        {onSelectWeek && activeCycle && (
+        {active === 'weekly-review' && reviewPicker ? (
+          <div className="progress-review-picker">{reviewPicker}</div>
+        ) : onSelectWeek && activeCycle && (
           <div className="progress-week-select">
             <Select
               options={weekOptions}

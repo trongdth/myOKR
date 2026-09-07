@@ -49,3 +49,14 @@ export function getExclusiveCycleMondays(cycle: { month: number | null; year: nu
   }
   return mondays;
 }
+
+/** The Sunday of a cycle's last exclusive week — the derived date a past
+ *  cycle "closed" (April 2026 → 26 Apr: the Apr 27 week opens May). */
+export function getCycleClosedDate(cycle: { month: number | null; year: number | null }): string | null {
+  const mondays = getExclusiveCycleMondays(cycle);
+  if (mondays.length === 0) return null;
+  const last = mondays[mondays.length - 1];
+  const d = new Date(`${last}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().slice(0, 10);
+}
