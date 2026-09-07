@@ -58,9 +58,7 @@ const REVIEWS: WeeklyReview[] = [
 const TODAY = '2026-05-08';
 
 function Scenario({ id, cycles }: { id: string; cycles: OKRCycle[] }) {
-  const [selected, setSelected] = useState<CycleWeekSelection | null>(
-    id === 'cwp-a' ? { cycleId: 'c-apr', weekStart: '2026-04-20' } : { cycleId: 'c-apr', weekStart: '2026-04-20' },
-  );
+  const [selected, setSelected] = useState<CycleWeekSelection | null>({ cycleId: 'c-apr', weekStart: '2026-04-20' });
   return (
     <div className="cwp-fixture-scenario">
       <div id={id}>

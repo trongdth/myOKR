@@ -71,11 +71,14 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
   // older-cycle fallback — computed until the user commits their own choice.
   const todayISO = new Date().toISOString().slice(0, 10);
   useEffect(() => {
-    if (reviewTouchedRef.current || reviewSelection) return;
+    if (reviewTouchedRef.current) return;
     const sel = defaultReviewSelection(cycles, todayISO);
-    if (sel) setReviewSelection(sel);
+    if (sel) {
+      setReviewSelection(prev =>
+        prev?.cycleId === sel.cycleId && prev.weekStart === sel.weekStart ? prev : sel);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycles]);
+  }, [cycles, todayISO]);
 
   const handleReviewCommit = (sel: CycleWeekSelection) => {
     reviewTouchedRef.current = true;

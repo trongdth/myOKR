@@ -583,8 +583,9 @@ The Weekly review tab's own two-level selector (`CycleWeekPicker`,
 row meta (`4 reviews` / `3 of 4` / `no reviews`), zero-review cycles dimmed
 but selectable — then, below a divider, **Week in {cycle}** rows by date
 span (`14–20 Apr`, never bare numbers). Commit happens on week rows only;
-cycle rows steer the weeks section. The trigger reads the full path
-(`April cycle · week 4 of 4`). C1 anatomy throughout (32px trigger,
+cycle rows steer the weeks section. The trigger reads the full path using
+the cycle's stored name verbatim (auto-named cycles read
+`April 2026 · week 4 of 4`; a cycle named `April cycle` reads that). C1 anatomy throughout (32px trigger,
 open-state ring, rotating chevron, one cyan-ticked chosen row per level —
 a Draft hint replaces the week-level tick). Search appears beyond 6 cycles
 (matching cycle name/year and week date spans — a visible filter field,

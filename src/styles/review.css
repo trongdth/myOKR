@@ -522,28 +522,6 @@
   letter-spacing: 0.05em;
 }
 
-.review-delete-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease, transform 200ms ease;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  opacity: 0;
-}
-
-.review-delete-btn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-}
-
 /* Hide stepper arrows on number inputs */
 .review-kr-current-input::-webkit-inner-spin-button,
 .review-kr-current-input::-webkit-outer-spin-button {

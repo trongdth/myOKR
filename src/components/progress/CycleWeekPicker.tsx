@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
-import { findReviewForWeek, isDraftReview, type OKRCycle, type WeeklyReview } from '../../lib/okr-storage';
+import { findReviewForWeek, getMonthName, isDraftReview, type OKRCycle, type WeeklyReview } from '../../lib/okr-storage';
 import { formatWeekSpan } from './ProgressTabStrip';
 
 // The Weekly review tab's two-level selector (second grilling round,
@@ -39,10 +39,6 @@ interface CycleRowData {
   dim: boolean;
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function endOfWeek(monday: string): string {
@@ -52,7 +48,7 @@ function endOfWeek(monday: string): string {
 }
 
 function cycleDisplayName(cycle: OKRCycle): string {
-  return cycle.name || `${MONTH_NAMES[cycle.month]} ${cycle.year}`;
+  return cycle.name || getMonthName(cycle.month, cycle.year);
 }
 
 /** Token-AND haystack for search: every date in the span, so "14 Apr" finds
@@ -262,7 +258,7 @@ export default function CycleWeekPicker({
       const next = {
         top: above ? rect.top - PANEL_GAP - panelHeight : rect.bottom + PANEL_GAP,
         left: rect.left,
-        minWidth: Math.max(rect.width, 300),
+        minWidth: rect.width, // C1: trigger width; .sel-panel's 280px cap governs
         above,
       };
       setPos(prev =>

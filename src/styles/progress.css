@@ -680,7 +680,7 @@
 
 .cwp-week-row.cwp-disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.4; /* C1 disabled state */
 }
 
 .cwp-week-row.cwp-disabled:hover {
