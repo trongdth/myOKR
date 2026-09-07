@@ -1011,7 +1011,7 @@
 .rw-rail-item.done .rw-rail-num {
   background: var(--okr-on-track);
   border-color: var(--okr-on-track);
-  color: #04121c;
+  color: var(--bg-primary);
 }
 
 .rw-week-card {
@@ -1148,7 +1148,7 @@
 .rw-btn.primary {
   background: var(--accent-cyan);
   border-color: var(--accent-cyan);
-  color: #04121c;
+  color: var(--bg-primary);
 }
 
 .rw-btn.primary:hover {

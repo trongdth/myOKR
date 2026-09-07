@@ -247,7 +247,10 @@ Keyboard is the full listbox pattern minus type-ahead (ADR-0011):
 ↑/↓/Home/End rove, Enter/Space commit. The panel is **portaled to
 `<body>`**, fixed-positioned from the trigger rect (repositioned on
 scroll/resize, flips above near the bottom edge), stacked above the modal
-layer (z 1100 vs 1000). Single-select, no search; an empty option list
+layer. The portaled panel sits at **z 2100** (raised 2026-09-07 from
+1100 — Selects inside modal overlays (z 2000, e.g. the review's
+link-sessions modal) were unclickable beneath them). Single-select, no
+search; an empty option list
 renders a quiet "No options yet" row. Menu icons are 14px (remove × 12px) —
 the dense meta-size surface is the exception to the 16px content-icon rule.
 
@@ -550,6 +553,13 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
   always **One change for next week?** ("Becomes a note on next week's plan"
   hint); `free` fallback when nothing notable. Answers autosave into the
   structured `prompts` array (never the legacy `reflection` string).
+
+### Responsive
+
+The wizard re-stacks on the 2a tiers: ≤1100px — stat cards 2-across; ≤900px —
+rail becomes a horizontal strip above the main pane, glance columns stack,
+footer buttons go full-width; ≤560px — stat cards 1-across. (The wizard CSS
+lives in `review.css` under the `rw-*` prefix.)
 
 ### Drafts & history
 
