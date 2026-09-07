@@ -339,6 +339,63 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(wizard.locator('.rw-panel-footnote')).toContainText('had no linked sessions');
   });
 
+  test('linking tasks writes in place — concurrent task writes survive (rule 11)', async ({ page }) => {
+    // Same setup as the modal test: an unlinked task with sessions in week 1.
+    await page.evaluate(async () => {
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+      const week1 = window.localStorage.getItem('__test_week1') as string;
+      const sessions = (taskId: string, n: number, date: string) =>
+        Array.from({ length: n }, (_, i) => ({
+          startedAt: `${date}T11:0${i}:00.000Z`, endedAt: `${date}T11:25:00.000Z`,
+          type: 'focus', taskId, completed: true,
+        }));
+      const doc = await (window as any).__getAutomergeDoc();
+      await pomo.saveTasks([
+        ...doc.tasks,
+        { id: 't-u', title: 'Unlinked task', isCompleted: false, completedPomodoros: 0, estimatedPomodoros: 2, createdAt: new Date().toISOString() },
+      ] as any[]);
+      await pomo.saveHistory([
+        ...doc.history,
+        { date: week1, completedPomodoros: 2, totalFocusMinutes: 50, tasksCompleted: 0, sessions: sessions('t-u', 2, week1) },
+      ] as any[]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openReview(page);
+    await selectWeek1(page);
+
+    // A task lands in the doc AFTER the app loaded its state — the stand-in
+    // for a focus session completing while the modal is open.
+    await page.evaluate(async () => {
+      await (window as any).__updateAutomergeDoc('Concurrent task write', (d: any) => {
+        d.tasks.push({
+          id: 't-late', title: 'Landed while modal open', isCompleted: false,
+          completedPomodoros: 1, estimatedPomodoros: 2, createdAt: new Date().toISOString(),
+        });
+      });
+    });
+
+    const wizard = page.locator('.rw-wizard');
+    await wizard.locator('.rw-link-btn').click();
+    const modal = page.locator('.rw-link-modal');
+    await modal.locator('.rw-link-picker .sel-trigger').click();
+    await page.waitForTimeout(450);
+    await page.locator('.sel-panel .sel-row[data-key="kr-1"]').click();
+    await modal.locator('button:has-text("Link sessions")').last().click();
+    await expect(modal).toHaveCount(0);
+
+    // The concurrent write survives, and the assignment landed.
+    await expect.poll(async () => {
+      return page.evaluate(async () => {
+        const doc = await (window as any).__getAutomergeDoc();
+        const late = (doc.tasks as any[]).find(t => t.id === 't-late');
+        const linked = (doc.tasks as any[]).find(t => t.id === 't-u');
+        return { lateAlive: !!late, linkedKr: linked?.keyResultId };
+      });
+    }).toEqual({ lateAlive: true, linkedKr: 'kr-1' });
+  });
+
   test('link banner hidden when the cycle has only manual KRs', async ({ page }) => {
     // Replace KRs with a manual-only set; sessions now all count unlinked but
     // the banner stays hidden (linking changes nothing for manual KRs).

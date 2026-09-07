@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link2, X } from 'lucide-react';
 import type { KeyResult, Objective } from '../../lib/okr-storage';
-import { saveTasks, type DailyRecord, type PomodoroTask } from '../../lib/pomodoro-storage';
+import { assignTaskKeyResults, type DailyRecord, type PomodoroTask } from '../../lib/pomodoro-storage';
 import { Select } from '../shared/Select';
 
 // The step-1 banner's promise: assign the tasks behind this week's unlinked
@@ -71,11 +71,9 @@ export default function LinkSessionsModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updated = tasks.map(t => {
-        const krId = assignments[t.id];
-        return krId ? { ...t, keyResultId: krId } : t;
-      });
-      await saveTasks(updated);
+      // In-place per-task writes (rule 11) — a snapshot save here would wipe
+      // tasks created after ReviewApp loaded its state.
+      await assignTaskKeyResults(assignments);
       onLinked();
     } finally {
       setSaving(false);

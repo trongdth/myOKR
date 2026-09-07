@@ -477,6 +477,25 @@ export async function saveTasks(tasks: PomodoroTask[]): Promise<void> {
   notifyDataChanged();
 }
 
+/**
+ * Assign tasks to key results by writing each task's keyResultId IN PLACE
+ * (persistence rule 11) — never a root-array overwrite from component state,
+ * which would wipe tasks written concurrently (e.g. a focus session
+ * completing while a modal is open).
+ */
+export async function assignTaskKeyResults(assignments: Record<string, string>): Promise<void> {
+  await updateAutomergeDoc('Assign tasks to key results', (d) => {
+    const tasks = Array.isArray(d.tasks) ? d.tasks : [];
+    for (const [taskId, keyResultId] of Object.entries(assignments)) {
+      const idx = tasks.findIndex(t => t && t.id === taskId);
+      if (idx >= 0) {
+        tasks[idx] = sanitizeForAutomerge({ ...tasks[idx], keyResultId });
+      }
+    }
+  });
+  notifyDataChanged();
+}
+
 // ===== HISTORY =====
 export async function loadHistory(): Promise<DailyRecord[]> {
   try {
