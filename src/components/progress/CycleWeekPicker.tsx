@@ -197,11 +197,18 @@ export default function CycleWeekPicker({
     const idx = flatRows.findIndex(r => r.key === activeKey);
     switch (e.key) {
       case 'ArrowDown':
-      case 'ArrowUp': {
+      case 'ArrowUp':
+      case 'Home':
+      case 'End': {
         e.preventDefault();
         if (flatRows.length === 0) return;
-        const dir = e.key === 'ArrowDown' ? 1 : -1;
-        const next = idx < 0 ? (dir > 0 ? 0 : flatRows.length - 1) : (idx + dir + flatRows.length) % flatRows.length;
+        let next: number;
+        if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = flatRows.length - 1;
+        else {
+          const dir = e.key === 'ArrowDown' ? 1 : -1;
+          next = idx < 0 ? (dir > 0 ? 0 : flatRows.length - 1) : (idx + dir + flatRows.length) % flatRows.length;
+        }
         setActiveKey(flatRows[next].key);
         break;
       }
@@ -217,6 +224,9 @@ export default function CycleWeekPicker({
         e.preventDefault();
         e.stopPropagation();
         setOpen(false);
+        // C1: Esc closes with focus returned to the trigger — the portal is
+        // about to unmount, so focus would otherwise be lost.
+        triggerRef.current?.focus();
         break;
       case 'Tab':
         setOpen(false);
@@ -394,16 +404,20 @@ export default function CycleWeekPicker({
   );
 }
 
-/** Default review selection: the newest cycle's most recent finished week,
- *  walking older cycles until one has any (a just-started cycle falls back
- *  to the previous cycle's last finished week). Null when nothing anywhere
- *  has finished yet. */
+/** Default review selection: the ACTIVE cycle's most recent finished week;
+ *  if it has none, the newest cycle's, walking older cycles until one has
+ *  any. Null when nothing anywhere has finished yet. */
 export function defaultReviewSelection(
   cycles: OKRCycle[],
   todayStr: string,
 ): CycleWeekSelection | null {
-  const sorted = [...cycles].sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
-  for (const cycle of sorted) {
+  const byNewest = [...cycles].sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
+  // The active cycle leads (spec decision 2); the rest fall back newest-first.
+  const ordered = [
+    ...byNewest.filter(c => c.isActive),
+    ...byNewest.filter(c => !c.isActive),
+  ];
+  for (const cycle of ordered) {
     const mondays = getExclusiveCycleMondays(cycle);
     for (let i = mondays.length - 1; i >= 0; i--) {
       if (endOfWeek(mondays[i]) < todayStr) {

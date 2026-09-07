@@ -214,8 +214,10 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
   // stays in sync.
   const reloadReviews = async () => {
     try { setReviews(await loadReviews()); } catch { /* non-fatal */ }
-    // Refresh the picker's review counts / draft hints too.
-    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    // Refresh the picker's review counts / draft hints — a narrow event, not
+    // the app-wide sync event (that would reload every listener per keystroke
+    // debounce).
+    window.dispatchEvent(new CustomEvent('myokr-reviews-changed'));
   };
   const reloadTasks = async () => {
     try { setTasks(await loadTasks()); } catch { /* non-fatal */ }

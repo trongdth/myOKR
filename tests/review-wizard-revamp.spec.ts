@@ -191,6 +191,13 @@ test.describe('Weekly review wizard revamp', () => {
   test('reload resumes the draft; reflect prompts; Finish stamps and syncs', async ({ page }) => {
     const wizard = page.locator('.rw-wizard');
 
+    // A draft autosave must refresh the picker WITHOUT the app-wide
+    // sync event (that triggers full reloads of every listener).
+    await page.evaluate(() => {
+      (window as any).__syncCount = 0;
+      window.addEventListener('myokr-data-synced', () => { (window as any).__syncCount++; });
+    });
+
     // Build a draft: score the manual KR.
     await wizard.locator('.rw-rail-item:has-text("Score key results")').click();
     const kr2Row = wizard.locator('.rw-score-row:has-text("Ship tickets")');
@@ -198,7 +205,10 @@ test.describe('Weekly review wizard revamp', () => {
     await kr2Row.locator('.review-confidence-btn.at-risk').click();
     await expect(wizard.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
 
-    // The draft's week shows its Draft hint in the picker.
+    // No app-wide reload storm was dispatched by the autosave.
+    expect(await page.evaluate(() => (window as any).__syncCount)).toBe(0);
+
+    // The draft's week still shows its Draft hint in the picker.
     await page.locator('[aria-label="Review cycle and week"]').click();
     await expect(page.locator('.cwp-panel .cwp-week-row.cwp-selected .cwp-draft')).toHaveText('Draft');
     await page.keyboard.press('Escape');

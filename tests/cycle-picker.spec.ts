@@ -111,3 +111,30 @@ test.describe('CycleWeekPicker', () => {
     await expect(page.locator('.cwp-empty')).toHaveText(/No cycle or week matches/);
   });
 });
+
+test('C1 keyboard: Home/End rove; Esc closes and returns focus to the trigger', async ({ page }) => {
+  await page.goto(BASE);
+  const picker = page.locator('#cwp-a');
+  await picker.locator('.sel-trigger').click();
+  const panel = page.locator('.cwp-panel');
+
+  // End lands on the last interactive row of the flattened list — the
+  // January cycle row (only the expanded cycle contributes week rows).
+  await page.keyboard.press('End');
+  await expect(panel.locator('.cwp-cycle-row').last()).toHaveClass(/sel-active/);
+  // Home wraps to the first cycle row.
+  await page.keyboard.press('Home');
+  await expect(panel.locator('.cwp-cycle-row').first()).toHaveClass(/sel-active/);
+
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(picker.locator('.sel-trigger')).toBeFocused();
+
+  // With search focused (8-cycle scenario), Esc must still hand focus back.
+  const b = page.locator('#cwp-b');
+  await b.locator('.sel-trigger').click();
+  await expect(page.locator('.cwp-panel .cwp-search input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cwp-panel')).toHaveCount(0);
+  await expect(b.locator('.sel-trigger')).toBeFocused();
+});

@@ -51,6 +51,22 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
     };
   }, []);
 
+  // Draft autosaves refresh only the picker's data (counts / draft hints) —
+  // not the app-wide reload the sync event triggers.
+  useEffect(() => {
+    let cancelled = false;
+    const refreshReviews = () => {
+      loadReviews()
+        .then(reviews => { if (!cancelled) setReviewReviews(reviews); })
+        .catch(() => { /* non-fatal */ });
+    };
+    window.addEventListener('myokr-reviews-changed', refreshReviews);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('myokr-reviews-changed', refreshReviews);
+    };
+  }, []);
+
   // Default review selection: newest cycle's most recent finished week, with
   // older-cycle fallback — computed until the user commits their own choice.
   const todayISO = new Date().toISOString().slice(0, 10);

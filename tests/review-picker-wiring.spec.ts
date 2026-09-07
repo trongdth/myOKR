@@ -84,3 +84,27 @@ test.describe('review tab picker wiring', () => {
     await expect(page.locator('.rw-closed-badge')).toHaveText('Cycle closed 26 Apr');
   });
 });
+
+test('default honors the ACTIVE cycle when it is not the newest (spec decision 2)', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-05-08T12:00:00.000Z'));
+  await page.addInitScript(() => window.localStorage.setItem('myokr_walkthrough_state', '"seen"'));
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(async () => {
+    const okr = await import('/src/lib/okr-storage.ts');
+    const mk = (id: string, name: string, month: number, year: number, isActive: boolean) =>
+      ({ id, name, month, year, isActive, createdAt: new Date().toISOString() });
+    // May exists and has a finished week, but APRIL carries the active flag.
+    await okr.saveCycles([mk('c-may', 'May 2026', 4, 2026, false), mk('c-apr', 'April 2026', 3, 2026, true)]);
+    await okr.saveObjectives([]);
+    await okr.saveKeyResults([]);
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  });
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+
+  await openReview(page);
+  // The active cycle's most recent finished week — April w4, not May w1.
+  await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/April 2026 · week 4 of 4/);
+  await expect(page.locator('.rw-closed-badge')).toHaveText('Cycle closed 26 Apr');
+});
