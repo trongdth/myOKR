@@ -170,6 +170,14 @@ test.describe('Weekly review wizard revamp', () => {
     expect(manualEntry.currentValue).toBe(9);
     expect(manualEntry.confidence).toBe('at_risk');
 
+    // A draft never triggers the KR sync — kr-2 keeps its stored 8 until
+    // the review is finished (ADR-0019).
+    const kr2DuringDraft = await page.evaluate(async () => {
+      const doc = await (window as any).__getAutomergeDoc();
+      return (doc.keyResults as any[]).find(k => k.id === 'kr-2')?.currentValue;
+    });
+    expect(kr2DuringDraft).toBe(8);
+
     await expect(wizard.locator('.rw-footer-note')).toHaveText('1 of 2 key results scored');
   });
 
@@ -236,13 +244,43 @@ test.describe('Weekly review wizard revamp', () => {
     }, { timeout: 5000 }).toBe(9);
     expect(result.kr2Confidence).toBe('at_risk');
 
+    // The spec's e2e chain link: after finishing, the review becomes a chart
+    // point on the Objectives tab. Seed a second completed in-cycle review
+    // (cycle week 2) so the chart has its minimum two points.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const week2 = mondays[1];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      const doc = await (window as any).__getAutomergeDoc();
+      await okr.saveReviews([
+        ...doc.reviews,
+        { id: 'rev-week2', weekStartDate: week2, weekEndDate: endOf(week2), cycleId: 'c-test',
+          completedAt: `${week2}T20:00:00.000Z`,
+          entries: [{ keyResultId: 'kr-1', previousValue: 0, currentValue: 1, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+      ]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    await expect(page.locator('.progress-shell .progress-chart-svg')).toBeVisible();
+    await expect(page.locator('.progress-shell .progress-chart-container')).toContainText('Ship pomodoros');
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+
     // Finished week renders the read-only wizard.
     await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
     await expect(page.locator('.rw-btn:has-text("Finish review")')).toHaveCount(0);
 
     // History keeps post-finish editing: expand the card, edit the prompt
     // answer, save, and the doc reflects it.
-    await page.locator('.review-history-card').first().click();
+    const week1Date = await page.evaluate(() => window.localStorage.getItem('__test_week1'));
+    await page.locator(`.review-history-card:has-text("${week1Date}")`).first().click();
     const promptRow = page.locator('.review-history-prompt:has-text("One change for next week")');
     await promptRow.locator('.review-history-action-btn.edit').click();
     await page.locator('.review-history-edit-textarea').fill('Blocked 9–11 mornings');
