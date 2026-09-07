@@ -56,21 +56,12 @@ async function navMobile(page: Page, label: string) {
 // DESKTOP TESTS
 // ==========================================
 
-/** Open the Review week Select and pick the first fully-past week (custom-select). */
+/** Pick cycle week 1 in the shared strip Select — with the clock frozen
+ * mid-month it is always a fully-past week (ADR-0019). */
 async function pickFirstPastWeek(page: Page) {
-  const weekSelect = page.locator('[aria-label="Review week"]');
-  await weekSelect.click();
-  const weekRows = page.locator('.sel-panel .sel-row');
-  const weekTexts = await weekRows.allTextContents();
-  // Local date IN THE PAGE, matching the app's week logic — the page clock,
-  // not Node's, so frozen-clock runs classify weeks consistently.
-  const todayStr = await page.evaluate(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  });
-  const pastWeek = weekTexts.find((t) => t.split(' to ')[1].trim() <= todayStr);
-  expect(pastWeek).toBeTruthy();
-  await weekRows.filter({ hasText: pastWeek! }).first().click();
+  await page.locator('.progress-week-select .sel-trigger').click();
+  await page.locator('.sel-panel .sel-row').nth(1).click(); // first row = "all weeks"
+  await page.waitForTimeout(300);
 }
 
 test.describe('Desktop: OKR Workflow', () => {
@@ -197,33 +188,30 @@ test.describe('Desktop: Review Workflow', () => {
     await page.clock.setFixedTime(new Date('2026-09-15T12:00:00.000Z'));
     await waitForApp(page);
     await navDesktop(page, 'Review');
-    // Review renders headerless inside the Progress shell (start card)
-    await expect(page.locator('.review-start-card')).toBeVisible();
+    // Review renders headerless inside the Progress shell (wizard mounts)
+    await expect(page.locator('.review-container')).toBeVisible();
   });
 
   test('complete review wizard', async ({ page }) => {
     await pickFirstPastWeek(page);
 
-    // Start review
-    await page.locator('button:has-text("Start Weekly Review")').click();
-    await expect(page.locator('text=Summary')).toBeVisible();
-
-    // Summary step -> Next
-    await page.locator('button.review-nav-btn.primary').click();
-
-    // KR steps (6 KRs in seed data)
+    // Glance step is read-only — move to scoring: every KR on one screen
+    // (6 KRs in seed data).
+    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
+    await page.locator('.rw-rail-item:has-text("Score key results")').click();
+    const rows = page.locator('.rw-score-row');
+    await expect(rows).toHaveCount(6);
     for (let i = 0; i < 6; i++) {
-      await page.locator('button:has-text("On Track")').first().click();
-      await page.locator('button.review-nav-btn.primary').click();
+      await rows.nth(i).locator('.review-confidence-btn.on-track').first().click();
     }
 
-    // Reflection step
-    await expect(page.locator('text=Overall Reflection')).toBeVisible();
-    await page.locator('textarea.review-notes-textarea').fill('E2E test reflection');
-    await page.locator('button:has-text("Complete Review")').click();
+    // Reflection prompts
+    await page.locator('.rw-btn:has-text("Continue to reflection")').click();
+    await page.locator('.rw-prompt-textarea').first().fill('E2E test reflection');
+    await page.locator('button:has-text("Finish review")').click();
 
-    // Verify completion
-    await expect(page.locator('text=review is complete')).toBeVisible();
+    // Finished weeks render read-only.
+    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
   });
 });
 
@@ -288,22 +276,21 @@ test.describe('Mobile: Core Workflows', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
     await navMobile(page, 'Review');
-    // Review renders headerless inside the Progress shell (start card)
-    await expect(page.locator('.review-start-card')).toBeVisible();
+    await expect(page.locator('.review-container')).toBeVisible();
 
     await pickFirstPastWeek(page);
 
-    await page.locator('button:has-text("Start Weekly Review")').click();
-
-    // Click through summary + 6 KR steps
-    for (let i = 0; i < 7; i++) {
-      await page.locator('button.review-nav-btn.primary').click();
+    await page.locator('.rw-rail-item:has-text("Score key results")').click();
+    const rows = page.locator('.rw-score-row');
+    await expect(rows).toHaveCount(6);
+    for (let i = 0; i < 6; i++) {
+      await rows.nth(i).locator('.review-confidence-btn.on-track').first().click();
     }
 
-    // Reflection step
-    await page.locator('textarea.review-notes-textarea').fill('Mobile E2E reflection');
-    await page.locator('button:has-text("Complete Review")').click();
+    await page.locator('.rw-btn:has-text("Continue to reflection")').click();
+    await page.locator('.rw-prompt-textarea').first().fill('Mobile E2E reflection');
+    await page.locator('button:has-text("Finish review")').click();
 
-    await expect(page.locator('text=review is complete')).toBeVisible();
+    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
   });
 });

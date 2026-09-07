@@ -195,6 +195,34 @@ test.describe('Progress / Analytics Screen Revamp', () => {
   });
 
   test('renders 4 top metric cards with cycle-scoped values in whole cycle view and adapts when week filtered', async ({ page }) => {
+    // Date-independent seed: anchor the five sessions to the cycle's first
+    // two days (week 1 Mon 2 + Tue 3) instead of today/yesterday — today can
+    // be a Monday (yesterday lands in the previous week/month) and break the
+    // arithmetic. 5 sessions · 125m focus · 2-day streak in every case.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const dayOf = (offset: number) => {
+        const d = new Date(`${mondays[0]}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + offset);
+        return d.toISOString().slice(0, 10);
+      };
+      const sessions = (date: string, n: number) =>
+        Array.from({ length: n }, (_, i) => ({
+          startedAt: `${date}T09:0${i}:00.000Z`, endedAt: `${date}T09:25:00.000Z`,
+          type: 'focus', taskId: 't-1', completed: true,
+        }));
+      await pomo.saveHistory([
+        { date: dayOf(0), completedPomodoros: 2, totalFocusMinutes: 50, tasksCompleted: 0, sessions: sessions(dayOf(0), 2) },
+        { date: dayOf(1), completedPomodoros: 3, totalFocusMinutes: 75, tasksCompleted: 1, sessions: sessions(dayOf(1), 3) },
+      ] as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
     await openAnalytics(page);
 
     const cards = page.locator('.analytics-metric-cards .metric-card');
@@ -443,7 +471,7 @@ test.describe('Progress / Analytics Screen Revamp', () => {
 
     // Progress shell remains, review flow mounts inside
     await expect(page.locator('.progress-shell')).toBeVisible();
-    await expect(page.locator('.review-start-card')).toBeVisible();
+    await expect(page.locator('.review-container')).toBeVisible();
 
     // Switch back to Analytics
     await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
