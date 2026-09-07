@@ -30,14 +30,14 @@ test.describe('Review & Habits Select migration', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('week picker runs on Select via the shared strip', async ({ page }) => {
-    await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'weekly-review'));
+  test('week filter runs on Select via the analytics strip', async ({ page }) => {
+    // The review tab moved to the CycleWeekPicker (2026-09-07); the strip's
+    // week Select lives on the analytics/objectives tabs.
+    await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'analytics'));
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('.review-container')).toBeVisible();
+    await expect(page.locator('.review-container')).toHaveCount(0);
 
-    // The review week picker is the Progress strip's shared Select
-    // (ADR-0019 unified the week rule; date-range labels are gone).
     const trigger = page.locator('.progress-week-select .sel-trigger');
     await expect(trigger).toContainText('June 2026 · all weeks');
     await trigger.click();
@@ -47,9 +47,6 @@ test.describe('Review & Habits Select migration', () => {
     await rows.nth(1).click();
     await page.waitForTimeout(300);
     await expect(trigger).toContainText(label!.trim());
-
-    // Selecting a week lands the wizard on it.
-    await expect(page.locator('.rw-wizard')).toBeVisible();
   });
 
     test('habit status picker runs on Select per matrix row', async ({ page }) => {

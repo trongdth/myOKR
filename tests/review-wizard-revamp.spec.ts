@@ -15,13 +15,20 @@ async function openReview(page: Page) {
 }
 
 async function selectWeek1(page: Page) {
-  await page.locator('.progress-week-select .sel-trigger').click();
-  await page.locator('.sel-panel .sel-row').nth(1).click(); // first row = "all weeks"
+  const trigger = page.locator('[aria-label="Review cycle and week"]');
+  await trigger.click();
+  // The (only, newest) cycle is expanded by default; its first week row is
+  // week 1 — always finished under the mid-month clock freeze.
+  await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
   await page.waitForTimeout(300);
 }
 
 test.describe('Weekly review wizard revamp', () => {
   test.beforeEach(async ({ page }) => {
+    // Freeze mid-month so the seeded cycle's week 1 is always a FINISHED
+    // week — unfinished weeks are unselectable in the picker (round-2 rule).
+    const now = new Date();
+    await page.clock.setFixedTime(new Date(now.getFullYear(), now.getMonth(), 15, 12, 0, 0));
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
@@ -191,11 +198,16 @@ test.describe('Weekly review wizard revamp', () => {
     await kr2Row.locator('.review-confidence-btn.at-risk').click();
     await expect(wizard.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
 
+    // The draft's week shows its Draft hint in the picker.
+    await page.locator('[aria-label="Review cycle and week"]').click();
+    await expect(page.locator('.cwp-panel .cwp-week-row.cwp-selected .cwp-draft')).toHaveText('Draft');
+    await page.keyboard.press('Escape');
+
     // Reload → the draft resumes on the first step with unanswered work.
     await page.reload();
     await page.waitForLoadState('networkidle');
     await openReview(page);
-    await selectWeek1(page);
+    await selectWeek1(page); // the post-reload default is the latest finished week
     await expect(page.locator('.rw-wizard .rw-step-heading h2')).toHaveText('Where did each key result land?');
     await expect(page.locator('.rw-score-row:has-text("Ship tickets") input[type="number"]')).toHaveValue('9');
     await expect(page.locator('.rw-footer-note')).toHaveText('1 of 2 key results scored');
@@ -277,53 +289,9 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
     await expect(page.locator('.rw-btn:has-text("Finish review")')).toHaveCount(0);
 
-    // History keeps post-finish editing: expand the card, edit the prompt
-    // answer, save, and the doc reflects it.
-    const week1Date = await page.evaluate(() => window.localStorage.getItem('__test_week1'));
-    await page.locator(`.review-history-card:has-text("${week1Date}")`).first().click();
-    const promptRow = page.locator('.review-history-prompt:has-text("One change for next week")');
-    await promptRow.locator('.review-history-action-btn.edit').click();
-    await page.locator('.review-history-edit-textarea').fill('Blocked 9–11 mornings');
-    await page.locator('.review-history-edit-actions .review-nav-btn.primary').click();
-    await expect.poll(async () => {
-      return page.evaluate(async () => {
-        const doc = await (window as any).__getAutomergeDoc();
-        const week1 = window.localStorage.getItem('__test_week1');
-        const review = (doc.reviews as any[]).find(r => week1 === r.weekStartDate);
-        return review?.prompts?.find((x: any) => x.type === 'one_change')?.answer;
-      });
-    }).toBe('Blocked 9–11 mornings');
-  });
-
-  test('draft cards appear in history; Continue review jumps to the week', async ({ page }) => {
-    const wizard = page.locator('.rw-wizard');
-
-    // Start a draft for week 1.
-    await wizard.locator('.rw-rail-item:has-text("Score key results")').click();
-    await wizard.locator('.rw-score-row:has-text("Ship tickets") input[type="number"]').fill('10');
-    await wizard.locator('.rw-score-row:has-text("Ship tickets") .review-confidence-btn.on-track').click();
-    await expect(wizard.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
-
-    // Move the selector away to the current week — the draft card stays.
-    await page.locator('.progress-week-select .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row').nth(0).click(); // all weeks
-    await page.waitForTimeout(400);
-
-    const draftCard = page.locator('.review-history-card.draft');
-    await expect(draftCard).toHaveCount(1);
-    await expect(draftCard.locator('.review-draft-chip')).toHaveText('In progress');
-
-    // Continue review jumps the week selector back to the draft's week.
-    await draftCard.locator('.review-continue-btn').click();
-    await page.waitForTimeout(400);
-    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
-    await expect(page.locator('.rw-score-row:has-text("Ship tickets") input[type="number"]')).toHaveValue('10');
-    await expect(page.locator('.rw-footer-note')).toHaveText('1 of 2 key results scored');
-
-    // Deleting the draft removes it from history.
-    await page.locator('.review-history-card.draft .review-delete-btn').click();
-    await page.locator('.confirm-modal .btn:has-text("Delete"), .btn:has-text("Delete")').last().click();
-    await expect(page.locator('.review-history-card.draft')).toHaveCount(0);
+    // Completed reviews are immutable (round 2): the read-only wizard is
+    // the only view — no editing surface exists anymore.
+    await expect(page.locator('.rw-btn:has-text("Finish review")')).toHaveCount(0);
   });
 
   test('link sessions modal assigns tasks and recomputes the numbers', async ({ page }) => {

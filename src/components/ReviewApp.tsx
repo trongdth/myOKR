@@ -310,28 +310,40 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
         </div>
       )}
 
-      {/* The wizard runs for the picker-selected (always finished) week —
-          read-only once completed (ADR-0019 as amended 2026-09-07). */}
-      <ReviewWizard
-        key={`${weekStart}-${activeCycle.id}`}
-        weekStart={weekStart}
-        weekEnd={weekEnd}
-        cycleId={activeCycle.id}
-        todayStr={todayStr}
-        objectives={objectives}
-        keyResults={keyResults}
-        tasks={tasks}
-        history={history}
-        reviews={reviews}
-        focusDurationMinutes={focusDuration}
-        habits={habits}
-        cycles={cycles}
-        onComplete={handleCompleteReview}
-        onDraftSaved={reloadReviews}
-        onLinkSessions={() => setShowLinkModal(true)}
-        readOnly={!!currentWeekReview}
-        completedAt={currentWeekReview?.completedAt}
-      />
+      {/* No finished week anywhere (e.g. a fresh install mid-week-1): the
+          picker has nothing selectable, so the wizard must not render for
+          an unfinished week. */}
+      {!weekStartProp ? (
+        <div className="review-start-card">
+          <div className="review-start-card-icon"><Target size={24} /></div>
+          <div className="review-start-card-title">Nothing to review yet</div>
+          <div className="review-start-card-desc">
+            Weekly reviews open once a week has fully finished — pick a finished
+            week in the cycle picker once one exists.
+          </div>
+        </div>
+      ) : (
+        <ReviewWizard
+          key={`${weekStart}-${activeCycle.id}`}
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          cycleId={activeCycle.id}
+          todayStr={todayStr}
+          objectives={objectives}
+          keyResults={keyResults}
+          tasks={tasks}
+          history={history}
+          reviews={reviews}
+          focusDurationMinutes={focusDuration}
+          habits={habits}
+          cycles={cycles}
+          onComplete={handleCompleteReview}
+          onDraftSaved={reloadReviews}
+          onLinkSessions={() => setShowLinkModal(true)}
+          readOnly={!!currentWeekReview}
+          completedAt={currentWeekReview?.completedAt}
+        />
+      )}
 
       {showLinkModal && activeCycle && (
         <LinkSessionsModal

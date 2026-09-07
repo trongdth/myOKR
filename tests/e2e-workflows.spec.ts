@@ -56,11 +56,11 @@ async function navMobile(page: Page, label: string) {
 // DESKTOP TESTS
 // ==========================================
 
-/** Pick cycle week 1 in the shared strip Select — with the clock frozen
- * mid-month it is always a fully-past week (ADR-0019). */
+/** Pick the newest cycle's week 1 in the review tab's CycleWeekPicker —
+ * with the clock frozen mid-month it is always a finished week. */
 async function pickFirstPastWeek(page: Page) {
-  await page.locator('.progress-week-select .sel-trigger').click();
-  await page.locator('.sel-panel .sel-row').nth(1).click(); // first row = "all weeks"
+  await page.locator('[aria-label="Review cycle and week"]').click();
+  await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
   await page.waitForTimeout(300);
 }
 

@@ -118,13 +118,13 @@ test.describe('Weekly Review Calculations & Repair', () => {
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    // The shared strip week selector drives the review; the header shows the
-    // week label (h1) rather than the cycle name since the revamp.
-    await expect(page.locator('.progress-week-select')).toBeVisible({ timeout: 10000 });
+    // The review tab's CycleWeekPicker drives the week.
+    const picker = page.locator('[aria-label="Review cycle and week"]');
+    await expect(picker).toBeVisible({ timeout: 10000 });
 
-    // Select Week 1: June 1st to June 7th (strip row nth(1) = week 1)
-    await page.locator('.progress-week-select .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row').nth(1).click();
+    // Select Week 1: June 1st to June 7th (all June weeks are finished today)
+    await picker.click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
     await page.waitForTimeout(300);
 
     // The wizard opens directly on the glance step.
@@ -150,8 +150,8 @@ test.describe('Weekly Review Calculations & Repair', () => {
     await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
 
     // Now select Week 2: June 8th to June 14th
-    await page.locator('.progress-week-select .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row').nth(2).click();
+    await picker.click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(1).click();
     await page.waitForTimeout(300);
     await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
 

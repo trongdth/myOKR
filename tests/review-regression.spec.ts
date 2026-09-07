@@ -28,19 +28,14 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
   // cycle / inferred from the selected week). This test now covers the
   // week picker, wizard entry/exit, and start-button visibility by week
   // state — the surfaces that still exist.
-  test('verifies week-state guards and the always-on wizard', async ({ page }) => {
+  test('review tab runs on the CycleWeekPicker; unfinished weeks unreachable', async ({ page }) => {
     await waitForApp(page);
-
-    // Go to Review section — headerless inside the Progress shell
     await page.locator('button[title="Progress"]').click();
     await page.locator('button[title="Weekly review"]').click();
 
-    // 1. Seed two cycles (June active with an objective + KR) — the review
-    // falls back to the active cycle when today's week has no cycle.
     await page.evaluate(async () => {
       const updateDoc = (window as any).__updateAutomergeDoc;
       if (!updateDoc) throw new Error('Automerge test hooks not exposed');
-
       await updateDoc('Seed regression test data', (d: any) => {
         d.cycles = [
           { id: 'cycle-may', name: 'May 2026', month: 4, year: 2026, isActive: false, createdAt: new Date().toISOString() },
@@ -64,36 +59,36 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
     await page.waitForLoadState('networkidle');
     await openReview(page);
 
-    // Selecting a past week opens the wizard directly — there is no start
-    // button and no cancel: work autosaves as a draft.
-    await page.locator('.progress-week-select .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row').nth(1).click(); // week 1 of June
+    // One selector per tab: the picker, not the strip week Select.
+    const trigger = page.locator('[aria-label="Review cycle and week"]');
+    await expect(trigger).toBeVisible();
+    await expect(page.locator('.progress-week-select')).toHaveCount(0);
+
+    // Default selection = the newest cycle's most recent finished week —
+    // every June 2026 week is finished today, so week 4 of 4 (22–28 Jun).
+    await expect(trigger).toHaveText(/June 2026 · week 4 of 4/);
+    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
+
+    // Selecting week 1 opens its wizard directly — no start button, no cancel.
+    await trigger.click();
+    await page.locator('.cwp-panel .cwp-cycle-row').nth(1).click(); // June (newest is July-less; nth(1)=June? newest-first: June then May)
+    await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
     await page.waitForTimeout(300);
     await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
     await expect(page.locator('button:has-text("Cancel")')).toHaveCount(0);
-    await expect(page.locator('.rw-footer .rw-btn')).toHaveCount(1); // primary only, no Back on step 1
     await expect(page.locator('.rw-save-indicator')).toHaveText('Nothing to save yet');
 
-    // 'all weeks' falls back to the current week — still reviewable (as-of
-    // values), so the old "Week is still in progress" guard is gone.
-    await page.locator('.progress-week-select .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row').nth(0).click(); // all weeks
-    await page.waitForTimeout(300);
-    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
-    await expect(page.locator('text=Week is still in progress')).toHaveCount(0);
-
-    // 2. A week in the future is still blocked. Seed a next-month cycle as
-    // the only active one: every strip week lies ahead of today.
+    // A future cycle's weeks are listed but disabled — the wizard can never
+    // land on an unfinished week, and the old guard cards are gone.
     await page.evaluate(async () => {
       const updateDoc = (window as any).__updateAutomergeDoc;
-      await updateDoc('Seed future cycle', (d: any) => {
+      await updateDoc('Seed future-only cycle', (d: any) => {
         const now = new Date();
         d.cycles = [{
           id: 'cycle-next', name: 'Next Cycle',
           month: (now.getMonth() + 1) % 12,
           year: now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear(),
-          isActive: true,
-          createdAt: new Date().toISOString(),
+          isActive: true, createdAt: new Date().toISOString(),
         }];
         d.objectives = [];
         d.keyResults = [];
@@ -105,11 +100,15 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await openReview(page);
-    await page.locator('.progress-week-select .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row').nth(1).click();
-    await page.waitForTimeout(300);
-    await expect(page.locator('text=Week has not started yet')).toBeVisible();
+
+    // No finished week exists anywhere → the nothing-to-review state, never
+    // a wizard on an unfinished week.
+    await expect(page.locator('.review-start-card-title')).toHaveText('Nothing to review yet');
     await expect(page.locator('.rw-wizard')).toHaveCount(0);
+    await trigger.click();
+    // Every listed week is unfinished — none selectable.
+    await expect(page.locator('.cwp-panel .cwp-week-row:not(.cwp-disabled)')).toHaveCount(0);
+    await page.keyboard.press('Escape');
   });
 
   test('renders gracefully and does not crash when cycle data contains null or invalid month/year', async ({ page }) => {

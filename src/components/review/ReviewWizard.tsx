@@ -314,7 +314,7 @@ export default function ReviewWizard({
           <div className="rw-footer">
             <span className="rw-footer-note">
               {readOnly
-                ? `Review completed${completedAt ? ` on ${new Date(completedAt).toLocaleDateString()}` : ''} — edits in Past Reviews below`
+                ? `Review completed${completedAt ? ` on ${new Date(completedAt).toLocaleDateString()}` : ''}`
                 : currentStep === 1
                   ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored`
                   : STEP_FOOTNOTES[currentStep]}
