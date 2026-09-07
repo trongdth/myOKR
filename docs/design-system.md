@@ -212,7 +212,9 @@ deep-link) is deferred — see ADR-0010.
 ## Menu component (Select) — 2026-08-23
 
 `Select` (`src/components/shared/Select.tsx`) is the app's **single menu
-component** — every dropdown is an instance of it (see ADR-0018). Boxed
+component** — every dropdown is an instance of it (see ADR-0018). The
+review tab's `CycleWeekPicker` is a composed two-level menu built on this
+anatomy, not a Select variant (ADR-0018 addendum, 2026-09-07). Boxed
 variant for form / toolbar / cell pickers; `bare` for compact inline badge or
 dot pickers (KR mode, priority dots), where the badge itself is the
 affordance (no chevron) but the panel, states, and keyboard behave the same.
@@ -561,15 +563,35 @@ rail becomes a horizontal strip above the main pane, glance columns stack,
 footer buttons go full-width; ≤560px — stat cards 1-across. (The wizard CSS
 lives in `review.css` under the `rw-*` prefix.)
 
-### Drafts & history
+### Drafts, immutability, entry gating (amended 2026-09-07, round 2)
 
+- **Finished weeks only**: a week is reviewable once its Sunday has passed;
+  the CycleWeekPicker lists unfinished weeks disabled, and the old
+  in-progress/future guard cards are gone.
 - Edits autosave (debounced ~1 s) into a draft `WeeklyReview` (`completedAt`
   undefined); **Finish review** stamps it and triggers KR sync. Drafts are
-  invisible to the chart, streaks, and sync.
-- History stays below the wizard: draft cards ("In progress" + Continue
-  review), finished weeks render the wizard read-only, completed reviews stay
-  editable via history (prompt answers included; legacy no-prompt reviews
-  render exactly as before).
+  invisible to the chart, streaks, and sync — and resurface as a **Draft**
+  hint on the picker's week rows.
+- **Completed reviews are immutable** — the read-only wizard is their only
+  view (no Past Reviews section, no editing, no deletion). Late completion
+  of unreviewed finished weeks stays possible.
+
+### Cycle picker (review tab only)
+
+The Weekly review tab's own two-level selector (`CycleWeekPicker`,
+2026-09-07): **cycle first** — newest first, completed-review count as the
+row meta (`4 reviews` / `3 of 4` / `no reviews`), zero-review cycles dimmed
+but selectable — then, below a divider, **Week in {cycle}** rows by date
+span (`14–20 Apr`, never bare numbers). Commit happens on week rows only;
+cycle rows steer the weeks section. The trigger reads the full path
+(`April cycle · week 4 of 4`). C1 anatomy throughout (32px trigger,
+open-state ring, rotating chevron, one cyan-ticked chosen row per level —
+a Draft hint replaces the week-level tick). Search appears beyond 6 cycles
+(matching cycle name/year and week date spans — a visible filter field,
+not type-ahead per ADR-0011). A past cycle shows the derived
+`Cycle closed 26 Apr` badge beside the week h1 (Sunday of the last
+exclusive week). Focus analytics and Objectives keep the strip's week
+Select — **one selector per tab, never two, and no shared range**.
 
 ## Plan group screens (P1–P7) — per-screen rules
 

@@ -12,10 +12,8 @@ import {
 import { generateId } from '../lib/pomodoro-storage';
 import { loadHabits, type Habit } from '../lib/habit-storage';
 import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
-import { reviewInCycle } from '../lib/review-utils';
 import ReviewWizard from './review/ReviewWizard';
 import LinkSessionsModal from './review/LinkSessionsModal';
-import ReviewHistory from './review/ReviewHistory';
 import LoadingState from './shared/LoadingState';
 import { Select } from './shared/Select';
 
@@ -216,6 +214,8 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
   // stays in sync.
   const reloadReviews = async () => {
     try { setReviews(await loadReviews()); } catch { /* non-fatal */ }
+    // Refresh the picker's review counts / draft hints too.
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
   };
   const reloadTasks = async () => {
     try { setTasks(await loadTasks()); } catch { /* non-fatal */ }
@@ -263,24 +263,6 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
       : [...reviews, review];
     setReviews(updatedReviews);
     try { await saveCompletedReview(review); } catch { /* storage failure is non-fatal */ }
-
-    // Update Key Result values based on the latest completed review
-    await syncKeyResultsFromReviews(updatedReviews, keyResults);
-  };
-
-  const handleDeleteReview = async (reviewId: string) => {
-    const updatedReviews = reviews.filter(r => r.id !== reviewId);
-    setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
-
-    // Sync Key Result values from the remaining reviews
-    await syncKeyResultsFromReviews(updatedReviews, keyResults);
-  };
-
-  const handleEditReview = async (updatedReview: WeeklyReview) => {
-    const updatedReviews = reviews.map(r => r.id === updatedReview.id ? updatedReview : r);
-    setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
 
     // Update Key Result values based on the latest completed review
     await syncKeyResultsFromReviews(updatedReviews, keyResults);
@@ -367,21 +349,6 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
           }}
         />
       )}
-
-      {/* Review History — the progress chart moved to the Objectives tab.
-          Continue-review jumps the shared week selector to the draft's week. */}
-      <ReviewHistory
-        reviews={reviews.filter(r => reviewInCycle(r, activeCycle))}
-        keyResults={keyResults}
-        objectives={objectives}
-        tasks={tasks}
-        history={history}
-        onDelete={handleDeleteReview}
-        onEdit={handleEditReview}
-        onContinue={(weekStartDate) => {
-          window.dispatchEvent(new CustomEvent('myokr-review-continue', { detail: { weekStart: weekStartDate } }));
-        }}
-      />
     </div>
   );
 }
