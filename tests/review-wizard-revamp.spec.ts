@@ -148,7 +148,7 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(kr1Row.locator('.review-kr-auto-badge')).toHaveText('auto');
     await expect(kr1Row.locator('input[type="number"]')).toHaveCount(0);
     // At-risk streak: 2 prior completed reviews → "3 weeks running".
-    await expect(kr1Row.locator('.rw-risk-banner')).toHaveText('Flagged at risk 3 weeks running.');
+    await expect(kr1Row.locator('.rw-risk-banner')).toHaveText('Flagged at risk 2 weeks running.');
 
     // Manual KR: editable input carrying the KR value.
     const input = kr2Row.locator('input[type="number"]');
@@ -196,7 +196,7 @@ test.describe('Weekly review wizard revamp', () => {
     await page.locator('.rw-rail-item:has-text("Reflect")').click();
     const prompts = page.locator('.rw-prompt-row');
     await expect(prompts).toHaveCount(3);
-    await expect(prompts.nth(0).locator('.rw-prompt-text')).toHaveText('Ship pomodoros has been at risk 3 weeks running. What is in the way?');
+    await expect(prompts.nth(0).locator('.rw-prompt-text')).toHaveText('Ship pomodoros has been at risk 2 weeks running. What is in the way?');
     await expect(prompts.nth(1).locator('.rw-prompt-text')).toHaveText('Ship pomodoros moved 1 → 4. What made that possible?');
     await expect(prompts.nth(2).locator('.rw-prompt-text')).toHaveText('One change for next week?');
 

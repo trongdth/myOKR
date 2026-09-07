@@ -145,13 +145,24 @@ test.describe('review-insights', () => {
     expect(streaks).toEqual({ krTasks: 2 });
   });
 
+  test('at-risk streaks require two consecutive completed reviews (decision 9)', async ({ page }) => {
+    const fixture = makeFixture();
+    // Only ONE prior completed review flags krTasks at risk (drop r0).
+    fixture.reviews = fixture.reviews.filter(r => r.id !== 'r0');
+    const streaks = await page.evaluate(async ({ reviews, weekStart }) => {
+      const mod = await import('/src/lib/review-insights.ts') as any;
+      return Object.fromEntries(mod.computeAtRiskStreaks(reviews, weekStart));
+    }, { reviews: fixture.reviews, weekStart: WEEK_START });
+    expect(streaks).toEqual({});
+  });
+
   test('reflect prompts: at-risk first, mover second, one-change always, cap 3', async ({ page }) => {
     const prompts = await callInsights<any[]>(page, 'buildReflectPrompts', makeFixture());
 
     expect(prompts).toHaveLength(3);
     expect(prompts[0].type).toBe('at_risk');
     expect(prompts[0].keyResultId).toBe('krTasks');
-    expect(prompts[0].text).toBe('Ship tasks KR has been at risk 3 weeks running. What is in the way?');
+    expect(prompts[0].text).toBe('Ship tasks KR has been at risk 2 weeks running. What is in the way?');
     expect(prompts[1].type).toBe('mover');
     expect(prompts[1].text).toBe('Focus Pomodoros KR moved 4 → 9. What made that possible?');
     expect(prompts[2]).toMatchObject({ type: 'one_change', text: 'One change for next week?' });

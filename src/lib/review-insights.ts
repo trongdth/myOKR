@@ -266,10 +266,10 @@ export function computeKrMoves(input: ReviewInsightsInput): KrMovesResult {
 // ===== at-risk streaks =====
 
 /**
- * Consecutive *completed* reviews immediately before `weekStart` in which the
- * KR's entry was At risk / Off track. Drafts never count. A streak of 1 means
- * "flagged last review too"; the banner phrases it as N+1 weeks running with
- * the week being reviewed.
+ * Consecutive *completed* reviews immediately before `weekStart* in which the
+ * KR's entry was At risk / Off track, **only when that run is ≥2** (grilling
+ * decision 9 — a single flagged review is not a streak). Drafts never count.
+ * The banner/prompt phrase the number as "N weeks running".
  */
 export function computeAtRiskStreaks(reviews: WeeklyReview[], weekStart: string): Map<string, number> {
   const streaks = new Map<string, number>();
@@ -285,7 +285,7 @@ export function computeAtRiskStreaks(reviews: WeeklyReview[], weekStart: string)
       if (!entry || !RISK_CONFIDENCES.includes(entry.confidence)) break;
       streak++;
     }
-    streaks.set(krId, streak);
+    if (streak >= 2) streaks.set(krId, streak);
   }
   return streaks;
 }
@@ -340,7 +340,7 @@ export function buildReflectPrompts(input: ReviewInsightsInput): ReviewPrompt[] 
       id: `prompt-at_risk-${c.keyResultId}`,
       type: 'at_risk',
       keyResultId: c.keyResultId,
-      text: `${c.title} has been at risk ${c.streak + 1} weeks running. What is in the way?`,
+      text: `${c.title} has been at risk ${c.streak} weeks running. What is in the way?`,
       answer: '',
     });
   }

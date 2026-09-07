@@ -42,7 +42,7 @@ export default function ScoreKeyResults({
           <div key={row.keyResult.id} className="rw-score-row">
             {row.atRiskWeeksRunning > 0 && (
               <div className="rw-risk-banner">
-                Flagged at risk {row.atRiskWeeksRunning + 1} weeks running.
+                Flagged at risk {row.atRiskWeeksRunning} weeks running.
               </div>
             )}
             <div className="rw-score-row-head">
