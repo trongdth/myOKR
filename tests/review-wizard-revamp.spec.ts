@@ -228,8 +228,56 @@ test.describe('Weekly review wizard revamp', () => {
     }, { timeout: 5000 }).toBe(9);
     expect(result.kr2Confidence).toBe('at_risk');
 
-    // Finished week shows the completed card until ticket 09's read-only view.
-    await expect(page.locator('.review-start-card-title')).toContainText("This week's review is complete!");
+    // Finished week renders the read-only wizard.
+    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
+    await expect(page.locator('.rw-btn:has-text("Finish review")')).toHaveCount(0);
+
+    // History keeps post-finish editing: expand the card, edit the prompt
+    // answer, save, and the doc reflects it.
+    await page.locator('.review-history-card').first().click();
+    const promptRow = page.locator('.review-history-prompt:has-text("One change for next week")');
+    await promptRow.locator('.review-history-action-btn.edit').click();
+    await page.locator('.review-history-edit-textarea').fill('Blocked 9–11 mornings');
+    await page.locator('.review-history-edit-actions .review-nav-btn.primary').click();
+    await expect.poll(async () => {
+      return page.evaluate(async () => {
+        const doc = await (window as any).__getAutomergeDoc();
+        const week1 = window.localStorage.getItem('__test_week1');
+        const review = (doc.reviews as any[]).find(r => week1 === r.weekStartDate);
+        return review?.prompts?.find((x: any) => x.type === 'one_change')?.answer;
+      });
+    }).toBe('Blocked 9–11 mornings');
+  });
+
+  test('draft cards appear in history; Continue review jumps to the week', async ({ page }) => {
+    const wizard = page.locator('.rw-wizard');
+
+    // Start a draft for week 1.
+    await wizard.locator('.rw-rail-item:has-text("Score key results")').click();
+    await wizard.locator('.rw-score-row:has-text("Ship tickets") input[type="number"]').fill('10');
+    await wizard.locator('.rw-score-row:has-text("Ship tickets") .review-confidence-btn.on-track').click();
+    await expect(wizard.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
+
+    // Move the selector away to the current week — the draft card stays.
+    await page.locator('.progress-week-select .sel-trigger').click();
+    await page.locator('.sel-panel .sel-row').nth(0).click(); // all weeks
+    await page.waitForTimeout(400);
+
+    const draftCard = page.locator('.review-history-card.draft');
+    await expect(draftCard).toHaveCount(1);
+    await expect(draftCard.locator('.review-draft-chip')).toHaveText('In progress');
+
+    // Continue review jumps the week selector back to the draft's week.
+    await draftCard.locator('.review-continue-btn').click();
+    await page.waitForTimeout(400);
+    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
+    await expect(page.locator('.rw-score-row:has-text("Ship tickets") input[type="number"]')).toHaveValue('10');
+    await expect(page.locator('.rw-footer-note')).toHaveText('1 of 2 key results scored');
+
+    // Deleting the draft removes it from history.
+    await page.locator('.review-history-card.draft .review-delete-btn').click();
+    await page.locator('.confirm-modal .btn:has-text("Delete"), .btn:has-text("Delete")').last().click();
+    await expect(page.locator('.review-history-card.draft')).toHaveCount(0);
   });
 
   test('link sessions modal assigns tasks and recomputes the numbers', async ({ page }) => {

@@ -51,6 +51,20 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
   })();
   const weekLabel = selectedMonday ? formatWeekLabel(selectedMonday) : undefined;
 
+  // "Continue review" from history: jump the shared selector to the draft's
+  // week so the wizard opens on it.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const weekStart = (e as CustomEvent).detail?.weekStart as string | undefined;
+      if (!weekStart || !activeCycle) return;
+      const mondays = getExclusiveCycleMondays(activeCycle);
+      const idx = mondays.indexOf(weekStart);
+      if (idx >= 0) setSelectedWeek(idx + 1);
+    };
+    window.addEventListener('myokr-review-continue', handler);
+    return () => window.removeEventListener('myokr-review-continue', handler);
+  }, [activeCycle]);
+
   return (
     <div className="pomodoro-container progress-shell">
       <div className="progress-shell-inner">

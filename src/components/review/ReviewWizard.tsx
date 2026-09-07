@@ -37,13 +37,15 @@ interface Props {
   onComplete: (review: Omit<WeeklyReview, 'id'>) => void;
   onDraftSaved?: () => void;
   onLinkSessions?: () => void;
+  readOnly?: boolean;
+  completedAt?: string;
 }
 
 export default function ReviewWizard({
   weekStart, weekEnd, cycleId, todayStr,
   objectives, keyResults, tasks, history, reviews, focusDurationMinutes,
   habits, cycles,
-  onComplete, onDraftSaved, onLinkSessions,
+  onComplete, onDraftSaved, onLinkSessions, readOnly = false, completedAt,
 }: Props) {
   const cycleObjectives = useMemo(() => objectives.filter(o => o.cycleId === cycleId), [objectives, cycleId]);
   const cycleKRs = useMemo(
@@ -165,7 +167,7 @@ export default function ReviewWizard({
   latestRef.current = { entries, prompts, pomodoroStats, weekStart, weekEnd, cycleId };
 
   useEffect(() => {
-    if (!dirtyRef.current) return;
+    if (readOnly || !dirtyRef.current) return;
     setSaveState('saving');
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(async () => {
@@ -298,28 +300,34 @@ export default function ReviewWizard({
             />
           )}
           {currentStep === 1 && (
-            <ScoreKeyResults rows={scoreRows} onChange={updateEntry} />
+            <ScoreKeyResults rows={scoreRows} onChange={readOnly ? () => {} : updateEntry} readOnly={readOnly} />
           )}
           {currentStep === 2 && (
-            <ReflectStep prompts={prompts} onChange={updatePrompt} />
+            <ReflectStep prompts={prompts} onChange={readOnly ? () => {} : updatePrompt} readOnly={readOnly} />
           )}
 
           <div className="rw-footer">
             <span className="rw-footer-note">
-              {currentStep === 1 ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored` : STEP_FOOTNOTES[currentStep]}
+              {readOnly
+                ? `Review completed${completedAt ? ` on ${new Date(completedAt).toLocaleDateString()}` : ''} — edits in Past Reviews below`
+                : currentStep === 1
+                  ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored`
+                  : STEP_FOOTNOTES[currentStep]}
             </span>
-            <div className="rw-footer-actions">
-              {currentStep > 0 && (
-                <button type="button" className="rw-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>
-              )}
-              {currentStep < 2 ? (
-                <button type="button" className="rw-btn primary" onClick={() => setCurrentStep(currentStep + 1)}>
-                  {currentStep === 0 ? 'Score key results' : 'Continue to reflection'}
-                </button>
-              ) : (
-                <button type="button" className="rw-btn primary" onClick={handleComplete}>Finish review</button>
-              )}
-            </div>
+            {!readOnly && (
+              <div className="rw-footer-actions">
+                {currentStep > 0 && (
+                  <button type="button" className="rw-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>
+                )}
+                {currentStep < 2 ? (
+                  <button type="button" className="rw-btn primary" onClick={() => setCurrentStep(currentStep + 1)}>
+                    {currentStep === 0 ? 'Score key results' : 'Continue to reflection'}
+                  </button>
+                ) : (
+                  <button type="button" className="rw-btn primary" onClick={handleComplete}>Finish review</button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

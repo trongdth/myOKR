@@ -9,9 +9,11 @@ import type { ReviewPrompt } from '../../lib/okr-storage';
 export default function ReflectStep({
   prompts,
   onChange,
+  readOnly = false,
 }: {
   prompts: ReviewPrompt[];
   onChange: (promptId: string, answer: string) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="rw-reflect">
@@ -41,6 +43,7 @@ export default function ReflectStep({
                   : 'What happened, in your own words?'}
               rows={prompt.type === 'one_change' ? 2 : 3}
               aria-label={prompt.text}
+              readOnly={readOnly}
             />
           </div>
         ))}

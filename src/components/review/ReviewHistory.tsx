@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { BookOpen, Timer, Clock, CheckCircle, X, Pencil, MessageSquare } from 'lucide-react';
-import type { WeeklyReview, ReviewEntry, KeyResult, Objective, Confidence } from '../../lib/okr-storage';
-import { CONFIDENCE_META } from '../../lib/okr-storage';
+import { BookOpen, Timer, Clock, CheckCircle, X, Pencil, MessageSquare, Play } from 'lucide-react';
+import type { WeeklyReview, ReviewEntry, ReviewPrompt, KeyResult, Objective, Confidence } from '../../lib/okr-storage';
+import { isDraftReview, CONFIDENCE_META } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
 import { computeWeekTaskPomos } from '../../lib/pomodoro-storage';
 import NumberInput from '../NumberInput';
@@ -16,16 +16,22 @@ interface Props {
   history: DailyRecord[];
   onDelete: (id: string) => void;
   onEdit: (review: WeeklyReview) => void;
+  onContinue?: (weekStart: string) => void;
 }
 
-export default function ReviewHistory({ reviews, keyResults, tasks, history, onDelete, onEdit }: Props) {
+export default function ReviewHistory({ reviews, keyResults, tasks, history, onDelete, onEdit, onContinue }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntry, setEditEntry] = useState<ReviewEntry | null>(null);
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+  const [editPromptAnswer, setEditPromptAnswer] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+  const drafts = reviews
+    .filter(r => isDraftReview(r))
+    .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
   const sorted = [...reviews]
-    .filter(r => r.completedAt)
+    .filter(r => !isDraftReview(r))
     .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
 
   // Memoize per-review linked task data
@@ -79,7 +85,21 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
     setEditEntry(null);
   };
 
-  if (sorted.length === 0) {
+  const startPromptEdit = (prompt: ReviewPrompt) => {
+    setEditingPromptId(prompt.id);
+    setEditPromptAnswer(prompt.answer);
+  };
+
+  const savePromptEdit = (review: WeeklyReview) => {
+    onEdit({
+      ...review,
+      prompts: review.prompts?.map(p => p.id === editingPromptId ? { ...p, answer: editPromptAnswer } : p),
+    });
+    setEditingPromptId(null);
+    setEditPromptAnswer('');
+  };
+
+  if (drafts.length === 0 && sorted.length === 0) {
     return (
       <div className="review-history-section">
         <div className="review-history-title"><BookOpen size={16} className="icon-inline" /> Past Reviews</div>
@@ -93,6 +113,42 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
   return (
     <div className="review-history-section">
       <div className="review-history-title"><BookOpen size={16} className="icon-inline" /> Past Reviews ({sorted.length})</div>
+
+      {drafts.length > 0 && (
+        <div className="review-history-list">
+          {drafts.map(review => (
+            <div key={review.id} className="review-history-card draft">
+              <div className="review-history-card-header">
+                <span className="review-history-date">
+                  Week of {review.weekStartDate}
+                  <span className="review-draft-chip">In progress</span>
+                </span>
+              </div>
+              <div className="review-history-stats">
+                <span><CheckCircle size={12} className="icon-inline" /> {review.entries.filter(e => e.confidence !== 'not_set').length} of {review.entries.length} scored</span>
+                <div className="review-history-inline-actions">
+                  {onContinue && (
+                    <button
+                      className="review-continue-btn"
+                      onClick={e => { e.stopPropagation(); onContinue(review.weekStartDate); }}
+                    >
+                      <Play size={12} className="icon-inline" /> Continue review
+                    </button>
+                  )}
+                  <button
+                    className="review-delete-btn"
+                    onClick={e => { e.stopPropagation(); setDeleteTargetId(review.id); }}
+                    title="Delete draft"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="review-history-list">
         {sorted.map(review => {
           const isExpanded = expandedId === review.id;
@@ -227,6 +283,45 @@ export default function ReviewHistory({ reviews, keyResults, tasks, history, onD
                       </div>
                     );
                   })}
+                  {(review.prompts?.length ?? 0) > 0 && (
+                    <div className="review-history-prompts">
+                      {review.prompts!.map(prompt => (
+                        <div key={prompt.id} className="review-history-prompt">
+                          {editingPromptId === prompt.id ? (
+                            <div className="review-history-edit-entry">
+                              <div className="review-history-edit-entry-title">{prompt.text}</div>
+                              <textarea
+                                className="review-history-edit-textarea"
+                                value={editPromptAnswer}
+                                onChange={e => setEditPromptAnswer(e.target.value)}
+                                rows={2}
+                              />
+                              <div className="review-history-edit-actions">
+                                <button className="review-nav-btn" onClick={e => { e.stopPropagation(); setEditingPromptId(null); }}>Cancel</button>
+                                <button className="review-nav-btn primary" onClick={e => { e.stopPropagation(); savePromptEdit(review); }}>Save</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="review-history-prompt-body">
+                                <span className="review-history-prompt-text">{prompt.text}</span>
+                                {prompt.answer && (
+                                  <span className="review-history-prompt-answer">{prompt.answer}</span>
+                                )}
+                              </div>
+                              <button
+                                className="review-history-action-btn edit"
+                                onClick={e => { e.stopPropagation(); startPromptEdit(prompt); }}
+                                title="Edit answer"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {review.reflection && (
                     <div className="review-history-reflection">
                       <MessageSquare size={14} className="icon-inline" /> {review.reflection}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Target, CheckCircle, Calendar } from 'lucide-react';
+import { ClipboardList, Target, Calendar } from 'lucide-react';
 import '../styles/review.css';
 import {
   loadCycles, loadObjectives, loadKeyResults,
@@ -330,23 +330,14 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
       )}
 
       {/* Weekly review — the wizard runs directly for any started or past
-          week without a completed review (ADR-0019). Finished weeks stay
-          editable via history below; future weeks stay blocked. */}
+          week; finished weeks render read-only (edits via history below);
+          future weeks stay blocked (ADR-0019). */}
       {isFutureWeek ? (
         <div className="review-start-card">
           <div className="review-start-card-icon"><Calendar size={24} /></div>
           <div className="review-start-card-title">Week has not started yet</div>
           <div className="review-start-card-desc">
             This week (starting {weekStart}) is in the future. You can start the weekly review once the week has begun.
-          </div>
-        </div>
-      ) : currentWeekReview ? (
-        <div className="review-start-card">
-          <div className="review-start-card-icon"><CheckCircle size={24} /></div>
-          <div className="review-start-card-title">This week's review is complete!</div>
-          <div className="review-start-card-desc">
-            Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
-            If you need to edit this review, you can do so in the Past Reviews section below.
           </div>
         </div>
       ) : (
@@ -367,6 +358,8 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
           onComplete={handleCompleteReview}
           onDraftSaved={reloadReviews}
           onLinkSessions={() => setShowLinkModal(true)}
+          readOnly={!!currentWeekReview}
+          completedAt={currentWeekReview?.completedAt}
         />
       )}
 
@@ -387,7 +380,8 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
         />
       )}
 
-      {/* Review History — the progress chart moved to the Objectives tab */}
+      {/* Review History — the progress chart moved to the Objectives tab.
+          Continue-review jumps the shared week selector to the draft's week. */}
       <ReviewHistory
         reviews={reviews.filter(r => reviewInCycle(r, activeCycle))}
         keyResults={keyResults}
@@ -396,6 +390,9 @@ export default function ReviewApp({ hideHeader = false, weekMonday = null }: { h
         history={history}
         onDelete={handleDeleteReview}
         onEdit={handleEditReview}
+        onContinue={(weekStartDate) => {
+          window.dispatchEvent(new CustomEvent('myokr-review-continue', { detail: { weekStart: weekStartDate } }));
+        }}
       />
     </div>
   );

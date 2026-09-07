@@ -1662,3 +1662,81 @@
   min-width: 180px;
 }
 
+
+/* ----- ticket 09: draft cards + prompt answers in history ----- */
+
+.review-history-card.draft {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent-cyan) 55%, var(--border-color));
+}
+
+.review-draft-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.08rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.review-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent-cyan);
+  background: transparent;
+  color: var(--accent-cyan);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-all-fast);
+}
+
+.review-continue-btn:hover {
+  background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+}
+
+.review-history-prompts {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.review-history-prompt {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.review-history-prompt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.review-history-prompt-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.review-history-prompt-answer {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}

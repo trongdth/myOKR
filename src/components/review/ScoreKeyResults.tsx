@@ -24,9 +24,11 @@ function DeltaChip({ entry }: { entry: ReviewEntry }) {
 export default function ScoreKeyResults({
   rows,
   onChange,
+  readOnly = false,
 }: {
   rows: ScoreRow[];
   onChange: (keyResultId: string, updated: ReviewEntry) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="rw-score">
@@ -53,6 +55,7 @@ export default function ScoreKeyResults({
               objective={row.objective}
               linkedTasksThisWeek={row.linkedTasksThisWeek}
               onChange={updated => onChange(row.keyResult.id, updated)}
+              readOnly={readOnly}
             />
           </div>
         ))}
