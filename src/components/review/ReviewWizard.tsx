@@ -303,7 +303,12 @@ export default function ReviewWizard({
             <ScoreKeyResults rows={scoreRows} onChange={readOnly ? () => {} : updateEntry} readOnly={readOnly} />
           )}
           {currentStep === 2 && (
-            <ReflectStep prompts={prompts} onChange={readOnly ? () => {} : updatePrompt} readOnly={readOnly} />
+            <ReflectStep
+              prompts={prompts}
+              onChange={readOnly ? () => {} : updatePrompt}
+              readOnly={readOnly}
+              moverDelta={[...moves.moves].filter(m => m.delta > 0).sort((a, b) => b.delta - a.delta)[0]?.delta}
+            />
           )}
 
           <div className="rw-footer">

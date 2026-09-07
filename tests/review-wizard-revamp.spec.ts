@@ -199,6 +199,14 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(prompts.nth(0).locator('.rw-prompt-text')).toHaveText('Ship pomodoros has been at risk 2 weeks running. What is in the way?');
     await expect(prompts.nth(1).locator('.rw-prompt-text')).toHaveText('Ship pomodoros moved 1 → 4. What made that possible?');
     await expect(prompts.nth(2).locator('.rw-prompt-text')).toHaveText('One change for next week?');
+    // Ticket 07: the mover prompt carries a "+N this week" chip.
+    await expect(prompts.nth(1).locator('.rw-prompt-chip')).toHaveText('+3 this week');
+
+    // Decision 7: the one-change answer surfaces in next week's Week at a
+    // glance — copy must not imply Day-plan wiring the spec rejected.
+    await expect(prompts.nth(2).locator('.rw-prompt-chip')).toHaveText("Surfaces in next week's review");
+    const reflectText = await page.locator('.rw-reflect').innerText();
+    expect(reflectText).not.toContain('plan');
 
     await prompts.nth(2).locator('textarea').fill('Block mornings');
     await expect(page.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });

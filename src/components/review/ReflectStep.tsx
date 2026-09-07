@@ -10,16 +10,18 @@ export default function ReflectStep({
   prompts,
   onChange,
   readOnly = false,
+  moverDelta,
 }: {
   prompts: ReviewPrompt[];
   onChange: (promptId: string, answer: string) => void;
   readOnly?: boolean;
+  moverDelta?: number;
 }) {
   return (
     <div className="rw-reflect">
       <div className="rw-step-heading">
         <h2>What do you want to remember about this week?</h2>
-        <p>Three prompts, drawn from what actually happened. Answers show up next to next week's plan.</p>
+        <p>Three prompts, drawn from what actually happened. Answers autosave.</p>
       </div>
 
       <div className="rw-prompt-rows">
@@ -28,7 +30,10 @@ export default function ReflectStep({
             <div className="rw-prompt-head">
               <span className="rw-prompt-text">{prompt.text}</span>
               {prompt.type === 'one_change' && (
-                <span className="rw-prompt-chip">Becomes a note on next week's plan</span>
+                <span className="rw-prompt-chip">Surfaces in next week's review</span>
+              )}
+              {prompt.type === 'mover' && moverDelta != null && moverDelta > 0 && (
+                <span className="rw-prompt-chip">+{moverDelta} this week</span>
               )}
               {prompt.type === 'at_risk' && <span className="rw-prompt-chip rw-prompt-chip-risk">at risk</span>}
             </div>
