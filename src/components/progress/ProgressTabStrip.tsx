@@ -34,16 +34,22 @@ export function ProgressHeader({
 
 export type ProgressTab = 'analytics' | 'objectives-progress' | 'weekly-review';
 
-// "Week of 25–31 May" (same month) / "Week of 29 Sep–5 Oct" (spanning).
-export function formatWeekLabel(monday: string): string {
+// "25–31 May" (same month) / "29 Sep–5 Oct" (spanning) — shared by the
+// header's week h1 and the CycleWeekPicker's week rows.
+export function formatWeekSpan(monday: string): string {
   const start = new Date(`${monday}T00:00:00Z`);
   const end = new Date(`${monday}T00:00:00Z`);
   end.setUTCDate(end.getUTCDate() + 6);
   const monthShort = (d: Date) => MONTHS[d.getUTCMonth()];
   if (start.getUTCMonth() === end.getUTCMonth()) {
-    return `Week of ${start.getUTCDate()}–${end.getUTCDate()} ${monthShort(end)}`;
+    return `${start.getUTCDate()}–${end.getUTCDate()} ${monthShort(end)}`;
   }
-  return `Week of ${start.getUTCDate()} ${monthShort(start)}–${end.getUTCDate()} ${monthShort(end)}`;
+  return `${start.getUTCDate()} ${monthShort(start)}–${end.getUTCDate()} ${monthShort(end)}`;
+}
+
+// "Week of 25–31 May" (same month) / "Week of 29 Sep–5 Oct" (spanning).
+export function formatWeekLabel(monday: string): string {
+  return `Week of ${formatWeekSpan(monday)}`;
 }
 
 interface ProgressTabStripProps {

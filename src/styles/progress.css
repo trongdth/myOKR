@@ -576,3 +576,142 @@
     width: 75%;
   }
 }
+
+/* ===== CycleWeekPicker (review tab's two-level selector, C1 anatomy) ===== */
+
+.cwp-panel {
+  padding: 5px;
+}
+
+.cwp-search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 2px 3px 7px;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+
+.cwp-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.cwp-search input:focus {
+  outline: none;
+}
+
+.cwp-section-label {
+  padding: 4px 8px 5px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cwp-divider {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border-color);
+}
+
+.cwp-cycle-row,
+.cwp-week-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.cwp-cycle-row .cwp-chevron {
+  color: var(--text-muted);
+  transition: transform 120ms ease;
+  flex-shrink: 0;
+}
+
+.cwp-cycle-row .cwp-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.cwp-cycle-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cwp-meta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cwp-cycle-row.cwp-dim .cwp-cycle-name,
+.cwp-cycle-row.cwp-dim .cwp-meta {
+  opacity: 0.55;
+}
+
+.cwp-check {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.cwp-week-row {
+  padding-left: 1.6rem;
+}
+
+.cwp-week-span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cwp-week-row.cwp-disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.cwp-week-row.cwp-disabled:hover {
+  background: transparent;
+}
+
+.cwp-draft {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+/* fixture page */
+.cwp-fixture {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.cwp-fixture-scenario {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cwp-fixture-commit {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
