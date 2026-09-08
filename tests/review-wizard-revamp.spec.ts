@@ -208,9 +208,11 @@ test.describe('Weekly review wizard revamp', () => {
     // No app-wide reload storm was dispatched by the autosave.
     expect(await page.evaluate(() => (window as any).__syncCount)).toBe(0);
 
-    // The draft's week still shows its Draft hint in the picker.
+    // The selected draft week shows the tick (C1: tick wins over the
+    // trailing label); the Draft hint itself is pinned in the accordion test
+    // on a non-selected draft week.
     await page.locator('[aria-label="Review cycle and week"]').click();
-    await expect(page.locator('.cwp-panel .cwp-week-row.cwp-selected .cwp-draft')).toHaveText('Draft');
+    await expect(page.locator('.cwp-panel .cwp-week-row.cwp-selected .cwp-check')).toBeVisible();
     await page.keyboard.press('Escape');
 
     // Reload → the draft resumes on the first step with unanswered work.

@@ -5,13 +5,12 @@ import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
 import { findReviewForWeek, getMonthName, isDraftReview, type OKRCycle, type WeeklyReview } from '../../lib/okr-storage';
 import { formatWeekSpan } from './ProgressTabStrip';
 
-// The Weekly review tab's two-level selector (second grilling round,
-// .scratch/review-cycle-picker/spec.md): cycle first (newest first,
-// completed-review count as meta), then weeks by date span. Commit happens
-// on week rows only — cycle rows just steer the weeks section. Unfinished
-// weeks (Sunday not passed) are listed but disabled: only finished weeks
-// are reviewable. Built on the Select's C1 anatomy (ADR-0018 addendum: a
-// composed two-level menu, not a Select variant).
+// The Weekly review tab's two-level selector (second grilling round, amended
+// by round-3 user feedback): cycle rows steer an ACCORDION weeks block nested
+// beneath the expanded cycle; commit happens on week rows only. Unfinished
+// weeks (Sunday not passed) and cycles with zero finished weeks are disabled
+// — only finished weeks are reviewable. Built on the Select's C1 anatomy
+// (ADR-0018 addendum: a composed two-level menu, not a Select variant).
 
 const PANEL_GAP = 6;
 const SEARCH_THRESHOLD = 6; // search appears beyond this many cycles
@@ -23,11 +22,14 @@ export interface CycleWeekSelection {
 
 interface WeekRowData {
   weekStart: string;
+  weekEnd: string;
   span: string;
   index: number;
   total: number;
   finished: boolean;
   draft: boolean;
+  reviewed: boolean;
+  isThisWeek: boolean;
 }
 
 interface CycleRowData {
@@ -36,10 +38,8 @@ interface CycleRowData {
   weeks: WeekRowData[];
   completed: number;
   meta: string;
-  dim: boolean;
+  enabled: boolean; // has at least one finished week
 }
-
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function endOfWeek(monday: string): string {
   const d = new Date(`${monday}T00:00:00Z`);
@@ -47,12 +47,10 @@ function endOfWeek(monday: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-function cycleDisplayName(cycle: OKRCycle): string {
-  return cycle.name || getMonthName(cycle.month, cycle.year);
-}
-
 /** Token-AND haystack for search: every date in the span, so "14 Apr" finds
  *  the week containing Apr 14 even though the label reads "13–19 Apr". */
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function weekHaystack(weekStart: string): string {
   const parts: string[] = [];
   const d = new Date(`${weekStart}T00:00:00Z`);
@@ -79,10 +77,13 @@ export default function CycleWeekPicker({
   ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [expandedCycleId, setExpandedCycleId] = useState<string | null>(selected?.cycleId ?? null);
+  // Expansion is transient browsing state: it follows the selected cycle
+  // until the user steers it (cycle click / ArrowRight); ArrowLeft collapses.
+  const [browsedCycleId, setBrowsedCycleId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; minWidth: number; above: boolean } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -92,25 +93,24 @@ export default function CycleWeekPicker({
       .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month))
       .map(cycle => {
         const mondays = getExclusiveCycleMondays(cycle);
-        const weeks: WeekRowData[] = mondays.map((monday, i) => ({
-          weekStart: monday,
-          span: formatWeekSpan(monday),
-          index: i + 1,
-          total: mondays.length,
-          finished: endOfWeek(monday) < todayStr,
-          draft: false,
-        }));
-        const completedSet = new Set(
-          reviews.filter(r => r.completedAt && mondays.includes(r.weekStartDate)).map(r => r.weekStartDate));
-        const completed = weeks.filter(w => completedSet.has(w.weekStart)).length;
-        for (const w of weeks) {
-          const found = findReviewForWeek(reviews, w.weekStart);
-          w.draft = !!found && isDraftReview(found);
-        }
-        const meta = completed === 0
-          ? 'no reviews'
-          : completed === weeks.length ? `${completed} reviews` : `${completed} of ${weeks.length}`;
-        return { cycle, name: cycleDisplayName(cycle), weeks, completed, meta, dim: completed === 0 };
+        const weeks: WeekRowData[] = mondays.map((monday, i) => {
+          const weekEnd = endOfWeek(monday);
+          const found = findReviewForWeek(reviews, monday);
+          return {
+            weekStart: monday,
+            weekEnd,
+            span: formatWeekSpan(monday),
+            index: i + 1,
+            total: mondays.length,
+            finished: weekEnd < todayStr,
+            draft: !!found && isDraftReview(found),
+            reviewed: !!found && !isDraftReview(found),
+            isThisWeek: monday <= todayStr && todayStr <= weekEnd,
+          };
+        });
+        const completed = weeks.filter(w => w.reviewed).length;
+        const meta = `${completed} of ${weeks.length} reviewed`;
+        return { cycle, name: cycle.name || getMonthName(cycle.month, cycle.year), weeks, completed, meta, enabled: weeks.some(w => w.finished) };
       });
   }, [cycles, reviews, todayStr]);
 
@@ -124,6 +124,7 @@ export default function CycleWeekPicker({
     const weekFilter = new Map<string, WeekRowData[]>();
     const rows: CycleRowData[] = [];
     for (const row of cycleRows) {
+      if (!row.enabled) continue; // disabled cycles are invisible to search
       const cycleMatch = matches(`${row.name} ${row.cycle.year}`.toLowerCase());
       const weekMatches = row.weeks.filter(w => matches(weekHaystack(w.weekStart)));
       if (cycleMatch) {
@@ -139,14 +140,18 @@ export default function CycleWeekPicker({
   const visibleWeeks = (row: CycleRowData): WeekRowData[] =>
     filtered.weekFilter?.get(row.cycle.id) ?? row.weeks;
 
-  const expandedRow = filtered.rows.find(r => r.cycle.id === expandedCycleId) ?? filtered.rows[0];
+  const expandedCycleId = collapsed ? null : (browsedCycleId ?? selected?.cycleId ?? null);
+  const expandedRow = expandedCycleId
+    ? filtered.rows.find(r => r.cycle.id === expandedCycleId)
+    : undefined;
 
-  // Flattened interactive rows for keyboard roving: cycle rows + enabled
-  // week rows of the expanded cycle (disabled weeks are skipped, like
-  // Select's disabled options).
+  // Flattened interactive rows for keyboard roving: enabled cycle rows +
+  // committable week rows of the expanded cycle. Disabled cycles and weeks
+  // are skipped, like Select's disabled options.
   const flatRows = useMemo(() => {
     const flat: { key: string; kind: 'cycle' | 'week'; row?: CycleRowData; week?: WeekRowData }[] = [];
     for (const row of filtered.rows) {
+      if (!row.enabled) continue;
       flat.push({ key: `cycle:${row.cycle.id}`, kind: 'cycle', row });
       if (row.cycle.id === expandedRow?.cycle.id) {
         for (const w of visibleWeeks(row)) {
@@ -168,6 +173,8 @@ export default function CycleWeekPicker({
   const openPanel = () => {
     setOpen(true);
     setQuery('');
+    setCollapsed(false);
+    setBrowsedCycleId(null);
     const firstActive = selected
       ? `week:${selected.cycleId}:${selected.weekStart}`
       : flatRows[0]?.key ?? null;
@@ -208,11 +215,24 @@ export default function CycleWeekPicker({
         setActiveKey(flatRows[next].key);
         break;
       }
+      case 'ArrowRight': {
+        // Expand the active cycle (browsing only — selection needs a week).
+        e.preventDefault();
+        const current = flatRows[idx];
+        if (current?.kind === 'cycle' && current.row) { setBrowsedCycleId(current.row.cycle.id); setCollapsed(false); }
+        break;
+      }
+      case 'ArrowLeft': {
+        // Collapse the expanded cycle's weeks block.
+        e.preventDefault();
+        setCollapsed(true);
+        break;
+      }
       case 'Enter': {
         e.preventDefault();
         const current = flatRows[idx];
         if (!current) return;
-        if (current.kind === 'cycle' && current.row) setExpandedCycleId(current.row.cycle.id);
+        if (current.kind === 'cycle' && current.row) { setBrowsedCycleId(current.row.cycle.id); setCollapsed(false); }
         else if (current.kind === 'week' && current.row && current.week) commitWeek(current.row, current.week);
         break;
       }
@@ -242,7 +262,8 @@ export default function CycleWeekPicker({
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  // Fixed-position the portaled panel from the trigger rect; flip above when
+  // Fixed-position the portaled panel from the trigger rect: left edge
+  // aligned to the trigger and clamped to the viewport; flip above when
   // there is more room there (Select's placement contract).
   useLayoutEffect(() => {
     if (!open) return;
@@ -255,14 +276,16 @@ export default function CycleWeekPicker({
       const roomBelow = window.innerHeight - rect.bottom - PANEL_GAP;
       const roomAbove = rect.top - PANEL_GAP;
       const above = roomBelow < panelHeight && roomAbove > roomBelow;
+      const width = Math.max(rect.width, 300);
+      const left = Math.min(Math.max(8, rect.left), window.innerWidth - 8 - width);
       const next = {
         top: above ? rect.top - PANEL_GAP - panelHeight : rect.bottom + PANEL_GAP,
-        left: rect.left,
-        minWidth: rect.width, // C1: trigger width; .sel-panel's 280px cap governs
+        left,
+        width,
         above,
       };
       setPos(prev =>
-        prev && prev.top === next.top && prev.left === next.left && prev.minWidth === next.minWidth && prev.above === next.above
+        prev && prev.top === next.top && prev.left === next.left && prev.width === next.width && prev.above === next.above
           ? prev
           : next);
     };
@@ -286,9 +309,6 @@ export default function CycleWeekPicker({
       ?.querySelector(`[data-key=${CSS.escape(activeKey)}]`)
       ?.scrollIntoView({ block: 'nearest' });
   }, [activeKey, open]);
-
-  const rowClasses = (base: string, extra: string[]) =>
-    `sel-row ${base}${extra.length ? ` ${extra.join(' ')}` : ''}`;
 
   return (
     <>
@@ -315,7 +335,7 @@ export default function CycleWeekPicker({
             ref={panelRef}
             role="listbox"
             className={`sel-panel cwp-panel${pos?.above ? ' sel-open-above' : ''}`}
-            style={pos ? { top: pos.top, left: pos.left, minWidth: pos.minWidth } : undefined}
+            style={pos ? { top: pos.top, left: pos.left, width: pos.width } : undefined}
             onKeyDown={handleKeyDown}
           >
             {showSearch && (
@@ -332,67 +352,68 @@ export default function CycleWeekPicker({
               </div>
             )}
 
-            <div className="cwp-section-label">Cycle</div>
-            <div className="sel-rows">
+            <div className="cwp-scroll">
+              <div className="cwp-section-label">Cycle</div>
               {filtered.rows.length === 0 && <div className="sel-row sel-empty cwp-empty">No cycle or week matches ‘{query.trim()}’</div>}
               {filtered.rows.map(row => {
                 const isSelectedCycle = selected?.cycleId === row.cycle.id;
                 const isExpanded = expandedRow?.cycle.id === row.cycle.id;
                 return (
-                  <div
-                    key={row.cycle.id}
-                    role="option"
-                    aria-selected={isSelectedCycle}
-                    data-key={`cycle:${row.cycle.id}`}
-                    className={rowClasses('cwp-cycle-row', [
-                      row.dim ? 'cwp-dim' : '',
-                      isSelectedCycle ? 'cwp-selected' : '',
-                      activeKey === `cycle:${row.cycle.id}` ? 'sel-active' : '',
-                    ])}
-                    onClick={() => setExpandedCycleId(row.cycle.id)}
-                    onMouseEnter={() => setActiveKey(`cycle:${row.cycle.id}`)}
-                  >
-                    {isSelectedCycle && <Check size={13} className="cwp-check" />}
-                    <ChevronRight size={12} className={`cwp-chevron${isExpanded ? ' expanded' : ''}`} />
-                    <span className="cwp-cycle-name">{row.name}</span>
-                    <span className="cwp-meta">{row.meta}</span>
+                  <div key={row.cycle.id}>
+                    <div
+                      role="option"
+                      aria-selected={isSelectedCycle}
+                      aria-disabled={!row.enabled}
+                      data-key={`cycle:${row.cycle.id}`}
+                      className={`sel-row cwp-cycle-row${row.enabled ? '' : ' cwp-disabled'}${isSelectedCycle ? ' cwp-selected' : ''}${activeKey === `cycle:${row.cycle.id}` ? ' sel-active' : ''}`}
+                      onClick={() => { if (row.enabled) { setBrowsedCycleId(row.cycle.id); setCollapsed(false); } }}
+                      onMouseEnter={() => { if (row.enabled) setActiveKey(`cycle:${row.cycle.id}`); }}
+                    >
+                      <span className="cwp-check-slot">
+                        {isSelectedCycle && <Check size={13} className="cwp-check" />}
+                      </span>
+                      {row.enabled && (
+                        <ChevronRight size={12} className={`cwp-chevron${isExpanded ? ' expanded' : ''}`} />
+                      )}
+                      <span className="cwp-cycle-name">{row.name}</span>
+                      <span className="cwp-meta">{row.meta}</span>
+                    </div>
+                    {isExpanded && (
+                      <div className="cwp-weeks-block">
+                        <div className="cwp-section-label cwp-weeks-label">
+                          Weeks in {row.name}
+                          {selected?.cycleId !== row.cycle.id && (
+                            <span className="cwp-browsing">browsing</span>
+                          )}
+                        </div>
+                        {visibleWeeks(row).map(w => {
+                          const isSelectedWeek = selected?.cycleId === row.cycle.id && selected.weekStart === w.weekStart;
+                          const status = w.draft ? 'Draft' : w.reviewed ? 'Reviewed' : 'Not reviewed';
+                          return (
+                            <div
+                              key={w.weekStart}
+                              role="option"
+                              aria-selected={isSelectedWeek}
+                              aria-disabled={!w.finished}
+                              data-key={`week:${row.cycle.id}:${w.weekStart}`}
+                              className={`sel-row cwp-week-row${w.finished ? '' : ' cwp-disabled'}${isSelectedWeek ? ' cwp-selected' : ''}${activeKey === `week:${row.cycle.id}:${w.weekStart}` ? ' sel-active' : ''}`}
+                              onClick={() => commitWeek(row, w)}
+                              onMouseEnter={() => { if (w.finished) setActiveKey(`week:${row.cycle.id}:${w.weekStart}`); }}
+                            >
+                              <span className="cwp-week-label">Week {w.index} · {w.span}</span>
+                              {w.isThisWeek && !w.finished && <span className="cwp-this-week">This week</span>}
+                              {isSelectedWeek
+                                ? <Check size={13} className="cwp-check" />
+                                : w.finished && <span className={`cwp-status${w.draft ? ' cwp-draft' : ''}`}>{status}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-
-            {expandedRow && (
-              <>
-                <div className="cwp-divider" />
-                <div className="cwp-section-label cwp-weeks-label">Week in {expandedRow.name}</div>
-                <div className="sel-rows">
-                  {visibleWeeks(expandedRow).map(w => {
-                    const isSelectedWeek = selected?.cycleId === expandedRow.cycle.id && selected.weekStart === w.weekStart;
-                    return (
-                      <div
-                        key={w.weekStart}
-                        role="option"
-                        aria-selected={isSelectedWeek}
-                        aria-disabled={!w.finished}
-                        data-key={`week:${expandedRow.cycle.id}:${w.weekStart}`}
-                        className={rowClasses('cwp-week-row', [
-                          w.finished ? '' : 'cwp-disabled',
-                          isSelectedWeek ? 'cwp-selected' : '',
-                          activeKey === `week:${expandedRow.cycle.id}:${w.weekStart}` ? 'sel-active' : '',
-                        ])}
-                        onClick={() => commitWeek(expandedRow, w)}
-                        onMouseEnter={() => { if (w.finished) setActiveKey(`week:${expandedRow.cycle.id}:${w.weekStart}`); }}
-                      >
-                        <span className="cwp-week-span">{w.span}</span>
-                        {w.draft
-                          ? <span className="cwp-draft">Draft</span>
-                          : isSelectedWeek && <Check size={13} className="cwp-check" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
           </div>,
           document.body,
         )}
@@ -408,7 +429,6 @@ export function defaultReviewSelection(
   todayStr: string,
 ): CycleWeekSelection | null {
   const byNewest = [...cycles].sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
-  // The active cycle leads (spec decision 2); the rest fall back newest-first.
   const ordered = [
     ...byNewest.filter(c => c.isActive),
     ...byNewest.filter(c => !c.isActive),

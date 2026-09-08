@@ -19,6 +19,7 @@ const CYCLES_2026: OKRCycle[] = [
   mkCycle('c-mar', 'March 2026', 2, 2026),
   mkCycle('c-feb', 'February 2026', 1, 2026),
   mkCycle('c-jan', 'January 2026', 0, 2026),
+  mkCycle('c-jun', 'June 2026', 5, 2026), // fully future → disabled
 ];
 
 const CYCLES_2025: OKRCycle[] = [

@@ -579,20 +579,30 @@ lives in `review.css` under the `rw-*` prefix.)
 ### Cycle picker (review tab only)
 
 The Weekly review tab's own two-level selector (`CycleWeekPicker`,
-2026-09-07): **cycle first** — newest first, completed-review count as the
-row meta (`4 reviews` / `3 of 4` / `no reviews`), zero-review cycles dimmed
-but selectable — then, below a divider, **Week in {cycle}** rows by date
-span (`14–20 Apr`, never bare numbers). Commit happens on week rows only;
-cycle rows steer the weeks section. The trigger reads the full path using
-the cycle's stored name verbatim (auto-named cycles read
-`April 2026 · week 4 of 4`; a cycle named `April cycle` reads that). C1 anatomy throughout (32px trigger,
-open-state ring, rotating chevron, one cyan-ticked chosen row per level —
-a Draft hint replaces the week-level tick). Search appears beyond 6 cycles
-(matching cycle name/year and week date spans — a visible filter field,
-not type-ahead per ADR-0011). A past cycle shows the derived
-`Cycle closed 26 Apr` badge beside the week h1 (Sunday of the last
-exclusive week). Focus analytics and Objectives keep the strip's week
-Select — **one selector per tab, never two, and no shared range**.
+2026-09-07, reworked after round-3 user feedback): cycle rows newest-first —
+meta = `N of M reviewed` in sans `--text-secondary` (counts completed
+reviews only; drafts don't count), cycles with zero finished weeks are
+**fully disabled** (no chevron, no hover, unexpandable; zero-*reviews* but
+finished-week cycles stay expandable for late completion). Cycle rows
+reserve a leading check slot so labels share one baseline. Commit happens
+on **week rows only** — cycle rows steer an **accordion weeks block nested
+inline** beneath the expanded cycle (no separate bottom section): rows read
+`Week 5 · 24–30 Aug`, trailing status `Reviewed` / `Not reviewed` / `Draft`
+/ a cyan `This week` chip on the in-progress week; the selected week's tick
+wins over the trailing label. Expansion is browsing state and may differ
+from the selection — the check follows the selection, the block carries a
+`browsing` chip when showing a cycle you haven't selected, and the trigger
+keeps reading the selected path (stored name verbatim, e.g.
+`April 2026 · week 4 of 4`). Search appears beyond 6 cycles (cycle
+name/year + week date spans; a visible filter field, not type-ahead per
+ADR-0011). Panel: left edge aligned to the trigger and clamped to the
+viewport, list capped at 440px with internal scroll, selected row scrolled
+into view on open. Keyboard: ↑/↓/Home/End rove, → expands, ← collapses,
+Enter commits (cycle) / picks (week), Esc closes with focus returned to the
+trigger. Meta/status text is sans (2026-09-08 round-3: the C1 mono trailing
+hint is deliberately not used here). Focus analytics and Objectives keep
+the strip's week Select — **one selector per tab, never two, and no shared
+range**.
 
 ## Plan group screens (P1–P7) — per-screen rules
 
