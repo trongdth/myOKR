@@ -16,8 +16,8 @@ import ReflectStep from './ReflectStep';
 
 const STEP_LABELS = ['Week at a glance', 'Score key results', 'Reflect'];
 const STEP_FOOTNOTES = [
-  'Step 1 of 3 · about 4 minutes left',
-  'Step 2 of 3 · about 2 minutes left',
+  'Step 1 of 3',
+  '',
   'Step 3 of 3 · answers autosave',
 ];
 
@@ -285,6 +285,7 @@ export default function ReviewWizard({
         <div className="rw-main">
           <div className="rw-save-row">
             <span className={`rw-save-indicator${saveState === 'saved' ? ' saved' : ''}`} data-state={saveState}>
+              {saveState === 'saved' && <Check size={12} className="icon-inline" />}
               {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved just now' : 'Nothing to save yet'}
             </span>
           </div>

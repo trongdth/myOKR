@@ -57,11 +57,7 @@ export default function WeekAtAGlance({
         </div>
         <div className="rw-stat-card">
           <span className="rw-stat-label">Focus time</span>
-          <span className="rw-stat-value">
-            {fmtFocus(glance.focusMinutes).split(' ').map((part, i) => (
-              <span key={i}>{i > 0 && ' '}<span className="rw-stat-unit">{part.replace(/\d/g, '')}</span>{part.replace(/\D/g, '')}</span>
-            ))}
-          </span>
+          <span className="rw-stat-value">{fmtFocus(glance.focusMinutes)}</span>
           <span className="rw-stat-sub">{fmtFocus(glance.avgFocusMinutesPerDay)} a day</span>
         </div>
         <div className="rw-stat-card">
@@ -74,7 +70,7 @@ export default function WeekAtAGlance({
         <div className="rw-stat-card">
           <span className="rw-stat-label">Habits</span>
           <span className="rw-stat-value">
-            {glance.habitsPct !== null ? <><span className="rw-stat-unit">%</span>{glance.habitsPct}</> : '—'}
+            {glance.habitsPct !== null ? `${glance.habitsPct}%` : '—'}
           </span>
           <span className="rw-stat-sub">{glance.habitsPct !== null ? missedLabel : 'No habits yet'}</span>
         </div>

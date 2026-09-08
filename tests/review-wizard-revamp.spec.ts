@@ -119,6 +119,11 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(cards.nth(0).locator('.rw-delta-pos')).toHaveText('+2');
     await expect(cards.nth(0).locator('.rw-stat-sub')).toHaveText('vs 1 last week');
 
+    // Value text reads number-then-unit (75 focus minutes -> "1h 15m";
+    // 1 tick of 1 habit over 7 days -> "14%").
+    await expect(cards.nth(1).locator('.rw-stat-value')).toHaveText('1h 15m');
+    await expect(cards.nth(3).locator('.rw-stat-value')).toHaveText('14%');
+
     // Tasks: t-2 completed in-week, t-1 carried
     await expect(cards.nth(2).locator('.rw-stat-value')).toContainText('1');
     await expect(cards.nth(2).locator('.rw-stat-of')).toHaveText('of 2');
@@ -139,7 +144,7 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(wizard.locator('.rw-link-banner')).toHaveCount(0);
 
     // Footer + tab badge
-    await expect(wizard.locator('.rw-footer-note')).toHaveText('Step 1 of 3 · about 4 minutes left');
+    await expect(wizard.locator('.rw-footer-note')).toHaveText('Step 1 of 3');
     await expect(page.locator('.rw-tab-badge')).toHaveText('step 1/3');
   });
 

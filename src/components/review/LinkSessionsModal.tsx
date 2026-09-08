@@ -75,6 +75,8 @@ export default function LinkSessionsModal({
       // tasks created after ReviewApp loaded its state.
       await assignTaskKeyResults(assignments);
       onLinked();
+    } catch {
+      /* storage failure is non-fatal — persistence rule 3 */
     } finally {
       setSaving(false);
     }

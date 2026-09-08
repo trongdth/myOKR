@@ -365,12 +365,12 @@ export function buildReflectPrompts(input: ReviewInsightsInput): ReviewPrompt[] 
   return prompts.slice(0, 3);
 }
 
-// The previous completed week's One change answer — the "Last week you
-// committed to…" line on this week's glance. Drafts never count.
+// The IMMEDIATELY previous completed week's One change answer — the "Last
+// week you committed to…" line on this week's glance (decision 7: next
+// week's glance, never an older week's). Drafts never count; a blank answer
+// in the immediately previous review shows nothing.
 export function previousWeekCommitment(reviews: WeeklyReview[], weekStart: string): string | null {
-  for (const review of completedReviewsBefore(reviews, weekStart)) {
-    const answer = review.prompts?.find(p => p.type === 'one_change' && p.answer.trim())?.answer.trim();
-    if (answer) return answer;
-  }
-  return null;
+  const [latest] = completedReviewsBefore(reviews, weekStart);
+  if (!latest) return null;
+  return latest.prompts?.find(p => p.type === 'one_change' && p.answer.trim())?.answer.trim() ?? null;
 }

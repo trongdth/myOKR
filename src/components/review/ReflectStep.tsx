@@ -21,7 +21,7 @@ export default function ReflectStep({
     <div className="rw-reflect">
       <div className="rw-step-heading">
         <h2>What do you want to remember about this week?</h2>
-        <p>Three prompts, drawn from what actually happened. Answers autosave.</p>
+        <p>Up to three prompts, drawn from what actually happened. Answers autosave.</p>
       </div>
 
       <div className="rw-prompt-rows">

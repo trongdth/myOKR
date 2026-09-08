@@ -182,6 +182,27 @@ test.describe('review-insights', () => {
     expect(prompts[1].type).toBe('one_change');
   });
 
+  test('previousWeekCommitment reads only the immediately previous week (decision 7)', async ({ page }) => {
+    const fixture = makeFixture();
+    // r1 (06-01) is the immediately-previous review; blank its answer and
+    // give the OLDER r0 (05-25) one — the older answer must NOT surface
+    // under "Last week you committed to".
+    fixture.reviews = fixture.reviews.map((r: any) => {
+      if (r.id === 'r1') {
+        return { ...r, prompts: r.prompts.map((p: any) => p.type === 'one_change' ? { ...p, answer: '' } : p) };
+      }
+      if (r.id === 'r0') {
+        return { ...r, prompts: [{ id: 'p-old', type: 'one_change', text: 'One change for next week?', answer: 'Old commitment' }] };
+      }
+      return r;
+    });
+    const result = await page.evaluate(async ({ reviews, weekStart }) => {
+      const mod = await import('/src/lib/review-insights.ts') as any;
+      return mod.previousWeekCommitment(reviews, weekStart);
+    }, { reviews: fixture.reviews, weekStart: WEEK_START });
+    expect(result).toBeNull();
+  });
+
   test('previousWeekCommitment: latest completed week’s one-change answer', async ({ page }) => {
     const fixture = makeFixture();
     const answer = await page.evaluate(async ({ reviews, weekStart }) => {

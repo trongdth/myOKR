@@ -552,7 +552,7 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
 ### Reflect (step 3)
 
 - ≤3 prompts, rule-generated: at-risk streak → biggest positive mover →
-  always **One change for next week?** ("Becomes a note on next week's plan"
+  always **One change for next week?** ("Surfaces in next week's review"
   hint); `free` fallback when nothing notable. Answers autosave into the
   structured `prompts` array (never the legacy `reflection` string).
 
