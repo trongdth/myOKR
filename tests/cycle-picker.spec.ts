@@ -71,6 +71,10 @@ test.describe('CycleWeekPicker', () => {
     await expect(mayRows.nth(1)).toHaveClass(/cwp-disabled/);
     await expect(mayRows.nth(2)).toHaveClass(/cwp-disabled/);
 
+    // A disabled week never commits, even force-clicked (commitWeek guard).
+    await mayRows.nth(1).click({ force: true });
+    await expect(page.locator('#cwp-a-commit')).toHaveText('2026-04-20');
+
     // Back to April: the selected week shows its check; statuses flip.
     await panel.locator('.cwp-cycle-row').nth(2).click();
     const aprRows = panel.locator('.cwp-week-row');
@@ -163,6 +167,16 @@ test.describe('CycleWeekPicker', () => {
     expect(metrics.overflowY).toBe('auto');
     expect(metrics.leftAligned).toBe(true);
     expect(metrics.withinViewport).toBe(true);
+
+    // The selected row is scrolled into view on open (kept in view per
+    // round-3 feedback).
+    const inView = await panel.evaluate(el => {
+      const selRow = el.querySelector('.cwp-week-row.cwp-selected');
+      const box = el.querySelector('.cwp-scroll')!.getBoundingClientRect();
+      const row = selRow!.getBoundingClientRect();
+      return row.top >= box.top && row.bottom <= box.bottom;
+    });
+    expect(inView).toBe(true);
   });
 
   test('C1 keyboard: Home/End rove, Right expands, Left collapses, Esc closes with focus return', async ({ page }) => {

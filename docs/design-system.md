@@ -589,7 +589,11 @@ on **week rows only** — cycle rows steer an **accordion weeks block nested
 inline** beneath the expanded cycle (no separate bottom section): rows read
 `Week 5 · 24–30 Aug`, trailing status `Reviewed` / `Not reviewed` / `Draft`
 / a cyan `This week` chip on the in-progress week; the selected week's tick
-wins over the trailing label. Expansion is browsing state and may differ
+wins over the trailing label. The Draft hint alone is cyan
+(`--color-primary`) — it flags actionable work. Disabled cycles are also
+excluded from search. A past cycle shows the derived
+`Cycle closed 26 Apr` badge beside the week h1 (Sunday of the last
+exclusive week). Expansion is browsing state and may differ
 from the selection — the check follows the selection, the block carries a
 `browsing` chip when showing a cycle you haven't selected, and the trigger
 keeps reading the selected path (stored name verbatim, e.g.
