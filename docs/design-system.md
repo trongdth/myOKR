@@ -532,8 +532,9 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
   review exists.
 - Unlinked-sessions banner (attention token, not amber) with the **Link
   sessions** button; hidden when the cycle has no derived-mode KRs.
-- Previous completed week's One-change answer renders as "Last week you
-  committed to …".
+- The IMMEDIATELY previous completed week's One-change answer renders as
+  "Last week you committed to …" — never an older week's, and a blank
+  answer in that review shows nothing.
 
 ### Score key results (step 2)
 
