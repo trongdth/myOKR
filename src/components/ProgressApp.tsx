@@ -132,7 +132,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
     if (!reviewSelection) return;
     reopenReview(reviewSelection.weekStart)
       .then(() => window.dispatchEvent(new CustomEvent('myokr-data-synced')))
-      .catch(() => { /* non-fatal */ });
+      .catch(console.error);
   };
 
   const headerTitle = tab === 'weekly-review'

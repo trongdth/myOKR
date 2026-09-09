@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
-import type { ReviewEntry, KeyResult, Objective, ReviewPrompt } from '../../lib/okr-storage';
+import type { ReviewEntry, KeyResult, ReviewPrompt } from '../../lib/okr-storage';
 import type { WeekGlance, UnlinkedSummary } from '../../lib/review-insights';
 import { fmtFocus } from './WeekAtAGlance';
 
@@ -13,7 +13,6 @@ import { fmtFocus } from './WeekAtAGlance';
 export interface SummaryRow {
   entry: ReviewEntry;
   keyResult: KeyResult;
-  objective: Objective;
 }
 
 const VISIBLE_ROWS = 3;

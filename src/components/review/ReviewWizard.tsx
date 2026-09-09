@@ -39,14 +39,13 @@ interface Props {
   onDraftSaved?: () => void;
   onLinkSessions?: () => void;
   readOnly?: boolean;
-  completedAt?: string;
 }
 
 export default function ReviewWizard({
   weekStart, weekEnd, cycleId, todayStr,
   objectives, keyResults, tasks, history, reviews, focusDurationMinutes,
   habits, cycles,
-  onComplete, onDraftSaved, onLinkSessions, readOnly = false, completedAt,
+  onComplete, onDraftSaved, onLinkSessions, readOnly = false,
 }: Props) {
   const cycleObjectives = useMemo(() => objectives.filter(o => o.cycleId === cycleId), [objectives, cycleId]);
   const cycleKRs = useMemo(
@@ -241,11 +240,10 @@ export default function ReviewWizard({
     return finishedReview.entries
       .map((entry): SummaryRow | null => {
         const kr = cycleKRs.find(k => k.id === entry.keyResultId);
-        const objective = kr ? cycleObjectives.find(o => o.id === kr.objectiveId) : undefined;
-        return kr && objective ? { entry, keyResult: kr, objective } : null;
+        return kr ? { entry, keyResult: kr } : null;
       })
       .filter((r): r is SummaryRow => r !== null);
-  }, [finishedReview, cycleKRs, cycleObjectives]);
+  }, [finishedReview, cycleKRs]);
 
   const scoredCount = entries.filter(e => e.confidence !== 'not_set').length;
 
@@ -373,11 +371,9 @@ export default function ReviewWizard({
 
           <div className="rw-footer">
             <span className="rw-footer-note">
-              {readOnly
-                ? `Review completed${completedAt ? ` on ${new Date(completedAt).toLocaleDateString()}` : ''}`
-                : currentStep === 1
-                  ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored`
-                  : STEP_FOOTNOTES[currentStep]}
+              {currentStep === 1
+                ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored`
+                : STEP_FOOTNOTES[currentStep]}
             </span>
             {!readOnly && (
               <div className="rw-footer-actions">

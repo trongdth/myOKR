@@ -343,7 +343,6 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
           onDraftSaved={reloadReviews}
           onLinkSessions={() => setShowLinkModal(true)}
           readOnly={!!currentWeekReview}
-          completedAt={currentWeekReview?.completedAt}
         />
       )}
 
