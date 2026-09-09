@@ -688,14 +688,6 @@
   overflow-y: auto;
 }
 
-/* Every cycle row reserves the check slot so labels share one baseline. */
-.cwp-check-slot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  flex-shrink: 0;
-}
 
 /* Sans meta at body-secondary contrast (round-3: mono + faint dropped). */
 .cwp-meta {

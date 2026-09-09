@@ -34,12 +34,13 @@ test.describe('CycleWeekPicker', () => {
     await expect(cycleRows.nth(5)).toContainText('January 2026');
     await expect(cycleRows.nth(5).locator('.cwp-meta')).toHaveText('0 of 4 reviewed');
 
-    // Check follows the SELECTED cycle; reserved check slot on every row
-    // keeps labels on one baseline.
-    await expect(cycleRows.nth(2)).toHaveClass(/cwp-selected/);
-    for (let i = 0; i < 6; i++) {
-      await expect(cycleRows.nth(i).locator('.cwp-check-slot')).toBeAttached();
-    }
+    // Cycle rows carry NO tick (round-4 feedback: the leading check made
+    // the list messy) — the trigger reads the selection and the selected
+    // week's row keeps its tick. aria-selected still marks the cycle.
+    await expect(cycleRows.nth(2)).toHaveAttribute('aria-selected', 'true');
+    await expect(cycleRows.nth(0).locator('.cwp-check')).toHaveCount(0);
+    await expect(cycleRows.nth(2).locator('.cwp-check')).toHaveCount(0);
+    await expect(panel.locator('.cwp-cycle-row .cwp-check')).toHaveCount(0);
 
     // Meta is sans (not the mono face).
     const metaFont = await cycleRows.nth(1).locator('.cwp-meta').evaluate(el => getComputedStyle(el).fontFamily);

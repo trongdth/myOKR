@@ -585,7 +585,9 @@ meta = `N of M reviewed` in sans `--text-secondary` (counts completed
 reviews only; drafts don't count), cycles with zero finished weeks are
 **fully disabled** (no chevron, no hover, unexpandable; zero-*reviews* but
 finished-week cycles stay expandable for late completion). Cycle rows
-reserve a leading check slot so labels share one baseline. Commit happens
+carry **no tick** (2026-09-09 round-4: the leading check read as clutter —
+the trigger reads the selection and the selected week's row keeps its
+tick). Commit happens
 on **week rows only** — cycle rows steer an **accordion weeks block nested
 inline** beneath the expanded cycle (no separate bottom section): rows read
 `Week 5 · 24–30 Aug`, trailing status `Reviewed` / `Not reviewed` / `Draft`

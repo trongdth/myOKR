@@ -365,13 +365,10 @@ export default function CycleWeekPicker({
                       aria-selected={isSelectedCycle}
                       aria-disabled={!row.enabled}
                       data-key={`cycle:${row.cycle.id}`}
-                      className={`sel-row cwp-cycle-row${row.enabled ? '' : ' cwp-disabled'}${isSelectedCycle ? ' cwp-selected' : ''}${activeKey === `cycle:${row.cycle.id}` ? ' sel-active' : ''}`}
+                      className={`sel-row cwp-cycle-row${row.enabled ? '' : ' cwp-disabled'}${activeKey === `cycle:${row.cycle.id}` ? ' sel-active' : ''}`}
                       onClick={() => { if (row.enabled) { setBrowsedCycleId(row.cycle.id); setCollapsed(false); } }}
                       onMouseEnter={() => { if (row.enabled) setActiveKey(`cycle:${row.cycle.id}`); }}
                     >
-                      <span className="cwp-check-slot">
-                        {isSelectedCycle && <Check size={13} className="cwp-check" />}
-                      </span>
                       {row.enabled && (
                         <ChevronRight size={12} className={`cwp-chevron${isExpanded ? ' expanded' : ''}`} />
                       )}
