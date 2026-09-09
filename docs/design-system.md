@@ -597,10 +597,10 @@ wins over the trailing label. The Draft hint alone is cyan
 excluded from search. A past cycle shows the derived
 `Cycle closed 26 Apr` badge beside the week h1 (Sunday of the last
 exclusive week). Expansion is browsing state and may differ
-from the selection — the check follows the selection, the block carries a
-`browsing` chip when showing a cycle you haven't selected, and the trigger
-keeps reading the selected path (stored name verbatim, e.g.
-`April 2026 · week 4 of 4`). Search appears beyond 6 cycles (cycle
+from the selection — the check follows the selection, the highlighted
+expanded row already names the cycle whose weeks show (no separate label
+line, 2026-09-09 round-4), and the trigger keeps reading the selected path
+(stored name verbatim, e.g. `April 2026 · week 4 of 4`). Search appears beyond 6 cycles (cycle
 name/year + week date spans; a visible filter field, not type-ahead per
 ADR-0011). Panel: left edge aligned to the trigger and clamped to the
 viewport, list capped at 440px with internal scroll, selected row scrolled

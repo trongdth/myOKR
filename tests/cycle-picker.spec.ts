@@ -53,14 +53,13 @@ test.describe('CycleWeekPicker', () => {
     await picker.locator('.sel-trigger').click();
     const panel = page.locator('.cwp-panel');
 
-    // Default expansion = the selected cycle (April) → no browsing marker.
-    await expect(panel.locator('.cwp-weeks-label')).toContainText('Weeks in April 2026');
+    // Round-4: the weeks block carries NO label line — the highlighted
+    // expanded cycle row already says which cycle the weeks belong to.
+    await expect(panel.locator('.cwp-weeks-label')).toHaveCount(0);
     await expect(panel.locator('.cwp-browsing')).toHaveCount(0);
 
-    // Expanding May (not the selected cycle) marks the block as browsing.
+    // Expanding May steers the weeks block (April w4 selected throughout).
     await panel.locator('.cwp-cycle-row').nth(1).click();
-    await expect(panel.locator('.cwp-weeks-label')).toContainText('Weeks in May 2026');
-    await expect(panel.locator('.cwp-browsing')).toHaveText('browsing');
 
     // Week rows are numbered and carry review status.
     const mayRows = panel.locator('.cwp-week-row');
@@ -99,12 +98,15 @@ test.describe('CycleWeekPicker', () => {
     // Playwright's aria-disabled actionability gate — the handler is the
     // thing under test).
     await june.click({ force: true });
-    await expect(panel.locator('.cwp-weeks-label')).not.toHaveText('Weeks in June 2026');
+    // The still-expanded April weeks remain — June did not expand or steer
+    // the weeks block.
+    await expect(panel.locator('.cwp-week-row')).toHaveCount(4);
+    await expect(panel.locator('.cwp-week-row').first()).toContainText('Week 1 · 30 Mar–5 Apr');
 
     // Zero-REVIEWS cycles with finished weeks (January) stay expandable —
     // late completion depends on it.
     await panel.locator('.cwp-cycle-row').nth(5).click();
-    await expect(panel.locator('.cwp-weeks-label')).toContainText('Weeks in January 2026');
+    await expect(panel.locator('.cwp-week-row').first()).toContainText('Week 1');
     await expect(panel.locator('.cwp-week-row').first().locator('.cwp-status')).toHaveText('Not reviewed');
   });
 
@@ -193,9 +195,9 @@ test.describe('CycleWeekPicker', () => {
 
     // Right expands the active cycle; Left collapses it.
     await page.keyboard.press('ArrowRight');
-    await expect(panel.locator('.cwp-weeks-label')).toContainText('Weeks in January 2026');
+    await expect(panel.locator('.cwp-week-row').first()).toContainText('Week 1');
     await page.keyboard.press('ArrowLeft');
-    await expect(panel.locator('.cwp-weeks-label')).toHaveCount(0);
+    await expect(panel.locator('.cwp-week-row')).toHaveCount(0);
 
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);

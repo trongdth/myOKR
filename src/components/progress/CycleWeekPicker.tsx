@@ -377,12 +377,6 @@ export default function CycleWeekPicker({
                     </div>
                     {isExpanded && (
                       <div className="cwp-weeks-block">
-                        <div className="cwp-section-label cwp-weeks-label">
-                          Weeks in {row.name}
-                          {selected?.cycleId !== row.cycle.id && (
-                            <span className="cwp-browsing">browsing</span>
-                          )}
-                        </div>
                         {visibleWeeks(row).map(w => {
                           const isSelectedWeek = selected?.cycleId === row.cycle.id && selected.weekStart === w.weekStart;
                           const status = w.draft ? 'Draft' : w.reviewed ? 'Reviewed' : 'Not reviewed';

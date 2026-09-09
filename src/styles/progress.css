@@ -688,7 +688,6 @@
   overflow-y: auto;
 }
 
-
 /* Sans meta at body-secondary contrast (round-3: mono + faint dropped). */
 .cwp-meta {
   font-family: inherit;
@@ -713,24 +712,6 @@
 
 .cwp-weeks-block {
   padding: 2px 0 4px;
-}
-
-.cwp-weeks-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-left: 1.6rem;
-}
-
-.cwp-browsing {
-  padding: 0.06rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  font-size: 0.6rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .cwp-week-label {
