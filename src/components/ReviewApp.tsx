@@ -326,7 +326,7 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
         </div>
       ) : (
         <ReviewWizard
-          key={`${weekStart}-${activeCycle.id}`}
+          key={`${weekStart}-${activeCycle.id}-${currentWeekReview ? 'done' : 'open'}`}
           weekStart={weekStart}
           weekEnd={weekEnd}
           cycleId={activeCycle.id}

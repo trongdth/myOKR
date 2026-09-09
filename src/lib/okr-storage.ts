@@ -747,6 +747,18 @@ export async function saveCompletedReview(review: WeeklyReview): Promise<void> {
   });
 }
 
+// Reopen path (round 3): a completed review returns to a draft — the
+// completion stamp clears in place (persistence rule 11, never an array
+// overwrite from component state). Answers and prompts stay; Finish
+// re-stamps via saveCompletedReview.
+export async function reopenReview(weekStart: string): Promise<void> {
+  await updateAutomergeDoc('Reopen review', (d) => {
+    const reviews = Array.isArray(d.reviews) ? d.reviews : [];
+    const idx = reviews.findIndex(r => r && r.weekStartDate === weekStart);
+    if (idx >= 0 && reviews[idx].completedAt) delete reviews[idx].completedAt;
+  });
+}
+
 // ===== WALKTHROUGH =====
 
 export type WalkthroughState = 'not_seen' | 'seen' | 'dismissed';

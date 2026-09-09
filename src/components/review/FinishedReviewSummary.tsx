@@ -47,7 +47,7 @@ export default function FinishedReviewSummary({
     <div className="rw-summary">
       <div className="rw-summary-head">
         <h2>Your review</h2>
-        <span className="rw-summary-readonly">Read-only</span>
+        <span className="rw-summary-readonly">Read-only · Reopen to change anything</span>
       </div>
 
       <div className="rw-panel rw-summary-panel">

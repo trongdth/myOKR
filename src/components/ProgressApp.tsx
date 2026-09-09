@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check } from 'lucide-react';
+import { Check, PenLine } from 'lucide-react';
 import ProgressTabStrip, { ProgressHeader, formatWeekLabel, type ProgressTab } from './progress/ProgressTabStrip';
 import Analytics from './pomodoro/Analytics';
 import ReviewApp from './ReviewApp';
 import ObjectivesProgressTab from './progress/ObjectivesProgressTab';
 import CycleWeekPicker, { defaultReviewSelection, type CycleWeekSelection } from './progress/CycleWeekPicker';
-import { getActiveCycle, loadCycles, loadReviews, type OKRCycle, type WeeklyReview } from '../lib/okr-storage';
+import ConfirmModal from './ConfirmModal';
+import { getActiveCycle, loadCycles, loadReviews, reopenReview, type OKRCycle, type WeeklyReview } from '../lib/okr-storage';
 import { getExclusiveCycleMondays, getCycleClosedDate } from '../lib/cycle-windows';
 import { useSession } from './session/SessionProvider';
 import '../styles/progress.css';
@@ -41,6 +42,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
   // keep the strip's week Select (one selector per tab, 2026-09-07).
   const [reviewSelection, setReviewSelection] = useState<CycleWeekSelection | null>(null);
   const reviewTouchedRef = useRef(false);
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const { history, tasks, settings } = useSession();
 
   useEffect(() => {
@@ -122,6 +124,17 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
     ? reviewReviews.find(r => r.weekStartDate === reviewSelection.weekStart && r.completedAt)
     : undefined;
 
+  // Reopen (round 3): the confirmed clear of the selected week's completion
+  // stamp. Act first — the modal is already closed when the write starts —
+  // then persist fire-and-forget (persistence rule 3) and let the sync
+  // event reload every listener.
+  const handleReopenReview = () => {
+    if (!reviewSelection) return;
+    reopenReview(reviewSelection.weekStart)
+      .then(() => window.dispatchEvent(new CustomEvent('myokr-data-synced')))
+      .catch(() => { /* non-fatal */ });
+  };
+
   const headerTitle = tab === 'weekly-review'
     ? (reviewSelection ? formatWeekLabel(reviewSelection.weekStart) : undefined)
     : tab === 'objectives-progress'
@@ -140,8 +153,26 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
           subtitle={finishedReview ? (
             <p className="rw-completed-line">{formatCompletedLine(finishedReview.completedAt!)}</p>
           ) : undefined}
-          right={showClosedBadge ? <span className="rw-closed-badge">{formatClosedLabel(reviewClosedDate!)}</span> : undefined}
+          right={finishedReview ? (
+            <button type="button" className="rw-reopen-btn" onClick={() => setShowReopenConfirm(true)}>
+              <PenLine size={14} className="icon-inline" /> Reopen review
+            </button>
+          ) : showClosedBadge ? <span className="rw-closed-badge">{formatClosedLabel(reviewClosedDate!)}</span> : undefined}
         />
+        {finishedReview && (
+          <ConfirmModal
+            isOpen={showReopenConfirm}
+            onClose={() => setShowReopenConfirm(false)}
+            onConfirm={handleReopenReview}
+            title="Reopen review"
+            message={reviewSelection
+              ? `“${formatWeekLabel(reviewSelection.weekStart)}” returns to a draft — your answers stay. Key results re-sync when you finish it again.`
+              : ''}
+            confirmText="Reopen"
+            cancelText="Cancel"
+            danger={false}
+          />
+        )}
         <ProgressTabStrip
           active={tab}
           activeCycle={activeCycle}

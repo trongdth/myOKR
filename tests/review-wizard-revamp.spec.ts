@@ -535,4 +535,207 @@ test.describe('Weekly review wizard revamp', () => {
     await wizard.locator('.rw-rail-item:has-text("Score key results")').click();
     await expect(wizard.locator('.rw-week-card-sub')).toContainText('unlinked or other cycles');
   });
+
+  test('reopen returns a finished review to an editable draft; re-finish restores the chart point', async ({ page }) => {
+    // Week 1 + week 2 completed (chart needs two points); week 1 carries
+    // answers that must survive the reopen.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const week1 = window.localStorage.getItem('__test_week1') as string;
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const week2 = mondays[1];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      await okr.saveCompletedReview({
+        id: 'rev-w1', weekStartDate: week1, weekEndDate: endOf(week1), cycleId: 'c-test',
+        completedAt: `${week1}T20:14:00.000Z`,
+        entries: [{ keyResultId: 'kr-2', previousValue: 8, currentValue: 9, confidence: 'on_track' }],
+        prompts: [
+          { id: 'p-1', type: 'mover', keyResultId: 'kr-2', text: 'Ship tickets moved 8 → 9. What made that possible?', answer: 'Mornings.' },
+          { id: 'p-2', type: 'one_change', text: 'One change for next week?', answer: 'Timebox tickets.' },
+        ],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      await okr.saveCompletedReview({
+        id: 'rev-w2', weekStartDate: week2, weekEndDate: endOf(week2), cycleId: 'c-test',
+        completedAt: `${week2}T20:00:00.000Z`,
+        entries: [{ keyResultId: 'kr-2', previousValue: 9, currentValue: 10, confidence: 'on_track' }],
+        prompts: [],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openReview(page);
+    await selectWeek1(page);
+
+    const week1Label = ((await page.evaluate(() => window.localStorage.getItem('__test_week1'))) as string).slice(5);
+
+    // Top-right slot: Reopen — this cycle isn't closed, so no closed badge.
+    const reopen = page.locator('.rw-reopen-btn');
+    await expect(reopen).toContainText('Reopen review');
+    await expect(page.locator('.rw-closed-badge')).toHaveCount(0);
+
+    // The week is a chart point before the reopen.
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    await expect(page.locator('.progress-shell .progress-chart-svg')).toContainText(week1Label);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+
+    // Reopen asks first.
+    await reopen.click();
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('Reopen review');
+    await expect(modal).toContainText('draft');
+    await modal.locator('button:has-text("Reopen")').click();
+    await expect(modal).toHaveCount(0);
+
+    // The editable wizard returns, with the recorded answers intact.
+    const wizard = page.locator('.rw-wizard');
+    await expect(wizard.locator('.rw-rail-item')).toHaveCount(3);
+    await wizard.locator('.rw-rail-item:has-text("Reflect")').click();
+    await expect(wizard.locator('.rw-prompt-textarea').nth(0)).toHaveValue('Mornings.');
+    await expect(wizard.locator('.rw-prompt-textarea').nth(1)).toHaveValue('Timebox tickets.');
+
+    // The picker reads the week as a draft now — the SELECTED week's row
+    // shows a tick, so the Draft hint appears once another week commits.
+    await page.locator('[aria-label="Review cycle and week"]').click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(1).click();
+    await page.locator('[aria-label="Review cycle and week"]').click();
+    await expect(page.locator('.cwp-panel .cwp-week-row').nth(0)).toContainText('Draft');
+    await page.keyboard.press('Escape');
+
+    // The reopened week's chart point drops — drafts are excluded, leaving
+    // week 2 as the only in-cycle point (below the chart's two-point
+    // minimum, hence the placeholder).
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    await expect(page.locator('.progress-shell .progress-chart-container')).toContainText('Complete at least 2 weekly reviews');
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+
+    // Back to the reopened week and re-finish: re-stamps the completion
+    // and restores the chart point.
+    await page.locator('[aria-label="Review cycle and week"]').click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
+    await wizard.locator('.rw-rail-item:has-text("Reflect")').click();
+    await wizard.locator('.rw-btn:has-text("Finish review")').click();
+    await expect.poll(async () => {
+      return page.evaluate(async () => {
+        const doc = await (window as any).__getAutomergeDoc();
+        const r = (doc.reviews as any[]).find(x => x.weekStartDate === window.localStorage.getItem('__test_week1'));
+        return !!r?.completedAt;
+      });
+    }, { timeout: 5000 }).toBe(true);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    await expect(page.locator('.progress-shell .progress-chart-svg')).toContainText(week1Label);
+  });
+
+  test('re-finishing an older week never clobbers newer synced values', async ({ page }) => {
+    // kr-2 (manual) scored 4 in week 1, then 9 in week 2. Reopen week 1,
+    // bump it to 5, re-finish: the sync is latest-completed-review-wins,
+    // so the KR keeps week 2's 9.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const week1 = window.localStorage.getItem('__test_week1') as string;
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const week2 = mondays[1];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      await okr.saveCompletedReview({
+        id: 'rev-w1', weekStartDate: week1, weekEndDate: endOf(week1), cycleId: 'c-test',
+        completedAt: `${week1}T20:14:00.000Z`,
+        entries: [{ keyResultId: 'kr-2', previousValue: 8, currentValue: 4, confidence: 'on_track' }],
+        prompts: [{ id: 'p-1', type: 'one_change', text: 'One change for next week?', answer: 'Timebox tickets.' }],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      await okr.saveCompletedReview({
+        id: 'rev-w2', weekStartDate: week2, weekEndDate: endOf(week2), cycleId: 'c-test',
+        completedAt: `${week2}T20:00:00.000Z`,
+        entries: [{ keyResultId: 'kr-2', previousValue: 4, currentValue: 9, confidence: 'on_track' }],
+        prompts: [],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openReview(page);
+    await selectWeek1(page);
+
+    await page.locator('.rw-reopen-btn').click();
+    const modal = page.locator('.confirm-modal');
+    await expect(modal).toBeVisible();
+    await modal.locator('button:has-text("Reopen")').click();
+    await expect(modal).toHaveCount(0);
+
+    const wizard = page.locator('.rw-wizard');
+    await wizard.locator('.rw-rail-item:has-text("Score key results")').click();
+    const input = wizard.locator('.rw-score-row:has-text("Ship tickets")').locator('input[type="number"]');
+    // The draft's recorded value (4) survived the reopen.
+    await expect(input).toHaveValue('4');
+    await input.fill('5');
+    await wizard.locator('.rw-rail-item:has-text("Reflect")').click();
+    await wizard.locator('.rw-btn:has-text("Finish review")').click();
+    await expect.poll(async () => {
+      return page.evaluate(async () => {
+        const doc = await (window as any).__getAutomergeDoc();
+        return (doc.keyResults as any[]).find(k => k.id === 'kr-2')?.currentValue;
+      });
+    }, { timeout: 5000 }).toBe(9);
+  });
+
+  test('top-right slot: Reopen for a reviewed week of a closed cycle, badge otherwise', async ({ page }) => {
+    // A PAST cycle (previous month) is closed; its week 1 is reviewed,
+    // week 2 is not.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const cycle = {
+        id: 'c-old', name: 'March cycle', month: prev.getMonth(), year: prev.getFullYear(),
+        isActive: false, createdAt: new Date().toISOString(),
+      };
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const mondays = getExclusiveCycleMondays(cycle);
+      const week1 = mondays[0];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      await okr.saveCycles([cycle]);
+      await okr.saveCompletedReview({
+        id: 'rev-old', weekStartDate: week1, weekEndDate: endOf(week1), cycleId: 'c-old',
+        completedAt: `${week1}T20:14:00.000Z`,
+        entries: [],
+        prompts: [],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openReview(page);
+    await selectWeek1(page);
+
+    // Week 1 (reviewed): the Reopen button owns the slot.
+    await expect(page.locator('.rw-reopen-btn')).toBeVisible();
+    await expect(page.locator('.rw-closed-badge')).toHaveCount(0);
+
+    // Week 2 (not reviewed): the Cycle closed badge owns the slot.
+    await page.locator('[aria-label="Review cycle and week"]').click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(1).click();
+    await expect(page.locator('.rw-reopen-btn')).toHaveCount(0);
+    await expect(page.locator('.rw-closed-badge')).toContainText('Cycle closed');
+  });
 });

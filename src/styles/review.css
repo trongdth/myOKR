@@ -1359,6 +1359,28 @@
   color: var(--text-muted);
 }
 
+/* Reopen review — header top-right action for a finished week's review
+   (round 3); the Cycle closed badge keeps the slot when there is none. */
+.rw-reopen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-all-fast);
+  white-space: nowrap;
+}
+
+.rw-reopen-btn:hover {
+  border-color: var(--accent-cyan);
+}
+
 /* The finished left column stretches to the main pane's height so the
    That week card sits at its bottom (the week is over — "That week"). */
 .rw-columns-done {
