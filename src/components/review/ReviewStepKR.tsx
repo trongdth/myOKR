@@ -86,14 +86,14 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
         <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5em' }}>
           Notes
         </div>
-                    <textarea
-                      className="review-notes-textarea"
-                      value={entry.note || ''}
-                      onChange={e => onChange({ ...entry, note: e.target.value })}
-                      placeholder="What progress did you make? What's blocking you?"
-                      rows={3}
-                      readOnly={readOnly}
-                    />
+        <textarea
+          className="review-notes-textarea"
+          value={entry.note || ''}
+          onChange={e => onChange({ ...entry, note: e.target.value })}
+          placeholder="What progress did you make? What's blocking you?"
+          rows={3}
+          readOnly={readOnly}
+        />
       </div>
     </div>
   );

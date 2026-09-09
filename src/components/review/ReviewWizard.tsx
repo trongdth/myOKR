@@ -358,13 +358,12 @@ export default function ReviewWizard({
             />
           )}
           {currentStep === 1 && (
-            <ScoreKeyResults rows={scoreRows} onChange={readOnly ? () => {} : updateEntry} readOnly={readOnly} />
+            <ScoreKeyResults rows={scoreRows} onChange={updateEntry} />
           )}
           {currentStep === 2 && (
             <ReflectStep
               prompts={prompts}
-              onChange={readOnly ? () => {} : updatePrompt}
-              readOnly={readOnly}
+              onChange={updatePrompt}
               moverDelta={[...moves.moves].filter(m => m.delta > 0).sort((a, b) => b.delta - a.delta)[0]?.delta}
             />
           )}
