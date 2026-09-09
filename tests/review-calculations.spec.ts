@@ -146,8 +146,8 @@ test.describe('Weekly Review Calculations & Repair', () => {
     await page.locator('.rw-prompt-textarea').first().fill('Week 1 completed reflection');
     await page.locator('button:has-text("Finish review")').click();
 
-    // Confirm Week 1 Review is saved — the week now renders read-only.
-    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
+    // Confirm Week 1 Review is saved — the week now renders the summary.
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
 
     // Now select Week 2: June 8th to June 14th
     await picker.click();
@@ -169,7 +169,7 @@ test.describe('Weekly Review Calculations & Repair', () => {
     await page.locator('.rw-prompt-textarea').first().fill('Week 2 completed reflection');
     await page.locator('button:has-text("Finish review")').click();
 
-    // Confirm Week 2 Review is saved — the week now renders read-only.
-    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
+    // Confirm Week 2 Review is saved — the week now renders the summary.
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
 });
 });

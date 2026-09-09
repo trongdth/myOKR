@@ -210,8 +210,8 @@ test.describe('Desktop: Review Workflow', () => {
     await page.locator('.rw-prompt-textarea').first().fill('E2E test reflection');
     await page.locator('button:has-text("Finish review")').click();
 
-    // Finished weeks render read-only.
-    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
+    // Finished weeks render the Finished review summary (round 3).
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
   });
 });
 
@@ -291,6 +291,6 @@ test.describe('Mobile: Core Workflows', () => {
     await page.locator('.rw-prompt-textarea').first().fill('Mobile E2E reflection');
     await page.locator('button:has-text("Finish review")').click();
 
-    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
   });
 });
