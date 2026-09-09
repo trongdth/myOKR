@@ -302,13 +302,107 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(page.locator('.progress-shell .progress-chart-container')).toContainText('Ship pomodoros');
     await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
 
-    // Finished week renders the read-only wizard.
-    await expect(page.locator('.rw-footer-note')).toContainText('Review completed');
+    // Finished week renders the Finished review summary (round 3) — not a
+    // wizard: the whole review on one page, no chrome, no step badge.
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
+    await expect(page.locator('.rw-summary-panel')).toHaveCount(3);
     await expect(page.locator('.rw-btn:has-text("Finish review")')).toHaveCount(0);
+    await expect(page.locator('.rw-save-indicator')).toHaveCount(0);
+    await expect(page.locator('.rw-footer')).toHaveCount(0);
+    await expect(page.locator('.rw-tab-badge')).toHaveCount(0);
+  });
 
-    // Completed reviews are immutable (round 2): the read-only wizard is
-    // the only view — no editing surface exists anymore.
+  test('finished week renders the summary: static markers, chrome, show N more', async ({ page }) => {
+    // Seed week 1 as completed with five scored KRs (so the table must cap
+    // at three rows) and answered prompts.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const week1 = window.localStorage.getItem('__test_week1') as string;
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      const doc = await (window as any).__getAutomergeDoc();
+      await okr.saveKeyResults([
+        ...doc.keyResults,
+        ...(['kr-3', 'kr-4', 'kr-5'].map((id, i) => ({
+          id, objectiveId: 'o-1', title: `Filler KR ${i + 3}`, targetValue: 10, currentValue: 5,
+          unit: 'things', confidence: 'on_track', completionMode: 'manual', order: i + 2,
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        }))) as any[],
+      ]);
+      await okr.saveCompletedReview({
+        id: 'rev-w1', weekStartDate: week1, weekEndDate: endOf(week1), cycleId: 'c-test',
+        completedAt: `${week1}T20:14:00.000Z`,
+        entries: [
+          { keyResultId: 'kr-1', previousValue: 1, currentValue: 4, confidence: 'on_track' },
+          { keyResultId: 'kr-2', previousValue: 8, currentValue: 8, confidence: 'at_risk' },
+          { keyResultId: 'kr-3', previousValue: 5, currentValue: 7, confidence: 'on_track' },
+          { keyResultId: 'kr-4', previousValue: 5, currentValue: 5, confidence: 'not_set' },
+          { keyResultId: 'kr-5', previousValue: 5, currentValue: 5, confidence: 'off_track' },
+        ],
+        prompts: [
+          { id: 'p-1', type: 'mover', keyResultId: 'kr-1', text: 'Ship pomodoros moved 1 → 4. What made that possible?', answer: 'Mornings.' },
+          { id: 'p-2', type: 'at_risk', keyResultId: 'kr-2', text: 'Ship tickets is at risk. What is in the way?', answer: '' },
+          { id: 'p-3', type: 'one_change', text: 'One change for next week?', answer: 'Timebox tickets.' },
+        ],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openReview(page);
+    await selectWeek1(page);
+
+    const main = page.locator('.rw-main');
+    await expect(main.locator('.rw-summary-head h2')).toHaveText('Your review');
+    await expect(main.locator('.rw-summary-panel')).toHaveCount(3);
+
+    // Key results as scored: the review's recorded entries — 5 rows, 3
+    // visible until expanded; deltas and confidence render as recorded.
+    const table = main.locator('.rw-summary-table');
+    await expect(table.locator('.rw-summary-row')).toHaveCount(3);
+    await expect(table).toContainText('Ship pomodoros');
+    await expect(table).toContainText('+3 that week');
+    await expect(table).toContainText('no change');
+    await expect(table).toContainText('At Risk');
+    await expect(main).toContainText('4 of 5');
+    await main.locator('.rw-summary-more').click();
+    await expect(table.locator('.rw-summary-row')).toHaveCount(5);
+    await expect(table).toContainText('Filler KR 5');
+    await expect(main.locator('.rw-summary-more')).toHaveText(/Show fewer/);
+
+    // Reflection: prompt → answer pairs; an empty answer says so.
+    const qa = main.locator('.rw-summary-qa');
+    await expect(qa).toContainText('Ship pomodoros moved 1 → 4');
+    await expect(qa).toContainText('Mornings.');
+    await expect(qa).toContainText('No answer');
+
+    // Where the pomodoros went: linked/unlinked split.
+    const pomoPanel = main.locator('.rw-pomo-panel');
+    await expect(pomoPanel).toContainText('Where the pomodoros went');
+    await expect(pomoPanel).toContainText("Linked to this cycle's KRs");
+    await expect(pomoPanel).toContainText('Unlinked or other cycles');
+
+    // Left column: checked markers only — nothing clickable, no step roles.
+    await expect(page.locator('.rw-done-marker')).toHaveCount(3);
+    await expect(page.locator('.rw-done-marker').nth(0)).toContainText('Week at a glance');
+    await expect(page.locator('.rw-done-marker').nth(2)).toContainText('Reflect');
+    await expect(page.locator('.rw-side button')).toHaveCount(0);
+    await expect(page.locator('.rw-wizard [role="tab"]')).toHaveCount(0);
+    await expect(page.locator('.rw-week-card')).toContainText('That week');
+
+    // No wizard chrome in the finished state.
+    await expect(page.locator('.rw-save-indicator')).toHaveCount(0);
+    await expect(page.locator('.rw-footer')).toHaveCount(0);
     await expect(page.locator('.rw-btn:has-text("Finish review")')).toHaveCount(0);
+    await expect(page.locator('.rw-tab-badge')).toHaveCount(0);
+
+    // Header chrome: Reviewed chip + completed line.
+    await expect(page.locator('.rw-reviewed-badge')).toContainText('Reviewed');
+    await expect(page.locator('.rw-completed-line')).toContainText('Completed');
   });
 
   test('link sessions modal assigns tasks and recomputes the numbers', async ({ page }) => {

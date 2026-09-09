@@ -13,6 +13,7 @@ import {
 import WeekAtAGlance from './WeekAtAGlance';
 import ScoreKeyResults, { type ScoreRow } from './ScoreKeyResults';
 import ReflectStep from './ReflectStep';
+import FinishedReviewSummary, { type SummaryRow } from './FinishedReviewSummary';
 
 const STEP_LABELS = ['Week at a glance', 'Score key results', 'Reflect'];
 const STEP_FOOTNOTES = [
@@ -55,6 +56,10 @@ export default function ReviewWizard({
 
   const existing = findReviewForWeek(reviews, weekStart);
   const draft = existing && isDraftReview(existing) ? existing : null;
+  // A completed review renders the Finished review summary from what was
+  // recorded at finish time — recomputed entries would show later task/KR
+  // state, not the week as reviewed.
+  const finishedReview = readOnly && existing && !isDraftReview(existing) ? existing : null;
 
   // Entries: an in-progress draft wins; otherwise values carry over from
   // tasks (derived) and the KR itself (manual). Confidence starts unset so
@@ -221,10 +226,26 @@ export default function ReviewWizard({
     setPrompts(prev => prev.map(p => p.id === promptId ? { ...p, answer } : p));
   };
 
-  // Tab-strip badge (step N/3 on the Weekly review tab).
+  // Tab-strip badge (step N/3 on the Weekly review tab); a finished review
+  // clears it — its steps are done, none remain (round 3).
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent('myokr-review-step', { detail: { step: currentStep + 1, total: STEP_LABELS.length } }));
-  }, [currentStep]);
+    window.dispatchEvent(new CustomEvent('myokr-review-step', {
+      detail: readOnly
+        ? { step: null }
+        : { step: currentStep + 1, total: STEP_LABELS.length },
+    }));
+  }, [readOnly, currentStep]);
+
+  const summaryRows = useMemo<SummaryRow[]>(() => {
+    if (!finishedReview) return [];
+    return finishedReview.entries
+      .map((entry): SummaryRow | null => {
+        const kr = cycleKRs.find(k => k.id === entry.keyResultId);
+        const objective = kr ? cycleObjectives.find(o => o.id === kr.objectiveId) : undefined;
+        return kr && objective ? { entry, keyResult: kr, objective } : null;
+      })
+      .filter((r): r is SummaryRow => r !== null);
+  }, [finishedReview, cycleKRs, cycleObjectives]);
 
   const scoredCount = entries.filter(e => e.confidence !== 'not_set').length;
 
@@ -239,6 +260,44 @@ export default function ReviewWizard({
       pomodoroStats,
     });
   };
+
+  // Finished mode: the whole review on one page (round 3). The step rail
+  // becomes checked, non-clickable markers — no step state exists here.
+  if (readOnly) {
+    return (
+      <div className="review-wizard rw-wizard">
+        <div className="rw-columns rw-columns-done">
+          <div className="rw-side rw-side-done">
+            <div className="rw-done-rail" aria-label="Review steps">
+              {STEP_LABELS.map(label => (
+                <div key={label} className="rw-done-marker">
+                  <span className="rw-done-check"><Check size={13} strokeWidth={3} /></span>
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="rw-week-card">
+              <span className="rw-panel-title">That week</span>
+              <div className="rw-week-card-rows">
+                <div><strong>{glance.sessions}</strong> sessions</div>
+                <div><strong>{glance.focusMinutes}<span className="rw-stat-unit">m</span></strong> focus</div>
+                <div><strong>{glance.tasksDone}</strong> tasks done</div>
+                <div><strong className="rw-week-card-habits">{glance.habitsPct !== null ? `${glance.habitsPct}%` : '—'}</strong> habits</div>
+              </div>
+            </div>
+          </div>
+          <div className="rw-main">
+            <FinishedReviewSummary
+              rows={summaryRows}
+              prompts={finishedReview?.prompts ?? []}
+              glance={glance}
+              unlinked={unlinked}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="review-wizard rw-wizard">

@@ -9,10 +9,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function ProgressHeader({
   activeCycle,
   title,
+  badge,
+  subtitle,
   right,
 }: {
   activeCycle?: OKRCycle | null;
   title?: string;
+  badge?: ReactNode;
+  subtitle?: ReactNode;
   right?: ReactNode;
 }) {
   const cycleTitle = title ?? (activeCycle
@@ -25,7 +29,9 @@ export function ProgressHeader({
         <h2 className="plan-header-eyebrow tasks-title">PROGRESS</h2>
         <div className="plan-header-title-row">
           <h1 className="plan-header-title">{cycleTitle}</h1>
+          {badge}
         </div>
+        {subtitle}
       </div>
       {right && <div className="tasks-header-right">{right}</div>}
     </div>
@@ -70,12 +76,13 @@ export default function ProgressTabStrip({
   reviewPicker,
 }: ProgressTabStripProps) {
   // The Weekly review tab carries a "step N/3" badge mirroring the wizard
-  // step in view (the wizard announces it via the myokr-review-step event).
+  // step in view (the wizard announces it via the myokr-review-step event);
+  // a finished review announces step: null — no steps remain.
   const [reviewStep, setReviewStep] = useState<number | null>(null);
   useEffect(() => {
     const handleStep = (e: Event) => {
       const step = (e as CustomEvent).detail?.step;
-      if (typeof step === 'number') setReviewStep(step);
+      setReviewStep(typeof step === 'number' ? step : null);
     };
     window.addEventListener('myokr-review-step', handleStep);
     return () => window.removeEventListener('myokr-review-step', handleStep);

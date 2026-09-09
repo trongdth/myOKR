@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Check } from 'lucide-react';
 import ProgressTabStrip, { ProgressHeader, formatWeekLabel, type ProgressTab } from './progress/ProgressTabStrip';
 import Analytics from './pomodoro/Analytics';
 import ReviewApp from './ReviewApp';
@@ -18,6 +19,17 @@ const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 function formatClosedLabel(closedDate: string): string {
   const [, mm, dd] = closedDate.split('-').map(Number);
   return `Cycle closed ${dd} ${MONTHS_SHORT[mm - 1]}`;
+}
+
+const WDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// "Completed Sun 26 Apr, 20:14" — the finished review's header line
+// (local time; completed-date only, no duration — round 3).
+function formatCompletedLine(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `Completed ${WDAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}, ${hh}:${mm}`;
 }
 
 export default function ProgressApp({ tab }: ProgressAppProps) {
@@ -104,6 +116,12 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
   const reviewClosedDate = reviewCycle ? getCycleClosedDate(reviewCycle) : null;
   const showClosedBadge = tab === 'weekly-review' && !!reviewClosedDate && reviewClosedDate < todayISO;
 
+  // The selected week's completed review drives the finished-state chrome:
+  // ✓ Reviewed chip + completed line (reopenability lands with ticket 14).
+  const finishedReview = tab === 'weekly-review' && reviewSelection
+    ? reviewReviews.find(r => r.weekStartDate === reviewSelection.weekStart && r.completedAt)
+    : undefined;
+
   const headerTitle = tab === 'weekly-review'
     ? (reviewSelection ? formatWeekLabel(reviewSelection.weekStart) : undefined)
     : tab === 'objectives-progress'
@@ -116,6 +134,12 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
         <ProgressHeader
           activeCycle={activeCycle}
           title={headerTitle}
+          badge={finishedReview ? (
+            <span className="rw-reviewed-badge"><Check size={12} strokeWidth={3} /> Reviewed</span>
+          ) : undefined}
+          subtitle={finishedReview ? (
+            <p className="rw-completed-line">{formatCompletedLine(finishedReview.completedAt!)}</p>
+          ) : undefined}
           right={showClosedBadge ? <span className="rw-closed-badge">{formatClosedLabel(reviewClosedDate!)}</span> : undefined}
         />
         <ProgressTabStrip

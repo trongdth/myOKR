@@ -4,7 +4,7 @@ import type { WeekGlance, KrMovesResult, UnlinkedSummary } from '../../lib/revie
 // Step 1 — Week at a glance: a read-only recap of the selected week. Nothing
 // here takes input (CONTEXT.md: Week at a glance).
 
-function fmtFocus(minutes: number): string {
+export function fmtFocus(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h === 0) return `${m}m`;
