@@ -23,6 +23,31 @@ async function selectWeek1(page: Page) {
   await page.waitForTimeout(300);
 }
 
+// Eight key results in the seeded cycle, so step 2's density is measured
+// rather than assumed (the round-4 rebuild).
+async function seedEightKeyResults(page: Page) {
+  await page.evaluate(async () => {
+    const okr = await import('/src/lib/okr-storage.ts');
+    const doc = await (window as any).__getAutomergeDoc();
+    const extra = Array.from({ length: 6 }, (_, i) => ({
+      id: `kr-x${i}`, objectiveId: 'o-1', title: `Extra key result ${i + 1}`,
+      targetValue: 10, currentValue: 5, unit: 'things', confidence: 'not_set',
+      completionMode: 'manual', order: i + 2,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }));
+    await okr.saveKeyResults([...doc.keyResults, ...extra] as any);
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  });
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+}
+
+async function openStep2(page: Page) {
+  await openReview(page);
+  await selectWeek1(page);
+  await page.locator('.rw-rail-item:has-text("Score key results")').click();
+}
+
 test.describe('Weekly review wizard revamp', () => {
   test.beforeEach(async ({ page }) => {
     // Freeze mid-month so the seeded cycle's week 1 is always a FINISHED
@@ -156,9 +181,11 @@ test.describe('Weekly review wizard revamp', () => {
     const kr1Row = wizard.locator('.rw-score-row:has-text("Ship pomodoros")');
     const kr2Row = wizard.locator('.rw-score-row:has-text("Ship tickets")');
 
-    // Derived KR: computed value read-only ("auto"), no number input.
-    await expect(kr1Row.locator('.review-kr-auto-badge')).toHaveText('auto');
+    // Derived KR: computed value read-only — a box that looks like the input
+    // but is not one, labelled with where the number came from.
     await expect(kr1Row.locator('input[type="number"]')).toHaveCount(0);
+    await expect(kr1Row.locator('.rw-kr-value-auto')).toHaveText('4');
+    await expect(kr1Row.locator('.rw-kr-value-auto')).toHaveAttribute('title', 'Computed from your tasks');
     // At-risk streak: 2 prior completed reviews → "3 weeks running".
     await expect(kr1Row.locator('.rw-risk-banner')).toHaveText('Flagged at risk 2 weeks running.');
 
@@ -744,5 +771,162 @@ test.describe('Weekly review wizard revamp', () => {
     await page.locator('.cwp-panel .cwp-week-row').nth(1).click();
     await expect(page.locator('.rw-reopen-btn')).toHaveCount(0);
     await expect(page.locator('.rw-closed-badge')).toContainText('Cycle closed');
+  });
+
+  test('step 2 renders compact rows inside one card', async ({ page }) => {
+    await seedEightKeyResults(page);
+    await openStep2(page);
+
+    // One card holds every key result — a row each, not a card each.
+    await expect(page.locator('.rw-score-card')).toHaveCount(1);
+    const rows = page.locator('.rw-score-row');
+    await expect(rows).toHaveCount(8);
+
+    // The name renders once, with its objective above it.
+    const kr1Row = page.locator('.rw-score-row:has-text("Ship pomodoros")');
+    await expect(kr1Row.locator('.rw-kr-name')).toHaveCount(1);
+    await expect(kr1Row.locator('.rw-kr-objective')).toHaveText('Ship myOKR');
+
+    // Line 1 carries the value box and the BARE target — no unit (the KR
+    // name states it) — and the delta carries the change on its own.
+    await expect(kr1Row.locator('.rw-kr-value-auto')).toHaveText('4');
+    await expect(kr1Row.locator('.rw-kr-target')).toHaveText('/ 20');
+    await expect(kr1Row.locator('.rw-delta-pos')).toHaveText('+3 this week');
+
+    // The panels/labels the dense row replaces are gone.
+    await expect(kr1Row.locator('.review-kr-progress')).toHaveCount(0);
+    await expect(kr1Row.locator('.review-kr-auto-badge')).toHaveCount(0);
+    await expect(kr1Row).not.toContainText('How confident');
+    await expect(kr1Row).not.toContainText('Previous');
+  });
+
+  test('step 2 confidence chips are compact, left-aligned and tinted', async ({ page }) => {
+    await seedEightKeyResults(page);
+    await openStep2(page);
+
+    const kr1Row = page.locator('.rw-score-row:has-text("Ship pomodoros")');
+    const chips = kr1Row.locator('.review-confidence-btn');
+    await expect(chips).toHaveCount(3);
+
+    // Content-width and left-aligned — never stretched to equal columns.
+    const chipBoxes = await chips.evaluateAll(els => els.map(e => e.getBoundingClientRect()));
+    const rowWidth = (await kr1Row.boundingBox())!.width;
+    const chipsWidth = chipBoxes[2].right - chipBoxes[0].left;
+    expect(chipsWidth).toBeLessThan(rowWidth * 0.6);
+    const eyebrowX = (await kr1Row.locator('.rw-kr-objective').boundingBox())!.x;
+    expect(Math.abs(chipBoxes[0].left - eyebrowX)).toBeLessThanOrEqual(2);
+
+    // Idle chips are a plain outline; the selected one takes the
+    // confidence's tint and label colour. (Chromium computes color-mix in
+    // oklab, so assert the tint's presence and the plain-rgb label colour.)
+    const idleBg = await chips.nth(0).evaluate(el => getComputedStyle(el).backgroundColor);
+    expect(idleBg).toBe('rgba(0, 0, 0, 0)');
+
+    await chips.nth(0).click();
+    await expect(chips.nth(0)).toHaveClass(/selected/);
+    // Let the click's autosave settle before reading styles: a save landing
+    // mid-read re-renders the row under the assertion.
+    await expect(page.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
+    const onTrackBg = await chips.nth(0).evaluate(el => getComputedStyle(el).backgroundColor);
+    expect(onTrackBg).not.toBe('rgba(0, 0, 0, 0)');
+    const onTrackLabel = await chips.nth(0).evaluate(el => getComputedStyle(el).color);
+    const [tr, tg, tb] = onTrackLabel.match(/\d+/g)!.map(Number);
+    expect(tg).toBeGreaterThan(tr);
+    expect(tg).toBeGreaterThan(tb);
+
+    // At risk is ROSE, not amber (round 4: the amber tint broke
+    // amber-means-streak-only). Rose has green < blue; amber has green > blue.
+    await chips.nth(1).click();
+    await expect(chips.nth(1)).toHaveClass(/selected/);
+    await expect(page.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
+    const atRiskLabel = await chips.nth(1).evaluate(el => getComputedStyle(el).color);
+    const [rr, rg, rb] = atRiskLabel.match(/\d+/g)!.map(Number);
+    expect(rr).toBeGreaterThan(150);   // a rose/red, not a grey
+    expect(rg).toBeLessThan(rb);       // amber would have green > blue
+  });
+
+  test('step 2 recesses the name of an unscored key result', async ({ page }) => {
+    await openStep2(page);
+
+    const kr1Row = page.locator('.rw-score-row:has-text("Ship pomodoros")');
+    const name = kr1Row.locator('.rw-kr-name');
+    const unscored = await name.evaluate(el => getComputedStyle(el).color);
+
+    // Unscored → recessed.
+    await expect(name).toHaveClass(/muted/);
+
+    // Scoring it brings the row back to full weight.
+    await kr1Row.locator('.review-confidence-btn.on-track').click();
+    await expect(name).not.toHaveClass(/muted/);
+    const scored = await name.evaluate(el => getComputedStyle(el).color);
+    expect(scored).not.toBe(unscored);
+  });
+
+  test('step 2 notes stay collapsed until asked for, then autosave', async ({ page }) => {
+    await openStep2(page);
+
+    const kr1Row = page.locator('.rw-score-row:has-text("Ship pomodoros")');
+
+    // Collapsed by default — free text belongs to Reflect; the row carries
+    // only the affordance (grilling round 4).
+    await expect(kr1Row.locator('textarea')).toHaveCount(0);
+    await expect(kr1Row.locator('.rw-kr-note-toggle')).toHaveText('Add note');
+
+    // Expanding reveals the note box; the answer autosaves into the draft.
+    await kr1Row.locator('.rw-kr-note-toggle').click();
+    const box = kr1Row.locator('textarea');
+    await expect(box).toHaveCount(1);
+    await box.fill('Blocked on the review revamp');
+    await expect(page.locator('.rw-save-indicator')).toHaveText('Saved just now', { timeout: 5000 });
+
+    const draft = await page.evaluate(async () => {
+      const week1 = window.localStorage.getItem('__test_week1') as string;
+      const doc = await (window as any).__getAutomergeDoc();
+      return (doc.reviews as any[]).find(r => r.weekStartDate === week1 && !r.completedAt);
+    });
+    expect(draft.entries.find((e: any) => e.keyResultId === 'kr-1').note)
+      .toBe('Blocked on the review revamp');
+
+    // ...and it closes again — a disclosure, not a one-way door. The toggle
+    // now reads "Note" (the row has one) and reopens what was written.
+    await kr1Row.locator('.rw-kr-note-toggle').click();
+    await expect(kr1Row.locator('textarea')).toHaveCount(0);
+    await expect(kr1Row.locator('.rw-kr-note-toggle')).toHaveText('Note');
+    await kr1Row.locator('.rw-kr-note-toggle').click();
+    await expect(kr1Row.locator('textarea')).toHaveValue('Blocked on the review revamp');
+  });
+
+  test('step 2 rows stay inside the density bar', async ({ page }) => {
+    await seedEightKeyResults(page);
+    await openStep2(page);
+
+    const rows = page.locator('.rw-score-row');
+    // Every plain row fits the ~130px ceiling. A row carrying the at-risk
+    // streak warning earns one extra line (~45px) — that's a warning, not a
+    // density failure.
+    const plainHeights = await rows.evaluateAll(els => els
+      .filter(e => !e.querySelector('.rw-risk-banner'))
+      .map(e => e.getBoundingClientRect().height));
+    expect(plainHeights.length).toBeGreaterThanOrEqual(7);
+    for (const h of plainHeights) expect(h).toBeLessThanOrEqual(130);
+
+    const allHeights = await rows.evaluateAll(els => els.map(e => e.getBoundingClientRect().height));
+    for (const h of allHeights) expect(h).toBeLessThanOrEqual(180);
+    const third = await rows.nth(2).boundingBox();
+    expect(third!.y + third!.height).toBeLessThanOrEqual(800);
+  });
+
+  test('step 2 keeps the footer in frame for a short cycle', async ({ page }) => {
+    // The seeded cycle has 2 key results — the reference design's case, where
+    // three rows plus the footer fit one 1280x800 frame. (With 8 KRs the
+    // footer sits below all of them by definition.)
+    await openStep2(page);
+    const viewport = page.viewportSize()!;
+    expect(viewport).toEqual({ width: 1280, height: 800 });
+
+    const footer = page.locator('.rw-footer');
+    await expect(footer).toBeVisible();
+    const box = (await footer.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
   });
 });

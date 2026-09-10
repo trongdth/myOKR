@@ -541,15 +541,20 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
 
 Row anatomy per R2 (2026-09-10; the dense-row decision — a card per KR cost
 ~850px, so 8 KRs scrolled ~7k px). **One card holds every KR**, rows divided
-by hairlines, each row two lines tall:
+by hairlines, each row three lines (~120px; a row carrying the at-risk streak
+warning adds one line):
 
-- **Line 1** — objective eyebrow (muted, small) · KR name · then right-aligned
-  `delta chip` · `52×32 value box` · `/ {target}`. Targets render the **bare
-  number — no unit** (the KR name states it). No cyan border/glow on the box.
-- **Line 2** — confidence chips, **content-width and left-aligned** (never
-  stretched to equal columns).
-- The KR name renders **once** (the old duplicate name above and below the
-  objective label is gone), and **muted when the KR is unscored**
+- **Line 1** — objective eyebrow (muted, own line) · KR name · then
+  right-aligned `delta chip` · `52×32 value box` · `/ {target}`. Targets
+  render the **bare number — no unit** (the KR name states it). No cyan
+  border/glow on the box.
+- **Line 2** — the row's controls on one baseline: confidence chips, then the
+  linked-tasks disclosure and **`Add note`** pushed right.
+- **Line 3** — only when needed: the expanded linked-tasks list, then the
+  streak warning (R2's placement — a warning follows the row's own content).
+- Confidence chips are **content-width and left-aligned** (never stretched to
+  equal columns).
+- The KR name renders **once** and is **muted when the KR is unscored**
   (`confidence === not_set`) — the recess signals "still to score", not "no
   movement" (R2 dims its chip-less row while its `no change` row stays
   bright; the grey delta chip carries the unmoved signal).
@@ -570,15 +575,19 @@ by hairlines, each row two lines tall:
   ("Values carried over from your tasks") explains it once.
 - **Notes** are a collapsed **`Add note`** disclosure that expands on click
   (the stored `entry.note` survives; free-text commentary belongs here, not
-  as an always-open box).
+  as an always-open box). A row whose draft already holds a note opens with
+  it shown.
+- Per-KR linked-tasks detail survives as a compact inline control on the
+  controls line, expanding to the full-width list below it; rendered only
+  when that KR has linked tasks.
 - At-risk streak banner per qualifying row: "Flagged at risk N weeks
   running." — no task-level clause (the reference design's "the same three
   tasks have carried over each time" needs per-review task snapshots we
   don't store).
-- Per-KR linked-tasks detail survives as the collapsed one-liner under the
-  row, rendered only when that KR has linked tasks.
-- **Density bar**: a row is ≤ ~130px at 1280×800, so ≥3 rows plus the footer
-  stay in frame with 8 KRs.
+- **Density bar**: a plain row is ≤130px at 1280×800, so with 8 KRs three rows
+  stay in frame (pinned by test). The footer sits after the *last* row, so it
+  is in frame only for a short cycle — the reference design's 2–3 KR case,
+  also pinned.
 - Kept deliberately against the reference design: the **objective eyebrow**
   (the only place naming which objective a KR belongs to).
 - Steps 2–3 show the "This week" sidebar card: sessions / focus / tasks /

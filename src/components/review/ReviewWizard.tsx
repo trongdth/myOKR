@@ -11,9 +11,10 @@ import {
   type ReviewInsightsInput,
 } from '../../lib/review-insights';
 import WeekAtAGlance from './WeekAtAGlance';
-import ScoreKeyResults, { type ScoreRow } from './ScoreKeyResults';
+import ScoreKeyResults from './ScoreKeyResults';
 import ReflectStep from './ReflectStep';
 import FinishedReviewSummary, { type SummaryRow } from './FinishedReviewSummary';
+import type { ScoreRow } from './ReviewStepKR';
 
 const STEP_LABELS = ['Week at a glance', 'Score key results', 'Reflect'];
 const STEP_FOOTNOTES = [

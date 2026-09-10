@@ -133,12 +133,12 @@ test.describe('Weekly Review Calculations & Repair', () => {
     // Move to the scoring step.
     await page.locator('.rw-rail-item:has-text("Score key results")').click();
 
-    // Verify KR previous and current values on step 2 (KR step)
-    // Previous should be 0 (since no pomodoros existed before June 1)
-    // Current should be 5 (5 pomodoros completed in Week 1)
-    await expect(page.locator('.review-kr-step')).toContainText('Focus Pomodoros KR');
-    await expect(page.locator('.review-kr-previous .review-kr-previous-value')).toContainText('0');
-    await expect(page.locator('.review-kr-current .review-kr-current-value')).toContainText('5');
+    // Verify the KR's values on step 2. Current should be 5 (5 pomodoros
+    // completed in Week 1); the delta "+5 this week" is current − previous,
+    // so it pins previous = 0 (a wrong previous of 5 would read "no change").
+    const krRowW1 = page.locator('.rw-score-row:has-text("Focus Pomodoros KR")');
+    await expect(krRowW1.locator('.rw-kr-value-auto')).toHaveText('5');
+    await expect(krRowW1.locator('.rw-delta-pos')).toHaveText('+5 this week');
 
     // Score and continue to reflection, then finish.
     await page.locator('button:has-text("On Track")').click();
@@ -157,12 +157,12 @@ test.describe('Weekly Review Calculations & Repair', () => {
 
     await page.locator('.rw-rail-item:has-text("Score key results")').click();
 
-    // Verify KR previous and current values on step 2 (KR step)
-    // Previous should be 5 (cumulative up to previous Sunday, June 7)
-    // Current should be 10 (cumulative up to June 14: 5 in Week 1 + 5 in Week 2)
-    await expect(page.locator('.review-kr-step')).toContainText('Focus Pomodoros KR');
-    await expect(page.locator('.review-kr-previous .review-kr-previous-value')).toContainText('5');
-    await expect(page.locator('.review-kr-current .review-kr-current-value')).toContainText('10');
+    // Current should be 10 (cumulative to June 14: 5 in Week 1 + 5 in Week 2)
+    // and the delta stays +5, which pins previous = 5 (cumulative to the
+    // previous Sunday, June 7) — a wrong previous of 0 would read "+10".
+    const krRowW2 = page.locator('.rw-score-row:has-text("Focus Pomodoros KR")');
+    await expect(krRowW2.locator('.rw-kr-value-auto')).toHaveText('10');
+    await expect(krRowW2.locator('.rw-delta-pos')).toHaveText('+5 this week');
 
     await page.locator('button:has-text("On Track")').click();
     await page.locator('.rw-btn:has-text("Continue to reflection")').click();
