@@ -8,7 +8,6 @@ export interface NumberInputProps {
   className?: string;
   title?: string;
   stopPropagation?: boolean;
-  readOnly?: boolean;
 }
 
 export default function NumberInput({
@@ -19,7 +18,6 @@ export default function NumberInput({
   className,
   title,
   stopPropagation,
-  readOnly = false,
 }: NumberInputProps) {
   const [internalValue, setInternalValue] = useState<string>(value.toString());
 
@@ -34,7 +32,6 @@ export default function NumberInput({
       value={internalValue}
       min={min}
       max={max}
-      readOnly={readOnly}
       onClick={(e) => {
         if (stopPropagation) {
           e.stopPropagation();

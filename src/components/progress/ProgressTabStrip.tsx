@@ -83,11 +83,11 @@ export default function ProgressTabStrip({
   // The Weekly review tab carries a "step N/3" badge mirroring the wizard
   // step in view (the wizard announces it via the myokr-review-step event);
   // a finished review announces step: null — no steps remain.
-  const [reviewStep, setReviewStep] = useState<number | null>(null);
+  const [reviewStep, setReviewStep] = useState<{ step: number; total: number } | null>(null);
   useEffect(() => {
     const handleStep = (e: Event) => {
-      const step = (e as CustomEvent).detail?.step;
-      setReviewStep(typeof step === 'number' ? step : null);
+      const { step, total } = (e as CustomEvent).detail ?? {};
+      setReviewStep(typeof step === 'number' ? { step, total: typeof total === 'number' ? total : 3 } : null);
     };
     window.addEventListener('myokr-review-step', handleStep);
     return () => window.removeEventListener('myokr-review-step', handleStep);
@@ -146,7 +146,7 @@ export default function ProgressTabStrip({
         >
           <span>Weekly review</span>
           {active === 'weekly-review' && reviewStep !== null && (
-            <span className="rw-tab-badge">step {reviewStep}/3</span>
+            <span className="rw-tab-badge">step {reviewStep.step}/{reviewStep.total}</span>
           )}
         </button>
       </div>

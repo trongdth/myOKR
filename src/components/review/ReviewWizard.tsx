@@ -61,6 +61,26 @@ export default function ReviewWizard({
   // state, not the week as reviewed.
   const finishedReview = readOnly && existing && !isDraftReview(existing) ? existing : null;
 
+  // Derived key results are live truth: their values are a function of the
+  // tasks/history behind them, so linking sessions (or a task landing
+  // mid-review) must move the numbers the user is about to score.
+  const derivedValues = useMemo(() => {
+    const [y, m, dayVal] = weekStart.split('-').map(Number);
+    const prevDate = new Date(Date.UTC(y, m - 1, dayVal));
+    prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+    const previousSunday = prevDate.toISOString().slice(0, 10);
+
+    const map = new Map<string, { previousValue: number; currentValue: number }>();
+    for (const kr of cycleKRs) {
+      if (kr.completionMode === 'manual' || !kr.completionMode) continue;
+      map.set(kr.id, {
+        previousValue: getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes, habits, objectives, cycles),
+        currentValue: getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes, habits, objectives, cycles),
+      });
+    }
+    return map;
+  }, [cycleKRs, tasks, history, weekStart, weekEnd, focusDurationMinutes, habits, objectives, cycles]);
+
   // Entries: an in-progress draft wins; otherwise values carry over from
   // tasks (derived) and the KR itself (manual). Confidence starts unset so
   // "N of M key results scored" is honest.
@@ -70,22 +90,18 @@ export default function ReviewWizard({
       .filter(r => r.completedAt)
       .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
 
-    const [y, m, dayVal] = weekStart.split('-').map(Number);
-    const prevDate = new Date(Date.UTC(y, m - 1, dayVal));
-    prevDate.setUTCDate(prevDate.getUTCDate() - 1);
-    const previousSunday = prevDate.toISOString().slice(0, 10);
-
     return cycleKRs.map(kr => {
       const lastEntry = completedReviews.flatMap(r => r.entries).find(e => e.keyResultId === kr.id);
       const isManual = kr.completionMode === 'manual' || !kr.completionMode;
+      const derived = derivedValues.get(kr.id);
       return {
         keyResultId: kr.id,
         previousValue: isManual
           ? (lastEntry ? lastEntry.currentValue : 0)
-          : getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes, habits, objectives, cycles),
+          : (derived?.previousValue ?? 0),
         currentValue: isManual
           ? kr.currentValue
-          : getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes, habits, objectives, cycles),
+          : (derived?.currentValue ?? 0),
         confidence: kr.confidence,
       };
     });
@@ -116,6 +132,27 @@ export default function ReviewWizard({
     if (unanswered) return 2;
     return 0;
   });
+
+  // Keep the derived rows in step with the data behind them. Only their
+  // values move — a manual value, a confidence or a note is the user's.
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+  useEffect(() => {
+    const prev = entriesRef.current;
+    let changed = false;
+    const next = prev.map(entry => {
+      const derived = derivedValues.get(entry.keyResultId);
+      if (!derived) return entry;
+      if (entry.currentValue === derived.currentValue && entry.previousValue === derived.previousValue) return entry;
+      changed = true;
+      return { ...entry, currentValue: derived.currentValue, previousValue: derived.previousValue };
+    });
+    if (!changed) return;
+    // The draft must carry the recomputed numbers too, or a reload would
+    // restore the stale ones.
+    dirtyRef.current = true;
+    setEntries(next);
+  }, [derivedValues]);
 
   const glance = useMemo(() => computeWeekGlance(insightsInput), [insightsInput]);
   const moves = useMemo(() => computeKrMoves(insightsInput), [insightsInput]);

@@ -119,7 +119,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
   const showClosedBadge = tab === 'weekly-review' && !!reviewClosedDate && reviewClosedDate < todayISO;
 
   // The selected week's completed review drives the finished-state chrome:
-  // ✓ Reviewed chip + completed line (reopenability lands with ticket 14).
+  // ✓ Reviewed chip + completed line; the Reopen button shares this state.
   const finishedReview = tab === 'weekly-review' && reviewSelection
     ? reviewReviews.find(r => r.weekStartDate === reviewSelection.weekStart && r.completedAt)
     : undefined;

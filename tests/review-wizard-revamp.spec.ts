@@ -488,6 +488,14 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(wizard.locator('.rw-link-banner')).toHaveCount(0);
     await expect(wizard.locator('.rw-moved-row .rw-delta-pos')).toHaveText('+5');
     await expect(wizard.locator('.rw-panel-footnote')).toContainText('had no linked sessions');
+
+    // The banner's promise — "changes the numbers you are about to score" —
+    // has to hold on step 2 as well: the derived row is live truth, so the
+    // two newly linked pomodoros land in its value (1 + 3 + 2 = 6) and delta.
+    await wizard.locator('.rw-rail-item:has-text("Score key results")').click();
+    const kr1Row = page.locator('.rw-score-row:has-text("Ship pomodoros")');
+    await expect(kr1Row.locator('.rw-kr-value-auto')).toHaveText('6');
+    await expect(kr1Row.locator('.rw-delta-pos')).toHaveText('+5 this week');
   });
 
   test('linking tasks writes in place — concurrent task writes survive (rule 11)', async ({ page }) => {

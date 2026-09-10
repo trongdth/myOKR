@@ -575,8 +575,8 @@ warning adds one line):
   ("Values carried over from your tasks") explains it once.
 - **Notes** are a collapsed **`Add note`** disclosure that expands on click
   (the stored `entry.note` survives; free-text commentary belongs here, not
-  as an always-open box). A row whose draft already holds a note opens with
-  it shown.
+  as an always-open box). A true two-way toggle: it starts collapsed, reads
+  `Note` instead of `Add note` once the row has text, and closes again.
 - Per-KR linked-tasks detail survives as a compact inline control on the
   controls line, expanding to the full-width list below it; rendered only
   when that KR has linked tasks.
@@ -612,7 +612,8 @@ summary).
   week", not "This week" — the week is over).
 - **Key results as scored** panel: the review's *recorded* entries as a
   table (Key result / Value / Change / Confidence), capped at 3 rows with a
-  `Show N more key results` toggle; panel meta `N of M scored`. Deltas read
+  `Show N more key results` toggle; panel meta is the bare `N of M` count
+  (the panel title already says "as scored"). Deltas read
   "that week" (they are history, not this week's news).
 - **Reflection** panel: prompt → answer pairs; an empty answer reads
   "No answer".

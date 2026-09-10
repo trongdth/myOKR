@@ -197,7 +197,7 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
   // The CycleWeekPicker drives the week (exclusive weeks, ADR-0019);
   // unset falls back to the current week.
   const weekStart = weekStartProp ?? getCurrentWeekStart();
-  const weekEnd = weekStart ? getWeekEndFromStart(weekStart) : '';
+  const weekEnd = getWeekEndFromStart(weekStart);
 
   // Check if current week already has a completed review
   const currentWeekReview = reviews.find(
