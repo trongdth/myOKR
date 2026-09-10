@@ -347,7 +347,7 @@ test.describe('Weekly review wizard revamp', () => {
           { id: 'p-2', type: 'at_risk', keyResultId: 'kr-2', text: 'Ship tickets is at risk. What is in the way?', answer: '' },
           { id: 'p-3', type: 'one_change', text: 'One change for next week?', answer: 'Timebox tickets.' },
         ],
-        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+        pomodoroStats: { totalPomodoros: 12, totalFocusMinutes: 300, tasksCompleted: 2, pomodorosByKeyResult: { 'kr-1': 5 } },
       });
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
@@ -380,11 +380,18 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(qa).toContainText('Mornings.');
     await expect(qa).toContainText('No answer');
 
-    // Where the pomodoros went: linked/unlinked split.
+    // Where the pomodoros went + That week: the review's STORED stats —
+    // retro task-linking after finish must not rewrite history (round 3).
     const pomoPanel = main.locator('.rw-pomo-panel');
     await expect(pomoPanel).toContainText('Where the pomodoros went');
+    await expect(pomoPanel).toContainText('12 sessions · 5h 00m');
     await expect(pomoPanel).toContainText("Linked to this cycle's KRs");
-    await expect(pomoPanel).toContainText('Unlinked or other cycles');
+    await expect(pomoPanel.locator('.rw-pomo-split-num')).toHaveText(['5', '7']);
+    const weekCard = page.locator('.rw-week-card');
+    await expect(weekCard).toContainText('That week');
+    await expect(weekCard).toContainText('12 sessions');
+    await expect(weekCard).toContainText('300m focus');
+    await expect(weekCard).toContainText('2 tasks done');
 
     // Left column: checked markers only — nothing clickable, no step roles.
     await expect(page.locator('.rw-done-marker')).toHaveCount(3);

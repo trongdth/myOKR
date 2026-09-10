@@ -12,12 +12,11 @@ interface Props {
   objective: Objective;
   linkedTasksThisWeek: Array<{ task: PomodoroTask | null; pomos: number }>;
   onChange: (updated: ReviewEntry) => void;
-  readOnly?: boolean;
 }
 
 const CONFIDENCE_OPTIONS: Confidence[] = ['on_track', 'at_risk', 'off_track'];
 
-export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksThisWeek, onChange, readOnly = false }: Props) {
+export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksThisWeek, onChange }: Props) {
   return (
     <div className="review-kr-step">
       {/* Header */}
@@ -40,7 +39,6 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
               className="review-kr-current-input"
               value={entry.currentValue}
               min={0}
-              readOnly={readOnly}
               onChange={val => onChange({ ...entry, currentValue: val })}
             />
           ) : (
@@ -66,7 +64,6 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
               <button
                 key={c}
                 className={`review-confidence-btn ${cls}${entry.confidence === c ? ' selected' : ''}`}
-                disabled={readOnly}
                 onClick={() => onChange({ ...entry, confidence: c })}
               >
                 <span className="confidence-dot" style={{ background: meta.color }} /> {meta.label}
@@ -92,7 +89,6 @@ export default function ReviewStepKR({ entry, keyResult, objective, linkedTasksT
           onChange={e => onChange({ ...entry, note: e.target.value })}
           placeholder="What progress did you make? What's blocking you?"
           rows={3}
-          readOnly={readOnly}
         />
       </div>
     </div>

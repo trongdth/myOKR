@@ -121,8 +121,9 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
         setReviews(repaired);
         try {
           await saveReviews(repaired);
-        } catch {
-          /* storage failure is non-fatal */
+        } catch (err) {
+          // Persistence rule 3: non-fatal, but never silent.
+          console.error('review repair save failed', err);
         }
         // Sync Key Results with the repaired reviews
         const updatedKRs = loadedKRs.map(kr => {
@@ -147,8 +148,9 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
         setKeyResults(updatedKRs);
         try {
           await saveKeyResults(updatedKRs);
-        } catch {
-          /* storage failure is non-fatal */
+        } catch (err) {
+          // Persistence rule 3: non-fatal, but never silent.
+          console.error('review repair save failed', err);
         }
       }
     }
@@ -213,14 +215,14 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
   // Draft autosaves land straight in the doc; pull them back so the wizard
   // stays in sync.
   const reloadReviews = async () => {
-    try { setReviews(await loadReviews()); } catch { /* non-fatal */ }
+    try { setReviews(await loadReviews()); } catch (err) { console.error('reviews reload failed', err); }
     // Refresh the picker's review counts / draft hints — a narrow event, not
     // the app-wide sync event (that would reload every listener per keystroke
     // debounce).
     window.dispatchEvent(new CustomEvent('myokr-reviews-changed'));
   };
   const reloadTasks = async () => {
-    try { setTasks(await loadTasks()); } catch { /* non-fatal */ }
+    try { setTasks(await loadTasks()); } catch (err) { console.error('tasks reload failed', err); }
   };
 
   const syncKeyResultsFromReviews = async (currentReviews: WeeklyReview[], currentKRs: KeyResult[]) => {
@@ -246,8 +248,9 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
     setKeyResults(updatedKRs);
     try {
       await saveKeyResults(updatedKRs);
-    } catch {
-      /* storage failure is non-fatal */
+    } catch (err) {
+      // Persistence rule 3: non-fatal, but never silent.
+      console.error('key results sync save failed', err);
     }
   };
 
@@ -264,7 +267,10 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
       ? reviews.map(r => r.weekStartDate === review.weekStartDate ? review : r)
       : [...reviews, review];
     setReviews(updatedReviews);
-    try { await saveCompletedReview(review); } catch { /* storage failure is non-fatal */ }
+    try { await saveCompletedReview(review); } catch (err) {
+      // Persistence rule 3: non-fatal, but never silent.
+      console.error('completed review save failed', err);
+    }
 
     // Update Key Result values based on the latest completed review
     await syncKeyResultsFromReviews(updatedReviews, keyResults);

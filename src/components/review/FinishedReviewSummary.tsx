@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { CONFIDENCE_META } from '../../lib/okr-storage';
-import type { ReviewEntry, KeyResult, ReviewPrompt } from '../../lib/okr-storage';
-import type { WeekGlance, UnlinkedSummary } from '../../lib/review-insights';
+import type { ReviewEntry, KeyResult, ReviewPrompt, WeeklyReview } from '../../lib/okr-storage';
 import { fmtFocus } from './WeekAtAGlance';
 
 // The Finished review summary (CONTEXT.md): a completed review rendered as
@@ -27,19 +26,19 @@ function SummaryDelta({ entry }: { entry: ReviewEntry }) {
 export default function FinishedReviewSummary({
   rows,
   prompts,
-  glance,
-  unlinked,
+  stats,
 }: {
   rows: SummaryRow[];
   prompts: ReviewPrompt[];
-  glance: WeekGlance;
-  unlinked: UnlinkedSummary;
+  stats: WeeklyReview['pomodoroStats'];
 }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? rows : rows.slice(0, VISIBLE_ROWS);
   const scoredCount = rows.filter(r => r.entry.confidence !== 'not_set').length;
-  const linkedPct = unlinked.totalSessions > 0
-    ? Math.round((unlinked.linkedToCycle / unlinked.totalSessions) * 100)
+  // Frozen at finish: retro task-linking must not rewrite what was reviewed.
+  const linked = Object.values(stats.pomodorosByKeyResult).reduce((s, n) => s + n, 0);
+  const linkedPct = stats.totalPomodoros > 0
+    ? Math.round((linked / stats.totalPomodoros) * 100)
     : 0;
 
   return (
@@ -114,7 +113,7 @@ export default function FinishedReviewSummary({
       <div className="rw-panel rw-summary-panel rw-pomo-panel">
         <div className="rw-summary-panel-head">
           <span className="rw-panel-title">Where the pomodoros went</span>
-          <span className="rw-summary-count">{glance.sessions} sessions · {fmtFocus(glance.focusMinutes)}</span>
+          <span className="rw-summary-count">{stats.totalPomodoros} sessions · {fmtFocus(stats.totalFocusMinutes)}</span>
         </div>
         <div className="rw-pomo-bar" aria-hidden="true">
           <div className="rw-pomo-bar-fill" style={{ width: `${linkedPct}%` }} />
@@ -122,11 +121,11 @@ export default function FinishedReviewSummary({
         <div className="rw-pomo-split">
           <div className="rw-pomo-split-cell">
             <span className="rw-pomo-split-label">Linked to this cycle's KRs</span>
-            <span className="rw-pomo-split-num">{unlinked.linkedToCycle}</span>
+            <span className="rw-pomo-split-num">{linked}</span>
           </div>
           <div className="rw-pomo-split-cell">
             <span className="rw-pomo-split-label">Unlinked or other cycles</span>
-            <span className="rw-pomo-split-num">{unlinked.unlinked}</span>
+            <span className="rw-pomo-split-num">{stats.totalPomodoros - linked}</span>
           </div>
         </div>
       </div>

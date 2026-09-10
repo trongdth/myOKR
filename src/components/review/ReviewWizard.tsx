@@ -190,7 +190,9 @@ export default function ReviewWizard({
         dirtyRef.current = false;
         setSaveState('saved');
         onDraftSaved?.();
-      } catch {
+      } catch (err) {
+        // Persistence rule 3: non-fatal, but never silent.
+        console.error('review draft autosave failed', err);
         setSaveState('idle');
       }
     }, 1000);
@@ -212,7 +214,10 @@ export default function ReviewWizard({
       entries: l.entries,
       prompts: l.prompts,
       pomodoroStats: l.pomodoroStats,
-    }).then(() => onDraftSaved?.()).catch(() => { /* non-fatal */ });
+    }).then(() => onDraftSaved?.()).catch(err => {
+      // Persistence rule 3: non-fatal, but never silent.
+      console.error('review draft flush failed', err);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -244,6 +249,12 @@ export default function ReviewWizard({
       })
       .filter((r): r is SummaryRow => r !== null);
   }, [finishedReview, cycleKRs]);
+
+  // Stored stats drive the finished card/panel; normalizeReview guarantees
+  // the object on load, so a finishedReview always has one.
+  const finishedStats = finishedReview
+    ? finishedReview.pomodoroStats
+    : { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} };
 
   const scoredCount = entries.filter(e => e.confidence !== 'not_set').length;
 
@@ -277,9 +288,11 @@ export default function ReviewWizard({
             <div className="rw-week-card">
               <span className="rw-panel-title">That week</span>
               <div className="rw-week-card-rows">
-                <div><strong>{glance.sessions}</strong> sessions</div>
-                <div><strong>{glance.focusMinutes}<span className="rw-stat-unit">m</span></strong> focus</div>
-                <div><strong>{glance.tasksDone}</strong> tasks done</div>
+                {/* Frozen at finish (stored stats) — except habits %, which
+                    the review never stored and habit history is stable. */}
+                <div><strong>{finishedStats.totalPomodoros}</strong> sessions</div>
+                <div><strong>{finishedStats.totalFocusMinutes}<span className="rw-stat-unit">m</span></strong> focus</div>
+                <div><strong>{finishedStats.tasksCompleted}</strong> tasks done</div>
                 <div><strong className="rw-week-card-habits">{glance.habitsPct !== null ? `${glance.habitsPct}%` : '—'}</strong> habits</div>
               </div>
             </div>
@@ -288,8 +301,7 @@ export default function ReviewWizard({
             <FinishedReviewSummary
               rows={summaryRows}
               prompts={finishedReview?.prompts ?? []}
-              glance={glance}
-              unlinked={unlinked}
+              stats={finishedStats}
             />
           </div>
         </div>
@@ -374,20 +386,18 @@ export default function ReviewWizard({
                 ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored`
                 : STEP_FOOTNOTES[currentStep]}
             </span>
-            {!readOnly && (
-              <div className="rw-footer-actions">
-                {currentStep > 0 && (
-                  <button type="button" className="rw-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>
-                )}
-                {currentStep < 2 ? (
-                  <button type="button" className="rw-btn primary" onClick={() => setCurrentStep(currentStep + 1)}>
-                    {currentStep === 0 ? 'Score key results' : 'Continue to reflection'}
-                  </button>
-                ) : (
-                  <button type="button" className="rw-btn primary" onClick={handleComplete}>Finish review</button>
-                )}
-              </div>
-            )}
+            <div className="rw-footer-actions">
+              {currentStep > 0 && (
+                <button type="button" className="rw-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>
+              )}
+              {currentStep < 2 ? (
+                <button type="button" className="rw-btn primary" onClick={() => setCurrentStep(currentStep + 1)}>
+                  {currentStep === 0 ? 'Score key results' : 'Continue to reflection'}
+                </button>
+              ) : (
+                <button type="button" className="rw-btn primary" onClick={handleComplete}>Finish review</button>
+              )}
+            </div>
           </div>
         </div>
       </div>
