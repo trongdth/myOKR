@@ -26,6 +26,13 @@
   padding: 0;
 }
 
+/* Finished-review header: the action button bottom-aligns with the header
+   block so it sits on the completed line, not the title row (round-3
+   UI feedback). */
+.progress-header.align-end {
+  align-items: flex-end;
+}
+
 /* ===== PROGRESS TAB STRIP ===== */
 .progress-tab-strip {
   display: flex;
@@ -578,6 +585,13 @@
 }
 
 /* ===== CycleWeekPicker (review tab's two-level selector, C1 anatomy) ===== */
+
+/* The review picker's trigger is this tab's first-class control — taller
+   than the compact 32px Select (round-3 UI feedback). */
+.cwp-trigger {
+  height: 40px;
+  padding: 0 14px;
+}
 
 .cwp-panel {
   padding: 5px;

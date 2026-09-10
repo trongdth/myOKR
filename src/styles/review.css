@@ -56,22 +56,6 @@
 }
 
 /* ===== REVIEW WIZARD ===== */
-.review-wizard {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  overflow: hidden;
-  margin-bottom: 2em;
-}
-
-.review-wizard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.25em 1.5em;
-  border-bottom: 1px solid var(--border-color);
-}
-
 .review-wizard-title {
   font-size: 1rem;
   font-weight: 600;
@@ -1382,7 +1366,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.5rem 0.95rem;
+  height: 40px;
+  padding: 0 0.95rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);

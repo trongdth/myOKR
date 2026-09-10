@@ -315,7 +315,7 @@ export default function CycleWeekPicker({
       <button
         ref={triggerRef}
         type="button"
-        className={`sel-trigger boxed${open ? ' sel-open' : ''}`}
+        className={`sel-trigger boxed cwp-trigger${open ? ' sel-open' : ''}`}
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}

@@ -147,6 +147,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
         <ProgressHeader
           activeCycle={activeCycle}
           title={headerTitle}
+          alignEnd={!!finishedReview}
           badge={finishedReview ? (
             <span className="rw-reviewed-badge"><Check size={12} strokeWidth={3} /> Reviewed</span>
           ) : undefined}

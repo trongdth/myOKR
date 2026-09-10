@@ -12,19 +12,24 @@ export function ProgressHeader({
   badge,
   subtitle,
   right,
+  alignEnd = false,
 }: {
   activeCycle?: OKRCycle | null;
   title?: string;
   badge?: ReactNode;
   subtitle?: ReactNode;
   right?: ReactNode;
+  /** Bottom-align the right slot with the header block (used when the slot
+   *  carries a finished review's action button — it lines up with the
+   *  completed line instead of floating at the title row). */
+  alignEnd?: boolean;
 }) {
   const cycleTitle = title ?? (activeCycle
     ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`)
     : 'Progress');
 
   return (
-    <div className="tasks-view-header progress-header">
+    <div className={`tasks-view-header progress-header${alignEnd ? ' align-end' : ''}`}>
       <div className="tasks-header-left">
         <h2 className="plan-header-eyebrow tasks-title">PROGRESS</h2>
         <div className="plan-header-title-row">
