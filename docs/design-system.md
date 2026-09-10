@@ -505,7 +505,8 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
   only**; Focus analytics keeps its cycle-overview/week-drill-down header
   logic. Eyebrow stays `PROGRESS`.
 - The Weekly review tab carries a `step N/3` badge mirroring the step in view
-  for the selected week.
+  for the selected week — hidden when that week's review is finished (a
+  finished review has no steps; the summary clears the badge).
 
 ### Step rail & wizard chrome
 
@@ -538,15 +539,48 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
 
 ### Score key results (step 2)
 
-- All KRs on one screen. **Confidence chips are `On track / At risk / Off
-  track`** — canonical labels; the mockup's "Confident / Unsure" was rejected
-  (consistency with history + mobile). Unscored = `not_set`, grey.
-- **Derived KRs render their computed value read-only** (no input); only
-  `manual` KRs get the number input with `/target` and a `+N this week` /
-  `no change` chip.
+Row anatomy per R2 (2026-09-10; the dense-row decision — a card per KR cost
+~850px, so 8 KRs scrolled ~7k px). **One card holds every KR**, rows divided
+by hairlines, each row two lines tall:
+
+- **Line 1** — objective eyebrow (muted, small) · KR name · then right-aligned
+  `delta chip` · `52×32 value box` · `/ {target}`. Targets render the **bare
+  number — no unit** (the KR name states it). No cyan border/glow on the box.
+- **Line 2** — confidence chips, **content-width and left-aligned** (never
+  stretched to equal columns).
+- The KR name renders **once** (the old duplicate name above and below the
+  objective label is gone), and **muted when the KR is unscored**
+  (`confidence === not_set`) — the recess signals "still to score", not "no
+  movement" (R2 dims its chip-less row while its `no change` row stays
+  bright; the grey delta chip carries the unmoved signal).
+- **No `Previous → Current` panel.** The delta chip carries the change;
+  `previousValue` stays stored (the summary's Change column uses it).
+- **No `"How confident are you?"` label** — the chips are self-evident (none
+  in the reference design).
+- **Confidence chips are `On track / At risk / Off track`** — canonical
+  labels; the reference design's "Confident / Unsure" was rejected (history +
+  mobile parity). Idle chips are a **1px neutral outline**; the selected chip
+  takes a **confidence-tinted fill and a coloured label**. The selected
+  at-risk tint is **rose** — the old amber tint (`rgba(234,179,8,.1)`) broke
+  the amber-is-streak-only rule and is gone. Unscored = `not_set`, no tint
+  (honest — `N of M scored` in the footer reads the same state).
+- **No `AUTO` badge.** Derived KRs still render read-only (decision 3) as a
+  boxed value visually identical to the manual input, carrying
+  `title`/`aria-label` "Computed from your tasks" — the step subtitle
+  ("Values carried over from your tasks") explains it once.
+- **Notes** are a collapsed **`Add note`** disclosure that expands on click
+  (the stored `entry.note` survives; free-text commentary belongs here, not
+  as an always-open box).
 - At-risk streak banner per qualifying row: "Flagged at risk N weeks
-  running." — no task-level clause.
-- Per-KR linked-tasks detail survives, collapsed under the row.
+  running." — no task-level clause (the reference design's "the same three
+  tasks have carried over each time" needs per-review task snapshots we
+  don't store).
+- Per-KR linked-tasks detail survives as the collapsed one-liner under the
+  row, rendered only when that KR has linked tasks.
+- **Density bar**: a row is ≤ ~130px at 1280×800, so ≥3 rows plus the footer
+  stay in frame with 8 KRs.
+- Kept deliberately against the reference design: the **objective eyebrow**
+  (the only place naming which objective a KR belongs to).
 - Steps 2–3 show the "This week" sidebar card: sessions / focus / tasks /
   habits %, plus `N linked to this cycle's KRs · M unlinked or other cycles`.
 
@@ -557,12 +591,48 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
   hint); `free` fallback when nothing notable. Answers autosave into the
   structured `prompts` array (never the legacy `reflection` string).
 
+### Finished review summary (round 3, 2026-09-09)
+
+A completed review renders one stacked page — the read-only wizard no longer
+exists as a view state (ADR-0019 amendment; glossary: Finished review
+summary).
+
+- Left column: the three step names as **checked, non-clickable markers**
+  (green check circles, no hover, no cursor — the content is all on the
+  right) and the **That week** card pinned to the column's bottom ("That
+  week", not "This week" — the week is over).
+- **Key results as scored** panel: the review's *recorded* entries as a
+  table (Key result / Value / Change / Confidence), capped at 3 rows with a
+  `Show N more key results` toggle; panel meta `N of M scored`. Deltas read
+  "that week" (they are history, not this week's news).
+- **Reflection** panel: prompt → answer pairs; an empty answer reads
+  "No answer".
+- **Where the pomodoros went** panel and the **That week** card read the
+  review's **stored stats** — frozen at finish; retro task-linking must not
+  rewrite what was reviewed (habits % is the one computed value — the review
+  never stored it, and habit history is stable). The sessions-per-day chart,
+  key-results-that-moved panel, and commitment line do **not** appear (the
+  edit wizard keeps them).
+- Header: "✓ Reviewed" chip beside the h1 and a `Completed Sun 26 Apr, 20:14`
+  line under it (local time; completed-date only — duration tracking
+  rejected). The save indicator and wizard footer are absent. The
+  summary-head helper reads `Read-only · Reopen to change anything`.
+- **Top-right slot**: a finished review puts the **Reopen review** button
+  (pencil icon, outlined, 40px tall) there, **bottom-aligned with the header
+  block** so it sits on the completed line rather than the title row; the
+  `Cycle closed {date}` badge keeps the slot only when the selected week of
+  a closed cycle has no finished review.
+- Summary styles live in `review.css` under `rw-summary-*` / `rw-done-*` /
+  `rw-pomo-*`; ≤900px the left column re-stacks horizontally above the main
+  pane.
+
 ### Responsive
 
 The wizard re-stacks on the 2a tiers: ≤1100px — stat cards 2-across; ≤900px —
 rail becomes a horizontal strip above the main pane, glance columns stack,
-footer buttons go full-width; ≤560px — stat cards 1-across. (The wizard CSS
-lives in `review.css` under the `rw-*` prefix.)
+footer buttons go full-width, and step 2's rows wrap (the KR name takes its
+own line; delta · value · `/ target` stay right-aligned); ≤560px — stat cards
+1-across. (The wizard CSS lives in `review.css` under the `rw-*` prefix.)
 
 ### Drafts, immutability, entry gating (amended 2026-09-07, round 2)
 
@@ -573,9 +643,23 @@ lives in `review.css` under the `rw-*` prefix.)
   undefined); **Finish review** stamps it and triggers KR sync. Drafts are
   invisible to the chart, streaks, and sync — and resurface as a **Draft**
   hint on the picker's week rows.
-- **Completed reviews are immutable** — the read-only wizard is their only
-  view (no Past Reviews section, no editing, no deletion). Late completion
-  of unreviewed finished weeks stays possible.
+- **Completed reviews render the Finished review summary** (see above) —
+  the whole review on one page — and are **reopenable** (round 3,
+  2026-09-09; reverses the round-2 immutability): a confirmed **Reopen
+  review** returns the review to a draft — the editable wizard comes back
+  with every answer, draft exclusions apply (the week's chart point drops;
+  no streaks or KR sync), and re-finishing re-stamps with a
+  latest-completed-review-wins sync, so an older week can never clobber
+  newer values. Late completion of unreviewed finished weeks stays
+  possible.
+
+- **The review tab's picker trigger is 40px tall** (`cwp-trigger`) — a
+  first-class control on this tab, taller than the compact 32px Select
+  elsewhere (round-3 UI feedback).
+- The wizard content region carries **no wrapper surface** — the legacy
+  `.review-wizard` card background is gone; the step panels are the only
+  raised surfaces and sit directly on the page background (round-3 UI
+  feedback, matching the mockup's panel-on-page structure).
 
 ### Cycle picker (review tab only)
 
