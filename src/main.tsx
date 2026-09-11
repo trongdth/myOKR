@@ -7,6 +7,7 @@ import { initAndMigrateData, getAutomergeDoc, updateAutomergeDoc, flushAutomerge
 import { getEffectiveCurrentValue, getEffectiveCurrentValueAsOf, isTickInCycleMonth } from "./lib/okr-storage";
 
 const SelectFixture = lazy(() => import("./components/dev/SelectFixture"));
+const CyclePickerFixture = lazy(() => import("./components/dev/CyclePickerFixture"));
 
 // Expose data-layer hooks for E2E tests, but only in dev (the Playwright webServer
 // runs `vite`, where import.meta.env.DEV is true). Strip them from prod bundles so a
@@ -27,8 +28,11 @@ if (import.meta.env.DEV) {
 // before App mounts — so the fixture never runs App's effects/handlers, and no
 // handler-declaration ordering inside App can affect it. Statically false in prod
 // builds, so the fixture chunk never loads there.
-const isSelectFixture = import.meta.env.DEV
-  && new URLSearchParams(window.location.search).get("fixture") === "select";
+const fixtureParam = import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get("fixture")
+  : null;
+const isSelectFixture = fixtureParam === "select";
+const isCyclePickerFixture = fixtureParam === "cycle-picker";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -36,6 +40,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       {isSelectFixture ? (
         <Suspense fallback={null}>
           <SelectFixture />
+        </Suspense>
+      ) : isCyclePickerFixture ? (
+        <Suspense fallback={null}>
+          <CyclePickerFixture />
         </Suspense>
       ) : (
         <SessionProvider>

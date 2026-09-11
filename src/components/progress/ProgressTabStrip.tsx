@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
 import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
@@ -8,35 +8,69 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export function ProgressHeader({
   activeCycle,
+  title,
+  badge,
+  subtitle,
   right,
+  alignEnd = false,
 }: {
   activeCycle?: OKRCycle | null;
+  title?: string;
+  badge?: ReactNode;
+  subtitle?: ReactNode;
   right?: ReactNode;
+  /** Bottom-align the right slot with the header block (used when the slot
+   *  carries a finished review's action button — it lines up with the
+   *  completed line instead of floating at the title row). */
+  alignEnd?: boolean;
 }) {
-  const cycleTitle = activeCycle
+  const cycleTitle = title ?? (activeCycle
     ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`)
-    : 'Progress';
+    : 'Progress');
 
   return (
-    <div className="tasks-view-header progress-header">
+    <div className={`tasks-view-header progress-header${alignEnd ? ' align-end' : ''}`}>
       <div className="tasks-header-left">
         <h2 className="plan-header-eyebrow tasks-title">PROGRESS</h2>
         <div className="plan-header-title-row">
           <h1 className="plan-header-title">{cycleTitle}</h1>
+          {badge}
         </div>
+        {subtitle}
       </div>
       {right && <div className="tasks-header-right">{right}</div>}
     </div>
   );
 }
 
-export type ProgressTab = 'analytics' | 'weekly-review';
+export type ProgressTab = 'analytics' | 'objectives-progress' | 'weekly-review';
+
+// "25–31 May" (same month) / "29 Sep–5 Oct" (spanning) — shared by the
+// header's week h1 and the CycleWeekPicker's week rows.
+export function formatWeekSpan(monday: string): string {
+  const start = new Date(`${monday}T00:00:00Z`);
+  const end = new Date(`${monday}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const monthShort = (d: Date) => MONTHS[d.getUTCMonth()];
+  if (start.getUTCMonth() === end.getUTCMonth()) {
+    return `${start.getUTCDate()}–${end.getUTCDate()} ${monthShort(end)}`;
+  }
+  return `${start.getUTCDate()} ${monthShort(start)}–${end.getUTCDate()} ${monthShort(end)}`;
+}
+
+// "Week of 25–31 May" (same month) / "Week of 29 Sep–5 Oct" (spanning).
+export function formatWeekLabel(monday: string): string {
+  return `Week of ${formatWeekSpan(monday)}`;
+}
 
 interface ProgressTabStripProps {
   active: ProgressTab;
   activeCycle?: OKRCycle | null;
   selectedWeek?: number | 'all' | null;
   onSelectWeek?: (week: number | 'all') => void;
+  /** The review tab's own CycleWeekPicker node — replaces the strip's week
+   *  Select there (one selector per tab, 2026-09-07 decision). */
+  reviewPicker?: ReactNode;
 }
 
 export default function ProgressTabStrip({
@@ -44,7 +78,20 @@ export default function ProgressTabStrip({
   activeCycle,
   selectedWeek,
   onSelectWeek,
+  reviewPicker,
 }: ProgressTabStripProps) {
+  // The Weekly review tab carries a "step N/3" badge mirroring the wizard
+  // step in view (the wizard announces it via the myokr-review-step event);
+  // a finished review announces step: null — no steps remain.
+  const [reviewStep, setReviewStep] = useState<{ step: number; total: number } | null>(null);
+  useEffect(() => {
+    const handleStep = (e: Event) => {
+      const { step, total } = (e as CustomEvent).detail ?? {};
+      setReviewStep(typeof step === 'number' ? { step, total: typeof total === 'number' ? total : 3 } : null);
+    };
+    window.addEventListener('myokr-review-step', handleStep);
+    return () => window.removeEventListener('myokr-review-step', handleStep);
+  }, []);
   // Weeks follow the exclusive cycle-window rule (cycle-windows.ts), so the
   // option count always matches what Analytics renders per cycle. Today is
   // taken in UTC to match the windows' UTC-midnight arithmetic.
@@ -83,7 +130,14 @@ export default function ProgressTabStrip({
           className={`plan-tab${active === 'analytics' ? ' active' : ''}`}
           onClick={() => navigateToSection('analytics')}
         >
-          <span>Analytics</span>
+          <span>Focus analytics</span>
+        </button>
+        <button
+          type="button"
+          className={`plan-tab${active === 'objectives-progress' ? ' active' : ''}`}
+          onClick={() => navigateToSection('objectives-progress')}
+        >
+          <span>Objectives</span>
         </button>
         <button
           type="button"
@@ -91,11 +145,16 @@ export default function ProgressTabStrip({
           onClick={() => navigateToSection('weekly-review')}
         >
           <span>Weekly review</span>
+          {active === 'weekly-review' && reviewStep !== null && (
+            <span className="rw-tab-badge">step {reviewStep.step}/{reviewStep.total}</span>
+          )}
         </button>
       </div>
 
       <div className="plan-tab-strip-right">
-        {onSelectWeek && activeCycle && (
+        {active === 'weekly-review' && reviewPicker ? (
+          <div className="progress-review-picker">{reviewPicker}</div>
+        ) : onSelectWeek && activeCycle && (
           <div className="progress-week-select">
             <Select
               options={weekOptions}

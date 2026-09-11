@@ -26,6 +26,13 @@
   padding: 0;
 }
 
+/* Finished-review header: the action button bottom-aligns with the header
+   block so it sits on the completed line, not the title row (round-3
+   UI feedback). */
+.progress-header.align-end {
+  align-items: flex-end;
+}
+
 /* ===== PROGRESS TAB STRIP ===== */
 .progress-tab-strip {
   display: flex;
@@ -575,4 +582,176 @@
   .sessions-bar-track {
     width: 75%;
   }
+}
+
+/* ===== CycleWeekPicker (review tab's two-level selector, C1 anatomy) ===== */
+
+/* The review picker's trigger is this tab's first-class control — taller
+   than the compact 32px Select (round-3 UI feedback). */
+.cwp-trigger {
+  height: 40px;
+  padding: 0 14px;
+}
+
+.cwp-panel {
+  padding: 5px;
+}
+
+.cwp-search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 2px 3px 7px;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+
+.cwp-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.cwp-search input:focus {
+  outline: none;
+}
+
+.cwp-section-label {
+  padding: 4px 8px 5px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cwp-cycle-row,
+.cwp-week-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.cwp-cycle-row .cwp-chevron {
+  color: var(--text-muted);
+  transition: transform 120ms ease;
+  flex-shrink: 0;
+}
+
+.cwp-cycle-row .cwp-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.cwp-cycle-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cwp-check {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.cwp-week-row {
+  padding-left: 1.6rem;
+}
+
+.cwp-week-row.cwp-disabled {
+  cursor: default;
+  opacity: 0.4; /* C1 disabled state */
+}
+
+.cwp-week-row.cwp-disabled:hover {
+  background: transparent;
+}
+
+/* fixture page */
+.cwp-fixture {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.cwp-fixture-scenario {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cwp-fixture-commit {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ----- round-3 feedback: accordion weeks, statuses, reserved slots ----- */
+
+.cwp-scroll {
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+/* Sans meta at body-secondary contrast (round-3: mono + faint dropped). */
+.cwp-meta {
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* Uniform row heights across both lists. */
+.cwp-cycle-row,
+.cwp-week-row {
+  min-height: 34px;
+}
+
+.cwp-cycle-row.cwp-disabled {
+  cursor: default;
+  opacity: 0.4; /* C1 disabled state */
+}
+
+.cwp-cycle-row.cwp-disabled:hover {
+  background: transparent;
+}
+
+.cwp-weeks-block {
+  padding: 2px 0 4px;
+}
+
+.cwp-week-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cwp-status {
+  font-size: 0.68rem;
+  color: var(--text-secondary); /* ≥4.5:1 on the panel background */
+  flex-shrink: 0;
+}
+
+.cwp-draft {
+  color: var(--color-primary);
+}
+
+.cwp-this-week {
+  padding: 0.06rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  flex-shrink: 0;
 }

@@ -254,7 +254,129 @@ void main() {
     await provider.disconnectDropbox();
     expect(provider.isDropboxConnected, false);
   });
+
+  test('saving a review preserves fields the mobile wizard does not own', () async {
+    // The desktop review writes a structured `prompts` array (ADR-0019) that
+    // the mobile wizard knows nothing about. Mobile builds its review map
+    // from scratch and upserts it over the week's entry, so a wholesale
+    // replace silently deletes the desktop reflect answers for that week.
+    final tempDir = await Directory.systemTemp.createTemp('provider_review_merge');
+    addTearDown(() => tempDir.delete(recursive: true));
+    final okrStorage = OkrStorage(testDirectory: tempDir);
+    final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
+
+    await okrStorage.saveReviews([
+      {
+        'id': 'rev-w1',
+        'weekStartDate': '2026-08-31',
+        'weekEndDate': '2026-09-06',
+        'cycleId': 'c-sep',
+        'completedAt': '2026-09-07T20:00:00.000Z',
+        'entries': [
+          {'keyResultId': 'kr-1', 'previousValue': 0, 'currentValue': 4, 'confidence': 'on_track'}
+        ],
+        // Desktop-only: the thing this test protects.
+        'prompts': [
+          {'id': 'p-1', 'type': 'one_change', 'text': 'One change for next week?', 'answer': 'Timebox coverage.'}
+        ],
+        'pomodoroStats': {
+          'totalPomodoros': 4, 'totalFocusMinutes': 100, 'tasksCompleted': 1,
+          'pomodorosByKeyResult': {'kr-1': 4},
+        },
+      }
+    ]);
+
+    final provider = StorageProvider(okrStorage: okrStorage, pomodoroStorage: pomodoroStorage);
+    await provider.loadAllData();
+    expect(provider.reviews.length, 1);
+
+    // Mobile re-finishes the same week, writing only what it owns.
+    await provider.saveReview(<String, dynamic>{
+      'weekStartDate': '2026-08-31',
+      'weekEndDate': '2026-09-06',
+      'cycleId': 'c-sep',
+      'completedAt': '2026-09-08T09:00:00.000Z',
+      'entries': [
+        {'keyResultId': 'kr-1', 'previousValue': 0, 'currentValue': 5, 'confidence': 'on_track'}
+      ],
+      'reflection': null,
+      'pomodoroStats': {
+        'totalPomodoros': 5, 'totalFocusMinutes': 125, 'tasksCompleted': 1,
+        'pomodorosByKeyResult': {'kr-1': 5},
+      },
+    });
+
+    final stored = (await okrStorage.loadReviews()).single;
+    expect(stored['prompts'], isNotNull, reason: 'desktop reflect answers must survive');
+    expect((stored['prompts'] as List).single['answer'], 'Timebox coverage.');
+    // Mobile's own fields still win.
+    expect(stored['completedAt'], '2026-09-08T09:00:00.000Z');
+    expect((stored['entries'] as List).single['currentValue'], 5);
+  });
+
+  test('saving a review treats null-valued keys as not owned, and inserts cleanly', () async {
+    final tempDir = await Directory.systemTemp.createTemp('provider_review_null_merge');
+    addTearDown(() => tempDir.delete(recursive: true));
+    final okrStorage = OkrStorage(testDirectory: tempDir);
+    final pomodoroStorage = PomodoroStorage(testDirectory: tempDir);
+
+    // A legacy desktop review carries a free-text `reflection`; the mobile
+    // wizard always emits `reflection: null` when its box is empty, and a
+    // raw spread would let that null erase the stored string.
+    await okrStorage.saveReviews([
+      {
+        'id': 'rev-w2',
+        'weekStartDate': '2026-09-07',
+        'weekEndDate': '2026-09-13',
+        'cycleId': 'c-sep',
+        'completedAt': '2026-09-14T20:00:00.000Z',
+        'entries': <dynamic>[],
+        'reflection': 'Kept the mornings free.',
+        'pomodoroStats': {
+          'totalPomodoros': 0, 'totalFocusMinutes': 0, 'tasksCompleted': 0,
+          'pomodorosByKeyResult': <String, int>{},
+        },
+      }
+    ]);
+
+    final provider = StorageProvider(okrStorage: okrStorage, pomodoroStorage: pomodoroStorage);
+    await provider.loadAllData();
+
+    await provider.saveReview(<String, dynamic>{
+      'weekStartDate': '2026-09-07',
+      'weekEndDate': '2026-09-13',
+      'cycleId': 'c-sep',
+      'completedAt': '2026-09-15T09:00:00.000Z',
+      'entries': <dynamic>[],
+      'reflection': null,
+      'pomodoroStats': {
+        'totalPomodoros': 1, 'totalFocusMinutes': 25, 'tasksCompleted': 0,
+        'pomodorosByKeyResult': <String, int>{},
+      },
+    });
+
+    final stored = (await okrStorage.loadReviews()).single;
+    expect(stored['reflection'], 'Kept the mornings free.',
+        reason: 'a null from the wizard means "no opinion", not "erase"');
+    expect(stored['completedAt'], '2026-09-15T09:00:00.000Z');
+
+    // First-time insert (no existing entry): id is assigned, fields persist.
+    await provider.saveReview(<String, dynamic>{
+      'weekStartDate': '2026-09-14',
+      'weekEndDate': '2026-09-20',
+      'cycleId': 'c-sep',
+      'completedAt': '2026-09-21T09:00:00.000Z',
+      'entries': <dynamic>[],
+      'reflection': null,
+      'pomodoroStats': {
+        'totalPomodoros': 0, 'totalFocusMinutes': 0, 'tasksCompleted': 0,
+        'pomodorosByKeyResult': <String, int>{},
+      },
+    });
+    final all = await okrStorage.loadReviews();
+    expect(all.length, 2);
+    final inserted = all.firstWhere((r) => r['weekStartDate'] == '2026-09-14');
+    expect((inserted['id'] as String?)?.isNotEmpty, true);
+    expect(inserted['completedAt'], '2026-09-21T09:00:00.000Z');
+  });
 }
-
-
-

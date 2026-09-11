@@ -61,7 +61,7 @@ async function navTo(page: Page, title: string) {
   if (!await btn.isVisible()) {
     if (['Tasks', 'Objectives', 'Done'].includes(title)) {
       await page.locator('button[title="Plan"]').first().click();
-    } else if (['Analytics', 'Weekly review'].includes(title)) {
+    } else if (['Focus analytics', 'Weekly review'].includes(title)) {
       await page.locator('button[title="Progress"]').first().click();
     } else if (['Day plan', 'Session', 'Habits'].includes(title)) {
       await page.locator('button[title="Focus"]').first().click();
@@ -91,7 +91,7 @@ async function navTo(page: Page, title: string) {
   });
 
   test('capture analytics view', async ({ page }) => {
-    await navTo(page, 'Analytics');
+    await navTo(page, 'Focus analytics');
     await page.waitForTimeout(500);
 
     await page.screenshot({

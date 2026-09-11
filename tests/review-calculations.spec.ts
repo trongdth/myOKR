@@ -14,7 +14,7 @@ test.describe('Weekly Review Calculations & Repair', () => {
     // inside the Progress shell (start card, no review-header-title).
     await page.locator('button[title="Progress"]').click();
     await page.locator('button[title="Weekly review"]').click();
-    await expect(page.locator('.review-start-card')).toBeVisible();
+    await expect(page.locator('.review-container')).toBeVisible();
 
     // Seed mock cycle, objective, KR, task, and history into Automerge doc
     await page.evaluate(async () => {
@@ -118,62 +118,58 @@ test.describe('Weekly Review Calculations & Repair', () => {
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
 
-    // Wait for the UI to reload and show the June 2026 cycle in the Progress
-    // header (the review's own cycle picker is gone in embed mode)
-    await expect(page.locator('.plan-header-title')).toContainText('June 2026', { timeout: 10000 });
+    // The review tab's CycleWeekPicker drives the week.
+    const picker = page.locator('[aria-label="Review cycle and week"]');
+    await expect(picker).toBeVisible({ timeout: 10000 });
 
-    // Select Week 1: June 1st to June 7th
-    await page.locator('[aria-label="Review week"]').click();
-    await page.locator('.sel-panel .sel-row', { hasText: '2026-06-01 to 2026-06-07' }).click();
+    // Select Week 1: June 1st to June 7th (all June weeks are finished today)
+    await picker.click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
+    await page.waitForTimeout(300);
 
-    // Start Week 1 Review
-    await page.locator('button:has-text("Start Weekly Review")').click();
-    await expect(page.locator('text=Step 1 of 3')).toBeVisible(); // 1 KR -> total 3 steps (summary + 1 KR + reflection)
+    // The wizard opens directly on the glance step.
+    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
 
-    // Move past summary step
-    await page.locator('button.review-nav-btn.primary').click();
+    // Move to the scoring step.
+    await page.locator('.rw-rail-item:has-text("Score key results")').click();
 
-    // Verify KR previous and current values on step 2 (KR step)
-    // Previous should be 0 (since no pomodoros existed before June 1)
-    // Current should be 5 (5 pomodoros completed in Week 1)
-    await expect(page.locator('.review-kr-step')).toContainText('Focus Pomodoros KR');
-    await expect(page.locator('.review-kr-previous .review-kr-previous-value')).toContainText('0');
-    await expect(page.locator('.review-kr-current .review-kr-current-value')).toContainText('5');
+    // Verify the KR's values on step 2. Current should be 5 (5 pomodoros
+    // completed in Week 1); the delta "+5 this week" is current − previous,
+    // so it pins previous = 0 (a wrong previous of 5 would read "no change").
+    const krRowW1 = page.locator('.rw-score-row:has-text("Focus Pomodoros KR")');
+    await expect(krRowW1.locator('.rw-kr-value-auto')).toHaveText('5');
+    await expect(krRowW1.locator('.rw-delta-pos')).toHaveText('+5 this week');
 
-    // Complete the wizard for Week 1
+    // Score and continue to reflection, then finish.
     await page.locator('button:has-text("On Track")').click();
-    await page.locator('button.review-nav-btn.primary').click();
-    await page.locator('textarea.review-notes-textarea').fill('Week 1 completed reflection');
-    await page.locator('button:has-text("Complete Review")').click();
+    await page.locator('.rw-btn:has-text("Continue to reflection")').click();
+    await page.locator('.rw-prompt-textarea').first().fill('Week 1 completed reflection');
+    await page.locator('button:has-text("Finish review")').click();
 
-    // Confirm Week 1 Review is saved
-    await expect(page.locator('text=This week\'s review is complete!')).toBeVisible();
+    // Confirm Week 1 Review is saved — the week now renders the summary.
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
 
     // Now select Week 2: June 8th to June 14th
-    await page.locator('[aria-label="Review week"]').click();
-    await page.locator('.sel-panel .sel-row', { hasText: '2026-06-08 to 2026-06-14' }).click();
+    await picker.click();
+    await page.locator('.cwp-panel .cwp-week-row').nth(1).click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
 
-    // Start Week 2 Review
-    await page.locator('button:has-text("Start Weekly Review")').click();
-    await expect(page.locator('text=Step 1 of 3')).toBeVisible();
+    await page.locator('.rw-rail-item:has-text("Score key results")').click();
 
-    // Move past summary step
-    await page.locator('button.review-nav-btn.primary').click();
+    // Current should be 10 (cumulative to June 14: 5 in Week 1 + 5 in Week 2)
+    // and the delta stays +5, which pins previous = 5 (cumulative to the
+    // previous Sunday, June 7) — a wrong previous of 0 would read "+10".
+    const krRowW2 = page.locator('.rw-score-row:has-text("Focus Pomodoros KR")');
+    await expect(krRowW2.locator('.rw-kr-value-auto')).toHaveText('10');
+    await expect(krRowW2.locator('.rw-delta-pos')).toHaveText('+5 this week');
 
-    // Verify KR previous and current values on step 2 (KR step)
-    // Previous should be 5 (cumulative up to previous Sunday, June 7)
-    // Current should be 10 (cumulative up to June 14: 5 in Week 1 + 5 in Week 2)
-    await expect(page.locator('.review-kr-step')).toContainText('Focus Pomodoros KR');
-    await expect(page.locator('.review-kr-previous .review-kr-previous-value')).toContainText('5');
-    await expect(page.locator('.review-kr-current .review-kr-current-value')).toContainText('10');
-
-    // Complete the wizard for Week 2
     await page.locator('button:has-text("On Track")').click();
-    await page.locator('button.review-nav-btn.primary').click();
-    await page.locator('textarea.review-notes-textarea').fill('Week 2 completed reflection');
-    await page.locator('button:has-text("Complete Review")').click();
+    await page.locator('.rw-btn:has-text("Continue to reflection")').click();
+    await page.locator('.rw-prompt-textarea').first().fill('Week 2 completed reflection');
+    await page.locator('button:has-text("Finish review")').click();
 
-    // Confirm Week 2 Review is saved
-    await expect(page.locator('text=This week\'s review is complete!')).toBeVisible();
-  });
+    // Confirm Week 2 Review is saved — the week now renders the summary.
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
+});
 });

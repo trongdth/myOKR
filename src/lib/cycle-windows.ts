@@ -1,11 +1,13 @@
 /**
- * Exclusive cycle-week membership for the Progress screen.
+ * Exclusive cycle-week membership for the whole Progress group.
  *
  * `getMondaysForCycle` (okr-storage) lists every week *intersecting* the
  * month, so the boundary week containing the 1st of the next month (e.g.
  * Aug 31–Sep 6 2026) belongs to both cycles. Counting it in both makes the
  * cycle KPI trajectory double-count that week's sessions ("0 vs last cycle"
- * when the previous month had none of its own).
+ * when the previous month had none of its own). It is kept only as a
+ * test/legacy convenience — since ADR-0019 the weekly review uses this
+ * exclusive list too.
  *
  * Rule: a boundary week belongs to the cycle it *opens* — the week containing
  * the cycle's own 1st stays, the week containing the *next* month's 1st is
@@ -46,4 +48,15 @@ export function getExclusiveCycleMondays(cycle: { month: number | null; year: nu
     mondays.push(mondayStr);
   }
   return mondays;
+}
+
+/** The Sunday of a cycle's last exclusive week — the derived date a past
+ *  cycle "closed" (April 2026 → 26 Apr: the Apr 27 week opens May). */
+export function getCycleClosedDate(cycle: { month: number | null; year: number | null }): string | null {
+  const mondays = getExclusiveCycleMondays(cycle);
+  if (mondays.length === 0) return null;
+  const last = mondays[mondays.length - 1];
+  const d = new Date(`${last}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().slice(0, 10);
 }

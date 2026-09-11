@@ -1,0 +1,447 @@
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
+import { findReviewForWeek, getMonthName, isDraftReview, type OKRCycle, type WeeklyReview } from '../../lib/okr-storage';
+import { formatWeekSpan } from './ProgressTabStrip';
+
+// The Weekly review tab's two-level selector (second grilling round, amended
+// by round-3 user feedback): cycle rows steer an ACCORDION weeks block nested
+// beneath the expanded cycle; commit happens on week rows only. Unfinished
+// weeks (Sunday not passed) and cycles with zero finished weeks are disabled
+// — only finished weeks are reviewable. Built on the Select's C1 anatomy
+// (ADR-0018 addendum: a composed two-level menu, not a Select variant).
+
+const PANEL_GAP = 6;
+const SEARCH_THRESHOLD = 6; // search appears beyond this many cycles
+
+export interface CycleWeekSelection {
+  cycleId: string;
+  weekStart: string;
+}
+
+interface WeekRowData {
+  weekStart: string;
+  weekEnd: string;
+  span: string;
+  index: number;
+  total: number;
+  finished: boolean;
+  draft: boolean;
+  reviewed: boolean;
+  isThisWeek: boolean;
+}
+
+interface CycleRowData {
+  cycle: OKRCycle;
+  name: string;
+  weeks: WeekRowData[];
+  completed: number;
+  meta: string;
+  enabled: boolean; // has at least one finished week
+}
+
+function endOfWeek(monday: string): string {
+  const d = new Date(`${monday}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Token-AND haystack for search: every date in the span, so "14 Apr" finds
+ *  the week containing Apr 14 even though the label reads "13–19 Apr". */
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function weekHaystack(weekStart: string): string {
+  const parts: string[] = [];
+  const d = new Date(`${weekStart}T00:00:00Z`);
+  for (let i = 0; i < 7; i++) {
+    parts.push(`${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return parts.join(' ').toLowerCase();
+}
+
+export default function CycleWeekPicker({
+  cycles,
+  reviews,
+  selected,
+  todayStr,
+  onCommit,
+  ariaLabel = 'Review cycle and week',
+}: {
+  cycles: OKRCycle[];
+  reviews: WeeklyReview[];
+  selected: CycleWeekSelection | null;
+  todayStr: string;
+  onCommit: (selection: CycleWeekSelection) => void;
+  ariaLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  // Expansion is transient browsing state: it follows the selected cycle
+  // until the user steers it (cycle click / ArrowRight); ArrowLeft collapses.
+  const [browsedCycleId, setBrowsedCycleId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const cycleRows = useMemo<CycleRowData[]>(() => {
+    return [...cycles]
+      .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month))
+      .map(cycle => {
+        const mondays = getExclusiveCycleMondays(cycle);
+        const weeks: WeekRowData[] = mondays.map((monday, i) => {
+          const weekEnd = endOfWeek(monday);
+          const found = findReviewForWeek(reviews, monday);
+          return {
+            weekStart: monday,
+            weekEnd,
+            span: formatWeekSpan(monday),
+            index: i + 1,
+            total: mondays.length,
+            finished: weekEnd < todayStr,
+            draft: !!found && isDraftReview(found),
+            reviewed: !!found && !isDraftReview(found),
+            isThisWeek: monday <= todayStr && todayStr <= weekEnd,
+          };
+        });
+        const completed = weeks.filter(w => w.reviewed).length;
+        const meta = `${completed} of ${weeks.length} reviewed`;
+        return { cycle, name: cycle.name || getMonthName(cycle.month, cycle.year), weeks, completed, meta, enabled: weeks.some(w => w.finished) };
+      });
+  }, [cycles, reviews, todayStr]);
+
+  const showSearch = cycles.length > SEARCH_THRESHOLD;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return { rows: cycleRows, weekFilter: null as Map<string, WeekRowData[]> | null };
+    const tokens = q.split(/\s+/);
+    const matches = (hay: string) => tokens.every(t => hay.includes(t));
+    const weekFilter = new Map<string, WeekRowData[]>();
+    const rows: CycleRowData[] = [];
+    for (const row of cycleRows) {
+      if (!row.enabled) continue; // disabled cycles are invisible to search
+      const cycleMatch = matches(`${row.name} ${row.cycle.year}`.toLowerCase());
+      const weekMatches = row.weeks.filter(w => matches(weekHaystack(w.weekStart)));
+      if (cycleMatch) {
+        rows.push(row);
+      } else if (weekMatches.length > 0) {
+        weekFilter.set(row.cycle.id, weekMatches);
+        rows.push(row);
+      }
+    }
+    return { rows, weekFilter };
+  }, [cycleRows, query]);
+
+  const visibleWeeks = (row: CycleRowData): WeekRowData[] =>
+    filtered.weekFilter?.get(row.cycle.id) ?? row.weeks;
+
+  const expandedCycleId = collapsed ? null : (browsedCycleId ?? selected?.cycleId ?? null);
+  const expandedRow = expandedCycleId
+    ? filtered.rows.find(r => r.cycle.id === expandedCycleId)
+    : undefined;
+
+  // Flattened interactive rows for keyboard roving: enabled cycle rows +
+  // committable week rows of the expanded cycle. Disabled cycles and weeks
+  // are skipped, like Select's disabled options.
+  const flatRows = useMemo(() => {
+    const flat: { key: string; kind: 'cycle' | 'week'; row?: CycleRowData; week?: WeekRowData }[] = [];
+    for (const row of filtered.rows) {
+      if (!row.enabled) continue;
+      flat.push({ key: `cycle:${row.cycle.id}`, kind: 'cycle', row });
+      if (row.cycle.id === expandedRow?.cycle.id) {
+        for (const w of visibleWeeks(row)) {
+          if (w.finished) flat.push({ key: `week:${row.cycle.id}:${w.weekStart}`, kind: 'week', row, week: w });
+        }
+      }
+    }
+    return flat;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, expandedRow?.cycle.id]);
+
+  const selectedCycleName = selected ? cycleRows.find(r => r.cycle.id === selected.cycleId)?.name : undefined;
+  const selectedWeek = selected ? cycleRows.find(r => r.cycle.id === selected.cycleId)
+    ?.weeks.find(w => w.weekStart === selected.weekStart) : undefined;
+  const triggerLabel = selectedCycleName && selectedWeek
+    ? `${selectedCycleName} · week ${selectedWeek.index} of ${selectedWeek.total}`
+    : 'Choose a week';
+
+  const openPanel = () => {
+    setOpen(true);
+    setQuery('');
+    setCollapsed(false);
+    setBrowsedCycleId(null);
+    const firstActive = selected
+      ? `week:${selected.cycleId}:${selected.weekStart}`
+      : flatRows[0]?.key ?? null;
+    // flatRows is the render-time memo: while the accordion was collapsed it
+    // omits week rows entirely, so resolve the selected week against the
+    // full model instead of trusting the stale list.
+    const exists = selected
+      ? cycleRows.some(r => r.cycle.id === selected.cycleId
+          && r.weeks.some(w => w.weekStart === selected.weekStart))
+      : flatRows.some(r => r.key === firstActive);
+    setActiveKey(exists ? firstActive : flatRows[0]?.key ?? null);
+  };
+
+  const commitWeek = (row: CycleRowData, week: WeekRowData) => {
+    if (!week.finished) return;
+    onCommit({ cycleId: row.cycle.id, weekStart: week.weekStart });
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        openPanel();
+      }
+      return;
+    }
+    const idx = flatRows.findIndex(r => r.key === activeKey);
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowUp':
+      case 'Home':
+      case 'End': {
+        e.preventDefault();
+        if (flatRows.length === 0) return;
+        let next: number;
+        if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = flatRows.length - 1;
+        else {
+          const dir = e.key === 'ArrowDown' ? 1 : -1;
+          next = idx < 0 ? (dir > 0 ? 0 : flatRows.length - 1) : (idx + dir + flatRows.length) % flatRows.length;
+        }
+        setActiveKey(flatRows[next].key);
+        break;
+      }
+      case 'ArrowRight': {
+        // Expand the active cycle (browsing only — selection needs a week).
+        e.preventDefault();
+        const current = flatRows[idx];
+        if (current?.kind === 'cycle' && current.row) { setBrowsedCycleId(current.row.cycle.id); setCollapsed(false); }
+        break;
+      }
+      case 'ArrowLeft': {
+        // Collapse the expanded cycle's weeks block.
+        e.preventDefault();
+        setCollapsed(true);
+        break;
+      }
+      case 'Enter': {
+        e.preventDefault();
+        const current = flatRows[idx];
+        if (!current) return;
+        if (current.kind === 'cycle' && current.row) { setBrowsedCycleId(current.row.cycle.id); setCollapsed(false); }
+        else if (current.kind === 'week' && current.row && current.week) commitWeek(current.row, current.week);
+        break;
+      }
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+        // C1: Esc closes with focus returned to the trigger — the portal is
+        // about to unmount, so focus would otherwise be lost.
+        triggerRef.current?.focus();
+        break;
+      case 'Tab':
+        setOpen(false);
+        break;
+    }
+  };
+
+  // Outside-click closes (panel is portaled to <body>).
+  useLayoutEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  // Fixed-position the portaled panel from the trigger rect: left edge
+  // aligned to the trigger and clamped to the viewport; flip above when
+  // there is more room there (Select's placement contract).
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const trigger = triggerRef.current;
+      const panel = panelRef.current;
+      if (!trigger || !panel) return;
+      const rect = trigger.getBoundingClientRect();
+      const panelHeight = panel.offsetHeight;
+      const roomBelow = window.innerHeight - rect.bottom - PANEL_GAP;
+      const roomAbove = rect.top - PANEL_GAP;
+      const above = roomBelow < panelHeight && roomAbove > roomBelow;
+      const width = Math.max(rect.width, 300);
+      const left = Math.min(Math.max(8, rect.left), window.innerWidth - 8 - width);
+      const next = {
+        top: above ? rect.top - PANEL_GAP - panelHeight : rect.bottom + PANEL_GAP,
+        left,
+        width,
+        above,
+      };
+      setPos(prev =>
+        prev && prev.top === next.top && prev.left === next.left && prev.width === next.width && prev.above === next.above
+          ? prev
+          : next);
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, expandedCycleId, query]);
+
+  // Focus the search field on open when present; keep the roving row in view.
+  useLayoutEffect(() => {
+    if (open && showSearch) searchRef.current?.focus();
+  }, [open, showSearch]);
+
+  useLayoutEffect(() => {
+    if (!open || activeKey == null) return;
+    panelRef.current
+      ?.querySelector(`[data-key=${CSS.escape(activeKey)}]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [activeKey, open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`sel-trigger boxed cwp-trigger${open ? ' sel-open' : ''}`}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => (open ? setOpen(false) : openPanel())}
+        onKeyDown={handleKeyDown}
+      >
+        <span className={`sel-text${selected ? '' : ' sel-placeholder'}`} title={triggerLabel}>
+          {triggerLabel}
+        </span>
+        <ChevronDown size={14} className="sel-chevron" aria-hidden="true" />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            role="listbox"
+            className={`sel-panel cwp-panel${pos?.above ? ' sel-open-above' : ''}`}
+            style={pos ? { top: pos.top, left: pos.left, width: pos.width } : undefined}
+            onKeyDown={handleKeyDown}
+          >
+            {showSearch && (
+              <div className="cwp-search">
+                <Search size={13} className="icon-inline" />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Find a cycle or week"
+                  aria-label="Find a cycle or week"
+                />
+              </div>
+            )}
+
+            <div className="cwp-scroll">
+              <div className="cwp-section-label">Cycle</div>
+              {filtered.rows.length === 0 && <div className="sel-row sel-empty cwp-empty">No cycle or week matches ‘{query.trim()}’</div>}
+              {filtered.rows.map(row => {
+                const isSelectedCycle = selected?.cycleId === row.cycle.id;
+                const isExpanded = expandedRow?.cycle.id === row.cycle.id;
+                return (
+                  <div key={row.cycle.id}>
+                    <div
+                      role="option"
+                      aria-selected={isSelectedCycle}
+                      aria-disabled={!row.enabled}
+                      data-key={`cycle:${row.cycle.id}`}
+                      className={`sel-row cwp-cycle-row${row.enabled ? '' : ' cwp-disabled'}${activeKey === `cycle:${row.cycle.id}` ? ' sel-active' : ''}`}
+                      onClick={() => { if (row.enabled) { setBrowsedCycleId(row.cycle.id); setCollapsed(false); } }}
+                      onMouseEnter={() => { if (row.enabled) setActiveKey(`cycle:${row.cycle.id}`); }}
+                    >
+                      {row.enabled && (
+                        <ChevronRight size={12} className={`cwp-chevron${isExpanded ? ' expanded' : ''}`} />
+                      )}
+                      <span className="cwp-cycle-name">{row.name}</span>
+                      <span className="cwp-meta">{row.meta}</span>
+                    </div>
+                    {isExpanded && (
+                      <div className="cwp-weeks-block">
+                        {visibleWeeks(row).map(w => {
+                          const isSelectedWeek = selected?.cycleId === row.cycle.id && selected.weekStart === w.weekStart;
+                          const status = w.draft ? 'Draft' : w.reviewed ? 'Reviewed' : 'Not reviewed';
+                          return (
+                            <div
+                              key={w.weekStart}
+                              role="option"
+                              aria-selected={isSelectedWeek}
+                              aria-disabled={!w.finished}
+                              data-key={`week:${row.cycle.id}:${w.weekStart}`}
+                              className={`sel-row cwp-week-row${w.finished ? '' : ' cwp-disabled'}${isSelectedWeek ? ' cwp-selected' : ''}${activeKey === `week:${row.cycle.id}:${w.weekStart}` ? ' sel-active' : ''}`}
+                              onClick={() => commitWeek(row, w)}
+                              onMouseEnter={() => { if (w.finished) setActiveKey(`week:${row.cycle.id}:${w.weekStart}`); }}
+                            >
+                              <span className="cwp-week-label">Week {w.index} · {w.span}</span>
+                              {w.isThisWeek && !w.finished && <span className="cwp-this-week">This week</span>}
+                              {isSelectedWeek
+                                ? <Check size={13} className="cwp-check" />
+                                : w.finished && <span className={`cwp-status${w.draft ? ' cwp-draft' : ''}`}>{status}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+/** Default review selection: the cycle today falls in, else the newest, and
+ *  within it the most recent finished week — walking older cycles until one
+ *  has any. Null when nothing anywhere has finished yet.
+ *
+ *  Calendar-first, matching `resolveCurrentCycle`: the stored `isActive`
+ *  flag goes stale (cycles are created inactive, so a long-past cycle can
+ *  stay flagged forever), which pinned this picker months back. */
+export function defaultReviewSelection(
+  cycles: OKRCycle[],
+  todayStr: string,
+): CycleWeekSelection | null {
+  const byNewest = [...cycles].sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
+  const [todayYear, todayMonth] = todayStr.split('-').map(Number);
+  const currentCycle = cycles.find(c => c.year === todayYear && c.month === todayMonth - 1);
+  const ordered = currentCycle
+    ? [currentCycle, ...byNewest.filter(c => c.id !== currentCycle.id)]
+    : byNewest;
+  for (const cycle of ordered) {
+    const mondays = getExclusiveCycleMondays(cycle);
+    for (let i = mondays.length - 1; i >= 0; i--) {
+      if (endOfWeek(mondays[i]) < todayStr) {
+        return { cycleId: cycle.id, weekStart: mondays[i] };
+      }
+    }
+  }
+  return null;
+}

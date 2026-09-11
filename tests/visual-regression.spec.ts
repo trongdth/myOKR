@@ -39,7 +39,7 @@ test.describe('Visual regression (1a redesign)', () => {
     ['today', 'Day plan'],
     ['timer', 'Session'],
     ['tasks', 'Tasks'],
-    ['analytics', 'Analytics'],
+    ['analytics', 'Focus analytics'],
     ['okrs', 'Objectives'],
     ['habits', 'Habits'],
     ['review', 'Weekly review'],
@@ -52,7 +52,7 @@ test.describe('Visual regression (1a redesign)', () => {
       if (!await btn.isVisible()) {
         if (['Tasks', 'Objectives', 'Done'].includes(label)) {
           await page.locator('[title="Plan"]').first().click();
-        } else if (['Analytics', 'Weekly review'].includes(label)) {
+        } else if (['Focus analytics', 'Weekly review'].includes(label)) {
           await page.locator('[title="Progress"]').first().click();
         } else if (['Day plan', 'Session', 'Habits'].includes(label)) {
           await page.locator('[title="Focus"]').first().click();

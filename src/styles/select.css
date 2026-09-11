@@ -118,7 +118,10 @@
 
 .sel-panel {
   position: fixed;
-  z-index: 1100; /* above the app's modal layer (1000) */
+  /* Panels are portaled to <body>, so this must clear every overlay that can
+     host a Select — app modals (1000) and the prioritize/confirm overlays
+     (2000) — or the overlay's buttons intercept the row clicks. */
+  z-index: 2100;
   max-width: 280px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);

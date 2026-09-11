@@ -1,16 +1,33 @@
-import { useState, useMemo } from 'react';
-import { ClipboardList, BarChart3, Timer, Clock, CheckCircle, MessageSquare } from 'lucide-react';
-import type { ReviewEntry, WeeklyReview, KeyResult, Objective, OKRCycle } from '../../lib/okr-storage';
-import { getEffectiveCurrentValueAsOf } from '../../lib/okr-storage';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Check } from 'lucide-react';
+import type { ReviewEntry, ReviewPrompt, WeeklyReview, KeyResult, Objective, OKRCycle } from '../../lib/okr-storage';
+import { getEffectiveCurrentValueAsOf, isDraftReview, findReviewForWeek, saveReviewDraft } from '../../lib/okr-storage';
 import type { PomodoroTask, DailyRecord } from '../../lib/pomodoro-storage';
 import { computeWeekTaskPomos } from '../../lib/pomodoro-storage';
 import type { Habit } from '../../lib/habit-storage';
-import ReviewStepKR from './ReviewStepKR';
+import {
+  computeWeekGlance, computeKrMoves, computeAtRiskStreaks, countWeekSessions,
+  cycleHasDerivedKrs, buildReflectPrompts, previousWeekCommitment,
+  type ReviewInsightsInput,
+} from '../../lib/review-insights';
+import WeekAtAGlance from './WeekAtAGlance';
+import ScoreKeyResults from './ScoreKeyResults';
+import ReflectStep from './ReflectStep';
+import FinishedReviewSummary, { type SummaryRow } from './FinishedReviewSummary';
+import type { ScoreRow } from './ReviewStepKR';
+
+const STEP_LABELS = ['Week at a glance', 'Score key results', 'Reflect'];
+const STEP_FOOTNOTES = [
+  'Step 1 of 3',
+  '',
+  'Step 3 of 3 · answers autosave',
+];
 
 interface Props {
   weekStart: string;
   weekEnd: string;
   cycleId: string;
+  todayStr: string;
   objectives: Objective[];
   keyResults: KeyResult[];
   tasks: PomodoroTask[];
@@ -20,227 +37,420 @@ interface Props {
   habits: Habit[];
   cycles: OKRCycle[];
   onComplete: (review: Omit<WeeklyReview, 'id'>) => void;
-  onCancel: () => void;
+  onDraftSaved?: () => void;
+  onLinkSessions?: () => void;
+  readOnly?: boolean;
 }
 
 export default function ReviewWizard({
-  weekStart, weekEnd, cycleId,
+  weekStart, weekEnd, cycleId, todayStr,
   objectives, keyResults, tasks, history, reviews, focusDurationMinutes,
   habits, cycles,
-  onComplete, onCancel,
+  onComplete, onDraftSaved, onLinkSessions, readOnly = false,
 }: Props) {
-  // Build list of KRs to review (only those belonging to objectives in the active cycle)
-  const cycleObjectives = objectives.filter(o => o.cycleId === cycleId);
-  const cycleKRs = keyResults.filter(kr =>
-    cycleObjectives.some(o => o.id === kr.objectiveId)
+  const cycleObjectives = useMemo(() => objectives.filter(o => o.cycleId === cycleId), [objectives, cycleId]);
+  const cycleKRs = useMemo(
+    () => keyResults.filter(kr => cycleObjectives.some(o => o.id === kr.objectiveId)),
+    [keyResults, cycleObjectives],
   );
 
-  // Steps: 0 = summary, 1..N = KR steps, N+1 = reflection
-  const totalSteps = cycleKRs.length + 2; // summary + KR steps + reflection
-  const [currentStep, setCurrentStep] = useState(0);
-  const [entries, setEntries] = useState<ReviewEntry[]>(() => {
-    const completedReviews = reviews
-      .filter(r => r.completedAt)
-      .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
+  const existing = findReviewForWeek(reviews, weekStart);
+  const draft = existing && isDraftReview(existing) ? existing : null;
+  // A completed review renders the Finished review summary from what was
+  // recorded at finish time — recomputed entries would show later task/KR
+  // state, not the week as reviewed.
+  const finishedReview = readOnly && existing && !isDraftReview(existing) ? existing : null;
 
-    // Calculate previous Sunday timezone-safely (day before weekStart)
+  // Derived key results are live truth: their values are a function of the
+  // tasks/history behind them, so linking sessions (or a task landing
+  // mid-review) must move the numbers the user is about to score.
+  const derivedValues = useMemo(() => {
     const [y, m, dayVal] = weekStart.split('-').map(Number);
     const prevDate = new Date(Date.UTC(y, m - 1, dayVal));
     prevDate.setUTCDate(prevDate.getUTCDate() - 1);
     const previousSunday = prevDate.toISOString().slice(0, 10);
 
+    const map = new Map<string, { previousValue: number; currentValue: number }>();
+    for (const kr of cycleKRs) {
+      if (kr.completionMode === 'manual' || !kr.completionMode) continue;
+      map.set(kr.id, {
+        previousValue: getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes, habits, objectives, cycles),
+        currentValue: getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes, habits, objectives, cycles),
+      });
+    }
+    return map;
+  }, [cycleKRs, tasks, history, weekStart, weekEnd, focusDurationMinutes, habits, objectives, cycles]);
+
+  // Entries: an in-progress draft wins; otherwise values carry over from
+  // tasks (derived) and the KR itself (manual). Confidence starts unset so
+  // "N of M key results scored" is honest.
+  const initialEntries = useMemo<ReviewEntry[]>(() => {
+    if (draft && draft.entries.length > 0) return draft.entries;
+    const completedReviews = reviews
+      .filter(r => r.completedAt)
+      .sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
+
     return cycleKRs.map(kr => {
-      const lastEntry = completedReviews
-        .flatMap(r => r.entries)
-        .find(e => e.keyResultId === kr.id);
-
+      const lastEntry = completedReviews.flatMap(r => r.entries).find(e => e.keyResultId === kr.id);
       const isManual = kr.completionMode === 'manual' || !kr.completionMode;
-      const previousValue = isManual
-        ? (lastEntry ? lastEntry.currentValue : 0)
-        : getEffectiveCurrentValueAsOf(kr, tasks, history, previousSunday, focusDurationMinutes, habits, objectives, cycles);
-
-      const currentValue = isManual
-        ? kr.currentValue
-        : getEffectiveCurrentValueAsOf(kr, tasks, history, weekEnd, focusDurationMinutes, habits, objectives, cycles);
-
+      const derived = derivedValues.get(kr.id);
       return {
         keyResultId: kr.id,
-        previousValue,
-        currentValue,
-        confidence: kr.confidence === 'not_set' ? 'on_track' : kr.confidence,
+        previousValue: isManual
+          ? (lastEntry ? lastEntry.currentValue : 0)
+          : (derived?.previousValue ?? 0),
+        currentValue: isManual
+          ? kr.currentValue
+          : (derived?.currentValue ?? 0),
+        confidence: kr.confidence,
       };
     });
-  });
-  const [reflection, setReflection] = useState('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Compute Pomodoro stats for this week
+  const insightsInput = useMemo<ReviewInsightsInput>(() => ({
+    weekStart, weekEnd, todayStr, cycleId,
+    tasks, history, habits, keyResults, objectives, cycles, reviews,
+    focusDurationMinutes,
+  }), [weekStart, weekEnd, todayStr, cycleId, tasks, history, habits, keyResults, objectives, cycles, reviews, focusDurationMinutes]);
+
+  const initialPrompts = useMemo<ReviewPrompt[]>(() => {
+    if (draft && draft.prompts && draft.prompts.length > 0) return draft.prompts;
+    return buildReflectPrompts(insightsInput);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [entries, setEntries] = useState<ReviewEntry[]>(initialEntries);
+  const [prompts, setPrompts] = useState<ReviewPrompt[]>(initialPrompts);
+  const [currentStep, setCurrentStep] = useState(() => {
+    // Fresh week: start at the glance. Resuming a draft: first step with
+    // unanswered work (grilling decision 14).
+    if (!draft) return 0;
+    const unscored = initialEntries.some(e => e.confidence === 'not_set');
+    if (unscored) return 1;
+    const unanswered = initialPrompts.some(p => !p.answer.trim());
+    if (unanswered) return 2;
+    return 0;
+  });
+
+  // Keep the derived rows in step with the data behind them. Only their
+  // values move — a manual value, a confidence or a note is the user's.
+  // Read-only renders the frozen stored review; refreshing entries there
+  // would dirty a draft that must not be written.
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+  useEffect(() => {
+    if (readOnly) return;
+    const prev = entriesRef.current;
+    let changed = false;
+    const next = prev.map(entry => {
+      const derived = derivedValues.get(entry.keyResultId);
+      if (!derived) return entry;
+      if (entry.currentValue === derived.currentValue && entry.previousValue === derived.previousValue) return entry;
+      changed = true;
+      return { ...entry, currentValue: derived.currentValue, previousValue: derived.previousValue };
+    });
+    if (!changed) return;
+    // The draft must carry the recomputed numbers too, or a reload would
+    // restore the stale ones.
+    dirtyRef.current = true;
+    setEntries(next);
+  }, [derivedValues]);
+
+  const glance = useMemo(() => computeWeekGlance(insightsInput), [insightsInput]);
+  const moves = useMemo(() => computeKrMoves(insightsInput), [insightsInput]);
+  const unlinked = useMemo(() => countWeekSessions(insightsInput), [insightsInput]);
+  const streaks = useMemo(() => computeAtRiskStreaks(reviews, weekStart), [reviews, weekStart]);
+  const commitment = useMemo(() => previousWeekCommitment(reviews, weekStart), [reviews, weekStart]);
+  const showLinkBanner = useMemo(() => cycleHasDerivedKrs(insightsInput), [insightsInput]);
+
   const pomodoroStats = useMemo(() => {
     const weekDays = history.filter(r => r.date >= weekStart && r.date <= weekEnd);
-    const totalPomodoros = weekDays.reduce((s, d) => s + d.completedPomodoros, 0);
-    const totalFocusMinutes = weekDays.reduce((s, d) => s + d.totalFocusMinutes, 0);
-    const tasksCompleted = tasks.filter(t =>
-      t.isCompleted && t.completedAt && t.completedAt >= weekStart && t.completedAt <= weekEnd
-    ).length;
-
-    const weekTaskPomos = computeWeekTaskPomos(history, weekStart, weekEnd);
     const taskMap = new Map(tasks.map(t => [t.id, t]));
-
+    const weekTaskPomos = computeWeekTaskPomos(history, weekStart, weekEnd);
     const pomodorosByKeyResult: Record<string, number> = {};
-    const linked: Record<string, Array<{ task: PomodoroTask | null; pomos: number }>> = {};
-
     for (const kr of cycleKRs) {
-      const krTasks: Array<{ task: PomodoroTask | null; pomos: number }> = [];
-      for (const [taskId, pomos] of weekTaskPomos) {
-        const task = taskMap.get(taskId) || null;
-        if (task?.keyResultId === kr.id || (!task && false)) {
-          // Include deleted tasks — check if any remaining linked task matches
-          // For deleted tasks we can't know the KR, so skip them for per-KR breakdown
-        }
-        if (task?.keyResultId === kr.id) {
-          krTasks.push({ task, pomos });
-        }
-      }
-      krTasks.sort((a, b) => b.pomos - a.pomos);
-      linked[kr.id] = krTasks;
-      pomodorosByKeyResult[kr.id] = krTasks.reduce((s, t) => s + t.pomos, 0);
+      pomodorosByKeyResult[kr.id] = [...weekTaskPomos.entries()]
+        .filter(([taskId]) => taskMap.get(taskId)?.keyResultId === kr.id)
+        .reduce((s, [, pomos]) => s + pomos, 0);
     }
+    return {
+      totalPomodoros: weekDays.reduce((s, d) => s + d.completedPomodoros, 0),
+      totalFocusMinutes: weekDays.reduce((s, d) => s + d.totalFocusMinutes, 0),
+      tasksCompleted: tasks.filter(t =>
+        t.isCompleted && t.completedAt && t.completedAt.slice(0, 10) >= weekStart && t.completedAt.slice(0, 10) <= weekEnd).length,
+      pomodorosByKeyResult,
+    };
+  }, [history, tasks, cycleKRs, weekStart, weekEnd]);
 
-    return { totalPomodoros, totalFocusMinutes, tasksCompleted, pomodorosByKeyResult, linked };
-  }, [weekStart, weekEnd, history, tasks, cycleKRs]);
+  // Both of these are per-week, not per-row: hoisted out of the map so they
+  // are built once per render instead of once per key result.
+  const scoreRowTaskMap = useMemo(() => new Map(tasks.map(t => [t.id, t])), [tasks]);
+  const scoreRowWeekPomos = useMemo(
+    () => computeWeekTaskPomos(history, weekStart, weekEnd),
+    [history, weekStart, weekEnd],
+  );
 
-  const updateEntry = (idx: number, updated: ReviewEntry) => {
-    const next = [...entries];
-    next[idx] = updated;
-    setEntries(next);
+  const scoreRows: ScoreRow[] = useMemo(() => entries
+    .map((entry): ScoreRow | null => {
+      const kr = cycleKRs.find(k => k.id === entry.keyResultId);
+      const objective = cycleObjectives.find(o => o.id === kr?.objectiveId);
+      if (!kr || !objective) return null;
+      const linkedTasksThisWeek = [...scoreRowWeekPomos.entries()]
+        .filter(([taskId]) => scoreRowTaskMap.get(taskId)?.keyResultId === kr.id)
+        .map(([taskId, pomos]) => ({ task: scoreRowTaskMap.get(taskId) ?? null, pomos }))
+        .sort((a, b) => b.pomos - a.pomos);
+      return {
+        entry, keyResult: kr, objective, linkedTasksThisWeek,
+        atRiskWeeksRunning: streaks.get(kr.id) ?? 0,
+      };
+    })
+    .filter((r): r is ScoreRow => r !== null), [entries, cycleKRs, cycleObjectives, scoreRowTaskMap, scoreRowWeekPomos, streaks]);
+
+  // ===== autosave (debounced; fire-and-forget per persistence rule 3) =====
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const dirtyRef = useRef(false);
+  const draftRef = useRef<WeeklyReview | null>(draft);
+  const timerRef = useRef<number | undefined>(undefined);
+
+  // Latest state for the unmount flush (refs stay fresh across renders).
+  const latestRef = useRef({ entries, prompts, pomodoroStats, weekStart, weekEnd, cycleId });
+  latestRef.current = { entries, prompts, pomodoroStats, weekStart, weekEnd, cycleId };
+
+  useEffect(() => {
+    if (readOnly || !dirtyRef.current) return;
+    setSaveState('saving');
+    window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(async () => {
+      // Read through latestRef: pomodoroStats can change without entries
+      // changing (linking sessions to a manual KR), and a closure-captured
+      // value would persist stale stats into the draft.
+      const l = latestRef.current;
+      const next: WeeklyReview = {
+        id: draftRef.current?.id ?? `draft-${l.weekStart}`,
+        weekStartDate: l.weekStart,
+        weekEndDate: l.weekEnd,
+        cycleId: l.cycleId,
+        entries: l.entries,
+        prompts: l.prompts,
+        pomodoroStats: l.pomodoroStats,
+      };
+      draftRef.current = next;
+      try {
+        await saveReviewDraft(next);
+        dirtyRef.current = false;
+        setSaveState('saved');
+        onDraftSaved?.();
+      } catch (err) {
+        // Persistence rule 3: non-fatal, but never silent.
+        console.error('review draft autosave failed', err);
+        setSaveState('idle');
+      }
+    }, 1000);
+    return () => window.clearTimeout(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, prompts]);
+
+  // Week switch / unmount with pending edits: flush instead of dropping the
+  // last keystroke (the debounce effect's cleanup only cancels the timer).
+  useEffect(() => () => {
+    if (!dirtyRef.current) return;
+    dirtyRef.current = false;
+    const l = latestRef.current;
+    saveReviewDraft({
+      id: draftRef.current?.id ?? `draft-${l.weekStart}`,
+      weekStartDate: l.weekStart,
+      weekEndDate: l.weekEnd,
+      cycleId: l.cycleId,
+      entries: l.entries,
+      prompts: l.prompts,
+      pomodoroStats: l.pomodoroStats,
+    }).then(() => onDraftSaved?.()).catch(err => {
+      // Persistence rule 3: non-fatal, but never silent.
+      console.error('review draft flush failed', err);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateEntry = (keyResultId: string, updated: ReviewEntry) => {
+    dirtyRef.current = true;
+    setEntries(prev => prev.map(e => e.keyResultId === keyResultId ? updated : e));
+  };
+  const updatePrompt = (promptId: string, answer: string) => {
+    dirtyRef.current = true;
+    setPrompts(prev => prev.map(p => p.id === promptId ? { ...p, answer } : p));
   };
 
+  // Tab-strip badge (step N/3 on the Weekly review tab); a finished review
+  // clears it — its steps are done, none remain (round 3).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('myokr-review-step', {
+      detail: readOnly
+        ? { step: null }
+        : { step: currentStep + 1, total: STEP_LABELS.length },
+    }));
+  }, [readOnly, currentStep]);
+
+  const summaryRows = useMemo<SummaryRow[]>(() => {
+    if (!finishedReview) return [];
+    return finishedReview.entries
+      .map((entry): SummaryRow | null => {
+        const kr = cycleKRs.find(k => k.id === entry.keyResultId);
+        return kr ? { entry, keyResult: kr } : null;
+      })
+      .filter((r): r is SummaryRow => r !== null);
+  }, [finishedReview, cycleKRs]);
+
+  // Stored stats drive the finished card/panel; normalizeReview guarantees
+  // the object on load, so a finishedReview always has one.
+  const finishedStats = finishedReview
+    ? finishedReview.pomodoroStats
+    : { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} };
+
+  const scoredCount = entries.filter(e => e.confidence !== 'not_set').length;
+
   const handleComplete = () => {
-    const { linked, ...statsToSave } = pomodoroStats;
+    window.clearTimeout(timerRef.current);
     onComplete({
       weekStartDate: weekStart,
       weekEndDate: weekEnd,
       cycleId,
-      completedAt: new Date().toISOString(),
       entries,
-      reflection: reflection.trim() || undefined,
-      pomodoroStats: statsToSave,
+      prompts,
+      pomodoroStats,
     });
   };
 
-  const isSummaryStep = currentStep === 0;
-  const isReflectionStep = currentStep === totalSteps - 1;
-  const krStepIndex = currentStep - 1; // 0-based index into cycleKRs
-
-  return (
-    <div className="review-wizard">
-      {/* Header */}
-      <div className="review-wizard-header">
-        <span className="review-wizard-title">
-          <ClipboardList size={16} className="icon-inline" /> Weekly review — Week of {weekStart}
-        </span>
-        <span className="review-wizard-step-info">
-          Step {currentStep + 1} of {totalSteps}
-        </span>
-      </div>
-
-      {/* Step indicator */}
-      <div className="review-step-indicator">
-        {Array.from({ length: totalSteps }, (_, i) => (
-          <div
-            key={i}
-            className={`review-step-dot${i < currentStep ? ' completed' : ''}${i === currentStep ? ' current' : ''}`}
-          />
-        ))}
-      </div>
-
-      {/* Step content */}
-      <div className="review-step-content" key={currentStep}>
-        {/* Summary step */}
-        {isSummaryStep && (
-          <div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1em' }}>
-              <BarChart3 size={16} className="icon-inline" /> This Week's Summary
+  // Finished mode: the whole review on one page (round 3). The step rail
+  // becomes checked, non-clickable markers — no step state exists here.
+  if (readOnly) {
+    return (
+      <div className="review-wizard rw-wizard">
+        <div className="rw-columns">
+          <div className="rw-side">
+            <div className="rw-done-rail" aria-label="Review steps">
+              {STEP_LABELS.map(label => (
+                <div key={label} className="rw-done-marker">
+                  <span className="rw-done-check"><Check size={13} strokeWidth={3} /></span>
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
-            <div className="review-stats-grid">
-              <div className="review-stat-card">
-                <div className="review-stat-icon"><Timer size={18} /></div>
-                <div className="review-stat-value">{pomodoroStats.totalPomodoros}</div>
-                <div className="review-stat-label">Pomodoros</div>
+            <div className="rw-week-card">
+              <span className="rw-panel-title">That week</span>
+              <div className="rw-week-card-rows">
+                {/* Frozen at finish (stored stats) — except habits %, which
+                    the review never stored and habit history is stable. */}
+                <div><strong>{finishedStats.totalPomodoros}</strong> sessions</div>
+                <div><strong>{finishedStats.totalFocusMinutes}<span className="rw-stat-unit">m</span></strong> focus</div>
+                <div><strong>{finishedStats.tasksCompleted}</strong> tasks done</div>
+                <div><strong className="rw-week-card-habits">{glance.habitsPct !== null ? `${glance.habitsPct}%` : '—'}</strong> habits</div>
               </div>
-              <div className="review-stat-card">
-                <div className="review-stat-icon"><Clock size={18} /></div>
-                <div className="review-stat-value">{pomodoroStats.totalFocusMinutes}m</div>
-                <div className="review-stat-label">Focus Time</div>
-              </div>
-              <div className="review-stat-card">
-                <div className="review-stat-icon"><CheckCircle size={18} /></div>
-                <div className="review-stat-value">{pomodoroStats.tasksCompleted}</div>
-                <div className="review-stat-label">Tasks Done</div>
-              </div>
-            </div>
-            
-            <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--bg-surface-hover)', borderRadius: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              <strong>Pomodoro Breakdown:</strong> {Object.values(pomodoroStats.pomodorosByKeyResult).reduce((a, b) => a + b, 0)} linked to this cycle's KRs, {pomodoroStats.totalPomodoros - Object.values(pomodoroStats.pomodorosByKeyResult).reduce((a, b) => a + b, 0)} unlinked or other cycles
-            </div>
-
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6, marginTop: '1.5rem' }}>
-              You'll now review each of your <strong style={{ color: 'var(--text-primary)' }}>{cycleKRs.length} key result{cycleKRs.length !== 1 ? 's' : ''}</strong> to
-              update progress and assess confidence. Let's go!
             </div>
           </div>
-        )}
-
-        {/* KR steps */}
-        {!isSummaryStep && !isReflectionStep && krStepIndex >= 0 && krStepIndex < cycleKRs.length && (
-          <ReviewStepKR
-            entry={entries[krStepIndex]}
-            keyResult={cycleKRs[krStepIndex]}
-            objective={cycleObjectives.find(o => o.id === cycleKRs[krStepIndex].objectiveId)!}
-            linkedTasksThisWeek={pomodoroStats.linked[cycleKRs[krStepIndex].id] || []}
-            onChange={updated => updateEntry(krStepIndex, updated)}
-          />
-        )}
-
-        {/* Reflection step */}
-        {isReflectionStep && (
-          <div className="review-reflection">
-            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5em' }}>
-              <MessageSquare size={16} className="icon-inline" /> Overall Reflection
-            </div>
-            <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '1em', lineHeight: 1.5 }}>
-              What went well this week? What could be improved? Any goals for next week?
-            </div>
-            <textarea
-              className="review-notes-textarea"
-              value={reflection}
-              onChange={e => setReflection(e.target.value)}
-              placeholder="Write your overall reflection for this week..."
-              rows={5}
+          <div className="rw-main">
+            <FinishedReviewSummary
+              rows={summaryRows}
+              prompts={finishedReview?.prompts ?? []}
+              stats={finishedStats}
             />
           </div>
-        )}
+        </div>
       </div>
+    );
+  }
 
-      {/* Navigation */}
-      <div className="review-wizard-nav">
-        <button
-          className="review-nav-btn"
-          onClick={currentStep === 0 ? onCancel : () => setCurrentStep(currentStep - 1)}
-        >
-          {currentStep === 0 ? 'Cancel' : '← Previous'}
-        </button>
-        {isReflectionStep ? (
-          <button className="review-nav-btn primary" onClick={handleComplete}>
-            <CheckCircle size={14} className="icon-inline" /> Complete Review
-          </button>
-        ) : (
-          <button
-            className="review-nav-btn primary"
-            onClick={() => setCurrentStep(currentStep + 1)}
-          >
-            Next →
-          </button>
-        )}
+  return (
+    <div className="review-wizard rw-wizard">
+      <div className="rw-columns">
+        <div className="rw-side">
+          <div className="rw-rail" role="tablist" aria-label="Review steps">
+            {STEP_LABELS.map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                role="tab"
+                aria-selected={currentStep === i}
+                className={`rw-rail-item${currentStep === i ? ' current' : ''}${i < currentStep ? ' done' : ''}`}
+                onClick={() => setCurrentStep(i)}
+              >
+                <span className="rw-rail-num">{i < currentStep ? <Check size={13} strokeWidth={3} /> : i + 1}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {currentStep > 0 && (
+            <div className="rw-week-card">
+              <span className="rw-panel-title">This week</span>
+              <div className="rw-week-card-rows">
+                <div><strong>{glance.sessions}</strong> sessions</div>
+                <div><strong>{glance.focusMinutes}<span className="rw-stat-unit">m</span></strong> focus</div>
+                <div><strong>{glance.tasksDone}</strong> tasks done</div>
+                <div><strong className="rw-week-card-habits">{glance.habitsPct !== null ? `${glance.habitsPct}%` : '—'}</strong> habits</div>
+              </div>
+              <div className="rw-week-card-bar" aria-hidden="true">
+                <div
+                  className="rw-week-card-bar-fill"
+                  style={{ width: `${unlinked.totalSessions > 0 ? Math.round((unlinked.linkedToCycle / unlinked.totalSessions) * 100) : 0}%` }}
+                />
+              </div>
+              <span className="rw-week-card-sub">
+                {unlinked.linkedToCycle} linked to this cycle's KRs · {unlinked.unlinked} unlinked or other cycles
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="rw-main">
+          <div className="rw-save-row">
+            <span className={`rw-save-indicator${saveState === 'saved' ? ' saved' : ''}`} data-state={saveState}>
+              {saveState === 'saved' && <Check size={12} className="icon-inline" />}
+              {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved just now' : 'Nothing to save yet'}
+            </span>
+          </div>
+
+          {currentStep === 0 && (
+            <WeekAtAGlance
+              glance={glance}
+              moves={moves}
+              commitment={commitment}
+              unlinked={unlinked}
+              showLinkBanner={showLinkBanner}
+              onLinkSessions={onLinkSessions}
+            />
+          )}
+          {currentStep === 1 && (
+            <ScoreKeyResults rows={scoreRows} onChange={updateEntry} />
+          )}
+          {currentStep === 2 && (
+            <ReflectStep
+              prompts={prompts}
+              onChange={updatePrompt}
+              moverDelta={[...moves.moves].filter(m => m.delta > 0).sort((a, b) => b.delta - a.delta)[0]?.delta}
+            />
+          )}
+
+          <div className="rw-footer">
+            <span className="rw-footer-note">
+              {currentStep === 1
+                ? `${scoredCount} of ${entries.length} key result${entries.length !== 1 ? 's' : ''} scored`
+                : STEP_FOOTNOTES[currentStep]}
+            </span>
+            <div className="rw-footer-actions">
+              {currentStep > 0 && (
+                <button type="button" className="rw-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>
+              )}
+              {currentStep < 2 ? (
+                <button type="button" className="rw-btn primary" onClick={() => setCurrentStep(currentStep + 1)}>
+                  {currentStep === 0 ? 'Score key results' : 'Continue to reflection'}
+                </button>
+              ) : (
+                <button type="button" className="rw-btn primary" onClick={handleComplete}>Finish review</button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

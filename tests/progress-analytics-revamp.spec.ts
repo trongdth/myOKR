@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function openAnalytics(page: Page) {
-  const item = page.locator('button[title="Analytics"]').first();
+  const item = page.locator('button[title="Focus analytics"]').first();
   if (!(await item.isVisible().catch(() => false))) {
     await page.getByRole('button', { name: 'Progress', exact: true }).click();
   }
@@ -98,15 +98,131 @@ test.describe('Progress / Analytics Screen Revamp', () => {
 
     // Tabs
     const tabs = shell.locator('.plan-tab');
-    await expect(tabs.nth(0)).toHaveText('Analytics');
-    await expect(tabs.nth(1)).toHaveText('Weekly review');
+    await expect(tabs.nth(0)).toHaveText('Focus analytics');
+    await expect(tabs.nth(1)).toHaveText('Objectives');
+    await expect(tabs.nth(2)).toHaveText('Weekly review');
     await expect(tabs.nth(0)).toHaveClass(/\bactive\b/);
 
     // Week select
     await expect(shell.locator('.progress-week-select')).toBeVisible();
   });
 
+  test('Objectives tab hosts the progress-over-time chart; Weekly review does not', async ({ page }) => {
+    // Two completed reviews → the chart has something to draw. Weeks come
+    // from the cycle's exclusive Mondays so they always overlap the cycle
+    // month (reviewInCycle visibility).
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const weekA = mondays[0];
+      const weekB = mondays[1] ?? mondays[0];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      const mk = (id: string, weekStart: string, value: number) => ({
+        id, weekStartDate: weekStart, weekEndDate: endOf(weekStart), cycleId: 'c-test',
+        completedAt: `${weekStart}T20:00:00.000Z`,
+        entries: [{ keyResultId: 'kr-1', previousValue: Math.max(0, value - 1), currentValue: value, confidence: 'on_track' }],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} },
+      });
+      const reviews = weekA === weekB ? [mk('rev-a', weekA, 3)] : [mk('rev-a', weekA, 3), mk('rev-b', weekB, 5)];
+      await okr.saveReviews(reviews);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await openAnalytics(page);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    const shell = page.locator('.progress-shell');
+    await expect(shell.locator('.progress-chart-container')).toBeVisible();
+    await expect(shell.locator('.progress-chart-svg')).toBeVisible();
+
+    // The chart left the Weekly review tab entirely.
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+    await expect(shell.locator('.review-container')).toBeVisible();
+    await expect(shell.locator('.progress-chart-container')).toHaveCount(0);
+  });
+
+  test('draft reviews never chart: one completed + one draft keeps the placeholder', async ({ page }) => {
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const weekB = mondays[0];
+      const endOf = (start: string) => {
+        const e = new Date(`${start}T00:00:00Z`);
+        e.setUTCDate(e.getUTCDate() + 6);
+        return e.toISOString().slice(0, 10);
+      };
+      await okr.saveReviews([
+        { id: 'rev-done', weekStartDate: weekB, weekEndDate: endOf(weekB), cycleId: 'c-test',
+          completedAt: `${weekB}T20:00:00.000Z`,
+          entries: [{ keyResultId: 'kr-1', previousValue: 2, currentValue: 3, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+        { id: 'rev-draft', weekStartDate: '2026-06-08', weekEndDate: '2026-06-14', cycleId: 'c-test',
+          entries: [{ keyResultId: 'kr-1', previousValue: 3, currentValue: 5, confidence: 'on_track' }],
+          prompts: [{ id: 'p1', type: 'one_change', text: 'One change for next week?', answer: '' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+      ]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+
+    await openAnalytics(page);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    const shell = page.locator('.progress-shell');
+    await expect(shell.locator('.progress-chart-container')).toBeVisible();
+    await expect(shell.locator('.progress-chart-svg')).toHaveCount(0);
+    await expect(shell.locator('.progress-chart-container')).toContainText('Complete at least 2 weekly reviews');
+  });
+
+  test('week h1 on Objectives and Weekly review; cycle h1 stays on Focus analytics', async ({ page }) => {
+    await openAnalytics(page);
+    const shell = page.locator('.progress-shell');
+    await expect(shell.locator('.plan-header-title')).toContainText('May cycle');
+
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    await expect(shell.locator('.plan-header-title')).toHaveText(/^Week of \d+/);
+
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
+    await expect(shell.locator('.plan-header-title')).toHaveText(/^Week of \d+/);
+
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
+    await expect(shell.locator('.plan-header-title')).toContainText('May cycle');
+  });
+
   test('renders 4 top metric cards with cycle-scoped values in whole cycle view and adapts when week filtered', async ({ page }) => {
+    // Date-independent seed: anchor the five sessions to the cycle's first
+    // two days (week 1 Mon 2 + Tue 3) instead of today/yesterday — today can
+    // be a Monday (yesterday lands in the previous week/month) and break the
+    // arithmetic. 5 sessions · 125m focus · 2-day streak in every case.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const pomo = await import('/src/lib/pomodoro-storage.ts');
+      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
+      const now = new Date();
+      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
+      const dayOf = (offset: number) => {
+        const d = new Date(`${mondays[0]}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + offset);
+        return d.toISOString().slice(0, 10);
+      };
+      const sessions = (date: string, n: number) =>
+        Array.from({ length: n }, (_, i) => ({
+          startedAt: `${date}T09:0${i}:00.000Z`, endedAt: `${date}T09:25:00.000Z`,
+          type: 'focus', taskId: 't-1', completed: true,
+        }));
+      await pomo.saveHistory([
+        { date: dayOf(0), completedPomodoros: 2, totalFocusMinutes: 50, tasksCompleted: 0, sessions: sessions(dayOf(0), 2) },
+        { date: dayOf(1), completedPomodoros: 3, totalFocusMinutes: 75, tasksCompleted: 1, sessions: sessions(dayOf(1), 3) },
+      ] as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
     await openAnalytics(page);
 
     const cards = page.locator('.analytics-metric-cards .metric-card');
@@ -355,10 +471,10 @@ test.describe('Progress / Analytics Screen Revamp', () => {
 
     // Progress shell remains, review flow mounts inside
     await expect(page.locator('.progress-shell')).toBeVisible();
-    await expect(page.locator('.review-start-card')).toBeVisible();
+    await expect(page.locator('.review-container')).toBeVisible();
 
     // Switch back to Analytics
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Analytics")').click();
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
     await page.waitForTimeout(300);
     await expect(page.locator('.analytics-metric-cards')).toBeVisible();
   });
@@ -494,5 +610,46 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     // Card 2: 1h 40m, diff is 0m vs last cycle
     const card2 = cards.nth(1);
     await expect(card2.locator('.metric-badge.neutral')).toHaveText('0m vs last cycle');
+  });
+
+  test('the Objectives chart counts a boundary week in exactly one cycle', async ({ page }) => {
+    // Today sits in August, and the review belongs to the week that OPENS
+    // September (Mon 31 Aug). Under the exclusive rule that week is
+    // September's — Analytics counts it there — so August's chart must not
+    // claim it back (the intersect rule double-counted exactly this week).
+    await page.clock.setFixedTime(new Date('2026-08-25T12:00:00.000Z'));
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const mk = (id: string, name: string, month: number, year: number) =>
+        ({ id, name, month, year, isActive: false, createdAt: new Date().toISOString() });
+      await okr.saveCycles([mk('c-aug', 'August 2026', 7, 2026), mk('c-sep', 'September 2026', 8, 2026)]);
+      await okr.saveReviews([
+        { id: 'rev-boundary', weekStartDate: '2026-08-31', weekEndDate: '2026-09-06', cycleId: 'c-sep',
+          completedAt: '2026-09-07T20:00:00.000Z',
+          entries: [{ keyResultId: 'kr-1', previousValue: 0, currentValue: 2, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+        { id: 'rev-aug-early', weekStartDate: '2026-08-10', weekEndDate: '2026-08-16', cycleId: 'c-aug',
+          completedAt: '2026-08-11T20:00:00.000Z',
+          entries: [{ keyResultId: 'kr-1', previousValue: 0, currentValue: 1, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+        { id: 'rev-aug', weekStartDate: '2026-08-24', weekEndDate: '2026-08-30', cycleId: 'c-aug',
+          completedAt: '2026-08-25T20:00:00.000Z',
+          entries: [{ keyResultId: 'kr-1', previousValue: 1, currentValue: 2, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+      ] as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    await openAnalytics(page);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    const svg = page.locator('.progress-shell .progress-chart-svg');
+    await expect(svg).toBeVisible();
+    // August's own weeks chart (two points, so the chart draws)…
+    await expect(svg).toContainText('08-10');
+    await expect(svg).toContainText('08-24');
+    // …and the week that opens September does not.
+    await expect(svg).not.toContainText('08-31');
   });
 });

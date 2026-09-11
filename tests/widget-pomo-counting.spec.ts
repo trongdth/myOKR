@@ -54,7 +54,7 @@ async function setDurations(page: Page, focus: number, shortBreak: number) {
 async function goToSection(page: Page, title: string) {
   const item = page.locator(`button[title="${title}"]`).first();
   if (!(await item.isVisible().catch(() => false))) {
-    const group = title === 'Analytics' ? 'Progress' : 'Plan';
+    const group = title === 'Focus analytics' ? 'Progress' : 'Plan';
     await page.getByRole('button', { name: group, exact: true }).click();
   }
   await item.click();
@@ -102,7 +102,7 @@ test.describe('Session widget pomo counting', () => {
     await speedUpTimers(page);
 
     // Analytics "today" before the session (seeded history includes today).
-    await goToSection(page, 'Analytics');
+    await goToSection(page, 'Focus analytics');
     const stat = page.locator('.stat-value').first();
     const pomosBefore = Number((await stat.textContent())?.trim() || '0');
     await goToSection(page, 'Tasks');
@@ -119,7 +119,7 @@ test.describe('Session widget pomo counting', () => {
     await expect(card.locator('.card-pomos')).toContainText('4/5');
 
     // Analytics today's pomo count bumped by exactly one.
-    await goToSection(page, 'Analytics');
+    await goToSection(page, 'Focus analytics');
     await expect(stat).toHaveText(String(pomosBefore + 1));
   });
 

@@ -5,7 +5,7 @@ async function navTo(page: any, title: string) {
   if (!await btn.isVisible()) {
     if (['Tasks', 'Objectives', 'Done'].includes(title)) {
       await page.locator('button[title="Plan"]').first().click();
-    } else if (['Analytics', 'Weekly review'].includes(title)) {
+    } else if (['Focus analytics', 'Weekly review'].includes(title)) {
       await page.locator('button[title="Progress"]').first().click();
     } else if (['Day plan', 'Session', 'Habits'].includes(title)) {
       await page.locator('button[title="Focus"]').first().click();

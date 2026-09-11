@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Target, CheckCircle, Calendar, Hourglass, Rocket } from 'lucide-react';
+import { ClipboardList, Target } from 'lucide-react';
 import '../styles/review.css';
 import {
   loadCycles, loadObjectives, loadKeyResults,
-  loadReviews, saveReviews, saveKeyResults,
+  loadReviews, saveReviews, saveKeyResults, saveCompletedReview,
   getCurrentWeekStart,
-  getMondaysForCycle, getWeekEndFromStart,
+  getWeekEndFromStart,
   getEffectiveCurrentValueAsOf,
   type OKRCycle, type Objective, type KeyResult, type WeeklyReview,
 } from '../lib/okr-storage';
-import { loadHabits, type Habit } from '../lib/habit-storage';
 import { generateId } from '../lib/pomodoro-storage';
+import { loadHabits, type Habit } from '../lib/habit-storage';
 import { loadTasks, loadHistory, loadSettings, type PomodoroTask, type DailyRecord } from '../lib/pomodoro-storage';
-import { reviewInCycle } from '../lib/review-utils';
 import ReviewWizard from './review/ReviewWizard';
-import ReviewHistory from './review/ReviewHistory';
-import ProgressChart from './review/ProgressChart';
+import LinkSessionsModal from './review/LinkSessionsModal';
 import LoadingState from './shared/LoadingState';
 import { Select } from './shared/Select';
 
@@ -70,7 +68,10 @@ async function repairReviews(
   return { repaired, changed };
 }
 
-export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+// The review tab's week and cycle come from the CycleWeekPicker (only
+// finished weeks are selectable there, so no in-progress/future guards
+// exist in this component — the 2026-09-07 second-round decision).
+export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp = null, cycleId: cycleIdProp = null }: { hideHeader?: boolean; weekStart?: string | null; cycleId?: string | null } = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
@@ -80,9 +81,8 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
   const [history, setHistory] = useState<DailyRecord[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [focusDuration, setFocusDuration] = useState(25);
-  const [showWizard, setShowWizard] = useState(false);
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekStart());
   const [explicitCycleId, setExplicitCycleId] = useState<string | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -121,8 +121,9 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
         setReviews(repaired);
         try {
           await saveReviews(repaired);
-        } catch {
-          /* storage failure is non-fatal */
+        } catch (err) {
+          // Persistence rule 3: non-fatal, but never silent.
+          console.error('review repair save failed', err);
         }
         // Sync Key Results with the repaired reviews
         const updatedKRs = loadedKRs.map(kr => {
@@ -147,8 +148,9 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
         setKeyResults(updatedKRs);
         try {
           await saveKeyResults(updatedKRs);
-        } catch {
-          /* storage failure is non-fatal */
+        } catch (err) {
+          // Persistence rule 3: non-fatal, but never silent.
+          console.error('review repair save failed', err);
         }
       }
     }
@@ -177,40 +179,25 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
     return () => window.removeEventListener('myokr-data-synced', handleSync);
   }, []);
 
-  const weekStart = selectedWeek;
-  const weekEnd = selectedWeek ? getWeekEndFromStart(selectedWeek) : '';
-
-  // Infer the cycle from the week's START month. The review is tagged with this
-  // cycle (so e.g. a 06-29 → 07-05 review wraps up the June KRs it started under).
-  // Visibility across cycles is handled below by `reviewInCycle` (week-overlap),
-  // so a cross-month review still shows under July even though it's tagged June.
-  const selectedDate = new Date(selectedWeek);
+  // The cycle is the picker's selection; fall back to inferring from the
+  // week's START month, then the active cycle (legacy standalone mounts).
+  const selectedDate = new Date(weekStartProp ?? getCurrentWeekStart());
   const targetMonth = selectedDate.getUTCMonth();
   const targetYear = selectedDate.getUTCFullYear();
 
-  const inferredCycle = cycles.find(c => c.month === targetMonth && c.year === targetYear) 
-    || cycles.find(c => c.isActive) 
+  const inferredCycle = (cycleIdProp && cycles.find(c => c.id === cycleIdProp))
+    || cycles.find(c => c.month === targetMonth && c.year === targetYear)
+    || cycles.find(c => c.isActive)
     || cycles[0];
 
-  const activeCycle = explicitCycleId 
-    ? cycles.find(c => c.id === explicitCycleId) || inferredCycle 
+  const activeCycle = explicitCycleId
+    ? cycles.find(c => c.id === explicitCycleId) || inferredCycle
     : inferredCycle;
 
-  // Keep selectedWeek in sync with activeCycle's weeks
-  useEffect(() => {
-    if (activeCycle) {
-      const weeks = getMondaysForCycle(activeCycle);
-      if (weeks.length > 0 && !weeks.includes(selectedWeek)) {
-        const todayWeek = getCurrentWeekStart();
-        if (weeks.includes(todayWeek)) {
-          setSelectedWeek(todayWeek);
-        } else {
-          setSelectedWeek(weeks[0]);
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCycle?.id, activeCycle?.month, activeCycle?.year]);
+  // The CycleWeekPicker drives the week (exclusive weeks, ADR-0019);
+  // unset falls back to the current week.
+  const weekStart = weekStartProp ?? getCurrentWeekStart();
+  const weekEnd = getWeekEndFromStart(weekStart);
 
   // Check if current week already has a completed review
   const currentWeekReview = reviews.find(
@@ -225,8 +212,18 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
     return `${yyyy}-${mm}-${dd}`;
   })();
 
-  const isFutureWeek = todayStr < weekStart;
-  const isCurrentWeekInProgress = selectedWeek === getCurrentWeekStart() && todayStr <= weekEnd;
+  // Draft autosaves land straight in the doc; pull them back so the wizard
+  // stays in sync.
+  const reloadReviews = async () => {
+    try { setReviews(await loadReviews()); } catch (err) { console.error('reviews reload failed', err); }
+    // Refresh the picker's review counts / draft hints — a narrow event, not
+    // the app-wide sync event (that would reload every listener per keystroke
+    // debounce).
+    window.dispatchEvent(new CustomEvent('myokr-reviews-changed'));
+  };
+  const reloadTasks = async () => {
+    try { setTasks(await loadTasks()); } catch (err) { console.error('tasks reload failed', err); }
+  };
 
   const syncKeyResultsFromReviews = async (currentReviews: WeeklyReview[], currentKRs: KeyResult[]) => {
     const updatedKRs = currentKRs.map(kr => {
@@ -251,57 +248,37 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
     setKeyResults(updatedKRs);
     try {
       await saveKeyResults(updatedKRs);
-    } catch {
-      /* storage failure is non-fatal */
+    } catch (err) {
+      // Persistence rule 3: non-fatal, but never silent.
+      console.error('key results sync save failed', err);
     }
   };
 
   const handleCompleteReview = async (reviewData: Omit<WeeklyReview, 'id'>) => {
-    // Prevent duplicate reviews for the same week by replacing if it already exists
-    const existsIdx = reviews.findIndex(r => r.weekStartDate === reviewData.weekStartDate);
-    let updatedReviews: WeeklyReview[];
-
-    if (existsIdx >= 0) {
-      const updated = {
-        ...reviews[existsIdx],
-        ...reviewData,
-        completedAt: new Date().toISOString(),
-      };
-      updatedReviews = reviews.map((r, idx) => idx === existsIdx ? updated : r);
-    } else {
-      const review: WeeklyReview = {
-        id: generateId(),
-        ...reviewData,
-      };
-      updatedReviews = [...reviews, review];
+    // One review per week: replace whatever exists (draft or completed) in
+    // place, then sync KR values from the latest completed reviews.
+    const existing = reviews.find(r => r.weekStartDate === reviewData.weekStartDate);
+    const review: WeeklyReview = {
+      id: existing?.id ?? generateId(),
+      ...reviewData,
+      completedAt: new Date().toISOString(),
+    };
+    const updatedReviews = existing
+      ? reviews.map(r => r.weekStartDate === review.weekStartDate ? review : r)
+      : [...reviews, review];
+    setReviews(updatedReviews);
+    try { await saveCompletedReview(review); } catch (err) {
+      // Persistence rule 3: non-fatal, but never silent.
+      console.error('completed review save failed', err);
     }
 
-    // Save review
-    setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
-
     // Update Key Result values based on the latest completed review
     await syncKeyResultsFromReviews(updatedReviews, keyResults);
 
-    setShowWizard(false);
-  };
-
-  const handleDeleteReview = async (reviewId: string) => {
-    const updatedReviews = reviews.filter(r => r.id !== reviewId);
-    setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
-
-    // Sync Key Result values from the remaining reviews
-    await syncKeyResultsFromReviews(updatedReviews, keyResults);
-  };
-
-  const handleEditReview = async (updatedReview: WeeklyReview) => {
-    const updatedReviews = reviews.map(r => r.id === updatedReview.id ? updatedReview : r);
-    setReviews(updatedReviews);
-    try { await saveReviews(updatedReviews); } catch { /* storage failure is non-fatal */ }
-
-    // Update Key Result values based on the latest completed review
-    await syncKeyResultsFromReviews(updatedReviews, keyResults);
+    // The picker's week statuses and "N of M reviewed" live in the parent, so
+    // finishing must announce itself the way draft autosaves do — otherwise
+    // the cycle list keeps its pre-finish state until the tab is re-entered.
+    await reloadReviews();
   };
 
   if (isLoading) {
@@ -338,7 +315,6 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
               <Select
                 options={cycles.map(c => ({ value: c.id, label: c.name }))}
                 value={activeCycle.id}
-                disabled={showWizard}
                 onChange={(cycleId) => setExplicitCycleId(cycleId)}
                 ariaLabel="Cycle"
               />
@@ -347,12 +323,25 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
         </div>
       )}
 
-      {/* Wizard or Start card */}
-      {showWizard ? (
+      {/* No finished week anywhere (e.g. a fresh install mid-week-1): the
+          picker has nothing selectable, so the wizard must not render for
+          an unfinished week. */}
+      {!weekStartProp ? (
+        <div className="review-start-card">
+          <div className="review-start-card-icon"><Target size={24} /></div>
+          <div className="review-start-card-title">Nothing to review yet</div>
+          <div className="review-start-card-desc">
+            Weekly reviews open once a week has fully finished — pick a finished
+            week in the cycle picker once one exists.
+          </div>
+        </div>
+      ) : (
         <ReviewWizard
+          key={`${weekStart}-${activeCycle.id}-${currentWeekReview ? 'done' : 'open'}`}
           weekStart={weekStart}
           weekEnd={weekEnd}
           cycleId={activeCycle.id}
+          todayStr={todayStr}
           objectives={objectives}
           keyResults={keyResults}
           tasks={tasks}
@@ -362,83 +351,28 @@ export default function ReviewApp({ hideHeader = false }: { hideHeader?: boolean
           habits={habits}
           cycles={cycles}
           onComplete={handleCompleteReview}
-          onCancel={() => setShowWizard(false)}
+          onDraftSaved={reloadReviews}
+          onLinkSessions={() => setShowLinkModal(true)}
+          readOnly={!!currentWeekReview}
         />
-      ) : (
-        <div className="review-start-card">
-          <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                Review for week of:
-                <Select
-                  options={getMondaysForCycle(activeCycle).map(monday => ({
-                    value: monday,
-                    label: `${monday} to ${getWeekEndFromStart(monday)}`,
-                  }))}
-                  value={selectedWeek}
-                  onChange={(monday) => {
-                    setSelectedWeek(monday);
-                    setExplicitCycleId(null);
-                  }}
-                  ariaLabel="Review week"
-                />
-              </label>
-            </div>
-          </div>
-          {currentWeekReview ? (
-            <>
-              <div className="review-start-card-icon"><CheckCircle size={24} /></div>
-              <div className="review-start-card-title">This week's review is complete!</div>
-              <div className="review-start-card-desc">
-                Completed on {new Date(currentWeekReview.completedAt!).toLocaleDateString()}.
-                If you need to edit this review, you can do so in the Past Reviews section below.
-              </div>
-            </>
-          ) : isFutureWeek ? (
-            <>
-              <div className="review-start-card-icon"><Calendar size={24} /></div>
-              <div className="review-start-card-title">Week has not started yet</div>
-              <div className="review-start-card-desc">
-                This week (starting {weekStart}) is in the future. You can start the weekly review once the week has ended.
-              </div>
-            </>
-          ) : isCurrentWeekInProgress ? (
-            <>
-              <div className="review-start-card-icon"><Hourglass size={24} /></div>
-              <div className="review-start-card-title">Week is still in progress</div>
-              <div className="review-start-card-desc">
-                This week (ending {weekEnd}) is still ongoing. You can start the weekly review once the week is complete.
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="review-start-card-icon"><ClipboardList size={24} /></div>
-              <div className="review-start-card-title">Time for your weekly review!</div>
-              <div className="review-start-card-desc">
-                Review your progress on each Key Result, assess your confidence, and
-                reflect on the week. This takes about 5 minutes.
-              </div>
-              <button className="review-start-btn" onClick={() => setShowWizard(true)}>
-                <Rocket size={16} className="icon-inline" /> Start Weekly Review
-              </button>
-            </>
-          )}
-        </div>
       )}
 
-      {/* Progress Chart */}
-      <ProgressChart reviews={reviews.filter(r => reviewInCycle(r, activeCycle))} keyResults={keyResults} />
-
-      {/* Review History */}
-      <ReviewHistory
-        reviews={reviews.filter(r => reviewInCycle(r, activeCycle))}
-        keyResults={keyResults}
-        objectives={objectives}
-        tasks={tasks}
-        history={history}
-        onDelete={handleDeleteReview}
-        onEdit={handleEditReview}
-      />
+      {showLinkModal && activeCycle && (
+        <LinkSessionsModal
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          cycleId={activeCycle.id}
+          tasks={tasks}
+          history={history}
+          keyResults={keyResults}
+          objectives={objectives}
+          onClose={() => setShowLinkModal(false)}
+          onLinked={async () => {
+            setShowLinkModal(false);
+            await reloadTasks();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -30,29 +30,26 @@ test.describe('Review & Habits Select migration', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('week picker runs on Select with date-range rows', async ({ page }) => {
-    await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'weekly-review'));
+  test('week filter runs on Select via the analytics strip', async ({ page }) => {
+    // The review tab moved to the CycleWeekPicker (2026-09-07); the strip's
+    // week Select lives on the analytics/objectives tabs.
+    await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'analytics'));
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('.review-container')).toBeVisible();
+    await expect(page.locator('.review-container')).toHaveCount(0);
 
-    const week = page.locator('[aria-label="Review week"]');
-    await expect(week).toContainText(/to 2026-0[56]-\d{2}/);
-    await week.click();
+    const trigger = page.locator('.progress-week-select .sel-trigger');
+    await expect(trigger).toContainText('June 2026 · all weeks');
+    await trigger.click();
     const rows = page.locator('.sel-panel .sel-row');
-    await expect(rows.first()).toContainText(/2026-06-\d{2} to 2026-0[67]-\d{2}/); // weeks can spill into July
+    await expect(rows.first()).toContainText('all weeks');
     const label = await rows.nth(1).textContent();
     await rows.nth(1).click();
-    await expect(week).toContainText(label!.trim());
-
-    // The visible label text still activates the picker (implicit label
-    // association — PR #83 review: htmlFor was lost with the native select)
-    await page.locator('label', { hasText: 'Review for week of:' }).click();
-    await expect(page.locator('.sel-panel')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    await expect(trigger).toContainText(label!.trim());
   });
 
-  test('habit status picker runs on Select per matrix row', async ({ page }) => {
+    test('habit status picker runs on Select per matrix row', async ({ page }) => {
     await page.evaluate(() => window.localStorage.setItem('myokr_active_section', 'habits'));
     await page.reload();
     await page.waitForLoadState('networkidle');

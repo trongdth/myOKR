@@ -212,7 +212,9 @@ deep-link) is deferred — see ADR-0010.
 ## Menu component (Select) — 2026-08-23
 
 `Select` (`src/components/shared/Select.tsx`) is the app's **single menu
-component** — every dropdown is an instance of it (see ADR-0018). Boxed
+component** — every dropdown is an instance of it (see ADR-0018). The
+review tab's `CycleWeekPicker` is a composed two-level menu built on this
+anatomy, not a Select variant (ADR-0018 addendum, 2026-09-07). Boxed
 variant for form / toolbar / cell pickers; `bare` for compact inline badge or
 dot pickers (KR mode, priority dots), where the badge itself is the
 affordance (no chevron) but the panel, states, and keyboard behave the same.
@@ -247,7 +249,10 @@ Keyboard is the full listbox pattern minus type-ahead (ADR-0011):
 ↑/↓/Home/End rove, Enter/Space commit. The panel is **portaled to
 `<body>`**, fixed-positioned from the trigger rect (repositioned on
 scroll/resize, flips above near the bottom edge), stacked above the modal
-layer (z 1100 vs 1000). Single-select, no search; an empty option list
+layer. The portaled panel sits at **z 2100** (raised 2026-09-07 from
+1100 — Selects inside modal overlays (z 2000, e.g. the review's
+link-sessions modal) were unclickable beneath them). Single-select, no
+search; an empty option list
 renders a quiet "No options yet" row. Menu icons are 14px (remove × 12px) —
 the dense meta-size surface is the exception to the 16px content-icon rule.
 
@@ -467,9 +472,15 @@ the cycle it *opens*, never the one it closes — `getExclusiveCycleMondays`
 cycle-vs-last-cycle KPI windows, and the tab strip's week filter. Without
 this, a week like Aug 31–Sep 6 2026 counts toward both August and September
 and the trajectory badge double-counts it ("0 vs last cycle" when the prior
-month had no data of its own). The weekly-review week picker keeps the
-intersect rule (`getMondaysForCycle`); the Plan tabs derive weeks their own
-way (`getCycleWeeks` in PlanTabStrip).
+month had no data of its own). The Plan tabs derive weeks their own way
+(`getCycleWeeks` in PlanTabStrip).
+
+**Superseded (2026-09-07, ADR-0019):** this used to be a deliberate *split* —
+the weekly-review week picker kept the intersect rule (`getMondaysForCycle`)
+while analytics went exclusive. The shared tab-strip week selector ends that:
+every Progress tab, the weekly review included, lists exclusive weeks. Legacy
+reviews created under the intersect rule must still resolve to exactly one
+week/cycle (pinned by test).
 
 ### SESSIONS PER WEEK tooltips (2026-09-04)
 
@@ -478,6 +489,227 @@ Cycle week bars carry the week summary (`31 Aug – 6 Sep · 25 sessions ·
 `title` only**. A floating custom tooltip shipped alongside it briefly and
 was removed for duplicating the same text — don't reintroduce one. Pinned by
 the "cycle week bars keep only the native title tooltip" spec test.
+
+## Weekly review revamp (2026-09-07) — per-screen rules
+
+Three fixed steps (Week at a glance → Score key results → Reflect) per
+[ADR-0019](./adr/0019-three-step-weekly-review-autosaved-drafts.md); glossary
+in `CONTEXT.md`. Desktop-only; no mobile port.
+
+### Tabs & header
+
+- Progress tabs become **Focus analytics · Objectives · Weekly review** (the
+  Objectives tab holds the moved progress-over-time chart; distinct from the
+  Plan group's Objectives screen). The sidebar items match the tab labels.
+- Header h1 is `Week of {d}–{d} {Mon}` on **Objectives and Weekly review
+  only**; Focus analytics keeps its cycle-overview/week-drill-down header
+  logic. Eyebrow stays `PROGRESS`.
+- The Weekly review tab carries a `step N/3` badge mirroring the step in view
+  for the selected week — hidden when that week's review is finished (a
+  finished review has no steps; the summary clears the badge).
+
+### Step rail & wizard chrome
+
+- Left rail: numbered items (1 Week at a glance, 2 Score key results, 3
+  Reflect); completed steps show a check. **Freely clickable** — no gating;
+  unscored KRs don't block Finish. A week with a draft lands on its first
+  step with unanswered work.
+- The rail and the week card travel as **one sticky sidebar unit**, capped
+  to the viewport, with the card **anchored to the sidebar's bottom** — the
+  same arrangement while reviewing and reviewed (they used to differ: 12px
+  under "Reflect" vs 364px down the column). Each carrying its own sticky
+  offset slid the card over the rail's last item once a long step-2 list
+  scrolled. ≤900px the sidebar stacks statically above the pane.
+- Save indicator top-right: `Nothing to save yet` (no edits) → `Saving…` →
+  `Saved just now` (check icon, success color). Footer: `Step N of 3 · …`
+  left, Back + primary action right (`Score key results` / `Continue to
+  reflection` / `Finish review`).
+
+### Week at a glance (step 1)
+
+- Four stat cards — Sessions (+ delta vs last week), Focus time (+ per-day
+  average), Tasks done (of KR-linked cohort + `N carried`), Habits % (+
+  missed weekday names). **Habits % uses neutral/success color — never
+  amber** (amber is streak-only; no carve-out added).
+- SESSIONS PER DAY bars reuse the Analytics bar styling + one rule-based
+  insight sentence (peak day; light-days ∩ missed-habit-days).
+- KEY RESULTS THAT MOVED panel: per-KR delta rows — green `+`, rose `−`,
+  neutral `0` — plus the "N other key results had no linked sessions"
+  footnote. Values are **as-of week start/end**, computed whether or not a
+  review exists.
+- Unlinked-sessions banner (attention token, not amber) with the **Link
+  sessions** button; hidden when the cycle has no derived-mode KRs.
+- The IMMEDIATELY previous completed week's One-change answer renders as
+  "Last week you committed to …" — never an older week's, and a blank
+  answer in that review shows nothing.
+
+### Score key results (step 2)
+
+Row anatomy per R2 (2026-09-10; the dense-row decision — a card per KR cost
+~850px, so 8 KRs scrolled ~7k px). **One card holds every KR**, rows divided
+by hairlines, each row three lines (~120px; a row carrying the at-risk streak
+warning adds one line):
+
+- **Line 1** — objective eyebrow (muted, own line) · KR name · then
+  right-aligned `delta chip` · `52×32 value box` · `/ {target}`. Targets
+  render the **bare number — no unit** (the KR name states it). No cyan
+  border/glow on the box.
+- **Line 2** — the row's controls on one baseline: confidence chips, then the
+  linked-tasks disclosure and **`Add note`** pushed right.
+- **Line 3** — only when needed: the expanded linked-tasks list, then the
+  streak warning (R2's placement — a warning follows the row's own content).
+- Confidence chips are **content-width and left-aligned** (never stretched to
+  equal columns).
+- The KR name renders **once** and is **muted when the KR is unscored**
+  (`confidence === not_set`) — the recess signals "still to score", not "no
+  movement" (R2 dims its chip-less row while its `no change` row stays
+  bright; the grey delta chip carries the unmoved signal).
+- **No `Previous → Current` panel.** The delta chip carries the change;
+  `previousValue` stays stored (the summary's Change column uses it).
+- **No `"How confident are you?"` label** — the chips are self-evident (none
+  in the reference design).
+- **Confidence chips are `On track / At risk / Off track`** — canonical
+  labels; the reference design's "Confident / Unsure" was rejected (history +
+  mobile parity). Idle chips are a **1px neutral outline**; the selected chip
+  takes a **confidence-tinted fill and a coloured label**. The selected
+  at-risk tint is **rose** — the old amber tint (`rgba(234,179,8,.1)`) broke
+  the amber-is-streak-only rule and is gone. Unscored = `not_set`, no tint
+  (honest — `N of M scored` in the footer reads the same state).
+- **No `AUTO` badge.** Derived KRs still render read-only (decision 3) as a
+  boxed value visually identical to the manual input, carrying
+  `title`/`aria-label` "Computed from your tasks" — the step subtitle
+  ("Values carried over from your tasks") explains it once.
+- **Notes** are a collapsed **`Add note`** disclosure that expands on click
+  (the stored `entry.note` survives; free-text commentary belongs here, not
+  as an always-open box). A true two-way toggle: it starts collapsed, reads
+  `Note` instead of `Add note` once the row has text, and closes again.
+- Per-KR linked-tasks detail survives as a compact inline control on the
+  controls line, expanding to the full-width list below it; rendered only
+  when that KR has linked tasks.
+- At-risk streak banner per qualifying row: "Flagged at risk N weeks
+  running." — no task-level clause (the reference design's "the same three
+  tasks have carried over each time" needs per-review task snapshots we
+  don't store).
+- **Density bar**: a plain row is ≤130px at 1280×800, so with 8 KRs three rows
+  stay in frame (pinned by test). The footer sits after the *last* row, so it
+  is in frame only for a short cycle — the reference design's 2–3 KR case,
+  also pinned.
+- Kept deliberately against the reference design: the **objective eyebrow**
+  (the only place naming which objective a KR belongs to).
+- Steps 2–3 show the "This week" sidebar card: sessions / focus / tasks /
+  habits %, plus `N linked to this cycle's KRs · M unlinked or other cycles`.
+
+### Reflect (step 3)
+
+- ≤3 prompts, rule-generated: at-risk streak → biggest positive mover →
+  always **One change for next week?** ("Surfaces in next week's review"
+  hint); `free` fallback when nothing notable. Answers autosave into the
+  structured `prompts` array (never the legacy `reflection` string).
+
+### Finished review summary (round 3, 2026-09-09)
+
+A completed review renders one stacked page — the read-only wizard no longer
+exists as a view state (ADR-0019 amendment; glossary: Finished review
+summary).
+
+- Left column: the three step names as **checked, non-clickable markers**
+  (green check circles, no hover, no cursor — the content is all on the
+  right) and the **That week** card pinned to the column's bottom ("That
+  week", not "This week" — the week is over).
+- **Key results as scored** panel: the review's *recorded* entries as a
+  table (Key result / Value / Change / Confidence), capped at 3 rows with a
+  `Show N more key results` toggle; panel meta is the bare `N of M` count
+  (the panel title already says "as scored"). Deltas read
+  "that week" (they are history, not this week's news).
+- **Reflection** panel: prompt → answer pairs; an empty answer reads
+  "No answer".
+- **Where the pomodoros went** panel and the **That week** card read the
+  review's **stored stats** — frozen at finish; retro task-linking must not
+  rewrite what was reviewed (habits % is the one computed value — the review
+  never stored it, and habit history is stable). The sessions-per-day chart,
+  key-results-that-moved panel, and commitment line do **not** appear (the
+  edit wizard keeps them).
+- Header: "✓ Reviewed" chip beside the h1 and a `Completed Sun 26 Apr, 20:14`
+  line under it (local time; completed-date only — duration tracking
+  rejected). The save indicator and wizard footer are absent. The
+  summary-head helper reads `Read-only · Reopen to change anything`.
+- **Top-right slot**: a finished review puts the **Reopen review** button
+  (pencil icon, outlined, 40px tall) there, **bottom-aligned with the header
+  block** so it sits on the completed line rather than the title row; the
+  `Cycle closed {date}` badge keeps the slot only when the selected week of
+  a closed cycle has no finished review.
+- Summary styles live in `review.css` under `rw-summary-*` / `rw-done-*` /
+  `rw-pomo-*`; ≤900px the left column re-stacks horizontally above the main
+  pane.
+
+### Responsive
+
+The wizard re-stacks on the 2a tiers: ≤1100px — stat cards 2-across; ≤900px —
+rail becomes a horizontal strip above the main pane, glance columns stack,
+footer buttons go full-width, and step 2's rows wrap (the KR name takes its
+own line; delta · value · `/ target` stay right-aligned); ≤560px — stat cards
+1-across. (The wizard CSS lives in `review.css` under the `rw-*` prefix.)
+
+### Drafts, entry gating, reopen (2026-09-07 round 2; immutability reversed 2026-09-09)
+
+- **Finished weeks only**: a week is reviewable once its Sunday has passed;
+  the CycleWeekPicker lists unfinished weeks disabled, and the old
+  in-progress/future guard cards are gone.
+- Edits autosave (debounced ~1 s) into a draft `WeeklyReview` (`completedAt`
+  undefined); **Finish review** stamps it and triggers KR sync. Drafts are
+  invisible to the chart, streaks, and sync — and resurface as a **Draft**
+  hint on the picker's week rows.
+- **Completed reviews render the Finished review summary** (see above) —
+  the whole review on one page — and are **reopenable** (round 3,
+  2026-09-09; reverses the round-2 immutability): a confirmed **Reopen
+  review** returns the review to a draft — the editable wizard comes back
+  with every answer, draft exclusions apply (the week's chart point drops;
+  no streaks or KR sync), and re-finishing re-stamps with a
+  latest-completed-review-wins sync, so an older week can never clobber
+  newer values. Late completion of unreviewed finished weeks stays
+  possible.
+
+- **The review tab's picker trigger is 40px tall** (`cwp-trigger`) — a
+  first-class control on this tab, taller than the compact 32px Select
+  elsewhere (round-3 UI feedback).
+- The wizard content region carries **no wrapper surface** — the legacy
+  `.review-wizard` card background is gone; the step panels are the only
+  raised surfaces and sit directly on the page background (round-3 UI
+  feedback, matching the mockup's panel-on-page structure).
+
+### Cycle picker (review tab only)
+
+The Weekly review tab's own two-level selector (`CycleWeekPicker`,
+2026-09-07, reworked after round-3 user feedback): cycle rows newest-first —
+meta = `N of M reviewed` in sans `--text-secondary` (counts completed
+reviews only; drafts don't count), cycles with zero finished weeks are
+**fully disabled** (no chevron, no hover, unexpandable; zero-*reviews* but
+finished-week cycles stay expandable for late completion). Cycle rows
+carry **no tick** (2026-09-09 round-4: the leading check read as clutter —
+the trigger reads the selection and the selected week's row keeps its
+tick). Commit happens
+on **week rows only** — cycle rows steer an **accordion weeks block nested
+inline** beneath the expanded cycle (no separate bottom section): rows read
+`Week 5 · 24–30 Aug`, trailing status `Reviewed` / `Not reviewed` / `Draft`
+/ a cyan `This week` chip on the in-progress week; the selected week's tick
+wins over the trailing label. The Draft hint alone is cyan
+(`--color-primary`) — it flags actionable work. Disabled cycles are also
+excluded from search. A past cycle shows the derived
+`Cycle closed 26 Apr` badge beside the week h1 (Sunday of the last
+exclusive week). Expansion is browsing state and may differ
+from the selection — the check follows the selection, the highlighted
+expanded row already names the cycle whose weeks show (no separate label
+line, 2026-09-09 round-4), and the trigger keeps reading the selected path
+(stored name verbatim, e.g. `April 2026 · week 4 of 4`). Search appears beyond 6 cycles (cycle
+name/year + week date spans; a visible filter field, not type-ahead per
+ADR-0011). Panel: left edge aligned to the trigger and clamped to the
+viewport, list capped at 440px with internal scroll, selected row scrolled
+into view on open. Keyboard: ↑/↓/Home/End rove, → expands, ← collapses,
+Enter commits (cycle) / picks (week), Esc closes with focus returned to the
+trigger. Meta/status text is sans (2026-09-08 round-3: the C1 mono trailing
+hint is deliberately not used here). Focus analytics and Objectives keep
+the strip's week Select — **one selector per tab, never two, and no shared
+range**.
 
 ## Plan group screens (P1–P7) — per-screen rules
 

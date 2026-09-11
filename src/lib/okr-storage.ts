@@ -94,6 +94,18 @@ export interface ReviewEntry {
   note?: string;
 }
 
+export type ReviewPromptType = 'at_risk' | 'mover' | 'one_change' | 'free';
+
+// Structured Reflect prompt (ADR-0019). Stored on WeeklyReview.prompts; the
+// legacy free-text `reflection` field remains only for pre-prompts reviews.
+export interface ReviewPrompt {
+  id: string;
+  type: ReviewPromptType;
+  keyResultId?: string;
+  text: string;
+  answer: string;
+}
+
 export interface WeeklyReview {
   id: string;
   weekStartDate: string;   // ISO date (Monday)
@@ -101,6 +113,7 @@ export interface WeeklyReview {
   cycleId: string;
   completedAt?: string;
   entries: ReviewEntry[];
+  prompts?: ReviewPrompt[];
   reflection?: string;
   pomodoroStats: {
     totalPomodoros: number;
@@ -108,6 +121,12 @@ export interface WeeklyReview {
     tasksCompleted: number;
     pomodorosByKeyResult: Record<string, number>;
   };
+}
+
+// A draft is an autosaved, unfinished review; only finished reviews drive KR
+// sync, the progress-over-time chart, and at-risk streaks (ADR-0019).
+export function isDraftReview(review: WeeklyReview): boolean {
+  return !review.completedAt;
 }
 
 // ===== HELPERS =====
@@ -556,6 +575,21 @@ function normalizeReviewEntry(e: unknown): ReviewEntry | null {
   return entry;
 }
 
+const REVIEW_PROMPT_TYPES: ReviewPromptType[] = ['at_risk', 'mover', 'one_change', 'free'];
+
+function normalizeReviewPrompt(p: unknown): ReviewPrompt | null {
+  if (!p || typeof p !== 'object') return null;
+  const plainP = JSON.parse(JSON.stringify(p)) as Record<string, unknown>;
+  const prompt: ReviewPrompt = {
+    id: typeof plainP.id === 'string' ? plainP.id : '',
+    type: REVIEW_PROMPT_TYPES.includes(plainP.type as ReviewPromptType) ? (plainP.type as ReviewPromptType) : 'free',
+    text: typeof plainP.text === 'string' ? plainP.text : '',
+    answer: typeof plainP.answer === 'string' ? plainP.answer : '',
+  };
+  if (typeof plainP.keyResultId === 'string' && plainP.keyResultId) prompt.keyResultId = plainP.keyResultId;
+  return prompt;
+}
+
 function normalizeReview(r: unknown): WeeklyReview | null {
   if (!r || typeof r !== 'object') return null;
   const plainR = JSON.parse(JSON.stringify(r));
@@ -566,7 +600,7 @@ function normalizeReview(r: unknown): WeeklyReview | null {
   for (const [k, v] of Object.entries(rawPbyKr)) {
     pbyKr[k] = finiteNumber(v, 0);
   }
-  return {
+  const normalized: WeeklyReview = {
     ...(rv as unknown as WeeklyReview),
     entries: Array.isArray(rv.entries) ? rv.entries.map(normalizeReviewEntry).filter((e): e is ReviewEntry => e !== null) : [],
     pomodoroStats: {
@@ -576,6 +610,15 @@ function normalizeReview(r: unknown): WeeklyReview | null {
       pomodorosByKeyResult: pbyKr,
     },
   };
+  // A corrupt/legacy non-array `prompts` must not leak through the `...rv`
+  // spread — the type promises ReviewPrompt[] | undefined and callers call
+  // .find/.length on it.
+  if (Array.isArray(rv.prompts)) {
+    normalized.prompts = rv.prompts.map(normalizeReviewPrompt).filter((p): p is ReviewPrompt => p !== null);
+  } else {
+    delete normalized.prompts;
+  }
+  return normalized;
 }
 
 // ===== CYCLES =====
@@ -665,6 +708,59 @@ export async function loadReviews(): Promise<WeeklyReview[]> {
 export async function saveReviews(reviews: WeeklyReview[]): Promise<void> {
   await updateAutomergeDoc('Update reviews', (d) => {
     d.reviews = sanitizeForAutomerge(reviews);
+  });
+}
+
+// Completed review wins; a week's draft is the fallback. At most one of each
+// exists per week (upserts dedupe by weekStartDate).
+export function findReviewForWeek(reviews: WeeklyReview[], weekStart: string): WeeklyReview | null {
+  let draft: WeeklyReview | null = null;
+  for (const r of reviews) {
+    if (r.weekStartDate !== weekStart) continue;
+    if (!isDraftReview(r)) return r;
+    draft = draft ?? r;
+  }
+  return draft;
+}
+
+// Autosave path: writes the draft at its index in d.reviews (persistence rule
+// 11 — never overwrite the array from component state). Refuses to touch a
+// week that already has a review; edits to finished reviews go through the
+// explicit save paths instead.
+export async function saveReviewDraft(draft: WeeklyReview): Promise<void> {
+  await updateAutomergeDoc('Save review draft', (d) => {
+    const reviews = Array.isArray(d.reviews) ? d.reviews : [];
+    const idx = reviews.findIndex(r => r && r.weekStartDate === draft.weekStartDate);
+    if (idx >= 0) {
+      if (reviews[idx].completedAt) return;
+      reviews[idx] = sanitizeForAutomerge(draft);
+    } else {
+      reviews.push(sanitizeForAutomerge(draft));
+    }
+  });
+}
+
+// Finish path: replaces whatever exists for the week (draft or completed)
+// with the completed review — dedupe by week, never duplicate.
+export async function saveCompletedReview(review: WeeklyReview): Promise<void> {
+  await updateAutomergeDoc('Save completed review', (d) => {
+    const reviews = Array.isArray(d.reviews) ? d.reviews : [];
+    const idx = reviews.findIndex(r => r && r.weekStartDate === review.weekStartDate);
+    const clean = sanitizeForAutomerge({ ...review, completedAt: review.completedAt ?? new Date().toISOString() });
+    if (idx >= 0) reviews[idx] = clean;
+    else reviews.push(clean);
+  });
+}
+
+// Reopen path (round 3): a completed review returns to a draft — the
+// completion stamp clears in place (persistence rule 11, never an array
+// overwrite from component state). Answers and prompts stay; Finish
+// re-stamps via saveCompletedReview.
+export async function reopenReview(weekStart: string): Promise<void> {
+  await updateAutomergeDoc('Reopen review', (d) => {
+    const reviews = Array.isArray(d.reviews) ? d.reviews : [];
+    const idx = reviews.findIndex(r => r && r.weekStartDate === weekStart);
+    if (idx >= 0 && reviews[idx].completedAt) delete reviews[idx].completedAt;
   });
 }
 
