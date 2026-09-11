@@ -274,6 +274,11 @@ export default function ReviewApp({ hideHeader = false, weekStart: weekStartProp
 
     // Update Key Result values based on the latest completed review
     await syncKeyResultsFromReviews(updatedReviews, keyResults);
+
+    // The picker's week statuses and "N of M reviewed" live in the parent, so
+    // finishing must announce itself the way draft autosaves do — otherwise
+    // the cycle list keeps its pre-finish state until the tab is re-entered.
+    await reloadReviews();
   };
 
   if (isLoading) {

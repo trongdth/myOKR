@@ -27,7 +27,7 @@ async function openReview(page: Page) {
 }
 
 test.describe('review tab picker wiring', () => {
-  test('defaults to the active cycle’s most recent finished week; badge on past cycles', async ({ page }) => {
+  test('defaults to the calendar cycle’s most recent finished week; badge on past cycles', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-05-08T12:00:00.000Z'));
     await page.addInitScript(() => window.localStorage.setItem('myokr_walkthrough_state', '"seen"'));
     await page.goto('/');
@@ -85,7 +85,46 @@ test.describe('review tab picker wiring', () => {
   });
 });
 
-test('default honors the ACTIVE cycle when it is not the newest (spec decision 2)', async ({ page }) => {
+test('default follows the calendar, not the stale isActive flag (supersedes decision 2)', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-11T12:00:00.000Z'));
+  await page.addInitScript(() => window.localStorage.setItem('myokr_walkthrough_state', '"seen"'));
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(async () => {
+    const okr = await import('/src/lib/okr-storage.ts');
+    const mk = (id: string, name: string, month: number, year: number, isActive: boolean) =>
+      ({ id, name, month, year, isActive, createdAt: new Date().toISOString() });
+    // May carries the stale flag; August and September are the real ones.
+    await okr.saveCycles([
+      mk('c-may', 'May 2026', 4, 2026, true),
+      mk('c-aug', 'August 2026', 7, 2026, false),
+      mk('c-sep', 'September 2026', 8, 2026, false),
+    ]);
+    await okr.saveObjectives([]);
+    await okr.saveKeyResults([]);
+    await okr.saveReviews([
+      { id: 'r-aug24', weekStartDate: '2026-08-24', weekEndDate: '2026-08-30', cycleId: 'c-aug',
+        completedAt: '2026-08-25T20:00:00.000Z', entries: [], prompts: [],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+      { id: 'r-aug31', weekStartDate: '2026-08-31', weekEndDate: '2026-09-06', cycleId: 'c-sep',
+        entries: [], prompts: [],
+        pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+    ] as any);
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  });
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+
+  await openReview(page);
+  const trigger = page.locator('[aria-label="Review cycle and week"]');
+  // September is the cycle today falls in; its only finished week is the one
+  // that opens it (31 Aug–6 Sep) — the week holding the draft.
+  await expect(trigger).toHaveText(/September 2026 · week 1 of 4/);
+  await expect(page.locator('.plan-header-title')).toHaveText('Week of 31 Aug–6 Sep');
+  await expect(trigger).not.toHaveText(/May 2026/);
+});
+
+test('default prefers a non-flagged newest cycle over an older flagged one', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-05-08T12:00:00.000Z'));
   await page.addInitScript(() => window.localStorage.setItem('myokr_walkthrough_state', '"seen"'));
   await page.goto('/');
@@ -104,7 +143,50 @@ test('default honors the ACTIVE cycle when it is not the newest (spec decision 2
   await page.waitForLoadState('networkidle');
 
   await openReview(page);
-  // The active cycle's most recent finished week — April w4, not May w1.
-  await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/April 2026 · week 4 of 4/);
-  await expect(page.locator('.rw-closed-badge')).toHaveText('Cycle closed 26 Apr');
+  // Today is in May, so May's most recent finished week wins — not April's,
+  // and no closed badge (May hasn't closed).
+  await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/May 2026 · week 1 of 5/);
+  await expect(page.locator('.rw-closed-badge')).toHaveCount(0);
+});
+
+test('finishing a review refreshes the picker without leaving the tab', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-11T12:00:00.000Z'));
+  await page.addInitScript(() => window.localStorage.setItem('myokr_walkthrough_state', '"seen"'));
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(async () => {
+    const okr = await import('/src/lib/okr-storage.ts');
+    const now = new Date().toISOString();
+    await okr.saveCycles([
+      { id: 'c-sep', name: 'September 2026', month: 8, year: 2026, isActive: false, createdAt: now },
+    ]);
+    await okr.saveObjectives([{ id: 'o-1', cycleId: 'c-sep', title: 'Ship myOKR', order: 0, createdAt: now }]);
+    await okr.saveKeyResults([
+      { id: 'kr-1', objectiveId: 'o-1', title: 'Ship pomodoros', targetValue: 20, currentValue: 4,
+        unit: 'pomodoros', confidence: 'not_set', completionMode: 'manual', order: 0, createdAt: now, updatedAt: now },
+    ] as any);
+    await okr.saveReviews([]);
+    window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+  });
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+
+  // Open the review tab, where the picker lives: it starts at 0 of 4.
+  await openReview(page);
+  const trigger = page.locator('[aria-label="Review cycle and week"]');
+  await trigger.click();
+  const cycleRow = page.locator('.cwp-panel .cwp-cycle-row').first();
+  await expect(cycleRow.locator('.cwp-meta')).toHaveText('0 of 4 reviewed');
+  await page.keyboard.press('Escape');
+
+  // Finish without touching anything: unscored key results don't block
+  // Finish, so no draft edit is pending — the only thing that can refresh
+  // the picker is the finish path itself.
+  await page.locator('.rw-rail-item:has-text("Reflect")').click();
+  await page.locator('.rw-btn:has-text("Finish review")').click();
+  await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
+
+  // The picker must follow in place — no trip through Focus or Plan.
+  await trigger.click();
+  await expect(cycleRow.locator('.cwp-meta')).toHaveText('1 of 4 reviewed');
 });

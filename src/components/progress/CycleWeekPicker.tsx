@@ -412,18 +412,23 @@ export default function CycleWeekPicker({
   );
 }
 
-/** Default review selection: the ACTIVE cycle's most recent finished week;
- *  if it has none, the newest cycle's, walking older cycles until one has
- *  any. Null when nothing anywhere has finished yet. */
+/** Default review selection: the cycle today falls in, else the newest, and
+ *  within it the most recent finished week — walking older cycles until one
+ *  has any. Null when nothing anywhere has finished yet.
+ *
+ *  Calendar-first, matching `resolveCurrentCycle`: the stored `isActive`
+ *  flag goes stale (cycles are created inactive, so a long-past cycle can
+ *  stay flagged forever), which pinned this picker months back. */
 export function defaultReviewSelection(
   cycles: OKRCycle[],
   todayStr: string,
 ): CycleWeekSelection | null {
   const byNewest = [...cycles].sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
-  const ordered = [
-    ...byNewest.filter(c => c.isActive),
-    ...byNewest.filter(c => !c.isActive),
-  ];
+  const [todayYear, todayMonth] = todayStr.split('-').map(Number);
+  const currentCycle = cycles.find(c => c.year === todayYear && c.month === todayMonth - 1);
+  const ordered = currentCycle
+    ? [currentCycle, ...byNewest.filter(c => c.id !== currentCycle.id)]
+    : byNewest;
   for (const cycle of ordered) {
     const mondays = getExclusiveCycleMondays(cycle);
     for (let i = mondays.length - 1; i >= 0; i--) {

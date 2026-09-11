@@ -514,6 +514,10 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
   Reflect); completed steps show a check. **Freely clickable** — no gating;
   unscored KRs don't block Finish. A week with a draft lands on its first
   step with unanswered work.
+- The rail and the "This week" card travel as **one sticky sidebar unit**
+  with a real gap between them. Each used to carry its own sticky offset,
+  which slid the card up over the rail's last item ("Reflect") once a long
+  step-2 list scrolled.
 - Save indicator top-right: `Nothing to save yet` (no edits) → `Saving…` →
   `Saved just now` (check icon, success color). Footer: `Step N of 3 · …`
   left, Back + primary action right (`Score key results` / `Continue to

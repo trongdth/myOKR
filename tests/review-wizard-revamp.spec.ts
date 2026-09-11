@@ -937,4 +937,26 @@ test.describe('Weekly review wizard revamp', () => {
     const box = (await footer.boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
   });
+
+  test('step 2 sidebar: the This week card never covers the step rail', async ({ page }) => {
+    await seedEightKeyResults(page);
+    await openStep2(page);
+
+    const boxes = async () => ({
+      rail: (await page.locator('.rw-rail').boundingBox())!,
+      card: (await page.locator('.rw-week-card').boundingBox())!,
+    });
+
+    // At rest the card sits below the rail with a real gap — borrowing the
+    // finished state's "That week" spacing, not flush against it.
+    const rest = await boxes();
+    expect(rest.card.y).toBeGreaterThanOrEqual(rest.rail.y + rest.rail.height + 4);
+
+    // The step-2 list is long, so the sidebar has to survive scrolling: the
+    // card's magic sticky offset used to slide it over the Reflect button.
+    await page.locator('.app-main').evaluate(el => el.scrollBy(0, 300));
+    await page.waitForTimeout(200);
+    const scrolled = await boxes();
+    expect(scrolled.card.y).toBeGreaterThanOrEqual(scrolled.rail.y + scrolled.rail.height + 4);
+  });
 });

@@ -437,12 +437,27 @@
 
 /* ----- left column: step rail + this-week card ----- */
 
+/* The sidebar travels as ONE sticky unit. Giving the rail and the card
+   their own sticky offsets let the card slide up over the rail's last item
+   ("Reflect") once the long step-2 list scrolled (found in testing). The
+   card also keeps a real gap from the rail instead of sitting flush. */
+.rw-side:not(.rw-side-done) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+}
+
+.rw-side:not(.rw-side-done) .rw-week-card {
+  margin-top: 0;
+}
+
 .rw-rail {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  position: sticky;
-  top: 1rem;
 }
 
 .rw-rail-item {
@@ -497,9 +512,6 @@
 }
 
 .rw-week-card {
-  margin-top: auto;
-  position: sticky;
-  top: 12rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -1142,6 +1154,10 @@
   }
 
   .rw-week-card {
+    position: static;
+  }
+
+  .rw-side:not(.rw-side-done) {
     position: static;
   }
 
