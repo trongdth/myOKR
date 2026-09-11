@@ -220,3 +220,26 @@ test.describe('review-insights', () => {
     expect(empty).toBeNull();
   });
 });
+
+test.describe('habits % window', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('never exceeds 100 when the week is still mid-flight', async ({ page }) => {
+    // Mid-week shape (the function accepts any today): by Thursday only three
+    // days are scheduled, but a ticked-today habit contributes a fourth tick
+    // from the closed week window — 4/3 = 133% without the window alignment.
+    const fx = makeFixture();
+    fx.todayStr = '2026-06-11'; // Thursday inside the week
+    fx.habits = [{
+      id: 'h1', name: 'Read', status: 'in_progress',
+      ticks: ['2026-06-08', '2026-06-09', '2026-06-10', '2026-06-11'],
+      createdAt: '', updatedAt: '',
+    }];
+    const g = await callInsights<Record<string, any>>(page, 'computeWeekGlance', fx);
+    expect(g.habitsPct).not.toBeNull();
+    expect(g.habitsPct).toBeLessThanOrEqual(100);
+  });
+});

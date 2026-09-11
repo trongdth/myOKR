@@ -610,8 +610,13 @@ function normalizeReview(r: unknown): WeeklyReview | null {
       pomodorosByKeyResult: pbyKr,
     },
   };
+  // A corrupt/legacy non-array `prompts` must not leak through the `...rv`
+  // spread — the type promises ReviewPrompt[] | undefined and callers call
+  // .find/.length on it.
   if (Array.isArray(rv.prompts)) {
     normalized.prompts = rv.prompts.map(normalizeReviewPrompt).filter((p): p is ReviewPrompt => p !== null);
+  } else {
+    delete normalized.prompts;
   }
   return normalized;
 }

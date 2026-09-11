@@ -282,3 +282,27 @@ test.describe('resolveSessionEndedAt', () => {
     expect(await endedAt(page, now - THRESHOLD - 1, now)).toBe(new Date(now - THRESHOLD - 1).toISOString());
   });
 });
+
+test('assignTaskKeyResults: an empty id unlinks — the field leaves the task', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  // A linked task and an "unlinked" assignment (the modal sends '' for
+  // "Leave unlinked"): the write must drop the field, not persist ''.
+  await page.evaluate(async () => {
+    const pomo = await import('/src/lib/pomodoro-storage.ts');
+    await pomo.saveTasks([
+      { id: 't-1', title: 'Linked', keyResultId: 'kr-1', isCompleted: false, completedPomodoros: 0, estimatedPomodoros: 2, createdAt: new Date().toISOString() },
+    ] as any[]);
+  });
+  await page.evaluate(async () => {
+    const pomo = await import('/src/lib/pomodoro-storage.ts');
+    await pomo.assignTaskKeyResults({ 't-1': '' });
+  });
+  const stored = await page.evaluate(async () => {
+    const doc = await (window as any).__getAutomergeDoc();
+    const t = (doc.tasks as any[]).find(x => x.id === 't-1');
+    return { hasField: Object.prototype.hasOwnProperty.call(t, 'keyResultId'), value: t?.keyResultId ?? null };
+  });
+  expect(stored.hasField).toBe(false);
+  expect(stored.value).toBeNull();
+});

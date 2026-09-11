@@ -489,7 +489,12 @@ export async function assignTaskKeyResults(assignments: Record<string, string>):
     for (const [taskId, keyResultId] of Object.entries(assignments)) {
       const idx = tasks.findIndex(t => t && t.id === taskId);
       if (idx >= 0) {
-        tasks[idx] = sanitizeForAutomerge({ ...tasks[idx], keyResultId });
+        const next = { ...tasks[idx] };
+        // An empty id is "Leave unlinked" — drop the field rather than
+        // persisting '' as a dangling key result reference.
+        if (keyResultId) next.keyResultId = keyResultId;
+        else delete next.keyResultId;
+        tasks[idx] = sanitizeForAutomerge(next);
       }
     }
   });

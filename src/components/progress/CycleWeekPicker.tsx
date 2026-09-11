@@ -178,7 +178,13 @@ export default function CycleWeekPicker({
     const firstActive = selected
       ? `week:${selected.cycleId}:${selected.weekStart}`
       : flatRows[0]?.key ?? null;
-    const exists = flatRows.some(r => r.key === firstActive);
+    // flatRows is the render-time memo: while the accordion was collapsed it
+    // omits week rows entirely, so resolve the selected week against the
+    // full model instead of trusting the stale list.
+    const exists = selected
+      ? cycleRows.some(r => r.cycle.id === selected.cycleId
+          && r.weeks.some(w => w.weekStart === selected.weekStart))
+      : flatRows.some(r => r.key === firstActive);
     setActiveKey(exists ? firstActive : flatRows[0]?.key ?? null);
   };
 

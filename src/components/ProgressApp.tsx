@@ -135,11 +135,25 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
       .catch(console.error);
   };
 
-  const headerTitle = tab === 'weekly-review'
-    ? (reviewSelection ? formatWeekLabel(reviewSelection.weekStart) : undefined)
-    : tab === 'objectives-progress'
-      ? (selectedMonday ? formatWeekLabel(selectedMonday) : undefined)
-      : undefined;
+  const headerTitle = (() => {
+    if (tab === 'weekly-review') return reviewSelection ? formatWeekLabel(reviewSelection.weekStart) : undefined;
+    if (tab === 'objectives-progress') return selectedMonday ? formatWeekLabel(selectedMonday) : undefined;
+    return undefined;
+  })();
+
+  // The header's top-right slot: a finished review's Reopen button owns it;
+  // otherwise a closed cycle shows its badge; otherwise nothing.
+  const headerRight = (() => {
+    if (finishedReview) {
+      return (
+        <button type="button" className="rw-reopen-btn" onClick={() => setShowReopenConfirm(true)}>
+          <PenLine size={14} className="icon-inline" /> Reopen review
+        </button>
+      );
+    }
+    if (showClosedBadge) return <span className="rw-closed-badge">{formatClosedLabel(reviewClosedDate!)}</span>;
+    return undefined;
+  })();
 
   return (
     <div className="pomodoro-container progress-shell">
@@ -154,11 +168,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
           subtitle={finishedReview ? (
             <p className="rw-completed-line">{formatCompletedLine(finishedReview.completedAt!)}</p>
           ) : undefined}
-          right={finishedReview ? (
-            <button type="button" className="rw-reopen-btn" onClick={() => setShowReopenConfirm(true)}>
-              <PenLine size={14} className="icon-inline" /> Reopen review
-            </button>
-          ) : showClosedBadge ? <span className="rw-closed-badge">{formatClosedLabel(reviewClosedDate!)}</span> : undefined}
+          right={headerRight}
         />
         {finishedReview && (
           <ConfirmModal

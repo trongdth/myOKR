@@ -1159,13 +1159,11 @@
     height: auto;
   }
 
-  .rw-rail,
   .rw-done-rail {
     flex-direction: row;
     flex-wrap: wrap;
   }
 
-  .rw-rail-item,
   .rw-done-marker {
     flex: 1;
     min-width: 140px;
@@ -1210,7 +1208,6 @@
     display: none;
   }
 
-  .rw-summary-headrow,
   .rw-summary-row {
     grid-template-columns: 1fr auto;
     gap: 0.3rem 0.75rem;

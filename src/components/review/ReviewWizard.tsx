@@ -135,9 +135,12 @@ export default function ReviewWizard({
 
   // Keep the derived rows in step with the data behind them. Only their
   // values move — a manual value, a confidence or a note is the user's.
+  // Read-only renders the frozen stored review; refreshing entries there
+  // would dirty a draft that must not be written.
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
   useEffect(() => {
+    if (readOnly) return;
     const prev = entriesRef.current;
     let changed = false;
     const next = prev.map(entry => {
@@ -219,14 +222,18 @@ export default function ReviewWizard({
     setSaveState('saving');
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(async () => {
+      // Read through latestRef: pomodoroStats can change without entries
+      // changing (linking sessions to a manual KR), and a closure-captured
+      // value would persist stale stats into the draft.
+      const l = latestRef.current;
       const next: WeeklyReview = {
-        id: draftRef.current?.id ?? `draft-${weekStart}`,
-        weekStartDate: weekStart,
-        weekEndDate: weekEnd,
-        cycleId,
-        entries,
-        prompts,
-        pomodoroStats,
+        id: draftRef.current?.id ?? `draft-${l.weekStart}`,
+        weekStartDate: l.weekStart,
+        weekEndDate: l.weekEnd,
+        cycleId: l.cycleId,
+        entries: l.entries,
+        prompts: l.prompts,
+        pomodoroStats: l.pomodoroStats,
       };
       draftRef.current = next;
       try {

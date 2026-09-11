@@ -176,11 +176,15 @@ export function computeWeekGlance(input: ReviewInsightsInput): WeekGlance {
   const habitsMissedWeekdays: string[] = [];
   if (habits.length > 0 && daysElapsed > 0) {
     const scheduled = habits.length * daysElapsed;
+    // The numerator counts only scheduled days (strictly before today):
+    // a tick today would otherwise count against a day the denominator
+    // hasn't scheduled yet. Clamped — a stray duplicate tick must not read
+    // as over-100%.
     let completed = 0;
     for (const habit of habits) {
-      completed += habit.ticks.filter(t => t >= weekStart && t <= weekEnd).length;
+      completed += habit.ticks.filter(t => t >= weekStart && t < todayStr).length;
     }
-    habitsPct = Math.round((completed / scheduled) * 100);
+    habitsPct = Math.min(100, Math.round((completed / scheduled) * 100));
     for (const d of sessionsPerDay) {
       if (d.date >= todayStr) continue;
       const anyTick = habits.some(h => h.ticks.includes(d.date));
@@ -266,7 +270,7 @@ export function computeKrMoves(input: ReviewInsightsInput): KrMovesResult {
 // ===== at-risk streaks =====
 
 /**
- * Consecutive *completed* reviews immediately before `weekStart* in which the
+ * Consecutive *completed* reviews immediately before `weekStart in which the
  * KR's entry was At risk / Off track, **only when that run is ≥2** (grilling
  * decision 9 — a single flagged review is not a streak). Drafts never count.
  * The banner/prompt phrase the number as "N weeks running".

@@ -51,7 +51,13 @@ export default function LinkSessionsModal({
         const key = task?.id ?? '';
         const entry = byTask.get(key) ?? { task: task ?? null, sessions: 0, minutes: 0 };
         entry.sessions += 1;
-        entry.minutes += Math.round((new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000);
+        // Session timestamps normalize to '' when missing; Date('') is NaN,
+        // which would render as "NaNm". Only count computable durations.
+        const startMs = new Date(s.startedAt).getTime();
+        const endMs = new Date(s.endedAt).getTime();
+        if (Number.isFinite(startMs) && Number.isFinite(endMs)) {
+          entry.minutes += Math.round((endMs - startMs) / 60000);
+        }
         byTask.set(key, entry);
         if (!task) noTaskCount += 1;
       }

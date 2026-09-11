@@ -648,8 +648,13 @@ class StorageProvider extends ChangeNotifier {
     // Read-modify-write: the mobile wizard builds only the fields it owns, so
     // replacing the entry wholesale would drop keys the desktop review writes
     // for the same week (the structured `prompts`, ADR-0019). Merge over what
-    // is stored — mobile's own fields still win.
-    final item = <String, dynamic>{...?existing, ...review};
+    // is stored — mobile's own fields still win. Null-valued keys count as
+    // "no opinion" (the wizard emits `reflection: null` when its box is
+    // empty) and must not erase a stored value.
+    final owned = Map.fromEntries(
+      review.entries.where((e) => e.value != null),
+    );
+    final item = <String, dynamic>{...?existing, ...owned};
 
     if ((item['id'] as String?)?.isEmpty ?? true) {
       item['id'] = DateTime.now().millisecondsSinceEpoch.toString();
