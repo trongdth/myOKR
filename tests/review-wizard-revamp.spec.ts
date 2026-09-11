@@ -959,4 +959,39 @@ test.describe('Weekly review wizard revamp', () => {
     const scrolled = await boxes();
     expect(scrolled.card.y).toBeGreaterThanOrEqual(scrolled.rail.y + scrolled.rail.height + 4);
   });
+
+  test('the sidebar card anchors identically while reviewing and reviewed', async ({ page }) => {
+    await seedEightKeyResults(page);
+    await openStep2(page);
+
+    const measure = () => page.evaluate(() => {
+      const side = document.querySelector('.rw-side')!.getBoundingClientRect();
+      const rail = (document.querySelector('.rw-rail') ?? document.querySelector('.rw-done-rail'))!.getBoundingClientRect();
+      const card = document.querySelector('.rw-week-card')!.getBoundingClientRect();
+      return {
+        sideH: Math.round(side.height),
+        gap: Math.round(card.top - rail.bottom),
+        cardBottomToSideBottom: Math.round(side.bottom - card.bottom),
+      };
+    });
+
+    const reviewing = await measure();
+
+    // Finish the very week under review → the reviewed state of the same
+    // sidebar, so the two measurements are directly comparable.
+    await page.locator('.rw-rail-item:has-text("Reflect")').click();
+    await page.locator('.rw-btn:has-text("Finish review")').click();
+    await expect(page.locator('.rw-summary-head h2')).toHaveText('Your review');
+    const reviewed = await measure();
+
+    // Same sidebar chrome in both states…
+    expect(Math.abs(reviewing.sideH - reviewed.sideH)).toBeLessThanOrEqual(2);
+    // …the card anchored to its bottom in both…
+    expect(reviewing.cardBottomToSideBottom).toBeLessThanOrEqual(2);
+    expect(reviewed.cardBottomToSideBottom).toBeLessThanOrEqual(2);
+    // …and clearly separated from the rail in both — not flush under
+    // Reflect while reviewing, then jumping 364px down once reviewed.
+    expect(reviewing.gap).toBeGreaterThan(100);
+    expect(reviewed.gap).toBeGreaterThan(100);
+  });
 });

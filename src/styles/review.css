@@ -437,24 +437,24 @@
 
 /* ----- left column: step rail + this-week card ----- */
 
-/* The sidebar travels as ONE sticky unit. Giving the rail and the card
-   their own sticky offsets let the card slide up over the rail's last item
-   ("Reflect") once the long step-2 list scrolled (found in testing). The
-   card also keeps a real gap from the rail instead of sitting flush. */
-.rw-side:not(.rw-side-done) {
+/* The sidebar travels as ONE sticky unit, capped to the viewport and with
+   the week card anchored to its bottom — the same arrangement while
+   reviewing and reviewed (grilling round 4 follow-up: the two states used
+   different distances, 12px vs 364px). Separate sticky offsets let the card
+   slide over the rail's last item ("Reflect") on long lists — found in
+   testing. */
+.rw-side {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   position: sticky;
   top: 1rem;
   align-self: start;
+  height: calc(100vh - 13rem);
 }
 
-.rw-side:not(.rw-side-done) .rw-week-card {
-  margin-top: 0;
-}
-
-.rw-rail {
+.rw-rail,
+.rw-done-rail {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -512,6 +512,7 @@
 }
 
 .rw-week-card {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -1153,29 +1154,26 @@
     min-width: 140px;
   }
 
-  .rw-week-card {
+  .rw-side {
     position: static;
+    height: auto;
   }
 
-  .rw-side:not(.rw-side-done) {
-    position: static;
-  }
-
-  .rw-side-done {
+  .rw-rail,
+  .rw-done-rail {
     flex-direction: row;
     flex-wrap: wrap;
-    align-items: flex-start;
   }
 
-  .rw-done-rail {
+  .rw-rail-item,
+  .rw-done-marker {
     flex: 1;
-    min-width: 240px;
+    min-width: 140px;
   }
 
-  .rw-side-done .rw-week-card {
+  .rw-week-card {
+    position: static;
     margin-top: 0;
-    flex: 1;
-    min-width: 200px;
   }
 
   .rw-glance-columns {
@@ -1375,20 +1373,6 @@
 
 /* The finished left column stretches to the main pane's height so the
    That week card sits at its bottom (the week is over — "That week"). */
-.rw-columns-done {
-  align-items: stretch;
-}
-
-.rw-side-done {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.rw-side-done .rw-week-card {
-  margin-top: auto;
-}
-
 .rw-done-rail {
   display: flex;
   flex-direction: column;

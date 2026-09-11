@@ -319,8 +319,8 @@ export default function ReviewWizard({
   if (readOnly) {
     return (
       <div className="review-wizard rw-wizard">
-        <div className="rw-columns rw-columns-done">
-          <div className="rw-side rw-side-done">
+        <div className="rw-columns">
+          <div className="rw-side">
             <div className="rw-done-rail" aria-label="Review steps">
               {STEP_LABELS.map(label => (
                 <div key={label} className="rw-done-marker">
