@@ -648,7 +648,7 @@ footer buttons go full-width, and step 2's rows wrap (the KR name takes its
 own line; delta · value · `/ target` stay right-aligned); ≤560px — stat cards
 1-across. (The wizard CSS lives in `review.css` under the `rw-*` prefix.)
 
-### Drafts, immutability, entry gating (amended 2026-09-07, round 2)
+### Drafts, entry gating, reopen (2026-09-07 round 2; immutability reversed 2026-09-09)
 
 - **Finished weeks only**: a week is reviewable once its Sunday has passed;
   the CycleWeekPicker lists unfinished weeks disabled, and the old

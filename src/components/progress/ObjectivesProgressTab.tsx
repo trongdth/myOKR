@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadReviews, loadKeyResults, type OKRCycle, type WeeklyReview, type KeyResult } from '../../lib/okr-storage';
-import { reviewInCycle } from '../../lib/review-utils';
+import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
 import ProgressChart from '../review/ProgressChart';
 
 // The Progress group's Objectives tab — the progress-over-time chart moved
@@ -30,8 +30,15 @@ export default function ObjectivesProgressTab({ activeCycle }: { activeCycle: OK
     };
   }, []);
 
+  // Exclusive weeks, like every other Progress surface (ADR-0019): the week
+  // that opens the next cycle belongs to that cycle, so a boundary review
+  // charts once. `reviewInCycle` (intersect) would draw it here *and* there
+  // while Analytics counts it for one cycle only.
   const cycleReviews = (activeCycle
-    ? reviews.filter(r => r.completedAt && reviewInCycle(r, activeCycle))
+    ? (() => {
+        const cycleWeeks = new Set(getExclusiveCycleMondays(activeCycle));
+        return reviews.filter(r => r.completedAt && cycleWeeks.has(r.weekStartDate));
+      })()
     : []);
 
   return (

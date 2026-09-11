@@ -180,23 +180,29 @@ export default function ReviewWizard({
     };
   }, [history, tasks, cycleKRs, weekStart, weekEnd]);
 
+  // Both of these are per-week, not per-row: hoisted out of the map so they
+  // are built once per render instead of once per key result.
+  const scoreRowTaskMap = useMemo(() => new Map(tasks.map(t => [t.id, t])), [tasks]);
+  const scoreRowWeekPomos = useMemo(
+    () => computeWeekTaskPomos(history, weekStart, weekEnd),
+    [history, weekStart, weekEnd],
+  );
+
   const scoreRows: ScoreRow[] = useMemo(() => entries
     .map((entry): ScoreRow | null => {
       const kr = cycleKRs.find(k => k.id === entry.keyResultId);
       const objective = cycleObjectives.find(o => o.id === kr?.objectiveId);
       if (!kr || !objective) return null;
-      const taskMap = new Map(tasks.map(t => [t.id, t]));
-      const weekTaskPomos = computeWeekTaskPomos(history, weekStart, weekEnd);
-      const linkedTasksThisWeek = [...weekTaskPomos.entries()]
-        .filter(([taskId]) => taskMap.get(taskId)?.keyResultId === kr.id)
-        .map(([taskId, pomos]) => ({ task: taskMap.get(taskId) ?? null, pomos }))
+      const linkedTasksThisWeek = [...scoreRowWeekPomos.entries()]
+        .filter(([taskId]) => scoreRowTaskMap.get(taskId)?.keyResultId === kr.id)
+        .map(([taskId, pomos]) => ({ task: scoreRowTaskMap.get(taskId) ?? null, pomos }))
         .sort((a, b) => b.pomos - a.pomos);
       return {
         entry, keyResult: kr, objective, linkedTasksThisWeek,
         atRiskWeeksRunning: streaks.get(kr.id) ?? 0,
       };
     })
-    .filter((r): r is ScoreRow => r !== null), [entries, cycleKRs, cycleObjectives, tasks, history, weekStart, weekEnd, streaks]);
+    .filter((r): r is ScoreRow => r !== null), [entries, cycleKRs, cycleObjectives, scoreRowTaskMap, scoreRowWeekPomos, streaks]);
 
   // ===== autosave (debounced; fire-and-forget per persistence rule 3) =====
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');

@@ -611,4 +611,45 @@ test.describe('Progress / Analytics Screen Revamp', () => {
     const card2 = cards.nth(1);
     await expect(card2.locator('.metric-badge.neutral')).toHaveText('0m vs last cycle');
   });
+
+  test('the Objectives chart counts a boundary week in exactly one cycle', async ({ page }) => {
+    // Today sits in August, and the review belongs to the week that OPENS
+    // September (Mon 31 Aug). Under the exclusive rule that week is
+    // September's — Analytics counts it there — so August's chart must not
+    // claim it back (the intersect rule double-counted exactly this week).
+    await page.clock.setFixedTime(new Date('2026-08-25T12:00:00.000Z'));
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const mk = (id: string, name: string, month: number, year: number) =>
+        ({ id, name, month, year, isActive: false, createdAt: new Date().toISOString() });
+      await okr.saveCycles([mk('c-aug', 'August 2026', 7, 2026), mk('c-sep', 'September 2026', 8, 2026)]);
+      await okr.saveReviews([
+        { id: 'rev-boundary', weekStartDate: '2026-08-31', weekEndDate: '2026-09-06', cycleId: 'c-sep',
+          completedAt: '2026-09-07T20:00:00.000Z',
+          entries: [{ keyResultId: 'kr-1', previousValue: 0, currentValue: 2, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+        { id: 'rev-aug-early', weekStartDate: '2026-08-10', weekEndDate: '2026-08-16', cycleId: 'c-aug',
+          completedAt: '2026-08-11T20:00:00.000Z',
+          entries: [{ keyResultId: 'kr-1', previousValue: 0, currentValue: 1, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+        { id: 'rev-aug', weekStartDate: '2026-08-24', weekEndDate: '2026-08-30', cycleId: 'c-aug',
+          completedAt: '2026-08-25T20:00:00.000Z',
+          entries: [{ keyResultId: 'kr-1', previousValue: 1, currentValue: 2, confidence: 'on_track' }],
+          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
+      ] as any);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    await openAnalytics(page);
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
+    const svg = page.locator('.progress-shell .progress-chart-svg');
+    await expect(svg).toBeVisible();
+    // August's own weeks chart (two points, so the chart draws)…
+    await expect(svg).toContainText('08-10');
+    await expect(svg).toContainText('08-24');
+    // …and the week that opens September does not.
+    await expect(svg).not.toContainText('08-31');
+  });
 });

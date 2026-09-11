@@ -638,15 +638,23 @@ class StorageProvider extends ChangeNotifier {
   Future<void> saveReview(Map<String, dynamic> review) async {
     final rId = review['id'] as String?;
     final weekStart = review['weekStartDate'] as String?;
-    final item = Map<String, dynamic>.from(review);
 
-    if (rId == null || rId.isEmpty) {
+    final existingIdx = reviews.indexWhere(
+      (r) => (rId != null && rId.isNotEmpty && r['id'] == rId) ||
+          (weekStart != null && r['weekStartDate'] == weekStart),
+    );
+    final existing = existingIdx >= 0 ? reviews[existingIdx] : null;
+
+    // Read-modify-write: the mobile wizard builds only the fields it owns, so
+    // replacing the entry wholesale would drop keys the desktop review writes
+    // for the same week (the structured `prompts`, ADR-0019). Merge over what
+    // is stored — mobile's own fields still win.
+    final item = <String, dynamic>{...?existing, ...review};
+
+    if ((item['id'] as String?)?.isEmpty ?? true) {
       item['id'] = DateTime.now().millisecondsSinceEpoch.toString();
     }
 
-    final existingIdx = reviews.indexWhere(
-      (r) => r['id'] == item['id'] || (weekStart != null && r['weekStartDate'] == weekStart),
-    );
     List<Map<String, dynamic>> updated;
     if (existingIdx >= 0) {
       updated = [...reviews];
