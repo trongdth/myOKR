@@ -66,7 +66,7 @@ test.describe('Weekly Review Regressions & UI Enhancements', () => {
 
     // Default selection = the newest cycle's most recent finished week —
     // every June 2026 week is finished today, so week 4 of 4 (22–28 Jun).
-    await expect(trigger).toHaveText(/June 2026 · week 4 of 4/);
+    await expect(trigger).toHaveText(/June cycle · week 4 of 4/);
     await expect(page.locator('.rw-wizard .rw-step-heading h2')).toBeVisible();
 
     // Selecting week 1 opens its wizard directly — no start button, no cancel.

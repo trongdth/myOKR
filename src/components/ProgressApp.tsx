@@ -6,7 +6,7 @@ import ReviewApp from './ReviewApp';
 import ObjectivesProgressTab from './progress/objectives/ObjectivesProgressTab';
 import CycleWeekPicker, { defaultReviewSelection, type CycleWeekSelection } from './progress/CycleWeekPicker';
 import ConfirmModal from './ConfirmModal';
-import { getActiveCycle, loadCycles, loadReviews, reopenReview, type OKRCycle, type WeeklyReview } from '../lib/okr-storage';
+import { cycleDisplayName, getActiveCycle, loadCycles, loadReviews, reopenReview, type OKRCycle, type WeeklyReview } from '../lib/okr-storage';
 import { getCycleClosedDate } from '../lib/cycle-windows';
 import { useSession } from './session/SessionProvider';
 import '../styles/progress.css';
@@ -136,9 +136,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
 
   const headerTitle = (() => {
     if (tab === 'weekly-review') return reviewSelection ? formatWeekLabel(reviewSelection.weekStart) : undefined;
-    if (tab === 'objectives-progress') return objCycle
-      ? (objCycle.name || `${MONTHS_SHORT[objCycle.month]} cycle`)
-      : undefined;
+    if (tab === 'objectives-progress') return objCycle ? cycleDisplayName(objCycle) : undefined;
     return undefined;
   })();
 

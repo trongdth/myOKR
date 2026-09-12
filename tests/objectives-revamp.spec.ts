@@ -30,7 +30,7 @@ async function openObjectives(page: Page) {
 
 async function openMayCycle(page: Page) {
   await page.locator('.obj-cycle-picker .sel-trigger').click();
-  await page.locator('.sel-panel .sel-row', { hasText: 'May 2026' }).click();
+  await page.locator('.sel-panel .sel-row', { hasText: 'May cycle' }).click();
   await page.waitForTimeout(200);
 }
 
@@ -57,18 +57,21 @@ test.describe('Objectives tab (R3) revamp', () => {
         { id: 'o-c', cycleId: 'c-sep', title: 'At risk objective', order: 2, createdAt: '2026-08-01T00:00:00.000Z' },
         { id: 'o-d', cycleId: 'c-sep', title: 'Zero objective', order: 3, createdAt: '2026-08-01T00:00:00.000Z' },
         { id: 'o-e', cycleId: 'c-sep', title: 'Catching up objective', order: 4, createdAt: '2026-08-01T00:00:00.000Z' },
+        { id: 'o-f', cycleId: 'c-sep', title: 'Ahead objective', order: 5, createdAt: '2026-08-01T00:00:00.000Z' },
         { id: 'o-may', cycleId: 'c-may', title: 'May focus objective', order: 0, createdAt: '2026-04-01T00:00:00.000Z' },
       ]);
 
       await okr.saveKeyResults([
-        // 40% · 30% · 5% · 0% · 33% at a 44% marker → On pace / Behind / At
-        // risk / zero-grey / Behind. kr-e is the fast-late case: 4/wk actual
-        // meets the needed 4/wk, yet "Actual average" still wears amber.
-        { id: 'kr-a', objectiveId: 'o-a', title: 'KR alpha', targetValue: 10, currentValue: 4, unit: 'items', completionMode: 'manual', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+        // 42% · 30% · 5% · 0% · 33% · 55% at a 44% marker → On pace / Behind /
+        // At risk / zero-grey / Behind / Ahead of pace. kr-e is the
+        // fast-late case: its actual rate meets the needed rate, yet the
+        // Actual-average row still wears amber.
+        { id: 'kr-a', objectiveId: 'o-a', title: 'KR alpha', targetValue: 100, currentValue: 42, unit: 'items', completionMode: 'manual', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
         { id: 'kr-b', objectiveId: 'o-b', title: 'KR beta', targetValue: 50, currentValue: 15, unit: 'items', completionMode: 'manual', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
         { id: 'kr-c', objectiveId: 'o-c', title: 'KR gamma', targetValue: 20, currentValue: 1, unit: 'items', completionMode: 'manual', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
         { id: 'kr-d', objectiveId: 'o-d', title: 'KR delta', targetValue: 10, currentValue: 0, unit: 'items', completionMode: 'manual', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
         { id: 'kr-e', objectiveId: 'o-e', title: 'KR epsilon', targetValue: 12, currentValue: 0, unit: 'pomodoros', completionMode: 'focus_pomodoros', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+        { id: 'kr-f', objectiveId: 'o-f', title: 'KR zeta', targetValue: 20, currentValue: 11, unit: 'items', completionMode: 'manual', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
         // Past-cycle derived KR: focus pomodoros fed by sessions in May weeks 2 and 4.
         { id: 'kr-focus', objectiveId: 'o-may', title: 'Log focus sessions', targetValue: 10, currentValue: 0, unit: 'pomodoros', completionMode: 'focus_pomodoros', createdAt: '2026-04-01T00:00:00.000Z', updatedAt: '2026-04-01T00:00:00.000Z' },
       ]);
@@ -122,10 +125,12 @@ test.describe('Objectives tab (R3) revamp', () => {
   test('shell: cycle h1, cycle-only picker (no week options), pace marker meta', async ({ page }) => {
     const shell = page.locator('.progress-shell');
     await expect(shell.locator('.tasks-title')).toHaveText('PROGRESS');
-    await expect(shell.locator('.plan-header-title')).toHaveText('September 2026');
+    // Default-named cycles read "{Month} cycle" (the design format) —
+    // header, picker, everywhere one label rule.
+    await expect(shell.locator('.plan-header-title')).toHaveText('September cycle');
 
     // The picker reads the cycle name only — no week option, no "all weeks".
-    await expect(page.locator('.obj-cycle-picker .sel-trigger')).toHaveText(/September 2026/);
+    await expect(page.locator('.obj-cycle-picker .sel-trigger')).toHaveText(/September cycle/);
     await page.locator('.obj-cycle-picker .sel-trigger').click();
     await expect(page.locator('.sel-panel .sel-row')).toHaveCount(3);
     for (const row of await page.locator('.sel-panel .sel-row').all()) {
@@ -157,6 +162,13 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(page.locator('.obj-cards')).toHaveCSS('row-gap', '9px');
     await expect(page.locator('.obj-right')).toHaveCSS('column-gap', '11px');
 
+    // The KR bar shares the objective bar's column: the last two grid tracks
+    // (bar + reserved pill column) must be identical, so ticks line up.
+    const lastTracks = (sel: string) =>
+      page.locator(sel).first().evaluate(el =>
+        getComputedStyle(el).gridTemplateColumns.split(' ').slice(-2).join(' '));
+    expect(await lastTracks('.obj-kr-row')).toBe(await lastTracks('.obj-row'));
+
     // The other tabs keep the shared 20px shell (padding parity).
     await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
     await expect(inner).toHaveCSS('padding-top', '20px');
@@ -173,10 +185,11 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(page.locator('.obj-rollup-track .obj-pace-tick')).toHaveAttribute('style', /left: 44%/);
   });
 
-  test('pace status is derived: On pace / Behind pace / At risk, and zero renders grey', async ({ page }) => {
+  test('pace status is derived: Ahead / On pace / Behind / At risk, and zero renders grey', async ({ page }) => {
     const pillOf = (title: string) =>
       page.locator('.obj-card', { hasText: title }).locator('.obj-row .obj-pill');
 
+    await expect(pillOf('Ahead objective')).toHaveText('Ahead of pace');
     await expect(pillOf('On pace objective')).toHaveText('On pace');
     await expect(pillOf('Behind objective')).toHaveText('Behind pace');
     await expect(pillOf('At risk objective')).toHaveText('At risk');
@@ -196,10 +209,10 @@ test.describe('Objectives tab (R3) revamp', () => {
   });
 
   test('cycle roll-up: unweighted mean, caption, points-behind footer', async ({ page }) => {
-    // round((40 + 30 + 5 + 0 + 33) / 5) = 22; marker 44 − 22 = 22 points behind.
-    await expect(page.locator('.obj-rollup-number')).toHaveText(/^22%/);
-    await expect(page.locator('.obj-rollup-caption')).toHaveText('across 5 objectives, 5 key results');
-    await expect(page.locator('.obj-rollup-footer')).toHaveText('22 points behind the pace marker');
+    // round((42 + 30 + 5 + 0 + 33 + 55) / 6) = 28; marker 44 − 28 = 16 behind.
+    await expect(page.locator('.obj-rollup-number')).toHaveText(/^28%/);
+    await expect(page.locator('.obj-rollup-caption')).toHaveText('across 6 objectives, 6 key results');
+    await expect(page.locator('.obj-rollup-footer')).toHaveText('16 points behind the pace marker');
   });
 
   test('default selection is the worst-off KR with its objective expanded', async ({ page }) => {
@@ -230,22 +243,54 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(page.locator('.obj-kr-row.selected .obj-kr-percent')).toHaveText('30%');
   });
 
-  test('why-it-is-behind: rows, note, hidden when on pace or closed', async ({ page }) => {
-    // Default selection (kr-d, at risk): needed = ceil(10/2 remaining) = 5,
-    // actual = 0, two weeks remain → "5 / week". Unlinked note: 3 sessions.
+  test('pace card: rows derive from the week math; the label switches with status', async ({ page }) => {
+    // Default selection (kr-d, At risk → WHY IT IS BEHIND). Formulas:
+    // needed = 10 ÷ 4 weeks = 3 (rounded); actual = 0 ÷ elapsed weeks = 0;
+    // to finish = ceil(10 ÷ 3 remaining) = "4 / week". Unlinked note: 3.
     await expect(page.locator('.obj-why')).toBeVisible();
     const why = page.locator('.obj-why');
-    await expect(why.locator('.obj-why-row').nth(0).locator('.obj-why-value')).toHaveText('5');
+    await expect(why.locator('.obj-panel-eyebrow')).toHaveText('WHY IT IS BEHIND');
+    await expect(why.locator('.obj-why-row').nth(0).locator('.obj-why-value')).toHaveText('3');
     await expect(why.locator('.obj-why-row').nth(1).locator('.obj-why-value')).toHaveText('0');
     await expect(why.locator('.obj-why-row').nth(1).locator('.obj-why-value')).toHaveClass(/amber/);
-    await expect(why.locator('.obj-why-row').nth(2).locator('.obj-why-value')).toHaveText('5 / week');
+    await expect(why.locator('.obj-why-row').nth(2).locator('.obj-why-value')).toHaveText('4 / week');
     await expect(why.locator('.obj-why-note')).toHaveText(
       "3 of last week's sessions were unlinked. Linking them would close most of this gap.",
     );
 
-    // On-pace selection hides the card entirely.
+    // An on-pace selection keeps the card — same rows, PACE CHECK label.
+    // kr-a: needed = 100 ÷ 4 = 25; actual = round(42 / 1.714) = 25;
+    // to finish = ceil(58 ÷ 3) = "20 / week".
     await page.locator('.obj-card', { hasText: 'On pace objective' }).locator('.obj-row').click();
-    await expect(page.locator('.obj-why')).toHaveCount(0);
+    await expect(why.locator('.obj-panel-eyebrow')).toHaveText('PACE CHECK');
+    // Objective selection works in percentage points.
+    await expect(why.locator('.obj-why-row').nth(0).locator('.obj-why-value')).toHaveText('25 pts');
+    await expect(why.locator('.obj-why-row').nth(1).locator('.obj-why-value')).toHaveText('25 pts');
+    await expect(why.locator('.obj-why-row').nth(2).locator('.obj-why-value')).toHaveText('20 pts / week');
+  });
+
+  test('fills and pill tints carry the status hue (regression: class mismatch)', async ({ page }) => {
+    // The status classes and CSS selectors once disagreed (on_pace vs
+    // on-pace) and every fill/tint rendered grey while all text tests
+    // stayed green — assert the computed colors themselves.
+    const fillOf = (title: string) =>
+      page.locator('.obj-card', { hasText: title }).locator('.obj-row .obj-bar-fill');
+    await expect(fillOf('Ahead objective')).toHaveCSS('background-color', 'rgb(52, 211, 153)');
+    await expect(fillOf('On pace objective')).toHaveCSS('background-color', 'rgb(52, 211, 153)');
+    await expect(fillOf('Behind objective')).toHaveCSS('background-color', 'rgb(245, 165, 36)');
+    await expect(fillOf('At risk objective')).toHaveCSS('background-color', 'rgb(248, 113, 113)');
+    await expect(page.locator('.obj-rollup-fill')).toHaveCSS('background-color', 'rgb(34, 211, 238)');
+
+    // Pill: hue-matched text over a 12% tint of the same emerald.
+    const pill = page.locator('.obj-card', { hasText: 'Ahead objective' }).locator('.obj-pill');
+    await expect(pill).toHaveCSS('color', 'rgb(110, 231, 183)');
+    await expect(pill).toHaveCSS('background-color', /0\.905882/);
+
+    // KR bar: cyan while not behind (the ahead objective's KR), amber behind.
+    await page.locator('.obj-card', { hasText: 'Ahead objective' }).locator('.obj-row').click();
+    await expect(page.locator('.obj-kr-row .obj-kr-bar-fill').first()).toHaveCSS('background-color', 'rgb(34, 211, 238)');
+    await page.locator('.obj-card', { hasText: 'Behind objective' }).locator('.obj-row').click();
+    await expect(page.locator('.obj-kr-row .obj-kr-bar-fill').first()).toHaveCSS('background-color', 'rgb(245, 165, 36)');
   });
 
   test('why card: "Actual average" wears amber even when the recent rate meets the needed rate', async ({ page }) => {
@@ -258,15 +303,18 @@ test.describe('Objectives tab (R3) revamp', () => {
 
     const why = page.locator('.obj-why');
     await expect(why).toBeVisible();
-    await expect(why.locator('.obj-why-row').nth(0).locator('.obj-why-value')).toHaveText('4');
-    await expect(why.locator('.obj-why-row').nth(1).locator('.obj-why-value')).toHaveText('4');
+    await expect(why.locator('.obj-panel-eyebrow')).toHaveText('WHY IT IS BEHIND');
+    // needed = 12 ÷ 4 weeks = 3; actual = round(4 ÷ 1.714 elapsed weeks) = 2;
+    // to finish = ceil(8 ÷ 3 remaining) = "3 / week".
+    await expect(why.locator('.obj-why-row').nth(0).locator('.obj-why-value')).toHaveText('3');
+    await expect(why.locator('.obj-why-row').nth(1).locator('.obj-why-value')).toHaveText('2');
     await expect(why.locator('.obj-why-row').nth(1).locator('.obj-why-value')).toHaveClass(/amber/);
-    await expect(why.locator('.obj-why-row').nth(2).locator('.obj-why-value')).toHaveText('4 / week');
+    await expect(why.locator('.obj-why-row').nth(2).locator('.obj-why-value')).toHaveText('3 / week');
 
-    // The projection extends the last data point (33⅓% at week-1 Sunday,
-    // x = 30 + 6/27·340) at the current rate to cycle close (75.76% → y 27.4)
-    // — the same landing the callout math quotes.
-    await expect(page.locator('.obj-tj-proj')).toHaveAttribute('d', 'M105.6,61.3 L370,27.4');
+    // The projection extends the last data point — plotted on its W1 tick
+    // (x 30, 33⅓% → y 88) — at the current rate to cycle close (75.76% →
+    // y 37.1).
+    await expect(page.locator('.obj-tj-proj')).toHaveAttribute('d', 'M30.0,88.0 L370,37.1');
   });
 
   test('the final Sunday counts as closed: marker 100, no why card, no projection', async ({ page }) => {
@@ -281,20 +329,21 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(page.locator('.obj-pace-meta')).toContainText('pace marker at 100%');
     await expect(page.locator('.obj-why')).toHaveCount(0);
     await expect(page.locator('.obj-tj-proj')).toHaveCount(0);
-    // Roll-up footer reads against the pinned marker: 100 − 22 = 78 behind.
-    await expect(page.locator('.obj-rollup-footer')).toHaveText('78 points behind the pace marker');
+    // Roll-up footer reads against the pinned marker: 100 − 28 = 72 behind.
+    await expect(page.locator('.obj-rollup-footer')).toHaveText('72 points behind the pace marker');
   });
 
   test('diagnostic callout names the single worst objective once', async ({ page }) => {
     const callout = page.locator('.obj-callout');
     await expect(callout).toHaveCount(1);
-    await expect(callout).toContainText('Zero objective has moved 0% in 44% of the cycle. At this rate it lands at 0%.');
+    // Zero-progress special case: projecting zero from zero says nothing.
+    await expect(callout).toContainText('Zero objective has not moved in 44% of the cycle.');
   });
 
   test('past cycles render identically: marker at 100%, no projection, gap breaks the line', async ({ page }) => {
     await openMayCycle(page);
 
-    await expect(page.locator('.plan-header-title')).toHaveText('May 2026');
+    await expect(page.locator('.plan-header-title')).toHaveText('May cycle');
     await expect(page.locator('.obj-pace-meta')).toContainText('pace marker at 100%');
 
     // Default selection: the focus KR (5/10 → 50%, landing = progress when closed).
@@ -342,10 +391,10 @@ test.describe('Objectives tab (R3) revamp', () => {
 
   test('a cycle with no objectives offers the Plan-group way out', async ({ page }) => {
     await page.locator('.obj-cycle-picker .sel-trigger').click();
-    await page.locator('.sel-panel .sel-row', { hasText: 'June 2026' }).click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'June cycle' }).click();
     await expect(page.locator('.empty-state')).toBeVisible();
     await expect(page.locator('.empty-state')).toContainText('No objectives in this cycle');
     // The header still titles the picked cycle.
-    await expect(page.locator('.plan-header-title')).toHaveText('June 2026');
+    await expect(page.locator('.plan-header-title')).toHaveText('June cycle');
   });
 });

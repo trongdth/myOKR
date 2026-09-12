@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
 import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
-import type { OKRCycle } from '../../lib/okr-storage';
+import { cycleDisplayName, type OKRCycle } from '../../lib/okr-storage';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -24,9 +24,7 @@ export function ProgressHeader({
    *  completed line instead of floating at the title row). */
   alignEnd?: boolean;
 }) {
-  const cycleTitle = title ?? (activeCycle
-    ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`)
-    : 'Progress');
+  const cycleTitle = title ?? (activeCycle ? cycleDisplayName(activeCycle) : 'Progress');
 
   return (
     <div className={`tasks-view-header progress-header${alignEnd ? ' align-end' : ''}`}>
@@ -114,7 +112,7 @@ export default function ProgressTabStrip({
       return monday <= todayISO && todayISO <= end.toISOString().slice(0, 10);
     }) + 1
   );
-  const cycleName = activeCycle ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`) : 'Cycle';
+  const cycleName = activeCycle ? cycleDisplayName(activeCycle) : 'Cycle';
 
   const weekOptions: { value: string; label: string }[] = [
     { value: 'all', label: `${cycleName} · all weeks` },
@@ -169,7 +167,7 @@ export default function ProgressTabStrip({
             <Select
               options={[...cycles]
                 .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month))
-                .map(c => ({ value: c.id, label: c.name || `${MONTHS[c.month]} cycle` }))}
+                .map(c => ({ value: c.id, label: cycleDisplayName(c) }))}
               value={selectedCycleId}
               onChange={(val) => onSelectCycle(val)}
               ariaLabel="Pick cycle"

@@ -2,15 +2,18 @@ import { diffDays, projectedEndpoint, type CycleSpan, type EntitySeries } from '
 
 /**
  * Trajectory — the selected entity's weekly percent-of-target across the
- * full cycle span. Geometry is literal from the R3 spec: viewBox 0 0 380 170,
- * plot x 30..370, 0% → y 88, 100% → y 8, baseline y 145. Weeks with no data
- * break the line (segments split where weekIndex jumps); a dashed projection
- * extends the last data point to cycle close at the current rate.
+ * full cycle span. Geometry is literal from the R3 spec (amended: dots plot
+ * on their own W tick; every week W1..Wn is labelled plus `end` at the
+ * closed date; 0% sits at y 128 so the four spec gridlines y 8/48/88/128
+ * carry the labels): viewBox 0 0 380 170, plot x 30..370, baseline y 145.
+ * Weeks with no data break the line (segments split where weekIndex jumps);
+ * a dashed projection extends the last data point to cycle close at the
+ * current rate.
  */
 const X0 = 30;
 const X1 = 370;
 const Y_TOP = 8;
-const Y_ZERO = 88;
+const Y_ZERO = 128;
 const BASELINE = 145;
 const LABEL_Y = 161;
 
@@ -27,6 +30,9 @@ export default function TrajectoryCard({ title, subtitle, series, span, marker, 
   const totalDays = Math.max(diffDays(span.start, span.end), 1);
   const x = (dayOffset: number) => X0 + (dayOffset / totalDays) * (X1 - X0);
   const y = (pct: number) => Y_ZERO - (Math.min(100, Math.max(0, pct)) / 100) * (Y_ZERO - Y_TOP);
+  // The four spec gridlines carry the whole scale: 100 at the top, 50 mid,
+  // 0 at y 128, with the axis baseline a separate rule below.
+  const gridYs = [Y_TOP, (Y_TOP + Y_ZERO) / 2, Y_TOP + (Y_ZERO - Y_TOP) * 0.75, Y_ZERO];
 
   // Consecutive weeks join into one polyline; a weekIndex jump is a gap.
   const runs: { d: string; points: EntitySeries['points'] }[] = [];
@@ -62,7 +68,7 @@ export default function TrajectoryCard({ title, subtitle, series, span, marker, 
       ) : (
         <>
           <svg className="obj-trajectory-svg" viewBox="0 0 380 170" role="img" aria-label={`Weekly trajectory for ${title}`}>
-            {[Y_TOP, (Y_TOP + Y_ZERO) / 2, Y_ZERO].map(gy => (
+            {gridYs.map(gy => (
               <line key={gy} className="obj-tj-grid" x1={X0} y1={gy} x2={X1} y2={gy} />
             ))}
             <line className="obj-tj-baseline" x1={X0} y1={BASELINE} x2={X1} y2={BASELINE} />
@@ -71,8 +77,9 @@ export default function TrajectoryCard({ title, subtitle, series, span, marker, 
             <text className="obj-tj-ylab" x={X0 - 6} y={(Y_TOP + Y_ZERO) / 2 + 3} textAnchor="end">50</text>
             <text className="obj-tj-ylab" x={X0 - 6} y={Y_ZERO + 3} textAnchor="end">0</text>
 
-            {span.mondays.slice(0, -1).map((monday, i) => (
-              <text key={monday} className="obj-tj-xlab" x={x(diffDays(span.start, monday))} y={LABEL_Y} textAnchor="middle">
+            {/* Every cycle week labelled, plus `end` at the closed date. */}
+            {span.mondays.map((monday, i) => (
+              <text key={monday} className="obj-tj-xlab" x={x(i * 7)} y={LABEL_Y} textAnchor="middle">
                 W{i + 1}
               </text>
             ))}

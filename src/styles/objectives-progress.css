@@ -24,6 +24,7 @@
   --obj-cyan: var(--color-primary);
   --obj-cyan-bright: #67e8f9;
   --obj-green: #34d399;
+  --obj-green-soft: #6ee7b7;
   --obj-amber: #f5a524;
   --obj-red: #f87171;
   --obj-amber-text: #fcd34d;
@@ -253,7 +254,8 @@
   border-radius: 99px;
 }
 
-.obj-bar-fill.on-pace { background: var(--obj-green); }
+.obj-bar-fill.on-pace,
+.obj-bar-fill.ahead-of-pace { background: var(--obj-green); }
 .obj-bar-fill.behind-pace { background: var(--obj-amber); }
 .obj-bar-fill.at-risk { background: var(--obj-red); }
 .obj-bar-fill.zero { background: var(--obj-text-meta); }
@@ -277,6 +279,7 @@
   bottom: -3px;
   width: 1px;
   background: var(--obj-tick);
+  z-index: 1; /* reads as a marker above the fill, never a fill edge */
 }
 
 .obj-kr-bar-track .obj-pace-tick {
@@ -312,6 +315,11 @@
   background: color-mix(in srgb, var(--obj-green) 12%, transparent);
 }
 
+.obj-pill.ahead-of-pace {
+  color: var(--obj-green-soft);
+  background: color-mix(in srgb, var(--obj-green-soft) 12%, transparent);
+}
+
 .obj-pill.behind-pace {
   color: var(--obj-amber);
   background: color-mix(in srgb, var(--obj-amber) 12%, transparent);
@@ -336,7 +344,9 @@
 
 .obj-kr-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 118px 150px;
+  /* Fourth track reserved (always empty) so this bar's ticks line up
+     vertically with the objective bar's in the same card. */
+  grid-template-columns: minmax(0, 1fr) 118px 150px 96px;
   gap: 14px;
   padding: 9px 15px 9px 47px;
   align-items: center;
@@ -391,8 +401,10 @@
 
 /* ===== Diagnostic callout ===== */
 
+/* Sits directly under the cards (feedback: bottom-pinning read as a
+   rendering fault with a short list — deliberate reversal of the R2b
+   reference, which pins it to the column bottom). */
 .obj-callout {
-  margin-top: auto;
   display: flex;
   align-items: flex-start;
   gap: 9px;
@@ -687,6 +699,8 @@
       "bar bar";
     row-gap: 7px;
   }
+
+  .obj-kr-row .obj-kr-reserved { display: none; }
 
   .obj-kr-row .obj-kr-name { grid-area: name; }
   .obj-kr-row .obj-kr-value { grid-area: value; justify-self: end; }

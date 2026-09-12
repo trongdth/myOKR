@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { PACE_STATUS_LABEL, type PaceStatus } from '../../../lib/pace';
+import { PACE_STATUS_CLASS, PACE_STATUS_LABEL, type PaceStatus } from '../../../lib/pace';
 
 export type Selection = { kind: 'objective'; id: string } | { kind: 'kr'; id: string };
 
@@ -11,8 +11,8 @@ export interface KrVM {
   value: number;
   target: number;
   pct: number;
-  /** 0% renders grey; otherwise on pace → cyan, behind/at risk → amber. */
-  fill: PaceStatus | 'zero';
+  /** 0% renders grey; behind/at-risk bars amber; on-pace/ahead cyan. */
+  fill: 'zero' | 'on-pace' | 'behind-pace';
 }
 
 export interface ObjectiveVM {
@@ -119,7 +119,7 @@ export default function ObjectiveList({
                     aria-label={`${o.pct}%, pace marker at ${marker}%`}
                   >
                     <span
-                      className={`obj-bar-fill ${o.zero ? 'zero' : o.status}`}
+                      className={`obj-bar-fill ${o.zero ? 'zero' : PACE_STATUS_CLASS[o.status]}`}
                       style={{ width: `${Math.min(100, Math.max(0, o.pct))}%` }}
                     />
                     <span className="obj-pace-tick" style={{ left: `${Math.min(100, Math.max(0, marker))}%` }} />
@@ -127,7 +127,7 @@ export default function ObjectiveList({
                   <span className={`obj-percent${o.zero ? ' zero' : ''}`}>{o.pct}%</span>
                 </span>
                 {/* Pill label stays the derived status; only the hue greys at 0% (Q5). */}
-                <span className={`obj-pill ${o.zero ? 'zero' : o.status}`}>
+                <span className={`obj-pill ${o.zero ? 'zero' : PACE_STATUS_CLASS[o.status]}`}>
                   {PACE_STATUS_LABEL[o.status]}
                 </span>
               </button>
@@ -164,6 +164,9 @@ export default function ObjectiveList({
                           </span>
                           <span className="obj-kr-percent">{kr.pct}%</span>
                         </span>
+                        {/* Fourth column reserved empty so this bar's ticks
+                            line up vertically with the objective bar above. */}
+                        <span className="obj-kr-reserved" aria-hidden="true" />
                       </button>
                     );
                   })}

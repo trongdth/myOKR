@@ -739,51 +739,67 @@ roll-up, Trajectory, Projected landing, Diagnostic callout** — live in
   (objective, KR, roll-up) and in the list header meta
   (`pace marker at N%`). Past cycles pin at 100%. Never a weeks-based
   calculation (the spec's "62% at week 4 of 5" is only reachable days-based).
-- **Pace status is derived, never entered** (ADR-0020): On pace within
-  5 points of the marker, Behind pace below that, At risk more than 20
-  below. Exact strings `On pace / Behind pace / At risk` — never
-  Confidence's On Track / Off Track, and pace-"At risk" is unrelated to
+- **Pace status is derived, never entered** (ADR-0020, amended 2026-09-12):
+  **Ahead of pace** strictly above the marker, On pace within 5 points
+  below, Behind pace below that, At risk more than 20 below. Exact strings
+  `Ahead of pace / On pace / Behind pace / At risk` — never Confidence's
+  On Track / Off Track, and pace-"At risk" is unrelated to
   confidence-"At risk". **Zero is not green:** a 0% value renders grey bar +
   grey percent + grey-tinted pill; the pill label stays the derived status.
-- **Bars.** Objective fill wears its status hue; KR fill is cyan when on
-  pace and amber otherwise (two-state by spec — the design's at-risk KR
-  shows amber); the roll-up fill is always cyan. Ticks: `rgba(255,255,255,
-  .34)` on objective/roll-up bars, `.28` on KR bars, 1px wide, overhanging
-  the track by 3px top and bottom.
-- **Grids reserve their columns** (`18px 1fr 150px 96px` objective row,
-  `1fr 118px 150px` KR row) even when a cell is empty, so names stay on one
-  baseline; every long name truncates with an ellipsis — never wraps. The
-  row chevrons are a dense-row exception to the 16px icon rule: 12px at
-  `stroke-width 2.6` (spec literal, like the menu's 14px icons).
+- **Bars.** Objective fill wears its status hue (Ahead shares the on-pace
+  green `#34D399`; the Ahead pill alone takes the lighter `#6EE7B7` tint);
+  KR fill is cyan when not behind and amber otherwise (two-state by spec —
+  the design's at-risk KR shows amber); the roll-up fill is always cyan.
+  Ticks: `rgba(255,255,255,.34)` on objective/roll-up bars, `.28` on KR
+  bars, 1px wide, overhanging the track by 3px top and bottom, layered
+  above the fill.
+- **Grids reserve their columns** (`18px 1fr 150px 96px` objective row;
+  `1fr 118px 150px 96px` KR row — its fourth track stays empty so the KR
+  bar's ticks line up vertically with the objective bar's) even when a cell
+  is empty, so names stay on one baseline; every long name truncates with
+  an ellipsis — never wraps. The row chevrons are a dense-row exception to
+  the 16px icon rule: 12px at `stroke-width 2.6` (spec literal, like the
+  menu's 14px icons).
 - **Selection & expansion.** One objective expanded at a time; clicking an
   objective row selects it (rolled-up trajectory) and toggles expansion;
   clicking a KR selects it. Default on load: the **worst-off KR** (lowest
   Projected landing) selected with its objective expanded. Keyboard is the
   in-component listbox carve-out (ADR-0011): ↑/↓ rove rows, →/←
   expand/collapse, Enter selects.
-- **Trajectory.** SVG `viewBox="0 0 380 170"`, plot x 30..370, 0%→y 88,
-  100%→y 8, baseline y 145. The x axis always spans the full cycle (remaining
-  runway visible); ticks label `W1..W(n−1)` with the final tick `end` at the
-  closed date. Weekly values are as-of week close (same math family as
-  *Moved*); the current unfinished week appears as a live point at today.
+- **Trajectory.** SVG `viewBox="0 0 380 170"`, plot x 30..370, 0%→y 128,
+  100%→y 8 (so the four spec gridlines y 8/48/88/128 carry the scale —
+  100/50/0), baseline y 145. The x axis always spans the full cycle
+  (remaining runway visible); **every** week is labelled `W1..Wn` plus `end`
+  at the closed date (amended 2026-09-12 — dots plot on their own W tick,
+  never between gridlines; the live week plots on its tick with today's
+  value). Weekly values are as-of week close (same math family as *Moved*).
   **Weeks with no attributed activity break the line** — no interpolation.
-  Dashed white `pace needed` line 0→100; dashed 50%-opacity cyan projection
-  from the last point to cycle close at the current rate — past cycles drop
-  it. Native `<title>` tooltips on the dots only (no floating tooltip).
-  Empty selection data reads `Nothing logged yet`.
-- **Why it is behind** renders only while the selection is Behind pace/At
-  risk and the cycle is open — on-pace selections collapse the column to
-  Trajectory + roll-up. KR selection works in the KR's units; objective
-  selection in percentage points (`N pts / week`). The closing note counts
-  the last finished week's **Unlinked sessions** ("N of last week's sessions
-  were unlinked…"); hidden at zero.
-- **Diagnostic callout:** exactly one, pinned to the list column's bottom
-  (`margin-top: auto`), naming the worst objective (lowest Projected
-  landing) in the spec's copy pattern; hidden when every objective is On
-  pace or nothing has elapsed.
+  Dashed white `pace needed` line 0→100 inside the plot; dashed 50%-opacity
+  cyan projection from the last point to cycle close at the current rate —
+  past cycles drop it. Native `<title>` tooltips on the dots only (no
+  floating tooltip). Empty selection data reads `Nothing logged yet`.
+- **Pace card** (WHY IT IS BEHIND ↔ PACE CHECK) always rides with the
+  selection — the eyebrow switches on the selection's status (behind/at risk
+  → WHY…, on pace/ahead → PACE CHECK); hidden on closed cycles. The three
+  rows are pure week math (feedback round 1): needed = target ÷ cycle
+  weeks; actual = current ÷ fractional elapsed weeks (elapsed days ÷ 7,
+  min 1); to finish = (target − current) ÷ remaining, "N next week" on the
+  last week — clamped so 0%/divisors never yield NaN. Actual average wears
+  amber unconditionally (it is not a health verdict). KR selection works in
+  the KR's units; objective selection in percentage points (`N pts / week`).
+  The closing note counts the last finished week's **Unlinked sessions**
+  ("N of last week's sessions were unlinked…"); hidden at zero.
+- **Diagnostic callout:** exactly one, sitting directly beneath the
+  objectives list (feedback round 1 reversed the R2b bottom-pinning — with a
+  short list the pinned gap read as a rendering fault), naming the worst
+  objective (lowest Projected landing); zero-progress worst takes the short
+  "X has not moved in N% of the cycle" form; hidden when every objective is
+  Ahead/On pace or nothing has elapsed.
 - **Picker & shell.** Objectives gets the cycle-only Select (above); header
-  h1 = cycle name; no CYCLE ELAPSED block (redundant with the marker), no
-  Reviewed/Reopen chrome on this tab. The R3 shell restyle (eyebrow 11px
+  h1 = cycle label via `cycleDisplayName` ("{Month} cycle" for default-named
+  cycles, custom names verbatim — the one label rule across the header, the
+  pickers, and the review tab's picker); no CYCLE ELAPSED block (redundant
+  with the marker), no Reviewed/Reopen chrome on this tab. The R3 shell restyle (eyebrow 11px
   mono `0.14em`, 25px h1, 22px tab gap, `#727C8C` inactive tabs) is scoped
   under `.progress-header` / `.progress-tab-strip` — the Plan group's strip
   is untouched. The tab also carries the spec's own main-column frame via
@@ -796,8 +812,10 @@ roll-up, Trajectory, Projected landing, Diagnostic callout** — live in
   (chevron column reserved; nothing hidden).
 - **Verification:** `tests/objectives-revamp.spec.ts` (fixed clock
   2026-09-12 → marker exactly 44%: statuses, zero-grey, roll-up math,
-  selection, why card incl. the unconditional Actual-average amber, callout,
-  keyboard, past/empty cycles, gap segments, the final-Sunday closed edge) +
+  selection, the pace card incl. unconditional Actual-average amber and the
+  PACE CHECK switch, fill/pill color assertions (regression: the status
+  class ↔ CSS selector mismatch), callout, keyboard, past/empty cycles, gap
+  segments, the final-Sunday closed edge, KR/objective bar alignment) +
   the rewritten Objectives tests in `tests/progress-analytics-revamp.spec.ts`.
 
 ## Plan group screens (P1–P7) — per-screen rules

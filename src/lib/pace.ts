@@ -150,21 +150,33 @@ export function isCycleClosed(span: CycleSpan, todayISO: string): boolean {
 
 // ===== Pace status (ADR-0020: derived, never entered) =====
 
-export type PaceStatus = 'on_pace' | 'behind_pace' | 'at_risk';
+export type PaceStatus = 'ahead_of_pace' | 'on_pace' | 'behind_pace' | 'at_risk';
 
-/** On pace within 5 points of the marker, Behind pace below that, At risk
- *  more than 20 points below. A 0% value greys in the UI but keeps its
- *  derived status label. */
+/**
+ * Ahead of pace strictly above the marker, On pace within 5 points below it,
+ * Behind pace below that, At risk more than 20 points below. A 0% value
+ * greys in the UI but keeps its derived status label.
+ */
 export function getPaceStatus(progressPct: number, markerPct: number): PaceStatus {
+  if (progressPct > markerPct) return 'ahead_of_pace';
   if (progressPct >= markerPct - 5) return 'on_pace';
   if (progressPct >= markerPct - 20) return 'behind_pace';
   return 'at_risk';
 }
 
 export const PACE_STATUS_LABEL: Record<PaceStatus, string> = {
+  ahead_of_pace: 'Ahead of pace',
   on_pace: 'On pace',
   behind_pace: 'Behind pace',
   at_risk: 'At risk',
+};
+
+/** CSS class per status — dashes, matching the stylesheet's selectors. */
+export const PACE_STATUS_CLASS: Record<PaceStatus, 'ahead-of-pace' | 'on-pace' | 'behind-pace' | 'at-risk'> = {
+  ahead_of_pace: 'ahead-of-pace',
+  on_pace: 'on-pace',
+  behind_pace: 'behind-pace',
+  at_risk: 'at-risk',
 };
 
 // ===== Projected landing =====
@@ -242,11 +254,6 @@ export function krValueAsOf(
   return manualFallback ?? kr.currentValue;
 }
 
-/** Value just before the cycle began — the baseline "moved" is measured from. */
-function krValueBeforeCycle(kr: PaceKeyResult, cycle: PaceCycle, span: CycleSpan, ctx: PaceDataContext): number {
-  return krValueAsOf(kr, cycle, ctx, addDaysStr(span.start, -1));
-}
-
 // ===== Weekly activity (the Trajectory gap rule) =====
 
 /** Did this KR record attributed activity inside [monday..sunday]? */
@@ -287,7 +294,8 @@ export function krWeekHasActivity(
 // ===== Weekly series (Trajectory) =====
 
 export interface SeriesPoint {
-  /** Position along the axis, in days from the cycle start (the point's date). */
+  /** Position along the axis, in days from the cycle start — the week's
+   *  Monday, so every dot sits on its W tick. */
   dayOffset: number;
   /** Index into the cycle's exclusive Mondays — the week the point belongs to. */
   weekIndex: number;
@@ -314,8 +322,10 @@ function seriesForKr(kr: PaceKeyResult, cycle: PaceCycle, span: CycleSpan, ctx: 
     const isLiveWeek = todayISO >= monday && todayISO <= sunday;
     if (!krWeekHasActivity(kr, cycle, ctx, monday, sunday)) continue;
     const value = krValueAsOf(kr, cycle, ctx, isLiveWeek ? todayISO : sunday);
+    // Every point plots on its own W tick (the week's Monday position) —
+    // dots sit on gridlines, the live week included (value as-of today).
     points.push({
-      dayOffset: isLiveWeek ? diffDays(span.start, todayISO) : diffDays(span.start, sunday),
+      dayOffset: weekIndex * 7,
       weekIndex,
       pct: pctOfTarget(value, kr.targetValue),
       value,
@@ -367,7 +377,7 @@ function seriesForObjectives(
       memberValues.reduce((sum, value, i) => sum + pctOfTarget(value, eligible[i].kr.targetValue), 0) / eligible.length,
     );
     points.push({
-      dayOffset: isLiveWeek ? diffDays(span.start, todayISO) : diffDays(span.start, sunday),
+      dayOffset: weekIndex * 7,
       weekIndex,
       pct,
       value: pct,
@@ -392,36 +402,30 @@ export function buildEntitySeries(
   return seriesForObjectives(entity.krs, cycle, span, ctx, todayISO);
 }
 
-// ===== Why-it-is-behind math =====
-
-export interface WhyRows {
-  neededPerWeek: number;
-  actualAverage: number;
-  /** Formatted third-row value: "42 next week" on the final week, else "N / week". */
-  toFinish: string;
-  unit: string;
-}
-
-/** Weeks whose Sunday has passed, minimum 1 once the cycle has started. */
-export function fullyElapsedWeeks(span: CycleSpan, todayISO: string): number {
-  const done = span.mondays.filter(m => addDaysStr(m, 6) < todayISO).length;
-  return Math.max(done, 1);
-}
-
-/** Weeks from the current one through the end, minimum 1. */
-export function remainingWeeks(span: CycleSpan, todayISO: string): number {
-  return Math.max(span.mondays.filter(m => m >= todayISO).length, 1);
-}
-
 export function formatToFinish(needed: number, remaining: number, unit = ''): string {
   if (needed <= 0) return 'target met';
   const suffix = unit ? ` ${unit}` : '';
   return remaining === 1 ? `${needed}${suffix} next week` : `${needed}${suffix} / week`;
 }
 
+// ===== Why-it-is-behind / pace-check math =====
+
+export interface WhyRows {
+  /** target ÷ total cycle weeks (constant). */
+  neededPerWeek: number;
+  /** current ÷ fractional elapsed weeks (elapsed days / 7, clamped ≥ 1). */
+  actualAverage: number;
+  /** Formatted third-row value: "42 next week" on the final week, else "N / week". */
+  toFinish: string;
+  unit: string;
+}
+
 /**
- * The three why rows for one entity. KR selection works in the KR's units;
- * objective selection works in percentage points.
+ * The three rows for one entity, per the cycle-feedback formulas: needed =
+ * target ÷ cycle weeks; actual = current ÷ fractional elapsed weeks; to
+ * finish = (target − current) ÷ remaining weeks (remaining = total −
+ * elapsed full weeks, clamped ≥ 1 — never NaN or Infinity). KR selection
+ * works in the KR's units; objective selection in percentage points.
  */
 export function computeWhyRows(
   entity: { kind: 'kr'; kr: PaceKeyResult } | { kind: 'objective'; krs: PaceKeyResult[] },
@@ -431,33 +435,34 @@ export function computeWhyRows(
   todayISO: string,
   cycleClosed: boolean,
 ): WhyRows {
-  const remaining = remainingWeeks(span, todayISO);
+  const totalWeeks = Math.max(span.totalWeeks, 1);
+  const asOf = cycleClosed ? span.end : todayISO;
+  const elapsedDays = Math.max(0, diffDays(span.start, asOf < span.start ? span.start : asOf));
+  const elapsedWeeks = Math.max(elapsedDays / 7, 1);
+  const remaining = Math.max(totalWeeks - Math.floor(elapsedDays / 7), 1);
+
   if (entity.kind === 'kr') {
     const kr = entity.kr;
-    const current = krValueAsOf(kr, cycle, ctx, cycleClosed ? span.end : todayISO);
-    const before = krValueBeforeCycle(kr, cycle, span, ctx);
-    const needed = Math.max(0, Math.ceil((kr.targetValue - current) / remaining));
-    const actual = Math.round((current - before) / fullyElapsedWeeks(span, todayISO));
+    const current = krValueAsOf(kr, cycle, ctx, asOf);
+    const needed = Math.round(kr.targetValue / totalWeeks);
+    const actual = Math.round(current / elapsedWeeks);
     return {
       neededPerWeek: needed,
       actualAverage: actual,
-      toFinish: formatToFinish(needed, remaining),
+      toFinish: formatToFinish(Math.max(0, Math.ceil((kr.targetValue - current) / remaining)), remaining),
       unit: '',
     };
   }
   // Objective: percentage points.
   const pctNow = entity.krs.length > 0
-    ? Math.round(entity.krs.reduce((sum, kr) => sum + pctOfTarget(krValueAsOf(kr, cycle, ctx, todayISO), kr.targetValue), 0) / entity.krs.length)
+    ? entity.krs.reduce((sum, kr) => sum + pctOfTarget(krValueAsOf(kr, cycle, ctx, asOf), kr.targetValue), 0) / entity.krs.length
     : 0;
-  const pctStart = entity.krs.length > 0
-    ? Math.round(entity.krs.reduce((sum, kr) => sum + pctOfTarget(krValueBeforeCycle(kr, cycle, span, ctx), kr.targetValue), 0) / entity.krs.length)
-    : 0;
-  const needed = Math.max(0, Math.ceil((100 - pctNow) / remaining));
-  const actual = Math.round((pctNow - pctStart) / fullyElapsedWeeks(span, todayISO));
+  const needed = Math.round(100 / totalWeeks);
+  const actual = Math.round(pctNow / elapsedWeeks);
   return {
     neededPerWeek: needed,
     actualAverage: actual,
-    toFinish: formatToFinish(needed, remaining, 'pts'),
+    toFinish: formatToFinish(Math.max(0, Math.ceil((100 - pctNow) / remaining)), remaining, 'pts'),
     unit: 'pts',
   };
 }

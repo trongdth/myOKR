@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
-import { findReviewForWeek, getMonthName, isDraftReview, type OKRCycle, type WeeklyReview } from '../../lib/okr-storage';
+import { cycleDisplayName, findReviewForWeek, isDraftReview, type OKRCycle, type WeeklyReview } from '../../lib/okr-storage';
 import { formatWeekSpan } from './ProgressTabStrip';
 
 // The Weekly review tab's two-level selector (second grilling round, amended
@@ -110,7 +110,7 @@ export default function CycleWeekPicker({
         });
         const completed = weeks.filter(w => w.reviewed).length;
         const meta = `${completed} of ${weeks.length} reviewed`;
-        return { cycle, name: cycle.name || getMonthName(cycle.month, cycle.year), weeks, completed, meta, enabled: weeks.some(w => w.finished) };
+        return { cycle, name: cycleDisplayName(cycle), weeks, completed, meta, enabled: weeks.some(w => w.finished) };
       });
   }, [cycles, reviews, todayStr]);
 

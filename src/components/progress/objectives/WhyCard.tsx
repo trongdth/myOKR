@@ -1,21 +1,22 @@
 import type { WhyRows } from '../../../lib/pace';
 
 /**
- * Why it is behind — the three baseline rows (needed per week / actual
- * average / to finish on target) plus the unlinked-sessions closing note.
- * Rendered only while the selected entity is Behind pace or At risk and the
- * cycle is still open (decisions Q7/Q8) — on pace collapses the column.
+ * The pace card — the three baseline rows (needed per week / actual average /
+ * to finish on target) plus the unlinked-sessions closing note. The eyebrow
+ * switches on the selection's status: WHY IT IS BEHIND while behind or at
+ * risk, PACE CHECK when on pace or ahead — same arithmetic either way.
  */
 interface WhyCardProps {
+  label: 'WHY IT IS BEHIND' | 'PACE CHECK';
   rows: WhyRows;
   note: string | null;
 }
 
-export default function WhyCard({ rows, note }: WhyCardProps) {
+export default function WhyCard({ label, rows, note }: WhyCardProps) {
   const unitSuffix = rows.unit ? ` ${rows.unit}` : '';
   return (
-    <section className="obj-card-panel obj-why" aria-label="Why it is behind">
-      <h3 className="obj-panel-eyebrow">WHY IT IS BEHIND</h3>
+    <section className="obj-card-panel obj-why" aria-label={label === 'PACE CHECK' ? 'Pace check' : 'Why it is behind'}>
+      <h3 className="obj-panel-eyebrow">{label}</h3>
       <div className="obj-why-row">
         <span className="obj-why-label">Needed per week</span>
         <span className="obj-why-value">{rows.neededPerWeek}{unitSuffix}</span>

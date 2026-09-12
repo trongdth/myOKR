@@ -60,6 +60,10 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
   const [habits, setHabits] = useState<Habit[]>([]);
   const [selected, setSelected] = useState<Selection | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // The default (worst-off KR) selection keeps re-deriving as data loads
+  // until the user picks a row themselves — otherwise a mid-load all-zero
+  // snapshot would pin the selection to the first row.
+  const [selectionTouched, setSelectionTouched] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +111,7 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
   useEffect(() => {
     setSelected(null);
     setExpandedId(null);
+    setSelectionTouched(false);
   }, [cycle?.id]);
 
   // View models: current percents + derived pace status per KR and objective.
@@ -119,6 +124,7 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
         const effective = krValueAsOf(kr, cycle!, ctx, todayISO);
         const pct = Math.round(pctOfTarget(effective, kr.targetValue));
         krPctById.set(kr.id, pct);
+        const status = getPaceStatus(pct, markerPct);
         return {
           id: kr.id,
           objectiveId: o.id,
@@ -126,7 +132,11 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
           value: effective,
           target: kr.targetValue,
           pct,
-          fill: pct === 0 ? 'zero' : getPaceStatus(pct, markerPct),
+          // Two-state bar per spec: cyan when not behind, amber otherwise;
+          // 0% greys.
+          fill: pct === 0
+            ? 'zero'
+            : (status === 'behind_pace' || status === 'at_risk' ? 'behind-pace' : 'on-pace'),
         };
       }));
     }
@@ -150,10 +160,12 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
     return { objectiveVMs, krPctById, rollupPct, krCount };
   }, [cycleObjectives, cycleKrs, cycle, ctx, todayISO, markerPct]);
 
-  // Default selection on load: the worst-off key result (lowest projected
-  // landing), with its objective expanded so the selection is visible.
+  // Default selection until touched: the worst-off key result (lowest
+  // projected landing), with its objective expanded so the selection is
+  // visible. Re-derives as data arrives — a mid-load all-zero snapshot must
+  // not pin the selection to the first row.
   useEffect(() => {
-    if (selected !== null || !span || objectiveVMs.length === 0) return;
+    if (selectionTouched || !span || objectiveVMs.length === 0) return;
     const worst = worstOf('kr', cycleKrs.map(kr => ({
       id: kr.id,
       objectiveId: kr.objectiveId,
@@ -166,7 +178,7 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
       setExpandedId(chosen.objectiveId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, objectiveVMs, span]);
+  }, [selectionTouched, objectiveVMs, span]);
 
   // Resolve the selection against current data (ids can vanish mid-session).
   const selKr = selected?.kind === 'kr' ? cycleKrs.find(kr => kr.id === selected.id) ?? null : null;
@@ -191,12 +203,15 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
       ? objectiveVMs.find(o => o.id === selObjective.id)?.status ?? null
       : null;
 
-  // Why-it-is-behind renders only while the selection is behind/at risk and
-  // the cycle is still open — on pace collapses the right column (Q7), and a
-  // closed cycle has nothing left to act on.
-  const whyRows = span && cycle && seriesEntity && selStatus !== 'on_pace' && !closed
+  // The card always rides with the selection; its label switches on the
+  // selection's own status — "why it is behind" would be nonsense for
+  // something that isn't. A closed cycle has nothing left to act on.
+  const whyRows = span && cycle && seriesEntity && !closed
     ? computeWhyRows(seriesEntity, cycle, span, ctx, todayISO, closed)
     : null;
+  const whyLabel = selStatus === 'behind_pace' || selStatus === 'at_risk'
+    ? 'WHY IT IS BEHIND'
+    : 'PACE CHECK';
   const unlinkedNote = span ? countUnlinkedSessionsLastWeek(span, ctx, todayISO) : null;
 
   // Trajectory heading copy.
@@ -223,13 +238,16 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
   }, [span, objectiveVMs, markerPct, closed]);
 
   const handleObjectiveActivate = (id: string) => {
+    setSelectionTouched(true);
     setSelected({ kind: 'objective', id });
     setExpandedId(prev => (prev === id ? null : id));
   };
   const handleObjectiveArrow = (id: string, expand: boolean) => {
+    setSelectionTouched(true);
     setExpandedId(prev => (expand ? id : prev === id ? null : prev));
   };
   const handleKrActivate = (objectiveId: string, krId: string) => {
+    setSelectionTouched(true);
     setExpandedId(objectiveId);
     setSelected({ kind: 'kr', id: krId });
   };
@@ -263,7 +281,9 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
           <div className="obj-callout" role="status">
             <span className="obj-callout-dot" />
             <span className="obj-callout-text">
-              {`${callout.title} has moved ${callout.movedPct}% in ${markerPct}% of the cycle. At this rate it lands at ${callout.landing}%.`}
+              {callout.movedPct === 0
+                ? `${callout.title} has not moved in ${markerPct}% of the cycle.`
+                : `${callout.title} has moved ${callout.movedPct}% in ${markerPct}% of the cycle. At this rate it lands at ${callout.landing}%.`}
             </span>
           </div>
         )}
@@ -281,6 +301,7 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
         )}
         {whyRows && (
           <WhyCard
+            label={whyLabel}
             rows={whyRows}
             note={unlinkedNote
               ? `${unlinkedNote} of last week's sessions were unlinked. Linking them would close most of this gap.`
