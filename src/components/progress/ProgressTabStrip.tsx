@@ -71,6 +71,11 @@ interface ProgressTabStripProps {
   /** The review tab's own CycleWeekPicker node — replaces the strip's week
    *  Select there (one selector per tab, 2026-09-07 decision). */
   reviewPicker?: ReactNode;
+  /** Objectives tab (R3): cycle-only picker — a whole-cycle scope, no week
+   *  option. One selector per tab; Focus analytics keeps the week Select. */
+  cycles?: OKRCycle[];
+  selectedCycleId?: string | null;
+  onSelectCycle?: (cycleId: string) => void;
 }
 
 export default function ProgressTabStrip({
@@ -79,6 +84,9 @@ export default function ProgressTabStrip({
   selectedWeek,
   onSelectWeek,
   reviewPicker,
+  cycles,
+  selectedCycleId,
+  onSelectCycle,
 }: ProgressTabStripProps) {
   // The Weekly review tab carries a "step N/3" badge mirroring the wizard
   // step in view (the wizard announces it via the myokr-review-step event);
@@ -154,6 +162,19 @@ export default function ProgressTabStrip({
       <div className="plan-tab-strip-right">
         {active === 'weekly-review' && reviewPicker ? (
           <div className="progress-review-picker">{reviewPicker}</div>
+        ) : active === 'objectives-progress' && onSelectCycle && cycles && cycles.length > 0 ? (
+          // Cycle-only picker (R3): the label reads the cycle name only —
+          // no week option, no "all weeks" suffix. Newest first.
+          <div className="progress-cycle-select obj-cycle-picker">
+            <Select
+              options={[...cycles]
+                .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month))
+                .map(c => ({ value: c.id, label: c.name || `${MONTHS[c.month]} cycle` }))}
+              value={selectedCycleId}
+              onChange={(val) => onSelectCycle(val)}
+              ariaLabel="Pick cycle"
+            />
+          </div>
         ) : onSelectWeek && activeCycle && (
           <div className="progress-week-select">
             <Select

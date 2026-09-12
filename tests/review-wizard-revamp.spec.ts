@@ -300,33 +300,12 @@ test.describe('Weekly review wizard revamp', () => {
     }, { timeout: 5000 }).toBe(9);
     expect(result.kr2Confidence).toBe('at_risk');
 
-    // The spec's e2e chain link: after finishing, the review becomes a chart
-    // point on the Objectives tab. Seed a second completed in-cycle review
-    // (cycle week 2) so the chart has its minimum two points.
-    await page.evaluate(async () => {
-      const okr = await import('/src/lib/okr-storage.ts');
-      const { getExclusiveCycleMondays } = await import('/src/lib/cycle-windows.ts');
-      const now = new Date();
-      const mondays = getExclusiveCycleMondays({ id: 'c-test', name: '', month: now.getMonth(), year: now.getFullYear(), isActive: true, createdAt: '' });
-      const week2 = mondays[1];
-      const endOf = (start: string) => {
-        const e = new Date(`${start}T00:00:00Z`);
-        e.setUTCDate(e.getUTCDate() + 6);
-        return e.toISOString().slice(0, 10);
-      };
-      const doc = await (window as any).__getAutomergeDoc();
-      await okr.saveReviews([
-        ...doc.reviews,
-        { id: 'rev-week2', weekStartDate: week2, weekEndDate: endOf(week2), cycleId: 'c-test',
-          completedAt: `${week2}T20:00:00.000Z`,
-          entries: [{ keyResultId: 'kr-1', previousValue: 0, currentValue: 1, confidence: 'on_track' }],
-          pomodoroStats: { totalPomodoros: 0, totalFocusMinutes: 0, tasksCompleted: 0, pomodorosByKeyResult: {} } },
-      ]);
-      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-    });
+    // The spec's e2e chain link: after finishing, the review's data feeds the
+    // Objectives tab board (the chart-proxy assertions live in
+    // tests/objectives-revamp.spec.ts under a fixed clock).
     await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
-    await expect(page.locator('.progress-shell .progress-chart-svg')).toBeVisible();
-    await expect(page.locator('.progress-shell .progress-chart-container')).toContainText('Ship pomodoros');
+    await expect(page.locator('.progress-shell .obj-board')).toBeVisible();
+    await expect(page.locator('.progress-shell .obj-card', { hasText: 'Ship myOKR' })).toBeVisible();
     await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
 
     // Finished week renders the Finished review summary (round 3) — not a
@@ -617,17 +596,10 @@ test.describe('Weekly review wizard revamp', () => {
     await openReview(page);
     await selectWeek1(page);
 
-    const week1Label = ((await page.evaluate(() => window.localStorage.getItem('__test_week1'))) as string).slice(5);
-
     // Top-right slot: Reopen — this cycle isn't closed, so no closed badge.
     const reopen = page.locator('.rw-reopen-btn');
     await expect(reopen).toContainText('Reopen review');
     await expect(page.locator('.rw-closed-badge')).toHaveCount(0);
-
-    // The week is a chart point before the reopen.
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
-    await expect(page.locator('.progress-shell .progress-chart-svg')).toContainText(week1Label);
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
 
     // Reopen asks first.
     await reopen.click();
@@ -653,15 +625,9 @@ test.describe('Weekly review wizard revamp', () => {
     await expect(page.locator('.cwp-panel .cwp-week-row').nth(0)).toContainText('Draft');
     await page.keyboard.press('Escape');
 
-    // The reopened week's chart point drops — drafts are excluded, leaving
-    // week 2 as the only in-cycle point (below the chart's two-point
-    // minimum, hence the placeholder).
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
-    await expect(page.locator('.progress-shell .progress-chart-container')).toContainText('Complete at least 2 weekly reviews');
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Weekly review")').click();
-
-    // Back to the reopened week and re-finish: re-stamps the completion
-    // and restores the chart point.
+    // Back to the reopened week and re-finish: re-stamps the completion.
+    // (Drafts' invisibility to the Objectives board is pinned with a fixed
+    // clock in tests/objectives-revamp.spec.ts.)
     await page.locator('[aria-label="Review cycle and week"]').click();
     await page.locator('.cwp-panel .cwp-week-row').nth(0).click();
     await wizard.locator('.rw-rail-item:has-text("Reflect")').click();
@@ -673,8 +639,6 @@ test.describe('Weekly review wizard revamp', () => {
         return !!r?.completedAt;
       });
     }, { timeout: 5000 }).toBe(true);
-    await page.locator('.progress-tab-strip .plan-tab:has-text("Objectives")').click();
-    await expect(page.locator('.progress-shell .progress-chart-svg')).toContainText(week1Label);
   });
 
   test('re-finishing an older week never clobbers newer synced values', async ({ page }) => {

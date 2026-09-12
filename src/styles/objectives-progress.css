@@ -1,0 +1,694 @@
+/*
+  Objectives tab (Progress group, R3) — pace-marked objectives list +
+  selection-driven analytics column. Mockup-exact values per the R3 build
+  spec: every literal hex is named ONCE in the scoped `--obj-*` block below
+  (the completed-strip `--ct-*` precedent) and referenced by token
+  everywhere else. Shell overrides (header eyebrow/title, tab strip) are
+  scoped under .progress-header / .progress-tab-strip so the Plan group is
+  untouched. See docs/design-system.md ("Objectives tab (R3)") and ADR-0020.
+*/
+
+.obj-board {
+  /* R3 palette — literal, named once (design-system: mockup-exact screens) */
+  --obj-surface: #10141a;
+  --obj-border: rgba(255, 255, 255, 0.07);
+  --obj-border-soft: rgba(255, 255, 255, 0.06);
+  --obj-text: #edf0f5;
+  --obj-text-mid: #b7bfcc;
+  --obj-text-soft: #c6cdd8;
+  --obj-text-dim: #8a93a3;
+  --obj-text-faint: #727c8c;
+  --obj-text-meta: #5a6474;
+  --obj-text-ghost: #4e5766;
+  --obj-text-off: #3f4753;
+  --obj-cyan: var(--color-primary);
+  --obj-cyan-bright: #67e8f9;
+  --obj-green: #34d399;
+  --obj-amber: #f5a524;
+  --obj-red: #f87171;
+  --obj-amber-text: #fcd34d;
+  --obj-track: rgba(255, 255, 255, 0.07);
+  --obj-tick: rgba(255, 255, 255, 0.34);
+  --obj-tick-soft: rgba(255, 255, 255, 0.28);
+  --obj-pace-line: rgba(255, 255, 255, 0.26);
+  --obj-grid: rgba(255, 255, 255, 0.05);
+  --obj-baseline: rgba(255, 255, 255, 0.12);
+  --obj-selected-bg: rgba(34, 211, 238, 0.09);
+  --obj-amber-tint: rgba(245, 165, 36, 0.06);
+  --obj-amber-border: rgba(245, 165, 36, 0.18);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 412px;
+  gap: 18px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.obj-left,
+.obj-right {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+}
+
+/* ===== Shell overrides (shared Progress chrome, R3 spec section 1) ===== */
+
+/* The R3 main column is 28px 32px with an 18px rhythm — scoped to the
+   Objectives tab via the --r3 modifier so the analytics/review tabs keep
+   the shared 20px shell (cross-group padding parity). */
+.progress-shell-inner.progress-shell-inner--r3 {
+  padding: 28px 32px;
+  gap: 18px;
+}
+
+/* The shared `.plan-header-eyebrow` rule itself carries `!important`
+   (pomodoro.css), so overriding it here requires one too — unlike the
+   specificity-only overrides elsewhere in this file. */
+.progress-header .plan-header-eyebrow.tasks-title {
+  font-size: 11px !important;
+  letter-spacing: 0.14em;
+  color: var(--obj-text-meta);
+  font-weight: 500;
+}
+
+.progress-header .plan-header-title {
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--obj-text);
+}
+
+.progress-tab-strip {
+  border-bottom-color: var(--obj-border);
+}
+
+.progress-tab-strip .plan-tabs {
+  gap: 22px;
+}
+
+.progress-tab-strip .plan-tab {
+  color: var(--obj-text-faint);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.progress-tab-strip .plan-tab.active {
+  color: var(--obj-text);
+  font-weight: 600;
+}
+
+/* Cycle-only picker (Objectives tab): 32px, right end of the tab row. */
+.obj-cycle-picker {
+  margin-bottom: 4px;
+}
+
+/* Triple-class selector outranks the shared `.plan-tab-strip .sel-trigger`
+   rule (28px + bottom margin) regardless of stylesheet order. */
+.progress-tab-strip .obj-cycle-picker .sel-trigger {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  margin-bottom: 0;
+}
+
+.progress-tab-strip .obj-cycle-picker .sel-chevron {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.4;
+}
+
+/* ===== Objectives list header ===== */
+
+.obj-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.obj-list-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--obj-text);
+  margin: 0;
+}
+
+.obj-pace-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--obj-text-meta);
+  white-space: nowrap;
+}
+
+.obj-pace-sample {
+  display: inline-block;
+  width: 1px;
+  height: 11px;
+  background: var(--obj-tick);
+}
+
+/* ===== Objective cards ===== */
+
+.obj-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.obj-card {
+  background: var(--obj-surface);
+  border: 1px solid var(--obj-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.obj-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 150px 96px;
+  gap: 14px;
+  padding: 13px 15px;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.obj-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--obj-cyan);
+}
+
+.obj-chevron {
+  color: var(--obj-text-meta);
+  transition: transform 120ms ease;
+  justify-self: start;
+}
+
+.obj-card.expanded .obj-chevron {
+  color: var(--obj-cyan-bright);
+  transform: rotate(0deg);
+}
+
+.obj-card.collapsed .obj-chevron {
+  transform: rotate(-90deg);
+}
+
+.obj-name-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.obj-name {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--obj-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obj-kr-count {
+  display: block;
+  font-size: 11.5px;
+  color: var(--obj-text-meta);
+  padding-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bar + percent cell — reserved full grid width even when a cell is empty,
+   so names stay on one baseline (spec: do not drift #5). */
+.obj-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.obj-bar-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--obj-track);
+}
+
+.obj-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 99px;
+}
+
+.obj-bar-fill.on-pace { background: var(--obj-green); }
+.obj-bar-fill.behind-pace { background: var(--obj-amber); }
+.obj-bar-fill.at-risk { background: var(--obj-red); }
+.obj-bar-fill.zero { background: var(--obj-text-meta); }
+
+.obj-kr-bar-track {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--obj-track);
+}
+
+.obj-kr-bar-fill.on-pace { background: var(--obj-cyan); }
+.obj-kr-bar-fill.behind-pace { background: var(--obj-amber); }
+.obj-kr-bar-fill.at-risk { background: var(--obj-amber); }
+.obj-kr-bar-fill.zero { background: var(--obj-text-meta); }
+
+.obj-pace-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--obj-tick);
+}
+
+.obj-kr-bar-track .obj-pace-tick {
+  top: -3px;
+  bottom: -3px;
+  background: var(--obj-tick-soft);
+}
+
+.obj-percent {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--obj-text);
+  flex-shrink: 0;
+}
+
+.obj-percent.zero {
+  color: var(--obj-text-dim);
+}
+
+/* ===== Status pill ===== */
+
+.obj-pill {
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.obj-pill.on-pace {
+  color: var(--obj-green);
+  background: color-mix(in srgb, var(--obj-green) 12%, transparent);
+}
+
+.obj-pill.behind-pace {
+  color: var(--obj-amber);
+  background: color-mix(in srgb, var(--obj-amber) 12%, transparent);
+}
+
+.obj-pill.at-risk {
+  color: var(--obj-red);
+  background: color-mix(in srgb, var(--obj-red) 12%, transparent);
+}
+
+.obj-pill.zero {
+  color: var(--obj-text-dim);
+  background: color-mix(in srgb, var(--obj-text-dim) 12%, transparent);
+}
+
+/* ===== Expanded key results ===== */
+
+.obj-krs {
+  border-top: 1px solid var(--obj-border-soft);
+  padding: 4px 0 8px;
+}
+
+.obj-kr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px 150px;
+  gap: 14px;
+  padding: 9px 15px 9px 47px;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.obj-kr-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--obj-cyan);
+}
+
+.obj-kr-row.selected {
+  background: var(--obj-selected-bg);
+  box-shadow: inset 2px 0 0 var(--obj-cyan);
+}
+
+.obj-kr-name {
+  font-size: 13px;
+  color: var(--obj-text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obj-kr-row.selected .obj-kr-name {
+  color: var(--obj-text);
+}
+
+.obj-kr-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--obj-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obj-kr-percent {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--obj-text-dim);
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ===== Diagnostic callout ===== */
+
+.obj-callout {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 14px;
+  background: var(--obj-amber-tint);
+  border: 1px solid var(--obj-amber-border);
+  border-radius: 10px;
+}
+
+.obj-callout-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--obj-amber);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.obj-callout-text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--obj-amber-text);
+}
+
+/* ===== Right column cards ===== */
+
+.obj-card-panel {
+  background: var(--obj-surface);
+  border: 1px solid var(--obj-border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.obj-panel-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--obj-text-faint);
+  margin: 0;
+}
+
+/* --- Trajectory --- */
+
+.obj-trajectory {
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+.obj-trajectory-title {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--obj-text);
+  margin: 0;
+}
+
+.obj-trajectory-sub {
+  font-size: 11.5px;
+  color: var(--obj-text-meta);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obj-trajectory-svg {
+  width: 100%;
+  height: 170px;
+  display: block;
+}
+
+/* SVG presentation via classes (SVG attrs can't take var(); CSS can). */
+.obj-tj-grid {
+  stroke: var(--obj-grid);
+  stroke-width: 1;
+}
+
+.obj-tj-baseline {
+  stroke: var(--obj-baseline);
+  stroke-width: 1;
+}
+
+.obj-tj-ylab,
+.obj-tj-xlab,
+.obj-tj-endlab {
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.obj-tj-ylab { fill: var(--obj-text-ghost); }
+.obj-tj-xlab { fill: var(--obj-text-meta); }
+.obj-tj-endlab { fill: var(--obj-text-off); }
+
+.obj-tj-pace {
+  stroke: var(--obj-pace-line);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 5;
+}
+
+.obj-tj-actual {
+  stroke: var(--obj-cyan);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.obj-tj-proj {
+  stroke: var(--obj-cyan);
+  stroke-width: 2.2;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+  stroke-linecap: round;
+}
+
+.obj-tj-dot {
+  fill: var(--obj-cyan);
+}
+
+.obj-trajectory-empty {
+  font-size: 12px;
+  color: var(--obj-text-dim);
+  padding: 24px 0 40px;
+}
+
+.obj-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 11px;
+  color: var(--obj-text-meta);
+}
+
+.obj-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.obj-legend-swatch {
+  width: 16px;
+  height: 2px;
+  background: var(--obj-cyan);
+}
+
+.obj-legend-swatch.pace {
+  background: repeating-linear-gradient(
+    to right,
+    var(--obj-pace-line) 0 4px,
+    transparent 4px 7px
+  );
+}
+
+/* --- Why it is behind --- */
+
+.obj-why {
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+.obj-why-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.obj-why-label {
+  font-size: 13px;
+  color: var(--obj-text-soft);
+}
+
+.obj-why-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--obj-text);
+  white-space: nowrap;
+}
+
+.obj-why-value.amber { color: var(--obj-amber); }
+.obj-why-value.cyan { color: var(--obj-cyan-bright); }
+
+.obj-why-divider {
+  border: none;
+  border-top: 1px solid var(--obj-border-soft);
+  margin: 0;
+}
+
+.obj-why-note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--obj-text-dim);
+  margin: 0;
+}
+
+/* --- Cycle roll-up --- */
+
+.obj-rollup {
+  margin-top: auto;
+  padding: 14px 16px;
+  gap: 7px;
+}
+
+.obj-rollup-number-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.obj-rollup-number {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  color: var(--obj-text);
+  line-height: 1;
+}
+
+.obj-rollup-number small {
+  font-size: 15px;
+}
+
+.obj-rollup-caption {
+  font-size: 12px;
+  color: var(--obj-text-meta);
+}
+
+.obj-rollup-track {
+  position: relative;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--obj-track);
+}
+
+.obj-rollup-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 99px;
+  background: var(--obj-cyan);
+}
+
+.obj-rollup-footer {
+  font-size: 11.5px;
+  color: var(--obj-text-meta);
+}
+
+.obj-empty {
+  grid-column: 1 / -1;
+}
+
+/* ===== Responsive (2a tiers — nothing hidden, only re-stacked) ===== */
+
+@media (max-width: 1100px) {
+  .obj-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .obj-right {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, minmax(0, 1fr)));
+    align-items: start;
+  }
+
+  .obj-rollup {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .obj-right {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .obj-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-areas:
+      "chevron name"
+      "chevron bar"
+      "chevron pill";
+    row-gap: 9px;
+  }
+
+  .obj-row .obj-chevron { grid-area: chevron; }
+  .obj-row .obj-name-cell { grid-area: name; }
+  .obj-row .obj-bar-cell { grid-area: bar; }
+  .obj-row .obj-pill { grid-area: pill; justify-self: start; }
+
+  .obj-kr-row {
+    grid-template-columns: minmax(0, 1fr) 118px;
+    grid-template-areas:
+      "name value"
+      "bar bar";
+    row-gap: 7px;
+  }
+
+  .obj-kr-row .obj-kr-name { grid-area: name; }
+  .obj-kr-row .obj-kr-value { grid-area: value; justify-self: end; }
+  .obj-kr-row .obj-bar-cell { grid-area: bar; }
+}
