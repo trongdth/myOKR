@@ -42,7 +42,7 @@ test.describe('review tab picker wiring', () => {
       : page.locator('[aria-label="Review cycle and week"]');
 
     // May w1 (27 Apr–3 May) is its only finished week; w2 ends 10 May.
-    await expect(trigger).toHaveText(/May 2026 · week 1 of 5/);
+    await expect(trigger).toHaveText(/May cycle · week 1 of 5/);
     await expect(page.locator('.plan-header-title')).toHaveText('Week of 27 Apr–3 May');
     // May hasn't closed → no badge.
     await expect(page.locator('.rw-closed-badge')).toHaveCount(0);
@@ -51,7 +51,7 @@ test.describe('review tab picker wiring', () => {
     await trigger.click();
     await page.locator('.cwp-panel .cwp-cycle-row').nth(1).click();
     await page.locator('.cwp-panel .cwp-week-row').nth(3).click();
-    await expect(trigger).toHaveText(/April 2026 · week 4 of 4/);
+    await expect(trigger).toHaveText(/April cycle · week 4 of 4/);
     await expect(page.locator('.plan-header-title')).toHaveText('Week of 20–26 Apr');
     await expect(page.locator('.rw-closed-badge')).toHaveText('Cycle closed 26 Apr');
 
@@ -80,7 +80,7 @@ test.describe('review tab picker wiring', () => {
 
     await openReview(page);
     // May w1 (27 Apr–3 May) is still in progress on May 1 → April w4.
-    await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/April 2026 · week 4 of 4/);
+    await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/April cycle · week 4 of 4/);
     await expect(page.locator('.rw-closed-badge')).toHaveText('Cycle closed 26 Apr');
   });
 });
@@ -119,9 +119,9 @@ test('default follows the calendar, not the stale isActive flag (supersedes deci
   const trigger = page.locator('[aria-label="Review cycle and week"]');
   // September is the cycle today falls in; its only finished week is the one
   // that opens it (31 Aug–6 Sep) — the week holding the draft.
-  await expect(trigger).toHaveText(/September 2026 · week 1 of 4/);
+  await expect(trigger).toHaveText(/September cycle · week 1 of 4/);
   await expect(page.locator('.plan-header-title')).toHaveText('Week of 31 Aug–6 Sep');
-  await expect(trigger).not.toHaveText(/May 2026/);
+  await expect(trigger).not.toHaveText(/May cycle/);
 });
 
 test('default prefers a non-flagged newest cycle over an older flagged one', async ({ page }) => {
@@ -145,7 +145,7 @@ test('default prefers a non-flagged newest cycle over an older flagged one', asy
   await openReview(page);
   // Today is in May, so May's most recent finished week wins — not April's,
   // and no closed badge (May hasn't closed).
-  await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/May 2026 · week 1 of 5/);
+  await expect(page.locator('[aria-label="Review cycle and week"]')).toHaveText(/May cycle · week 1 of 5/);
   await expect(page.locator('.rw-closed-badge')).toHaveCount(0);
 });
 

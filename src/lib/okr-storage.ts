@@ -156,6 +156,20 @@ export function getMonthName(month: number, year: number): string {
   return `${MONTH_NAMES[month]} ${year}`;
 }
 
+/**
+ * The display label for a cycle, everywhere in the app: the design format
+ * "{Month} cycle" ("May cycle") for default-named cycles; a custom name
+ * ("Q3 reset") survives verbatim; an unnamed cycle derives the default.
+ */
+export function cycleDisplayName(cycle: { name?: string; month: number; year: number }): string {
+  const name = typeof cycle.name === 'string' ? cycle.name.trim() : '';
+  const month = Math.min(11, Math.max(0, Math.floor(cycle.month)));
+  if (!name || name === getMonthName(month, cycle.year)) {
+    return `${MONTH_NAMES[month]} cycle`;
+  }
+  return name;
+}
+
 export function resolveCurrentCycle(cycles: OKRCycle[]): OKRCycle | null {
   if (cycles.length === 0) return null;
   const now = new Date();

@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
 import { getExclusiveCycleMondays } from '../../lib/cycle-windows';
-import type { OKRCycle } from '../../lib/okr-storage';
+import { cycleDisplayName, type OKRCycle } from '../../lib/okr-storage';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -24,9 +24,7 @@ export function ProgressHeader({
    *  completed line instead of floating at the title row). */
   alignEnd?: boolean;
 }) {
-  const cycleTitle = title ?? (activeCycle
-    ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`)
-    : 'Progress');
+  const cycleTitle = title ?? (activeCycle ? cycleDisplayName(activeCycle) : 'Progress');
 
   return (
     <div className={`tasks-view-header progress-header${alignEnd ? ' align-end' : ''}`}>
@@ -71,6 +69,11 @@ interface ProgressTabStripProps {
   /** The review tab's own CycleWeekPicker node — replaces the strip's week
    *  Select there (one selector per tab, 2026-09-07 decision). */
   reviewPicker?: ReactNode;
+  /** Objectives tab (R3): cycle-only picker — a whole-cycle scope, no week
+   *  option. One selector per tab; Focus analytics keeps the week Select. */
+  cycles?: OKRCycle[];
+  selectedCycleId?: string | null;
+  onSelectCycle?: (cycleId: string) => void;
 }
 
 export default function ProgressTabStrip({
@@ -79,6 +82,9 @@ export default function ProgressTabStrip({
   selectedWeek,
   onSelectWeek,
   reviewPicker,
+  cycles,
+  selectedCycleId,
+  onSelectCycle,
 }: ProgressTabStripProps) {
   // The Weekly review tab carries a "step N/3" badge mirroring the wizard
   // step in view (the wizard announces it via the myokr-review-step event);
@@ -106,7 +112,7 @@ export default function ProgressTabStrip({
       return monday <= todayISO && todayISO <= end.toISOString().slice(0, 10);
     }) + 1
   );
-  const cycleName = activeCycle ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`) : 'Cycle';
+  const cycleName = activeCycle ? cycleDisplayName(activeCycle) : 'Cycle';
 
   const weekOptions: { value: string; label: string }[] = [
     { value: 'all', label: `${cycleName} · all weeks` },
@@ -154,6 +160,19 @@ export default function ProgressTabStrip({
       <div className="plan-tab-strip-right">
         {active === 'weekly-review' && reviewPicker ? (
           <div className="progress-review-picker">{reviewPicker}</div>
+        ) : active === 'objectives-progress' && onSelectCycle && cycles && cycles.length > 0 ? (
+          // Cycle-only picker (R3): the label reads the cycle name only —
+          // no week option, no "all weeks" suffix. Newest first.
+          <div className="progress-cycle-select obj-cycle-picker">
+            <Select
+              options={[...cycles]
+                .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month))
+                .map(c => ({ value: c.id, label: cycleDisplayName(c) }))}
+              value={selectedCycleId}
+              onChange={(val) => onSelectCycle(val)}
+              ariaLabel="Pick cycle"
+            />
+          </div>
         ) : onSelectWeek && activeCycle && (
           <div className="progress-week-select">
             <Select

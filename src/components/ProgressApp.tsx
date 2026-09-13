@@ -3,11 +3,11 @@ import { Check, PenLine } from 'lucide-react';
 import ProgressTabStrip, { ProgressHeader, formatWeekLabel, type ProgressTab } from './progress/ProgressTabStrip';
 import Analytics from './pomodoro/Analytics';
 import ReviewApp from './ReviewApp';
-import ObjectivesProgressTab from './progress/ObjectivesProgressTab';
+import ObjectivesProgressTab from './progress/objectives/ObjectivesProgressTab';
 import CycleWeekPicker, { defaultReviewSelection, type CycleWeekSelection } from './progress/CycleWeekPicker';
 import ConfirmModal from './ConfirmModal';
-import { getActiveCycle, loadCycles, loadReviews, reopenReview, type OKRCycle, type WeeklyReview } from '../lib/okr-storage';
-import { getExclusiveCycleMondays, getCycleClosedDate } from '../lib/cycle-windows';
+import { cycleDisplayName, getActiveCycle, loadCycles, loadReviews, reopenReview, type OKRCycle, type WeeklyReview } from '../lib/okr-storage';
+import { getCycleClosedDate } from '../lib/cycle-windows';
 import { useSession } from './session/SessionProvider';
 import '../styles/progress.css';
 
@@ -36,6 +36,9 @@ function formatCompletedLine(iso: string): string {
 export default function ProgressApp({ tab }: ProgressAppProps) {
   const [activeCycle, setActiveCycle] = useState<OKRCycle | null>(null);
   const [cycles, setCycles] = useState<OKRCycle[]>([]);
+  // The Objectives tab scopes a whole cycle via its own cycle-only picker
+  // (no week option — R3 spec). Null until cycles load, then the active cycle.
+  const [objCycleId, setObjCycleId] = useState<string | null>(null);
   const [reviewReviews, setReviewReviews] = useState<WeeklyReview[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<number | 'all' | null>('all');
   // The Weekly review tab owns its two-level picker; analytics/objectives
@@ -99,21 +102,20 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
     setReviewSelection(sel);
   };
 
-  // Objectives h1 still follows the strip's week filter ('all' = current).
-  const cycleMondays = activeCycle ? getExclusiveCycleMondays(activeCycle) : [];
-  const currentWeekIdx = Math.max(1,
-    cycleMondays.findIndex(monday => {
-      const end = new Date(`${monday}T00:00:00Z`);
-      end.setUTCDate(end.getUTCDate() + 6);
-      return monday <= todayISO && todayISO <= end.toISOString().slice(0, 10);
-    }) + 1
-  );
-  const selectedMonday = (() => {
-    if (cycleMondays.length === 0) return null;
-    if (selectedWeek === 'all' || selectedWeek == null) return cycleMondays[currentWeekIdx - 1] ?? cycleMondays[0];
-    return cycleMondays[selectedWeek - 1] ?? null;
-  })();
+  // Seed the Objectives picker once cycles load, and re-validate whenever
+  // the cycle set reloads (sync event) — a deleted picked cycle must fall
+  // back to the active cycle, never a stale/blank selection.
+  useEffect(() => {
+    if (cycles.length === 0) return;
+    if (objCycleId == null || !cycles.some(c => c.id === objCycleId)) {
+      setObjCycleId(activeCycle?.id ?? cycles[0].id);
+    }
+  }, [cycles, activeCycle, objCycleId]);
 
+  const objCycle = cycles.find(c => c.id === objCycleId) ?? activeCycle;
+
+  // The Weekly review tab needs the selected week for its h1; the Objectives
+  // tab now titles the cycle itself (R3 spec) — no week h1, no CYCLE ELAPSED.
   const reviewCycle = cycles.find(c => c.id === reviewSelection?.cycleId) ?? null;
   const reviewClosedDate = reviewCycle ? getCycleClosedDate(reviewCycle) : null;
   const showClosedBadge = tab === 'weekly-review' && !!reviewClosedDate && reviewClosedDate < todayISO;
@@ -137,7 +139,7 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
 
   const headerTitle = (() => {
     if (tab === 'weekly-review') return reviewSelection ? formatWeekLabel(reviewSelection.weekStart) : undefined;
-    if (tab === 'objectives-progress') return selectedMonday ? formatWeekLabel(selectedMonday) : undefined;
+    if (tab === 'objectives-progress') return objCycle ? cycleDisplayName(objCycle) : undefined;
     return undefined;
   })();
 
@@ -157,7 +159,10 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
 
   return (
     <div className="pomodoro-container progress-shell">
-      <div className="progress-shell-inner">
+      {/* R3 frame modifier: the Objectives tab's spec carries its own main
+          column padding (28px 32px) and rhythm (18px); sibling tabs keep the
+          shared 20px shell (cross-group padding parity). */}
+      <div className={`progress-shell-inner${tab === 'objectives-progress' ? ' progress-shell-inner--r3' : ''}`}>
         <ProgressHeader
           activeCycle={activeCycle}
           title={headerTitle}
@@ -189,6 +194,9 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
           activeCycle={activeCycle}
           selectedWeek={selectedWeek}
           onSelectWeek={setSelectedWeek}
+          cycles={cycles}
+          selectedCycleId={objCycleId}
+          onSelectCycle={setObjCycleId}
           reviewPicker={
             <CycleWeekPicker
               cycles={cycles}
@@ -210,7 +218,12 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
           />
         )}
         {tab === 'objectives-progress' && (
-          <ObjectivesProgressTab activeCycle={activeCycle} />
+          <ObjectivesProgressTab
+            cycle={objCycle}
+            tasks={tasks}
+            history={history}
+            focusDurationMinutes={settings.focusDuration}
+          />
         )}
         {tab === 'weekly-review' && (
           <ReviewApp hideHeader weekStart={reviewSelection?.weekStart} cycleId={reviewSelection?.cycleId} />

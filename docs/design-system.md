@@ -39,7 +39,7 @@ meaning aligns (cyan = primary action = focus).
 | `--color-focus` | `#22D3EE` | Focus-session / timer semantics (same hue as primary) |
 | `--color-focus-border` | `#1a4b54` | Subtle teal border for session-timer surfaces (the global Session widget card) |
 | `--color-objective` | `#a855f7` (violet) | OKR Objectives |
-| `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else. **One carve-out:** the Habits analytics weak-day insight banner (2026-08-08, Habits tracker) — an insight derived from streak data, documented in the Habits section below |
+| `--color-streak` | `#f59e0b` (amber) | Streaks (current/best) — amber means streak, nothing else. **Carve-outs:** the Habits analytics weak-day insight banner (2026-08-08, Habits tracker — an insight derived from streak data), and the Objectives tab's **Behind pace** amber (2026-09-12, R3) — a *different* literal value (`#F5A524`, scoped `--obj-amber`, never `--color-streak`) because pace degradation is meaning, not decoration; see the Objectives tab (R3) section |
 | `--color-risk` | `#f43f5e` (rose) | At-risk / warning |
 | `--color-danger` | `#e87975` (salmon) | Destructive-action fill (ConfirmModal delete confirms). Dark text on the fill (`--bg-primary`), same treatment as `.btn` — added 2026-08-29 with the confirm-modal visibility fix (danger = a solid soft-red action, not a red heading). |
 
@@ -501,9 +501,15 @@ in `CONTEXT.md`. Desktop-only; no mobile port.
 - Progress tabs become **Focus analytics · Objectives · Weekly review** (the
   Objectives tab holds the moved progress-over-time chart; distinct from the
   Plan group's Objectives screen). The sidebar items match the tab labels.
+  **Superseded 2026-09-12 (R3):** the Objectives tab no longer hosts the
+  progress-over-time chart — it is the pace-marked objectives board (see the
+  Objectives tab (R3) section); the chart component was deleted.
 - Header h1 is `Week of {d}–{d} {Mon}` on **Objectives and Weekly review
   only**; Focus analytics keeps its cycle-overview/week-drill-down header
-  logic. Eyebrow stays `PROGRESS`.
+  logic. Eyebrow stays `PROGRESS`. **Superseded 2026-09-12 (R3):** the
+  Objectives h1 is now the **cycle name** (stored name verbatim, e.g.
+  "September 2026") — its picker scopes a whole cycle and there is no week
+  dimension on that tab. Weekly review keeps the week h1 unchanged.
 - The Weekly review tab carries a `step N/3` badge mirroring the step in view
   for the selected week — hidden when that week's review is finished (a
   finished review has no steps; the summary clears the badge).
@@ -700,16 +706,117 @@ exclusive week). Expansion is browsing state and may differ
 from the selection — the check follows the selection, the highlighted
 expanded row already names the cycle whose weeks show (no separate label
 line, 2026-09-09 round-4), and the trigger keeps reading the selected path
-(stored name verbatim, e.g. `April 2026 · week 4 of 4`). Search appears beyond 6 cycles (cycle
+(cycle label via `cycleDisplayName` — `April cycle · week 4 of 4` (since 2026-09-13; the Plan group's own strip still shows stored names)). Search appears beyond 6 cycles (cycle
 name/year + week date spans; a visible filter field, not type-ahead per
 ADR-0011). Panel: left edge aligned to the trigger and clamped to the
 viewport, list capped at 440px with internal scroll, selected row scrolled
 into view on open. Keyboard: ↑/↓/Home/End rove, → expands, ← collapses,
 Enter commits (cycle) / picks (week), Esc closes with focus returned to the
 trigger. Meta/status text is sans (2026-09-08 round-3: the C1 mono trailing
-hint is deliberately not used here). Focus analytics and Objectives keep
-the strip's week Select — **one selector per tab, never two, and no shared
-range**.
+hint is deliberately not used here). Focus analytics keeps the strip's week
+Select; since 2026-09-12 (R3) the **Objectives tab has its own cycle-only
+picker** (a 32px Select reading the cycle name, no week option) — one
+selector per tab, never two, and no shared range.
+
+## Objectives tab (R3, 2026-09-12) — per-screen rules
+
+The R3 build spec, matched literally (mockup-exact fidelity like the
+flagship screens; JetBrains Mono stands in for the spec's IBM Plex Mono per
+the Typography rule). Domain terms — **Pace marker, Pace status, Cycle
+roll-up, Trajectory, Projected landing, Diagnostic callout** — live in
+`CONTEXT.md`; the derive-don't-store decision is
+[ADR-0020](./adr/0020-pace-status-derived.md).
+
+- **Tokens.** Every literal hex of the spec is named **once** in the scoped
+  `--obj-*` block on `.obj-board` (the completed-strip `--ct-*` precedent):
+  card fill `#10141A`, spec text ramp `#EDF0F5 → #3F4753`, emerald
+  `#34D399`, pace amber `#F5A524`, red `#F87171`, bright cyan `#67E8F9` —
+  separate from the semantic tokens (streak amber `--color-streak` is a
+  different value and is not reused). Everything else references the block;
+  zero raw hex outside it.
+- **Pace marker** sits at the cycle-elapsed percent — days-based over
+  [first exclusive Monday → Cycle closed date] — on **every** bar
+  (objective, KR, roll-up) and in the list header meta
+  (`pace marker at N%`). Past cycles pin at 100%. Never a weeks-based
+  calculation (the spec's "62% at week 4 of 5" is only reachable days-based).
+- **Pace status is derived, never entered** (ADR-0020, amended 2026-09-12):
+  **Ahead of pace** strictly above the marker, On pace within 5 points
+  below, Behind pace below that, At risk more than 20 below. Exact strings
+  `Ahead of pace / On pace / Behind pace / At risk` — never Confidence's
+  On Track / Off Track, and pace-"At risk" is unrelated to
+  confidence-"At risk". **Zero is not green:** a 0% value renders grey bar +
+  grey percent + grey-tinted pill; the pill label stays the derived status.
+- **Bars.** Objective fill wears its status hue (Ahead shares the on-pace
+  green `#34D399`; the Ahead pill alone takes the lighter `#6EE7B7` tint);
+  KR fill is cyan when not behind and amber otherwise (two-state by spec —
+  the design's at-risk KR shows amber); the roll-up fill is always cyan.
+  Ticks: `rgba(255,255,255,.34)` on objective/roll-up bars, `.28` on KR
+  bars, 1px wide, overhanging the track by 3px top and bottom, layered
+  above the fill.
+- **Grids reserve their columns** (`18px 1fr 150px 96px` objective row;
+  `1fr 118px 150px 96px` KR row — its fourth track stays empty so the KR
+  bar's ticks line up vertically with the objective bar's) even when a cell
+  is empty, so names stay on one baseline; every long name truncates with
+  an ellipsis — never wraps. The row chevrons are a dense-row exception to
+  the 16px icon rule: 12px at `stroke-width 2.6` (spec literal, like the
+  menu's 14px icons).
+- **Selection & expansion.** One objective expanded at a time; clicking an
+  objective row selects it (rolled-up trajectory) and toggles expansion;
+  clicking a KR selects it. Default on load: the **worst-off KR** (lowest
+  Projected landing) selected with its objective expanded. Keyboard is the
+  in-component listbox carve-out (ADR-0011): ↑/↓ rove rows, →/←
+  expand/collapse, Enter selects.
+- **Trajectory.** SVG `viewBox="0 0 380 170"`, plot x 30..370, 0%→y 128,
+  100%→y 8 (so the four spec gridlines y 8/48/88/128 carry the scale —
+  100/50/0), baseline y 145. The x axis always spans the full cycle
+  (remaining runway visible); **every** week is labelled `W1..Wn` plus `end`
+  at the closed date (amended 2026-09-12 — dots plot on their own W tick,
+  never between gridlines; the live week plots on its tick with today's
+  value). Weekly values are as-of week close (same math family as *Moved*).
+  **Weeks with no attributed activity break the line** — no interpolation.
+  Dashed white `pace needed` line 0→100 inside the plot; dashed 50%-opacity
+  cyan projection from the last point to cycle close at the current rate —
+  past cycles drop it. Native `<title>` tooltips on the dots only (no
+  floating tooltip). Empty selection data reads `Nothing logged yet`.
+- **Pace card** (WHY IT IS BEHIND ↔ PACE CHECK) always rides with the
+  selection — the eyebrow switches on the selection's status (behind/at risk
+  → WHY…, on pace/ahead → PACE CHECK); hidden on closed cycles. The three
+  rows are pure week math (feedback round 1): needed = target ÷ cycle
+  weeks; actual = current ÷ fractional elapsed weeks (elapsed days ÷ 7,
+  min 1); to finish = (target − current) ÷ remaining, "N next week" on the
+  last week — clamped so 0%/divisors never yield NaN. Actual average wears
+  amber unconditionally (it is not a health verdict). KR selection works in
+  the KR's units; objective selection in percentage points (`N pts / week`).
+  The closing note counts the last finished week's **Unlinked sessions**
+  ("N of last week's sessions were unlinked…"); hidden at zero.
+- **Diagnostic callout:** exactly one, sitting directly beneath the
+  objectives list (feedback round 1 reversed the R2b bottom-pinning — with a
+  short list the pinned gap read as a rendering fault), naming the worst
+  objective (lowest Projected landing); zero-progress worst takes the short
+  "X has not moved in N% of the cycle" form; hidden when every objective is
+  Ahead/On pace or nothing has elapsed.
+- **Picker & shell.** Objectives gets the cycle-only Select (above); header
+  h1 = cycle label via `cycleDisplayName` ("{Month} cycle" for default-named
+  cycles, custom names verbatim — one label rule across the header,
+  the pickers, and the review tab's picker — the Plan group is out of scope); no CYCLE ELAPSED block (redundant
+  with the marker), no Reviewed/Reopen chrome on this tab. The R3 shell restyle (eyebrow 11px
+  mono `0.14em`, 25px h1, 22px tab gap, `#727C8C` inactive tabs) is scoped
+  under `.progress-header` / `.progress-tab-strip` — the Plan group's strip
+  is untouched. The tab also carries the spec's own main-column frame via
+  the scoped `.progress-shell-inner--r3` modifier (padding 28px 32px, 18px
+  rhythm) — sibling tabs keep the shared 20px shell (cross-group padding
+  parity), pinned by test.
+- **Responsive (2a tiers):** ≤1100px the two-column body re-stacks — the
+  analytics column becomes a wrapping card row under the list; ≤900px it is
+  single-column and the objective/KR rows wrap to their two-line grids
+  (chevron column reserved; nothing hidden).
+- **Verification:** `tests/objectives-revamp.spec.ts` (fixed clock
+  2026-09-12 → marker exactly 44%: statuses, zero-grey, roll-up math,
+  selection, the pace card incl. unconditional Actual-average amber and the
+  PACE CHECK switch, fill/pill color assertions (regression: the status
+  class ↔ CSS selector mismatch), callout, keyboard, past/empty cycles, gap
+  segments, the final-Sunday closed edge, KR/objective bar alignment) +
+  the rewritten Objectives tests in `tests/progress-analytics-revamp.spec.ts`.
 
 ## Plan group screens (P1–P7) — per-screen rules
 

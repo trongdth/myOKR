@@ -39,7 +39,7 @@ test.describe('Review & Habits Select migration', () => {
     await expect(page.locator('.review-container')).toHaveCount(0);
 
     const trigger = page.locator('.progress-week-select .sel-trigger');
-    await expect(trigger).toContainText('June 2026 · all weeks');
+    await expect(trigger).toContainText('June cycle · all weeks');
     await trigger.click();
     const rows = page.locator('.sel-panel .sel-row');
     await expect(rows.first()).toContainText('all weeks');

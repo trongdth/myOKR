@@ -16,7 +16,7 @@ test.describe('CycleWeekPicker', () => {
   test('trigger reads the full path; cycles newest-first with "N of M reviewed" meta', async ({ page }) => {
     await page.goto(BASE);
     const picker = page.locator('#cwp-a');
-    await expect(picker.locator('.sel-trigger')).toHaveText(/April 2026 · week 4 of 4/);
+    await expect(picker.locator('.sel-trigger')).toHaveText(/April cycle · week 4 of 4/);
 
     await picker.locator('.sel-trigger').click();
     const panel = page.locator('.cwp-panel');
@@ -24,14 +24,14 @@ test.describe('CycleWeekPicker', () => {
 
     const cycleRows = panel.locator('.cwp-cycle-row');
     await expect(cycleRows).toHaveCount(6);
-    await expect(cycleRows.nth(0)).toContainText('June 2026');
-    await expect(cycleRows.nth(1)).toContainText('May 2026');
+    await expect(cycleRows.nth(0)).toContainText('June cycle');
+    await expect(cycleRows.nth(1)).toContainText('May cycle');
     await expect(cycleRows.nth(1).locator('.cwp-meta')).toHaveText('0 of 5 reviewed');
-    await expect(cycleRows.nth(2)).toContainText('April 2026');
+    await expect(cycleRows.nth(2)).toContainText('April cycle');
     await expect(cycleRows.nth(2).locator('.cwp-meta')).toHaveText('2 of 4 reviewed');
     await expect(cycleRows.nth(3).locator('.cwp-meta')).toHaveText('5 of 5 reviewed');
     await expect(cycleRows.nth(4).locator('.cwp-meta')).toHaveText('2 of 4 reviewed');
-    await expect(cycleRows.nth(5)).toContainText('January 2026');
+    await expect(cycleRows.nth(5)).toContainText('January cycle');
     await expect(cycleRows.nth(5).locator('.cwp-meta')).toHaveText('0 of 4 reviewed');
 
     // Cycle rows carry NO tick (round-4 feedback: the leading check made
@@ -90,7 +90,7 @@ test.describe('CycleWeekPicker', () => {
     const panel = page.locator('.cwp-panel');
 
     const june = panel.locator('.cwp-cycle-row').nth(0);
-    await expect(june).toContainText('June 2026');
+    await expect(june).toContainText('June cycle');
     await expect(june).toHaveClass(/cwp-disabled/);
     await expect(june.locator('.cwp-chevron')).toHaveCount(0);
 
@@ -119,7 +119,7 @@ test.describe('CycleWeekPicker', () => {
     await panel.locator('.cwp-cycle-row').nth(3).click();
     await panel.locator('.cwp-week-row').nth(1).click();
     await expect(panel).toHaveCount(0);
-    await expect(picker.locator('.sel-trigger')).toHaveText(/March 2026 · week 2 of 5/);
+    await expect(picker.locator('.sel-trigger')).toHaveText(/March cycle · week 2 of 5/);
     await expect(page.locator('#cwp-a-commit')).toHaveText('2026-03-02');
   });
 
@@ -139,7 +139,7 @@ test.describe('CycleWeekPicker', () => {
     // "14 Apr" finds the April week containing Apr 14 (Week 3 · 13–19 Apr).
     await panel.locator('.cwp-search input').fill('14 Apr');
     await expect(panel.locator('.cwp-cycle-row')).toHaveCount(1);
-    await expect(panel.locator('.cwp-cycle-row')).toContainText('April 2026');
+    await expect(panel.locator('.cwp-cycle-row')).toContainText('April cycle');
     await expect(panel.locator('.cwp-week-row')).toHaveCount(1);
     await expect(panel.locator('.cwp-week-row')).toContainText('Week 3 · 13–19 Apr');
 
