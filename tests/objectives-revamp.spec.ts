@@ -175,6 +175,28 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(inner).toHaveCSS('row-gap', '20px');
   });
 
+  test('shell restyle actually applies (regression: --obj-* token scope)', async ({ page }) => {
+    // The --obj-* palette once lived on .obj-board while these rules target
+    // the header/tab strip — SIBLINGS of the board — so every var() was
+    // invalid at computed-value time and the restyle silently no-oped.
+    // Assert the documented literals as computed colors.
+    await expect(page.locator('.progress-header .tasks-title')).toHaveCSS('color', 'rgb(90, 100, 116)');
+    await expect(page.locator('.progress-header .plan-header-title')).toHaveCSS('color', 'rgb(237, 240, 245)');
+    const inactiveTab = page.locator('.progress-tab-strip .plan-tab:not(.active)').first();
+    await expect(inactiveTab).toHaveCSS('color', 'rgb(114, 124, 140)');
+    await expect(page.locator('.progress-tab-strip')).toHaveCSS('border-bottom-color', 'rgba(255, 255, 255, 0.07)');
+  });
+
+  test('trajectory draws the four spec gridlines at y 8/48/88/128', async ({ page }) => {
+    // Default selection (KR delta) renders the chart; the gridlines are the
+    // spec's literal pixel-even rules, not percent-even spacing.
+    const ys = await page.locator('.obj-tj-grid').evaluateAll(els =>
+      els.map(el => el.getAttribute('y1')));
+    expect(ys).toEqual(['8', '48', '88', '128']);
+    // 0% sits on the last gridline; the baseline is its own rule below.
+    await expect(page.locator('.obj-tj-baseline')).toHaveAttribute('y1', '145');
+  });
+
   test('pace marker sits at the same percent on every bar', async ({ page }) => {
     for (const track of await page.locator('.obj-bar-track').all()) {
       await expect(track.locator('.obj-pace-tick')).toHaveAttribute('style', /left: 44%/);
@@ -333,6 +355,30 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(page.locator('.obj-rollup-footer')).toHaveText('72 points behind the pace marker');
   });
 
+  test('the callout hides when every objective is Ahead, not just On pace', async ({ page }) => {
+    // The hide rule is "every objective Ahead/On pace" — the four-state
+    // amendment must propagate to the hide condition, not just the labels.
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const doc = await (window as any).__getAutomergeDoc();
+      await okr.saveKeyResults((doc.keyResults as any[]).map(kr => ({
+        ...kr,
+        // Every KR at 80% against the 44% marker → every objective ahead.
+        targetValue: 100, currentValue: 80, completionMode: 'manual',
+      })) as any);
+      // Manual KRs read their latest completed review over currentValue —
+      // clear them so the 80% seed is what renders.
+      await okr.saveReviews([]);
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await openObjectives(page);
+
+    await expect(page.locator('.obj-pill').first()).toHaveText('Ahead of pace');
+    await expect(page.locator('.obj-callout')).toHaveCount(0);
+  });
+
   test('diagnostic callout names the single worst objective once', async ({ page }) => {
     const callout = page.locator('.obj-callout');
     await expect(callout).toHaveCount(1);
@@ -387,6 +433,54 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(rows.nth(1)).toBeFocused();
     await page.keyboard.press('ArrowLeft');
     await expect(page.locator('.obj-card', { hasText: 'Behind objective' })).not.toHaveClass(/expanded/);
+  });
+
+  test('deleting the picked cycle re-syncs the picker to the active cycle', async ({ page }) => {
+    // Pick June, then delete it out from under the picker (the sync event
+    // reloads cycles). The picker must fall back to the active cycle — and
+    // stay in sync with the header, not render a stale/blank selection.
+    await page.locator('.obj-cycle-picker .sel-trigger').click();
+    await page.locator('.sel-panel .sel-row', { hasText: 'June cycle' }).click();
+    await expect(page.locator('.plan-header-title')).toHaveText('June cycle');
+
+    await page.evaluate(async () => {
+      const okr = await import('/src/lib/okr-storage.ts');
+      const doc = await (window as any).__getAutomergeDoc();
+      await okr.saveCycles((doc.cycles as any[]).filter(c => c.id !== 'c-jun'));
+      window.dispatchEvent(new CustomEvent('myokr-data-synced'));
+    });
+    await page.waitForTimeout(300);
+
+    await expect(page.locator('.obj-cycle-picker .sel-trigger')).toHaveText(/September cycle/);
+    await expect(page.locator('.plan-header-title')).toHaveText('September cycle');
+    await expect(page.locator('.obj-card').first()).toBeVisible();
+  });
+
+  test('switching cycles keeps exactly one tabbable row (roving tabIndex)', async ({ page }) => {
+    // The roving index rides focus events — but a cycle switch shrinks the
+    // row set without any row focus (the picker is not a row). A deep KR
+    // index must clamp so Tab can always re-enter the list.
+    await page.locator('.obj-card', { hasText: 'Behind objective' }).locator('.obj-row').click();
+    const krRow = page.locator('.obj-kr-row', { hasText: 'KR beta' });
+    await krRow.focus();
+    await expect(krRow).toBeFocused();
+
+    await openMayCycle(page); // May: 1 objective, 1 KR — far fewer rows
+
+    const tabbable = page.locator('[data-row-idx][tabindex="0"]');
+    await expect(tabbable).toHaveCount(1);
+  });
+
+  test('the analytics column re-stacks as a real multi-column grid at 1000px', async ({ page }) => {
+    // Regression: `minmax(280px, minmax(0, 1fr))` is invalid CSS (a minmax
+    // cannot nest), so the whole declaration dropped and .obj-right fell
+    // back to one implicit column at the ≤1100px tier.
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await page.waitForTimeout(200);
+    const cols = await page.locator('.obj-right').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+    expect(cols).not.toBe('none');
+    expect(cols.split(' ').length).toBeGreaterThanOrEqual(2);
+    await page.setViewportSize({ width: 1280, height: 800 });
   });
 
   test('a cycle with no objectives offers the Plan-group way out', async ({ page }) => {

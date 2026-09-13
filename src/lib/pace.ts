@@ -102,7 +102,7 @@ export function addDaysStr(dateStr: string, days: number): string {
   return new Date(toUtc(dateStr) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
-function clampPct(n: number): number {
+export function clampPct(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.min(100, Math.max(0, n));
 }
@@ -207,16 +207,17 @@ function linkedTaskIds(kr: PaceKeyResult, ctx: PaceDataContext): Set<string> {
 /**
  * Best-known value for a KR as of `endDate` (inclusive). Derived modes
  * compute from attributed activity; manual modes fall back to the latest
- * completed review entry, else `manualFallback` (the stored current value
- * for "now", or 0 when reconstructing past weeks — a manual KR has no
- * history before its first review).
+ * completed review entry, else `manualFallback` — REQUIRED so every caller
+ * states its semantics: the stored current value for "now" readings, 0 when
+ * reconstructing past weeks (a manual KR has no history before its first
+ * review — never project today's value backward).
  */
 export function krValueAsOf(
   kr: PaceKeyResult,
   cycle: PaceCycle,
   ctx: PaceDataContext,
   endDate: string,
-  manualFallback?: number,
+  manualFallback: number,
 ): number {
   const mode = kr.completionMode ?? 'manual';
   if (mode === 'habit') {
@@ -251,7 +252,7 @@ export function krValueAsOf(
     const entry = latest.entries.find(e => e.keyResultId === kr.id);
     if (entry) return entry.currentValue;
   }
-  return manualFallback ?? kr.currentValue;
+  return manualFallback;
 }
 
 // ===== Weekly activity (the Trajectory gap rule) =====
@@ -321,7 +322,7 @@ function seriesForKr(kr: PaceKeyResult, cycle: PaceCycle, span: CycleSpan, ctx: 
     if (monday > todayISO) break;
     const isLiveWeek = todayISO >= monday && todayISO <= sunday;
     if (!krWeekHasActivity(kr, cycle, ctx, monday, sunday)) continue;
-    const value = krValueAsOf(kr, cycle, ctx, isLiveWeek ? todayISO : sunday);
+    const value = krValueAsOf(kr, cycle, ctx, isLiveWeek ? todayISO : sunday, 0);
     // Every point plots on its own W tick (the week's Monday position) —
     // dots sit on gridlines, the live week included (value as-of today).
     points.push({
@@ -332,7 +333,7 @@ function seriesForKr(kr: PaceKeyResult, cycle: PaceCycle, span: CycleSpan, ctx: 
       live: isLiveWeek,
     });
   }
-  const currentValue = krValueAsOf(kr, cycle, ctx, todayISO > span.end ? span.end : todayISO);
+  const currentValue = krValueAsOf(kr, cycle, ctx, todayISO > span.end ? span.end : todayISO, kr.currentValue);
   return { points, currentValue, currentPct: pctOfTarget(currentValue, kr.targetValue) };
 }
 
@@ -359,6 +360,8 @@ function seriesForObjectives(
     const asOf = isLiveWeek ? todayISO : sunday;
     const eligible = krSeries.filter(({ kr }) => kr.createdAt.slice(0, 10) <= sunday);
     if (eligible.length === 0) continue;
+    const weekHasData = eligible.some(({ kr }) => krWeekHasActivity(kr, cycle, ctx, monday, sunday));
+    if (!weekHasData) continue;
 
     // Each member KR's value this week: its own point when it has one, else
     // its as-of value. A manual KR with no review yet has no history, so
@@ -367,11 +370,8 @@ function seriesForObjectives(
     const memberValues = eligible.map(({ kr, series }) => {
       const inWeek = series.points.find(p => p.weekIndex === weekIndex);
       if (inWeek) return inWeek.value;
-      const fallback = isLiveWeek ? undefined : 0;
-      return krValueAsOf(kr, cycle, ctx, asOf, fallback);
+      return krValueAsOf(kr, cycle, ctx, asOf, isLiveWeek ? kr.currentValue : 0);
     });
-    const weekHasData = eligible.some(({ kr }) => krWeekHasActivity(kr, cycle, ctx, monday, sunday));
-    if (!weekHasData) continue;
 
     const pct = Math.round(
       memberValues.reduce((sum, value, i) => sum + pctOfTarget(value, eligible[i].kr.targetValue), 0) / eligible.length,
@@ -443,7 +443,7 @@ export function computeWhyRows(
 
   if (entity.kind === 'kr') {
     const kr = entity.kr;
-    const current = krValueAsOf(kr, cycle, ctx, asOf);
+    const current = krValueAsOf(kr, cycle, ctx, asOf, kr.currentValue);
     const needed = Math.round(kr.targetValue / totalWeeks);
     const actual = Math.round(current / elapsedWeeks);
     return {
@@ -455,7 +455,7 @@ export function computeWhyRows(
   }
   // Objective: percentage points.
   const pctNow = entity.krs.length > 0
-    ? entity.krs.reduce((sum, kr) => sum + pctOfTarget(krValueAsOf(kr, cycle, ctx, asOf), kr.targetValue), 0) / entity.krs.length
+    ? entity.krs.reduce((sum, kr) => sum + pctOfTarget(krValueAsOf(kr, cycle, ctx, asOf, kr.currentValue), kr.targetValue), 0) / entity.krs.length
     : 0;
   const needed = Math.round(100 / totalWeeks);
   const actual = Math.round(pctNow / elapsedWeeks);

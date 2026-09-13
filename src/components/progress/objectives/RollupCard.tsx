@@ -1,3 +1,4 @@
+import { clampPct } from '../../../lib/pace';
 /**
  * Cycle roll-up — the whole cycle's unweighted-mean percent with the pace
  * tick on its bar and the points-behind/ahead footer. Pinned to the right
@@ -12,11 +13,11 @@ interface RollupCardProps {
 
 export default function RollupCard({ pct, objectiveCount, krCount, marker }: RollupCardProps) {
   const diff = marker - pct;
-  const footer = diff > 0
-    ? `${diff} points behind the pace marker`
-    : diff < 0
-      ? `${-diff} points ahead of the pace marker`
-      : 'right on the pace marker';
+  const footer = (() => {
+    if (diff > 0) return `${diff} points behind the pace marker`;
+    if (diff < 0) return `${-diff} points ahead of the pace marker`;
+    return 'right on the pace marker';
+  })();
 
   return (
     <section className="obj-card-panel obj-rollup" aria-label="Cycle roll-up">
@@ -28,8 +29,8 @@ export default function RollupCard({ pct, objectiveCount, krCount, marker }: Rol
         </span>
       </div>
       <div className="obj-rollup-track" role="img" aria-label={`Cycle roll-up ${pct}%, pace marker at ${marker}%`}>
-        <span className="obj-rollup-fill" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
-        <span className="obj-pace-tick" style={{ left: `${Math.min(100, Math.max(0, marker))}%` }} />
+        <span className="obj-rollup-fill" style={{ width: `${clampPct(pct)}%` }} />
+        <span className="obj-pace-tick" style={{ left: `${clampPct(marker)}%` }} />
       </div>
       <span className="obj-rollup-footer">{footer}</span>
     </section>

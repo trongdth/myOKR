@@ -10,7 +10,7 @@ import {
   buildEntitySeries, computeWhyRows, countUnlinkedSessionsLastWeek,
   getCycleElapsedPercent, getCycleSpan, getPaceStatus, getProjectedLanding,
   isCycleClosed, krValueAsOf, pctOfTarget, pickWorst,
-  type CycleSpan, type PaceDataContext, type RankedEntity,
+  type CycleSpan, type PaceDataContext, type WorstEntity,
 } from '../../../lib/pace';
 import ObjectiveList, { type KrVM, type ObjectiveVM, type Selection } from './ObjectiveList';
 import TrajectoryCard from './TrajectoryCard';
@@ -43,7 +43,7 @@ function worstOf(
   entries: { id: string; objectiveId: string; pct: number }[],
   markerPct: number,
   closed: boolean,
-): RankedEntity | null {
+): WorstEntity | null {
   return pickWorst(entries.map(e => ({
     kind,
     id: e.id,
@@ -116,12 +116,15 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
 
   // View models: current percents + derived pace status per KR and objective.
   const { objectiveVMs, krPctById, rollupPct, krCount } = useMemo(() => {
+    // Guard explicitly: this memo runs before the render-time early return,
+    // so a null cycle must not rely on the empty-list coupling below.
+    if (!cycle) return { objectiveVMs: [] as ObjectiveVM[], krPctById: new Map<string, number>(), rollupPct: 0, krCount: 0 };
     const krPctById = new Map<string, number>();
     const krsByObjective = new Map<string, KrVM[]>();
     for (const o of cycleObjectives) {
       const krs = cycleKrs.filter(kr => kr.objectiveId === o.id);
       krsByObjective.set(o.id, krs.map(kr => {
-        const effective = krValueAsOf(kr, cycle!, ctx, todayISO);
+        const effective = krValueAsOf(kr, cycle, ctx, todayISO, kr.currentValue);
         const pct = Math.round(pctOfTarget(effective, kr.targetValue));
         krPctById.set(kr.id, pct);
         const status = getPaceStatus(pct, markerPct);
@@ -181,27 +184,29 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
   }, [selectionTouched, objectiveVMs, span]);
 
   // Resolve the selection against current data (ids can vanish mid-session).
+  // A KR selection also resolves its parent objective — the trajectory's
+  // sub-line and the KR row both need it.
   const selKr = selected?.kind === 'kr' ? cycleKrs.find(kr => kr.id === selected.id) ?? null : null;
-  const selObjective = selected?.kind === 'objective'
-    ? cycleObjectives.find(o => o.id === selected.id) ?? null
-    : selKr
-      ? cycleObjectives.find(o => o.id === selKr.objectiveId) ?? null
-      : null;
+  const selObjective = (() => {
+    if (selected?.kind === 'objective') return cycleObjectives.find(o => o.id === selected.id) ?? null;
+    if (selKr) return cycleObjectives.find(o => o.id === selKr.objectiveId) ?? null;
+    return null;
+  })();
 
-  const seriesEntity = selKr
-    ? { kind: 'kr' as const, kr: selKr }
-    : selObjective
-      ? { kind: 'objective' as const, krs: cycleKrs.filter(kr => kr.objectiveId === selObjective.id) }
-      : null;
+  const seriesEntity = (() => {
+    if (selKr) return { kind: 'kr' as const, kr: selKr };
+    if (selObjective) return { kind: 'objective' as const, krs: cycleKrs.filter(kr => kr.objectiveId === selObjective.id) };
+    return null;
+  })();
   const series = span && cycle && seriesEntity
     ? buildEntitySeries(seriesEntity, cycle, span, ctx, todayISO)
     : null;
 
-  const selStatus = selKr
-    ? getPaceStatus(krPctById.get(selKr.id) ?? 0, markerPct)
-    : selObjective
-      ? objectiveVMs.find(o => o.id === selObjective.id)?.status ?? null
-      : null;
+  const selStatus = (() => {
+    if (selKr) return getPaceStatus(krPctById.get(selKr.id) ?? 0, markerPct);
+    if (selObjective) return objectiveVMs.find(o => o.id === selObjective.id)?.status ?? null;
+    return null;
+  })();
 
   // The card always rides with the selection; its label switches on the
   // selection's own status — "why it is behind" would be nonsense for
@@ -215,7 +220,7 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
   const unlinkedNote = span ? countUnlinkedSessionsLastWeek(span, ctx, todayISO) : null;
 
   // Trajectory heading copy.
-  const trajectoryTitle = selKr ? selKr.title : selObjective?.title ?? '';
+  const trajectoryTitle = selKr?.title ?? selObjective?.title ?? '';
   const trajectorySub = selKr
     ? `Selected key result · ${selObjective?.title ?? ''}`
     : selObjective
@@ -233,7 +238,9 @@ export default function ObjectivesProgressTab({ cycle, tasks, history, focusDura
     })), markerPct, closed);
     if (!worst) return null;
     const vm = objectiveVMs.find(o => o.id === worst.id);
-    if (!vm || vm.status === 'on_pace') return null;
+    // Hidden when the worst objective is already Ahead/On pace — nothing
+    // needs a diagnosis.
+    if (!vm || vm.status === 'on_pace' || vm.status === 'ahead_of_pace') return null;
     return { title: vm.title, movedPct: vm.pct, landing: worst.landing };
   }, [span, objectiveVMs, markerPct, closed]);
 

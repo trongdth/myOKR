@@ -30,9 +30,9 @@ export default function TrajectoryCard({ title, subtitle, series, span, marker, 
   const totalDays = Math.max(diffDays(span.start, span.end), 1);
   const x = (dayOffset: number) => X0 + (dayOffset / totalDays) * (X1 - X0);
   const y = (pct: number) => Y_ZERO - (Math.min(100, Math.max(0, pct)) / 100) * (Y_ZERO - Y_TOP);
-  // The four spec gridlines carry the whole scale: 100 at the top, 50 mid,
-  // 0 at y 128, with the axis baseline a separate rule below.
-  const gridYs = [Y_TOP, (Y_TOP + Y_ZERO) / 2, Y_TOP + (Y_ZERO - Y_TOP) * 0.75, Y_ZERO];
+  // The four spec gridlines at the literal pixel-even positions y 8/48/88/128
+  // (100 → 0 spans 8 → 128; 0% sits on the last rule, baseline below at 145).
+  const gridYs = [8, 48, 88, 128];
 
   // Consecutive weeks join into one polyline; a weekIndex jump is a gap.
   const runs: { d: string; points: EntitySeries['points'] }[] = [];

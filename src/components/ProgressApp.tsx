@@ -102,9 +102,12 @@ export default function ProgressApp({ tab }: ProgressAppProps) {
     setReviewSelection(sel);
   };
 
-  // Default the Objectives picker to the active cycle once cycles load.
+  // Seed the Objectives picker once cycles load, and re-validate whenever
+  // the cycle set reloads (sync event) — a deleted picked cycle must fall
+  // back to the active cycle, never a stale/blank selection.
   useEffect(() => {
-    if (objCycleId == null && cycles.length > 0) {
+    if (cycles.length === 0) return;
+    if (objCycleId == null || !cycles.some(c => c.id === objCycleId)) {
       setObjCycleId(activeCycle?.id ?? cycles[0].id);
     }
   }, [cycles, activeCycle, objCycleId]);

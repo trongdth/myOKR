@@ -706,7 +706,7 @@ exclusive week). Expansion is browsing state and may differ
 from the selection — the check follows the selection, the highlighted
 expanded row already names the cycle whose weeks show (no separate label
 line, 2026-09-09 round-4), and the trigger keeps reading the selected path
-(stored name verbatim, e.g. `April 2026 · week 4 of 4`). Search appears beyond 6 cycles (cycle
+(cycle label via `cycleDisplayName` — `April cycle · week 4 of 4` (since 2026-09-13; the Plan group's own strip still shows stored names)). Search appears beyond 6 cycles (cycle
 name/year + week date spans; a visible filter field, not type-ahead per
 ADR-0011). Panel: left edge aligned to the trigger and clamped to the
 viewport, list capped at 440px with internal scroll, selected row scrolled
@@ -797,8 +797,8 @@ roll-up, Trajectory, Projected landing, Diagnostic callout** — live in
   Ahead/On pace or nothing has elapsed.
 - **Picker & shell.** Objectives gets the cycle-only Select (above); header
   h1 = cycle label via `cycleDisplayName` ("{Month} cycle" for default-named
-  cycles, custom names verbatim — the one label rule across the header, the
-  pickers, and the review tab's picker); no CYCLE ELAPSED block (redundant
+  cycles, custom names verbatim — one label rule across the header,
+  the pickers, and the review tab's picker — the Plan group is out of scope); no CYCLE ELAPSED block (redundant
   with the marker), no Reviewed/Reopen chrome on this tab. The R3 shell restyle (eyebrow 11px
   mono `0.14em`, 25px h1, 22px tab gap, `#727C8C` inactive tabs) is scoped
   under `.progress-header` / `.progress-tab-strip` — the Plan group's strip

@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { PACE_STATUS_CLASS, PACE_STATUS_LABEL, type PaceStatus } from '../../../lib/pace';
+import { clampPct, PACE_STATUS_CLASS, PACE_STATUS_LABEL, type PaceStatus } from '../../../lib/pace';
 
 export type Selection = { kind: 'objective'; id: string } | { kind: 'kr'; id: string };
 
@@ -53,6 +53,12 @@ export default function ObjectiveList({
   const listRef = useRef<HTMLDivElement>(null);
   const [activeIdx, setActiveIdx] = useState(0);
 
+  // The row set can shrink without a focus event (e.g. switching cycles),
+  // leaving the roving index past the end and the list untabbable — clamp
+  // so exactly one row always carries tabIndex 0.
+  const rowCount = objectives.reduce((sum, o) => sum + 1 + (expandedId === o.id ? o.krs.length : 0), 0);
+  const rovingIdx = Math.min(activeIdx, Math.max(rowCount - 1, 0));
+
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const rows = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('[data-row-idx]') ?? []);
     if (rows.length === 0) return;
@@ -97,7 +103,7 @@ export default function ObjectiveList({
                 data-row-idx={objIdx}
                 data-kind="objective"
                 data-objective-id={o.id}
-                tabIndex={objIdx === activeIdx ? 0 : -1}
+                tabIndex={objIdx === rovingIdx ? 0 : -1}
                 aria-expanded={expanded}
                 onFocus={() => setActiveIdx(objIdx)}
                 onClick={() => onObjectiveActivate(o.id)}
@@ -120,9 +126,9 @@ export default function ObjectiveList({
                   >
                     <span
                       className={`obj-bar-fill ${o.zero ? 'zero' : PACE_STATUS_CLASS[o.status]}`}
-                      style={{ width: `${Math.min(100, Math.max(0, o.pct))}%` }}
+                      style={{ width: `${clampPct(o.pct)}%` }}
                     />
-                    <span className="obj-pace-tick" style={{ left: `${Math.min(100, Math.max(0, marker))}%` }} />
+                    <span className="obj-pace-tick" style={{ left: `${clampPct(marker)}%` }} />
                   </span>
                   <span className={`obj-percent${o.zero ? ' zero' : ''}`}>{o.pct}%</span>
                 </span>
@@ -144,7 +150,7 @@ export default function ObjectiveList({
                         className={`obj-kr-row${isSel ? ' selected' : ''}`}
                         data-row-idx={krIdx}
                         data-kind="kr"
-                        tabIndex={krIdx === activeIdx ? 0 : -1}
+                        tabIndex={krIdx === rovingIdx ? 0 : -1}
                         onFocus={() => setActiveIdx(krIdx)}
                         onClick={() => onKrActivate(o.id, kr.id)}
                       >
@@ -158,9 +164,9 @@ export default function ObjectiveList({
                           >
                             <span
                               className={`obj-kr-bar-fill ${kr.fill}`}
-                              style={{ width: `${Math.min(100, Math.max(0, kr.pct))}%` }}
+                              style={{ width: `${clampPct(kr.pct)}%` }}
                             />
-                            <span className="obj-pace-tick" style={{ left: `${Math.min(100, Math.max(0, marker))}%` }} />
+                            <span className="obj-pace-tick" style={{ left: `${clampPct(marker)}%` }} />
                           </span>
                           <span className="obj-kr-percent">{kr.pct}%</span>
                         </span>

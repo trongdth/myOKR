@@ -8,8 +8,11 @@
   untouched. See docs/design-system.md ("Objectives tab (R3)") and ADR-0020.
 */
 
-.obj-board {
-  /* R3 palette — literal, named once (design-system: mockup-exact screens) */
+.progress-shell-inner--r3 {
+  /* R3 palette — literal, named once (design-system: mockup-exact screens).
+     Declared on the shell modifier (the ancestor of the header, tab strip
+     AND board): custom properties only inherit DOWN the DOM, so a block on
+     .obj-board left the sibling shell rules resolving to nothing. */
   --obj-surface: #10141a;
   --obj-border: rgba(255, 255, 255, 0.07);
   --obj-border-soft: rgba(255, 255, 255, 0.06);
@@ -37,7 +40,9 @@
   --obj-selected-bg: rgba(34, 211, 238, 0.09);
   --obj-amber-tint: rgba(245, 165, 36, 0.06);
   --obj-amber-border: rgba(245, 165, 36, 0.18);
+}
 
+.obj-board {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 412px;
   gap: 18px;
@@ -80,7 +85,9 @@
   color: var(--obj-text);
 }
 
-.progress-tab-strip {
+/* Descendant selector: beats the shared `.progress-tab-strip` rule at equal
+   importance regardless of stylesheet import order. */
+.progress-shell-inner--r3 .progress-tab-strip {
   border-bottom-color: var(--obj-border);
 }
 
@@ -270,7 +277,6 @@
 
 .obj-kr-bar-fill.on-pace { background: var(--obj-cyan); }
 .obj-kr-bar-fill.behind-pace { background: var(--obj-amber); }
-.obj-kr-bar-fill.at-risk { background: var(--obj-amber); }
 .obj-kr-bar-fill.zero { background: var(--obj-text-meta); }
 
 .obj-pace-tick {
@@ -664,7 +670,10 @@
 
   .obj-right {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, minmax(0, 1fr)));
+    /* minmax cannot nest — `minmax(280px, minmax(0, 1fr))` invalidates the
+       whole declaration. minmax(280px, 1fr): cards never shrink below
+       280px, share the rest. */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     align-items: start;
   }
 
