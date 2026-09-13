@@ -68,17 +68,23 @@
   gap: 18px;
 }
 
-/* The shared `.plan-header-eyebrow` rule itself carries `!important`
-   (pomodoro.css), so overriding it here requires one too — unlike the
+/* Everything below is scoped under the --r3 modifier: the header and tab
+   strip render on EVERY Progress tab, and without the scope these rules
+   would restyle the analytics/review tabs too (round-1 scope decision:
+   sibling tabs stay as-is) — with the --obj-* vars unresolved there, the
+   colors would silently fall through to inherited values.
+
+   The shared `.plan-header-eyebrow` rule itself carries `!important`
+   (pomodoro.css), so overriding it requires one too — unlike the
    specificity-only overrides elsewhere in this file. */
-.progress-header .plan-header-eyebrow.tasks-title {
+.progress-shell-inner--r3 .plan-header-eyebrow.tasks-title {
   font-size: 11px !important;
   letter-spacing: 0.14em;
   color: var(--obj-text-meta);
   font-weight: 500;
 }
 
-.progress-header .plan-header-title {
+.progress-shell-inner--r3 .plan-header-title {
   font-size: 25px;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -91,17 +97,17 @@
   border-bottom-color: var(--obj-border);
 }
 
-.progress-tab-strip .plan-tabs {
+.progress-shell-inner--r3 .plan-tabs {
   gap: 22px;
 }
 
-.progress-tab-strip .plan-tab {
+.progress-shell-inner--r3 .plan-tab {
   color: var(--obj-text-faint);
   font-weight: 500;
   font-size: 14px;
 }
 
-.progress-tab-strip .plan-tab.active {
+.progress-shell-inner--r3 .plan-tab.active {
   color: var(--obj-text);
   font-weight: 600;
 }

@@ -1,4 +1,4 @@
-import { diffDays, projectedEndpoint, type CycleSpan, type EntitySeries } from '../../../lib/pace';
+import { clampPct, diffDays, projectedEndpoint, type CycleSpan, type EntitySeries } from '../../../lib/pace';
 
 /**
  * Trajectory — the selected entity's weekly percent-of-target across the
@@ -29,7 +29,7 @@ interface TrajectoryCardProps {
 export default function TrajectoryCard({ title, subtitle, series, span, marker, cycleClosed }: TrajectoryCardProps) {
   const totalDays = Math.max(diffDays(span.start, span.end), 1);
   const x = (dayOffset: number) => X0 + (dayOffset / totalDays) * (X1 - X0);
-  const y = (pct: number) => Y_ZERO - (Math.min(100, Math.max(0, pct)) / 100) * (Y_ZERO - Y_TOP);
+  const y = (pct: number) => Y_ZERO - (clampPct(pct) / 100) * (Y_ZERO - Y_TOP);
   // The four spec gridlines at the literal pixel-even positions y 8/48/88/128
   // (100 → 0 spans 8 → 128; 0% sits on the last rule, baseline below at 145).
   const gridYs = [8, 48, 88, 128];

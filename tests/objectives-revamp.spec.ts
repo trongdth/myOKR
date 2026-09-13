@@ -197,6 +197,23 @@ test.describe('Objectives tab (R3) revamp', () => {
     await expect(page.locator('.obj-tj-baseline')).toHaveAttribute('y1', '145');
   });
 
+  test('sibling tabs keep the shared shell — the R3 restyle does not leak', async ({ page }) => {
+    // Round-1 scope decision: Focus analytics and Weekly review stay as-is.
+    // The restyle rules match .progress-header/.progress-tab-strip on EVERY
+    // Progress tab, so they must be scoped under the --r3 modifier — else
+    // the colors fall through to inherited values and the literal eyebrow/
+    // tab metrics apply group-wide.
+    await page.locator('.progress-tab-strip .plan-tab:has-text("Focus analytics")').click();
+    await expect(page.locator('.progress-header .tasks-title')).toHaveCSS('color', 'rgb(113, 113, 122)');
+    await expect(page.locator('.progress-header .tasks-title')).toHaveCSS('font-size', '10.4px');
+    const inactive = page.locator('.progress-tab-strip .plan-tab:not(.active)').first();
+    await expect(inactive).toHaveCSS('color', 'rgb(113, 113, 122)');
+
+    // …while the Objectives tab keeps the R3 restyle.
+    await openObjectives(page);
+    await expect(page.locator('.progress-header .tasks-title')).toHaveCSS('color', 'rgb(90, 100, 116)');
+  });
+
   test('pace marker sits at the same percent on every bar', async ({ page }) => {
     for (const track of await page.locator('.obj-bar-track').all()) {
       await expect(track.locator('.obj-pace-tick')).toHaveAttribute('style', /left: 44%/);
@@ -449,7 +466,7 @@ test.describe('Objectives tab (R3) revamp', () => {
       await okr.saveCycles((doc.cycles as any[]).filter(c => c.id !== 'c-jun'));
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
     });
-    await page.waitForTimeout(300);
+    // toHaveText retries — the picker re-renders when the sync reload lands.
 
     await expect(page.locator('.obj-cycle-picker .sel-trigger')).toHaveText(/September cycle/);
     await expect(page.locator('.plan-header-title')).toHaveText('September cycle');
