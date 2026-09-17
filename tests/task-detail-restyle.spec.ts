@@ -205,6 +205,29 @@ test.describe('Task detail restyle', () => {
     await expect(page.locator('.todos-more-btn')).toHaveCount(0);
   });
 
+  test('notes: rendered view caps at a reading measure instead of the full panel (2026-09-17)', async ({ page }) => {
+    // Full measure inside the scroll body is ~826px (880 panel − 2×24 padding
+    // − 2×1 border − 4 scroll padding). The 72ch reading-measure cap must pull
+    // the notes well short of that while keeping a readable column (~500px).
+    const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
+    const notesBox = await page.locator('.notes-content-view').boundingBox();
+    const available = scrollBox!.width - 4; // the scroll body's right padding
+    expect(notesBox!.width).toBeLessThan(available - 50);
+    expect(notesBox!.width).toBeGreaterThan(350);
+  });
+
+  test('notes: edit textarea wraps at the same reading measure as the render (2026-09-17)', async ({ page }) => {
+    // Click-to-edit: the textarea replaces the rendered view in place, and
+    // must wrap where the render wraps — otherwise lines reflow on every save.
+    await page.locator('.notes-content-view').click();
+    await expect(page.locator('.notes-textarea')).toBeVisible();
+    const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
+    const textareaBox = await page.locator('.notes-textarea').boundingBox();
+    const available = scrollBox!.width - 4;
+    expect(textareaBox!.width).toBeLessThan(available - 50);
+    expect(textareaBox!.width).toBeGreaterThan(350);
+  });
+
   test('panel widens so the four meta columns and note lines fit', async ({ page }) => {
     const box = await page.locator('.task-detail-panel').boundingBox();
     expect(box!.width).toBeGreaterThan(800);

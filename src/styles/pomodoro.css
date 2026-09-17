@@ -4699,11 +4699,23 @@
 .text-btn:hover { color: var(--color-primary); }
 /* Notes render in full — no cap, fade, or counter (2026-08-29; supersedes the
    2026-08-04 220px cap + Expand). The rendered markdown typography is the
-   shared .md-body layer (markdown.css); this container is layout-only. */
-.notes-content-view { position: relative; cursor: text; }
+   shared .md-body layer (markdown.css); this container is layout-only —
+   including the 72ch reading measure (2026-09-17): full 880px-panel lines ran
+   ~110 characters, past the 45–75 comfortable range. The font-size pin makes
+   ch resolve against the notes text size (children set their own sizes, so
+   nothing visible changes). */
+.notes-content-view {
+  position: relative;
+  cursor: text;
+  max-width: 72ch;
+  font-size: 0.85rem;
+}
 .notes-content-view.empty { cursor: pointer; }
 .notes-textarea {
   width: 100%;
+  /* Same reading measure as the rendered view (2026-09-17) — 0.85rem here
+     makes 72ch resolve to the same width the render caps at. */
+  max-width: 72ch;
   min-height: 140px;
   max-height: 220px;
   overflow-y: auto;
