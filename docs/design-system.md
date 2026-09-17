@@ -1197,6 +1197,20 @@ identically; there is no separate long-break case.
 >   (`.task-detail-desc-text` and its section chrome, ~192 lines) was deleted.
 >   Regression: `tests/notes-markdown.spec.ts`.
 
+> **Notes measure 2026-09-17 — a 72ch reading column.** The rendered notes and
+> the raw-markdown editor both cap at **72ch** (`.notes-content-view` /
+> `.notes-textarea` in `src/styles/pomodoro.css`): the 880px panel gave notes
+> ~110-character lines, half again past the 45–75 comfortable range. The cap
+> lives on the notes containers, not on the `.md-body` layer — measure is
+> layout, and a future markdown surface may want its own. `.notes-content-view`
+> pins `font-size: 0.85rem` so its `ch` resolves against the notes text size
+> (its children set their own sizes; nothing visible changes); the textarea
+> already runs 0.85rem, so both wrap at the same width and lines don't reflow
+> on save. Wide tables/code blocks keep their horizontal scroll inside the
+> column. (Amends the 2026-08-29 "full-length note lines" rationale for the
+> 880px panel — the width stays, the measure doesn't.)
+> Regression: `tests/task-detail-restyle.spec.ts` (the 2026-09-17 notes tests).
+
 ### Done (P5, flagship)
 
 - Header: filters `This week | All key results | All priorities` + summary
