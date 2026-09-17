@@ -22,4 +22,5 @@ interface Window {
   __tauriInvokes?: string[];
   __getActiveListenerCount?: (event: string) => number;
   __mockListen?: typeof import('./mocks/tauri-api').listen;
+  __setMockTimerState?: (state: [number, boolean, string] | null) => void;
 }

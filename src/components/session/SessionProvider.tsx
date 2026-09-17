@@ -32,6 +32,11 @@ function durationMinutes(s: PomodoroSettings, type: SessionType): number {
   return minutes[type];
 }
 
+/** Whether the phase AFTER `type` auto-starts when `type` completes (posture ii). */
+function autoStartsNextPhase(s: PomodoroSettings, type: SessionType): boolean {
+  return type === 'focus' ? s.autoStartBreaks : s.autoStartFocus;
+}
+
 // A completion delivered more than this long after the timer's estimated end
 // is a missed event being processed late (suspended webview / listener gap),
 // not normal delivery jitter (~1s) — the session must be recorded with its
@@ -459,6 +464,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // auto-transition stages the next phase.
       if (timeLeftRef.current <= 1 && sessionStartRef.current) {
         handleSessionComplete();
+        // The click that landed here was an explicit start: when the next
+        // phase won't auto-start (its auto-start setting is off, or a confirm
+        // modal isn't in play), staging alone eats the click — the timer sits
+        // paused at the next phase and "Start" appears to do nothing (the
+        // frozen-break report). Run the staged phase instead — except that a
+        // taskless focus gets the same No-Task confirm the normal start path
+        // enforces. The re-run of this effect reads the freshly staged
+        // timeLeft (the ref-sync effect runs first), so it starts a full
+        // next-phase timer on a fresh sessionStartRef.
+        if (!autoStartsNextPhase(settings, sessionType)) {
+          if (sessionType !== 'focus' && !activeTask) setIsConfirmNoTaskOpen(true);
+          else setIsRunning(true);
+        }
         return;
       }
       if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();

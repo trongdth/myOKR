@@ -2,6 +2,11 @@ export type TauriEvent = { payload?: unknown };
 
 const listeners: Record<string, Array<(event: TauriEvent) => void>> = {};
 
+// Test-configured `get_timer_state` return: `[remaining_secs, is_running,
+// session_type]`. Null → the command reports nothing (frontend treats the
+// response as absent, as before).
+let mockTimerState: [number, boolean, string] | null = null;
+
 export async function invoke(cmd: string, _args?: Record<string, unknown>): Promise<unknown> {
   if (typeof window !== 'undefined') {
     if (!window.__tauriInvokes) {
@@ -9,6 +14,7 @@ export async function invoke(cmd: string, _args?: Record<string, unknown>): Prom
     }
     window.__tauriInvokes.push(cmd);
   }
+  if (cmd === 'get_timer_state') return mockTimerState ?? undefined;
   return undefined;
 }
 
@@ -37,4 +43,7 @@ if (typeof window !== 'undefined') {
     return listeners[event] ? listeners[event].length : 0;
   };
   window.__mockListen = listen;
+  window.__setMockTimerState = (state: [number, boolean, string] | null) => {
+    mockTimerState = state;
+  };
 }
