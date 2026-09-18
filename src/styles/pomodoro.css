@@ -4713,9 +4713,10 @@
 .notes-content-view.empty { cursor: pointer; }
 .notes-textarea {
   width: 100%;
-  /* Same reading measure as the rendered view (2026-09-17) — 0.85rem here
-     makes 72ch resolve to the same width the render caps at. */
-  max-width: 72ch;
+  /* Full section width (2026-09-18 feedback; supersedes the 2026-09-17
+     same-measure cap): the editor is an input, not reading prose — it spans
+     the panel like the sub-task row and the meta cells. Only the rendered
+     view keeps the 72ch reading measure. */
   min-height: 140px;
   max-height: 220px;
   overflow-y: auto;

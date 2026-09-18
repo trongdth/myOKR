@@ -216,16 +216,17 @@ test.describe('Task detail restyle', () => {
     expect(notesBox!.width).toBeGreaterThan(350);
   });
 
-  test('notes: edit textarea wraps at the same reading measure as the render (2026-09-17)', async ({ page }) => {
-    // Click-to-edit: the textarea replaces the rendered view in place, and
-    // must wrap where the render wraps — otherwise lines reflow on every save.
+  test('notes: edit textarea spans the panel like the rest of the form (2026-09-18)', async ({ page }) => {
+    // 2026-09-18 feedback (supersedes the 2026-09-17 same-measure pin): the
+    // editor is an input, not reading prose — it must span the section's full
+    // content width like the sub-task row and the meta cells, not stop at the
+    // render's 72ch reading measure. The RENDER keeps its cap.
     await page.locator('.notes-content-view').click();
     await expect(page.locator('.notes-textarea')).toBeVisible();
     const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
     const textareaBox = await page.locator('.notes-textarea').boundingBox();
-    const available = scrollBox!.width - 4;
-    expect(textareaBox!.width).toBeLessThan(available - 50);
-    expect(textareaBox!.width).toBeGreaterThan(350);
+    const available = scrollBox!.width - 4; // the scroll body's right padding
+    expect(textareaBox!.width).toBeGreaterThanOrEqual(available - 2);
   });
 
   test('panel widens so the four meta columns and note lines fit', async ({ page }) => {
