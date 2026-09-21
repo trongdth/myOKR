@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Task-detail restyle (2026-08-29) — the P4 polish round:
- *  header: split eyebrow (no ·), text-only ghost Complete, larger Start focus;
+ *  header: split eyebrow (no ·), text-only ghost Complete, equal-height
+ *  Start primary (label shortened from "Start focus" 2026-09-21);
  *  meta bar: full-bleed 4-cell row, no per-field boxes, formatted due date
  *  that opens the native picker, bare KR trigger without chevron;
  *  pomodoros band: POMODOROS THIS WEEK label, bar before readout, elevated bg;
@@ -65,7 +66,7 @@ test.describe('Task detail restyle', () => {
     await expect(page.locator('.notes-content-view')).toBeVisible();
   });
 
-  test('header: split eyebrow without separator, text-only ghost Complete, larger primary Start focus', async ({ page }) => {
+  test('header: split eyebrow without separator, text-only ghost Complete, equal-height Start primary', async ({ page }) => {
     const eyebrow = page.locator('.detail-eyebrow');
     await expect(eyebrow.locator('.eyebrow-label')).toHaveText('TASK');
     await expect(eyebrow.locator('.eyebrow-hint')).toHaveText('click any field to edit');
@@ -82,12 +83,25 @@ test.describe('Task detail restyle', () => {
     expect(ghost.bg).toBe('rgba(0, 0, 0, 0)');
     expect(ghost.borderStyle).not.toBe('none');
 
-    // Start focus stays the solid primary and reads larger than Complete.
+    // Start stays the solid primary — equal height, wider footprint
+    // (design-system.md, task-detail follow-up 2026-09-21).
     const start = page.locator('.start-focus-btn');
+    await expect(start).toHaveText('Start');
     await expect(start.locator('svg')).toHaveCount(1);
     const startBox = await start.boundingBox();
     const completeBox = await complete.boundingBox();
-    expect(startBox!.height).toBeGreaterThan(completeBox!.height);
+    expect(startBox!.height).toBeCloseTo(completeBox!.height, 0);
+    // Wider horizontal padding is what keeps the primary the bigger target.
+    const pads = await Promise.all(
+      [start, complete].map(el =>
+        el.evaluate(node => {
+          const s = getComputedStyle(node);
+          return { v: parseFloat(s.paddingTop), h: parseFloat(s.paddingLeft) };
+        }),
+      ),
+    );
+    expect(pads[0]!.v).toBeCloseTo(pads[1]!.v, 1);
+    expect(pads[0]!.h).toBeGreaterThan(pads[1]!.h);
 
     // The header itself carries no divider rule — the meta bar separates.
     const headerBorder = await page.locator('.detail-panel-header').evaluate(

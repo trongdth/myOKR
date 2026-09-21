@@ -169,9 +169,9 @@ test.describe('Session-of label + Active Task Card (ticket 03)', () => {
     await expect(subtitle).toContainText('Complete 15 feature tickets');
   });
 
-  test('Task detail modal Start focus icon is solid filled, not a hollow outline', async ({ page }) => {
+  test('Task detail modal Start icon is solid filled, not a hollow outline', async ({ page }) => {
     // Click-to-detail on the Active Task Card title opens the Task Detail
-    // modal (2026-08-13). Its Start focus action icon follows the solid-fill
+    // modal (2026-08-13). Its Start action icon follows the solid-fill
     // rule (fill="currentColor", the NowCard precedent).
     await openTaskSwitcher(page);
     await page.locator('.switcher-task:has-text("Design new dashboard layout")').click();
