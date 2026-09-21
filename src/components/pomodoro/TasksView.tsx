@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, type CSSProperties } from 'react';
-import { LayoutGrid, List, Search, CheckCircle2, Check, ArrowRight, Calendar, KanbanSquare, ChevronDown } from 'lucide-react';
+import { LayoutGrid, List, CheckCircle2, Check, ArrowRight, Calendar, KanbanSquare, ChevronDown } from 'lucide-react';
 import type { PomodoroTask, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { generateId, EISENHOWER_META, TASK_BUCKETS, computeTaskImportance, isTaskInCycle, buildKrCycleMap, displayedPomoCount } from '../../lib/pomodoro-storage';
 import { getEffectiveCurrentValue, type KeyResult, type OKRCycle, type Objective } from '../../lib/okr-storage';
 import type { Habit } from '../../lib/habit-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import SearchTrigger from './SearchTrigger';
 import { useTaskMultiSelect } from '../../hooks/useTaskMultiSelect';
 import { navigateToSection } from '../../lib/navigation';
 import { Select, type SelectOption } from '../shared/Select';
@@ -407,6 +408,7 @@ export default function TasksView({
         activeCycle={activeCycle}
         selectedWeek={selectedWeek}
         onSelectWeek={setSelectedWeek}
+        onSearch={onOpenSearch}
       />
 
       {/* Serving Objectives Strip (P1) */}
@@ -638,11 +640,7 @@ export default function TasksView({
               <Select options={SORT_BY_OPTIONS} value={sortBy} onChange={setSortBy} ariaLabel="Sort" />
             </div>
 
-            <button className="search-trigger-btn list-search-btn" onClick={onOpenSearch}>
-              <Search size={15} />
-              <span>Search</span>
-              <kbd className="cmd-k-badge">⌘K</kbd>
-            </button>
+            <SearchTrigger className="list-search-btn" onClick={onOpenSearch} />
           </div>
 
           {/* Bulk Action Bar */}
