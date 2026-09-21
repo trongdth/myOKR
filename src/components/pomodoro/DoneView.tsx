@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Check, CheckCircle2, Search } from 'lucide-react';
+import { Check, CheckCircle2 } from 'lucide-react';
 import type { PomodoroTask } from '../../lib/pomodoro-storage';
 import { isTaskInCycle, buildKrCycleMap } from '../../lib/pomodoro-storage';
 import type { KeyResult, OKRCycle, Objective } from '../../lib/okr-storage';
 import PlanTabStrip, { cycleWeekLabel, PlanHeader } from './PlanTabStrip';
+import SearchTrigger from './SearchTrigger';
 import { Select } from '../shared/Select';
 import ConfirmModal from '../ConfirmModal';
 import { PRIORITY_OPTIONS, krOptions } from './taskSelectOptions';
@@ -157,11 +158,7 @@ export default function DoneView({ tasks, onReopenTasks, keyResults = [], object
         activeCycle={activeCycle}
         right={
           onOpenSearch && (
-            <button className="search-trigger-btn" onClick={onOpenSearch}>
-              <Search size={15} />
-              <span>Search</span>
-              <kbd className="cmd-k-badge">⌘K</kbd>
-            </button>
+            <SearchTrigger onClick={onOpenSearch} />
           )
         }
       />

@@ -885,7 +885,10 @@ identically; there is no separate long-break case.
   week-filter Select in the Tasks tab strip and opens the same ⌘K search
   modal — search stays reachable via Meta+K, and the labeled "Search ⌘K"
   button still appears on List and Done per P3/P5 (Objectives dropped its
-  button in the 2026-08-19 P7 revamp below).
+  button in the 2026-08-19 P7 revamp below). The trigger's `Search` glyph is
+  15px on every surface (all three triggers share the `SearchTrigger`
+  component) — the content-icon rule's dense-trigger exception, like the
+  menu's 14px.
 - **Tab strip** (present on every Plan-group screen): `Tasks N | Objectives N |
   Done N` with the count badge styling, and the cycle·week slot on the right —
   static `May cycle · week 4 of 5` text elsewhere, the week-filter Select on

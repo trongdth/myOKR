@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Search } from 'lucide-react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
+import SearchTrigger from './SearchTrigger';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -123,16 +123,7 @@ export default function PlanTabStrip({
 
       {activeCycle && onSelectWeek ? (
         <div className="plan-strip-tools">
-          {onSearch && (
-            <button
-              className="search-trigger-btn plan-search-btn"
-              onClick={onSearch}
-              aria-label="Search"
-              title="Search"
-            >
-              <Search size={15} />
-            </button>
-          )}
+          {onSearch && <SearchTrigger className="plan-search-btn" onClick={onSearch} iconOnly />}
           <Select
             options={[
               { value: 'all' as const, label: `${cycleName} · All weeks` },
