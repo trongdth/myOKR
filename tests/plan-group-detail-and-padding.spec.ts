@@ -68,11 +68,11 @@ test.describe('Plan Group — tab content padding parity', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Bug 1: the Task detail header (P4) must put the title and the Start focus /
+// Bug 1: the Task detail header (P4) must put the title and the Start /
 // Complete actions on ONE row (title left, actions right-aligned), with Start
-// focus as the primary cyan action. Today the header classes are entirely
+// as the primary cyan action. Today the header classes are entirely
 // unstyled, so the eyebrow / title / buttons collapse to stacked block flow
-// and Start focus has no primary colour.
+// and Start has no primary colour.
 // ---------------------------------------------------------------------------
 test.describe('Plan Group — Task detail header (P4)', () => {
   test.beforeEach(async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('Plan Group — Task detail header (P4)', () => {
     await expect(page.locator('.task-detail-panel')).toBeVisible();
   });
 
-  test('title and Start focus are on one row, with the action right-aligned', async ({ page }) => {
+  test('title and Start are on one row, with the action right-aligned', async ({ page }) => {
     const titleBox = await page.locator('.detail-title').boundingBox();
     const btnBox = await page.locator('.start-focus-btn').boundingBox();
     const panelBox = await page.locator('.task-detail-panel').boundingBox();
@@ -106,15 +106,15 @@ test.describe('Plan Group — Task detail header (P4)', () => {
     const overlapsVertically =
       btnBox!.y < titleBox!.y + titleBox!.height &&
       btnBox!.y + btnBox!.height > titleBox!.y;
-    expect(overlapsVertically, 'Start focus is on the same row as the title').toBe(true);
+    expect(overlapsVertically, 'Start is on the same row as the title').toBe(true);
 
     // Right-aligned: the action sits in the right half of the panel.
-    expect(btnBox!.x + btnBox!.width, 'Start focus is on the right half').toBeGreaterThan(
+    expect(btnBox!.x + btnBox!.width, 'Start is on the right half').toBeGreaterThan(
       panelBox!.x + panelBox!.width / 2
     );
   });
 
-  test('Start focus is the primary cyan action', async ({ page }) => {
+  test('Start is the primary cyan action', async ({ page }) => {
     const { btnBg, primary } = await page.evaluate(() => {
       // Resolve the --color-primary token independently (the source of truth
       // is the design system, not the button's own rule), then compare.
@@ -127,7 +127,7 @@ test.describe('Plan Group — Task detail header (P4)', () => {
       return { btnBg: getComputedStyle(btn).backgroundColor, primary };
     });
 
-    expect(btnBg, 'Start focus background equals --color-primary').toBe(primary);
+    expect(btnBg, 'Start background equals --color-primary').toBe(primary);
   });
 });
 

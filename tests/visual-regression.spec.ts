@@ -126,7 +126,7 @@ test.describe('Visual regression (1a redesign)', () => {
     });
   });
 
-  // P4 flagship: the Task detail modal — header (title + cyan Start focus +
+  // P4 flagship: the Task detail modal — header (title + cyan Start +
   // actions on one row), properties strip, POMODOROS bar, notes, and
   // sub-tasks tabs. Seeded rich data: 8/20 completed/estimated so the
   // POMODOROS bar renders 40% filled.

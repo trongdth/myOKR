@@ -975,7 +975,8 @@ identically; there is no separate long-break case.
 
 - Properties row across the top: PRIORITY · BUCKET · DUE · KEY RESULT
   (existing selects, restyled) + "click any field to edit" hint. Header:
-  `Start focus` + `Complete` buttons. **Four columns only** (2026-08-04): the
+  `Start` + `Complete` buttons (label shortened from `Start focus`,
+  2026-09-21). **Four columns only** (2026-08-04): the
   estimate editor that used to be a 5th POMODOROS column moved into the
   pomodoro line. **2026-08-05:** the inline `est. N` control was replaced by
   the shared `PomoEstimatePopover` — the readout IS the editor (see below).
@@ -1089,6 +1090,15 @@ identically; there is no separate long-break case.
 >   seeded from the value; values are `YYYY-MM-DD` composed from the viewed
 >   month — never round-tripped through `new Date(iso)` (UTC parse shifts
 >   the picked day across timezones). Guarded by `tests/date-picker.spec.ts`.
+> - **Follow-up 2026-09-21 (header actions).** The primary's label shortens
+>   to `Start` — `Start focus` overstates it beside a `Complete` that is
+>   equally one click. Earlier entries that name `Start focus` on this
+>   header (the 2026-08-15 icons rule, this rework's bullets) all refer to
+>   this same button; the `.start-focus-btn` class keeps the action's name.
+>   It also stops growing its vertical padding: both
+>   header buttons render at the **same height**, and the solid cyan fill +
+>   the wider footprint alone carry "primary" (supersedes the "grows its
+>   padding" clause of this rework's Header bullet).
 > - Guarded by `tests/task-detail-restyle.spec.ts` (+ updated label
 >   assertions in `tests/task-detail-pomodoro.spec.ts`).
 

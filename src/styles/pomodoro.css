@@ -3666,7 +3666,7 @@
 
 /* --- P4 detail header: eyebrow on its own line, title left + actions right --- */
 /* Two-row grid: eyebrow on its own line, then title (left, wraps to 2 lines
-   when long) + actions (right, top-aligned so Start focus/Complete/X stay pinned
+   when long) + actions (right, top-aligned so Start/Complete/X stay pinned
    top-right and never wrap below the title — point 1). No bottom divider:
    the meta bar's own top border separates the header from the meta row;
    the padding re-establishes the gap the pinned stack no longer provides. */
@@ -3733,13 +3733,15 @@
 }
 .detail-action-btn:hover { border-color: var(--color-primary); }
 
-/* Start focus is THE single primary action on this screen (design-system.md).
-   Extra padding makes it read larger than the ghost secondary beside it. */
+/* Start is THE single primary action on this screen (design-system.md,
+   task-detail follow-up 2026-09-21): solid cyan fill and the wider footprint
+   carry "primary" at the same height as the ghost secondary. The class keeps
+   the action's name — start-focus — not the shortened label. */
 .start-focus-btn {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-on-primary);
-  padding: 0.55rem 1.15rem;
+  padding: 0.45rem 1.15rem;
 }
 .start-focus-btn:hover {
   border-color: var(--color-primary);
@@ -4857,7 +4859,7 @@
 }
 /* Add row first (2026-08-29), progress bar below it. The input is full-width
    with the Add button as a fixed-width sibling; Add is an outlined ghost in
-   the primary hue — the solid cyan stays reserved for Start focus. */
+   the primary hue — the solid cyan stays reserved for Start. */
 .add-todo-row,
 .add-comment-row {
   display: flex;
