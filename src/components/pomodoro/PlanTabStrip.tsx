@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Search } from 'lucide-react';
 import { navigateToSection } from '../../lib/navigation';
 import { Select } from '../shared/Select';
 
@@ -74,6 +75,10 @@ interface Props {
   activeCycle?: { name?: string; month: number; year: number } | null;
   selectedWeek?: number | 'all' | null;
   onSelectWeek?: (week: number | 'all') => void;
+  /** Icon-only Search trigger beside the week picker (Tasks board only).
+   *  It renders inside the picker branch below, so it appears exactly where
+   *  the picker does. */
+  onSearch?: () => void;
 }
 
 export default function PlanTabStrip({
@@ -85,6 +90,7 @@ export default function PlanTabStrip({
   activeCycle,
   selectedWeek,
   onSelectWeek,
+  onSearch,
 }: Props) {
   const { currentWeek, totalWeeks, weeks } = getCycleWeeks(activeCycle);
   const cycleName = activeCycle ? (activeCycle.name || `${MONTHS[activeCycle.month]} cycle`) : '';
@@ -116,15 +122,27 @@ export default function PlanTabStrip({
       </div>
 
       {activeCycle && onSelectWeek ? (
-        <Select
-          options={[
-            { value: 'all' as const, label: `${cycleName} · All weeks` },
-            ...weeks.map(w => ({ value: w as number, label: `${cycleName} · week ${w} of ${totalWeeks}` })),
-          ]}
-          value={selectedWeek === 'all' ? 'all' : (selectedWeek ?? currentWeek)}
-          onChange={(week) => onSelectWeek(week === 'all' ? 'all' : Number(week))}
-          ariaLabel="Cycle week"
-        />
+        <div className="plan-strip-tools">
+          {onSearch && (
+            <button
+              className="search-trigger-btn plan-search-btn"
+              onClick={onSearch}
+              aria-label="Search"
+              title="Search"
+            >
+              <Search size={15} />
+            </button>
+          )}
+          <Select
+            options={[
+              { value: 'all' as const, label: `${cycleName} · All weeks` },
+              ...weeks.map(w => ({ value: w as number, label: `${cycleName} · week ${w} of ${totalWeeks}` })),
+            ]}
+            value={selectedWeek === 'all' ? 'all' : (selectedWeek ?? currentWeek)}
+            onChange={(week) => onSelectWeek(week === 'all' ? 'all' : Number(week))}
+            ariaLabel="Cycle week"
+          />
+        </div>
       ) : (cycleLabel || activeCycle) ? (
         <span className="plan-cycle-week">{cycleLabel || (activeCycle ? `${cycleName} · week ${currentWeek} of ${totalWeeks}` : '')}</span>
       ) : null}

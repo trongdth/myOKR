@@ -407,6 +407,7 @@ export default function TasksView({
         activeCycle={activeCycle}
         selectedWeek={selectedWeek}
         onSelectWeek={setSelectedWeek}
+        onSearch={onOpenSearch}
       />
 
       {/* Serving Objectives Strip (P1) */}
