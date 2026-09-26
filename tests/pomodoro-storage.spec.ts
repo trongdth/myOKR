@@ -306,3 +306,26 @@ test('assignTaskKeyResults: an empty id unlinks — the field leaves the task', 
   expect(stored.hasField).toBe(false);
   expect(stored.value).toBeNull();
 });
+
+test.describe('normalizeSettings — session posture default', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  // Posture revision (2026-09-26, superseding posture ii): a fresh doc
+  // auto-starts the focus after a break — rest auto-starts, work resumes.
+  // A doc storing an explicit value keeps it (the existing-user wrinkle: the
+  // mock seed stores `false` and keeps pinning the staged/manual path).
+  test('a fresh doc auto-starts focus after a break (autoStartFocus: true)', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const mod = await import('/src/lib/pomodoro-storage.ts') as {
+        normalizeSettings: (raw: unknown) => Record<string, unknown>;
+      };
+      return mod.normalizeSettings({});
+    });
+    expect(r.autoStartFocus).toBe(true);
+    // The break side of the posture is unchanged.
+    expect(r.autoStartBreaks).toBe(true);
+  });
+});
