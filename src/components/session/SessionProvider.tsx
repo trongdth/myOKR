@@ -32,7 +32,14 @@ function durationMinutes(s: PomodoroSettings, type: SessionType): number {
   return minutes[type];
 }
 
-/** Whether the phase AFTER `type` auto-starts when `type` completes (posture ii). */
+// The Rust `get_timer_state` snapshot: remaining seconds, whether the backend
+// timer is running, and its session type — the authoritative word on what the
+// backend timer is doing, polled whenever the frontend's view is in doubt.
+type TimerSnapshot = [number, boolean, string];
+
+/** Whether the phase AFTER `type` auto-starts when `type` completes (see
+ * docs/design-system.md, "Session posture" — both transitions auto-start by
+ * default since the 2026-09-26 revision; the toggles keep the OFF variants). */
 function autoStartsNextPhase(s: PomodoroSettings, type: SessionType): boolean {
   return type === 'focus' ? s.autoStartBreaks : s.autoStartFocus;
 }
@@ -42,6 +49,12 @@ function autoStartsNextPhase(s: PomodoroSettings, type: SessionType): boolean {
 // not normal delivery jitter (~1s) — the session must be recorded with its
 // true end, not `now` (see resolveSessionEndedAt).
 const LATE_COMPLETION_THRESHOLD_MS = 30_000;
+
+// How long past the timer's true end the watchdog tolerates silence before
+// reconciling against the backend. Rust ticks arrive every ~1s, so 3s without
+// one means the event stream is broken — but the margin stays clear of
+// delivery jitter, and a spurious reconcile is one cheap snapshot read.
+const MISSED_COMPLETION_GRACE_MS = 3_000;
 
 export interface SessionContextValue {
   // data
@@ -109,6 +122,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // sync, and the timeLeft===0 effect); without this, a double signal would
   // double-count pomodoros, history records, and notifications.
   const completionHandledRef = useRef(false);
+  // Discards stale `get_timer_state` responses: a poll issued for one session
+  // must not act after a completion or a session transition has superseded it.
+  // The response only reflects the world when Rust processed the command, but
+  // its .then runs whenever the webview gets to it — which can be seconds
+  // later if the JS thread was blocked (an Automerge write at a completion).
+  // Acting on such a response completed brand-new sessions: a phantom pomodoro
+  // and a full-duration history record. Bumped on every completion and on
+  // every isRunning transition; reconcileWithBackend captures the value when
+  // the poll is issued and drops the response on mismatch.
+  const timerEpochRef = useRef(0);
   // resetTimer is recreated each render (it closes over the current
   // totalSeconds). clearSessionData is memoized with [], so it must read the
   // latest resetTimer through this ref — otherwise it captures the first
@@ -128,7 +151,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       let timerStateSynced = false;
       if (IS_TAURI) {
         try {
-          const res = await invoke<[number, boolean, string]>('get_timer_state');
+          const res = await invoke<TimerSnapshot>('get_timer_state');
           if (res) {
             const [secs, running, type] = res;
             if (running) {
@@ -159,6 +182,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           const lastUpdated = new Date(saved.lastUpdated).getTime();
           const elapsedSeconds = Math.floor((now - lastUpdated) / 1000);
           const newTimeLeft = Math.max(0, saved.timeLeft - elapsedSeconds);
+          // The saved timer's true end: last save + its remaining seconds. If
+          // the session already finished while the app was gone (newTimeLeft
+          // 0), the restore-time completion records THIS end — otherwise a
+          // break that ended hours ago inflates to a hours-long record
+          // (Rust's in-memory timer is lost on quit; this snapshot is the
+          // only witness of when the session really ended).
+          const savedEndMs = lastUpdated + saved.timeLeft * 1000;
+          if (Number.isFinite(savedEndMs)) completionAtRef.current = savedEndMs;
           setTimeLeft(newTimeLeft);
           setIsRunning(true);
         } else {
@@ -188,6 +219,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
+
+  // Read by reconcileWithBackend (below), which runs from event listeners and
+  // intervals that must not re-register whenever isRunning flips.
+  const isRunningRef = useRef(isRunning);
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
 
   // Keep tasksRef in sync so handleTasksChange (a stable useCallback) can diff
   // incoming tasks against the latest without a stale closure. Powers the
@@ -262,6 +300,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // The guard is reset when a new session starts (isRunning goes true again).
     if (completionHandledRef.current) return;
     completionHandledRef.current = true;
+    timerEpochRef.current++;
 
     setIsRunning(false);
     playCompletionSound();
@@ -356,46 +395,84 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [sessionType, completedPomos, activeTaskId, activeTask, tasks, settings]);
 
-  // Keep a ref to the latest handleSessionComplete so the Tauri timer-listener
-  // effect (below) doesn't need to re-register when the callback's deps change.
-  // Without this, a completion that updates `tasks`/`sessionType` changes the
-  // callback's identity, re-running the listener effect while the async
-  // listen() promises are still pending — the old timer-complete listener
-  // leaks (can't be unregistered) and fires with a stale closure, causing a
-  // double completion that skips the break and restarts focus.
+  // Keep a ref to the latest handleSessionComplete so the Tauri event
+  // listeners (registered once per app lifetime, below) always call the
+  // current handler: the callback's identity changes whenever
+  // `tasks`/`sessionType` do, and a mount-only registration can't see those
+  // updates — without this ref it would fire a stale completion handler
+  // (e.g. one that double-completes and skips the break).
   const handleSessionCompleteRef = useRef(handleSessionComplete);
   useEffect(() => {
     handleSessionCompleteRef.current = handleSessionComplete;
   }, [handleSessionComplete]);
 
-  // ----- Timer tick (Tauri Rust / Browser Fallback) -----
+  // Reconcile the frontend's view of the timer with the backend's snapshot —
+  // the single recovery path for a completion whose event was lost (dropped
+  // IPC / suspended webview). Called by the window-focus and visibilitychange
+  // listeners and by the running-session watchdog below; it reads live state
+  // through refs only, so every caller gets the same behavior no matter when
+  // it was registered.
+  const reconcileWithBackend = useCallback(() => {
+    const epoch = timerEpochRef.current;
+    invoke<TimerSnapshot>('get_timer_state').then((res) => {
+      // The session changed while this poll was in flight (completed, paused,
+      // restarted): the response describes a timer that no longer exists.
+      if (epoch !== timerEpochRef.current) return;
+      if (!res) return;
+      const [secs, running, type] = res;
+
+      // Frontend believes a session is running, but the backend reports a
+      // completed timer — the timer-complete event was lost. Close the
+      // session out exactly like the delivered event would; the completion
+      // guard absorbs a late duplicate.
+      if (isRunningRef.current && !running && secs === 0) {
+        setTimeLeft(0);
+        handleSessionCompleteRef.current();
+      } else if (running) {
+        // Backend is running: re-sync the display (and the true-end estimate)
+        // from the authoritative snapshot; the next tick re-refines it.
+        completionAtRef.current = Date.now() + secs * 1000;
+        setTimeLeft(secs);
+        setIsRunning(true);
+        setSessionType(type as SessionType);
+      } else {
+        // Backend not running with time left (paused out-of-band, or a start
+        // that never took): match it instead of running on stale ticks.
+        setIsRunning(false);
+      }
+    }).catch(console.error);
+  }, []);
+
+  // ----- Timer tick (browser fallback — plain tab, no Tauri runtime) -----
   useEffect(() => {
-    if (!IS_TAURI) {
-      // Browser fallback (e.g. Playwright tests)
-      if (!isRunning) return;
-      if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-      completionAtRef.current = Date.now() + timeLeftRef.current * 1000;
+    if (IS_TAURI) return;
+    if (!isRunning) return;
+    if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
+    completionAtRef.current = Date.now() + timeLeftRef.current * 1000;
 
-      const id = window.setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(id);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    const id = window.setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-      return () => clearInterval(id);
-    }
+    return () => clearInterval(id);
+  }, [isRunning]);
 
-    // Tauri Rust Backend implementation
-    // `cancelled` guards the async `listen()` registration: if the effect re-runs
-    // (or unmounts) before the listen() promises resolve, the unlisten functions
-    // would still be null and the handlers would leak — firing duplicate ticks.
-    // The effect depends only on [isRunning] (not handleSessionComplete) and
-    // calls the latest handler via a ref, so the listeners are registered once
-    // per run and never leak from a mid-run re-registration.
+  // ----- Tauri Rust backend events -----
+  // Registered ONCE per app lifetime: both handlers read the latest state
+  // through refs (handleSessionCompleteRef; the tick handler touches refs and
+  // setState only), so there is nothing to re-bind when isRunning flips — and
+  // re-registering would only open async teardown gaps a one-shot
+  // `timer-complete` can fall into (the dropped event that freezes the clock
+  // at 00:01). `cancelled` still guards unmount racing the async registration.
+  useEffect(() => {
+    if (!IS_TAURI) return;
+
     let cancelled = false;
     let unlistenTick: (() => void) | null = null;
     let unlistenComplete: (() => void) | null = null;
@@ -423,34 +500,41 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (unlistenTick) unlistenTick();
       if (unlistenComplete) unlistenComplete();
     };
-  }, [isRunning]);
+  }, []);
 
-  // Sync state on window focus
+  // Sync state on window focus and on webview visibility. Both run the same
+  // reconcile: the webview can be suspended (screen lock, app nap) and resume
+  // WITHOUT a focus event — the OS suspends it underneath a window that never
+  // lost OS focus — so a missed completion must heal on visibilitychange too.
+  // The callback is stable and reads state via refs, so these listeners also
+  // register once per app lifetime.
   useEffect(() => {
     if (!IS_TAURI) return;
-
-    const handleFocus = () => {
-      invoke<[number, boolean, string]>('get_timer_state').then((res) => {
-        if (!res) return;
-        const [secs, running, type] = res;
-
-        // If frontend was running, but backend is not, it means the timer completed in the background
-        if (isRunning && !running && secs === 0) {
-          setTimeLeft(0);
-          handleSessionComplete();
-        } else if (running) {
-          setTimeLeft(secs);
-          setIsRunning(true);
-          setSessionType(type as SessionType);
-        } else {
-          setIsRunning(false);
-        }
-      }).catch(console.error);
+    window.addEventListener('focus', reconcileWithBackend);
+    document.addEventListener('visibilitychange', reconcileWithBackend);
+    return () => {
+      window.removeEventListener('focus', reconcileWithBackend);
+      document.removeEventListener('visibilitychange', reconcileWithBackend);
     };
+  }, [reconcileWithBackend]);
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isRunning, handleSessionComplete]);
+  // Watchdog for a completion whose event was lost (dropped IPC / suspended
+  // webview): the clock freezes at 00:01 — timeLeft is 1, so the
+  // timeLeft===0 effect never fires, and the focus/visibility listeners above
+  // need user-driven events. While a session runs, ticks refine
+  // completionAtRef every second; once the true end passes with no tick and
+  // no completion, reconcile against the backend. A healthy timer never
+  // reaches the poll: the grace is past tick-cadence jitter, and every tick
+  // pushes the threshold a second out.
+  useEffect(() => {
+    if (!IS_TAURI || isLoading || !isRunning) return;
+    const id = window.setInterval(() => {
+      const endMs = completionAtRef.current;
+      if (endMs === null || Date.now() <= endMs + MISSED_COMPLETION_GRACE_MS) return;
+      reconcileWithBackend();
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isRunning, isLoading, reconcileWithBackend]);
 
   // Control Rust timer state
   useEffect(() => {
@@ -497,9 +581,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // A new session begins whenever isRunning goes true (manual start, auto-start
   // after a break, or the switch-task confirm flow) — clear the completion guard
-  // so the next completion is honored.
+  // so the next completion is honored. Any isRunning transition also bumps the
+  // timer epoch: in-flight polls predate the start/pause the transition caused,
+  // so their responses are stale by definition.
   useEffect(() => {
     if (isRunning) completionHandledRef.current = false;
+    timerEpochRef.current++;
   }, [isRunning]);
 
   // ----- Ambient sound (ADR-0015) -----
