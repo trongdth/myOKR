@@ -753,12 +753,13 @@ test.describe('Pomodoro: Long Break session completion', () => {
 });
 
 // ==========================================
-// POSTURE ii (docs/design-system.md "Session posture"): autoStartBreaks ON,
-// autoStartFocus OFF. A focus ending auto-starts the break (rest is the point);
-// a break ending STAGES focus and waits for a tap (the session widget's job).
-// The mock seed stores autoStartBreaks=false (existing-user state), so each
-// test toggles posture ii on explicitly. Reaching Focus WITHOUT a manual break
-// click is the proof that the break auto-started.
+// POSTURE ii (docs/design-system.md "Session posture") — now the OFF variant
+// of the 2026-09-26 posture revision (auto-break, auto-focus): autoStartBreaks
+// ON, autoStartFocus OFF. A focus ending auto-starts the break (rest is the
+// point); a break ending STAGES focus and waits for a tap (the session
+// widget's job). The mock seed stores autoStartBreaks=false (existing-user
+// state), so each test toggles posture on explicitly. Reaching Focus WITHOUT
+// a manual break click is the proof that the break auto-started.
 // ==========================================
 
 async function setPostureIi(page: Page) {
@@ -820,6 +821,43 @@ test.describe('Pomodoro: Posture ii — auto-break, manual-focus', () => {
     await waitForSessionTab(page, 'Focus');
     await expect(page.locator('button:has-text("Start")')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('.timer-digits')).toHaveText('01:00');
+  });
+});
+
+// ==========================================
+// POSTURE REVISION (2026-09-26 — supersedes posture ii as the intended
+// default): both transitions auto-start. A focus ending auto-starts the break,
+// AND a break ending auto-starts the focus — no tap anywhere in the chain.
+// The confirm modals (No Task / Task Changed) still gate a focus auto-start;
+// their matrix is covered above. The mock seed keeps autoStartFocus=false
+// (existing-user state), so this turns both toggles on explicitly.
+// ==========================================
+
+test.describe('Pomodoro: Posture revision — auto-break, auto-focus', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForApp(page);
+    await speedUpTimers(page);
+  });
+
+  test('break ends and the next focus starts with no click (full auto chain)', async ({ page }) => {
+    await setDurations(page, 1, 1); // 1-min focus / 1-min break
+    await enableAutoStart(page);
+
+    await addTask(page, 'AutoFocus Chain');
+    await bumpEstimateToTwo(page, 'AutoFocus Chain'); // keep the task alive past 1 pomo
+    await selectTask(page, 'AutoFocus Chain');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Focus ends -> Short Break AUTO-starts (no manual Start click) => Pause.
+    await waitForSessionTab(page, 'Short Break');
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible({ timeout: 5000 });
+
+    // Break ends -> Focus AUTO-starts: the tab flips on its own and the
+    // digits LEAVE 01:00 — running, not staged behind a Start button.
+    await waitForSessionTab(page, 'Focus');
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.timer-digits')).not.toHaveText('01:00', { timeout: 5000 });
   });
 });
 
