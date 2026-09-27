@@ -265,11 +265,13 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   shortBreakDuration: 5,
   longBreakDuration: 15,
   pomosBeforeLongBreak: 4,
-  // Posture ii (docs/design-system.md "Session posture"): a focus ending
-  // auto-starts the break (rest is the point); a break ending stages focus and
-  // waits for a tap — the global session widget's resume job.
+  // Session posture (2026-09-26 revision, superseding posture ii): both
+  // transitions auto-start — a focus ending starts the break, and a break
+  // ending starts the focus. The confirm modals (No Task / Task Changed)
+  // still gate a focus auto-start. A doc storing an explicit value keeps it
+  // (the existing-user wrinkle: no migration).
   autoStartBreaks: true,
-  autoStartFocus: false,
+  autoStartFocus: true,
   ambientPreset: 'none',
 };
 

@@ -852,13 +852,32 @@ the exact instant the break begins — reading as "increased during the break."
   cell, Task-detail weekly line, and the forthcoming global session widget.
   Mobile should mirror the derivation for parity.
 
-### Session posture — auto-break, manual-focus (2026-08-03)
+### Session posture — auto-break, auto-focus (amended 2026-09-26)
 
-Decided in the session-widget grilling (posture **ii**). Resolves the "focus
-doesn't auto-start after short break" report: that is the *intended* default,
-not a bug — confirmed green by `tests/pomodoro-confirmations.spec.ts` ("Default
-(auto-start off)" describe, short *and* long break). Long break behaves
-identically; there is no separate long-break case.
+**Current default: both transitions auto-start.** A focus ending starts the
+break, and a break ending starts the focus — one field in `DEFAULT_SETTINGS`
+(`autoStartFocus` → `true`, `src/lib/pomodoro-storage.ts`; desktop only, see
+ticket 02 for the mobile follow-up). The No-Task / Task-Changed confirms
+still gate a focus auto-start. The manual-focus behavior survives as the OFF
+variant — both toggles remain user settings; "Posture ii" in
+`tests/pomodoro-confirmations.spec.ts` pins the OFF variant and "Posture
+revision" pins the new chain. Existing-user wrinkle: a stored explicit value
+wins, no migration — the owner flips the toggle once.
+
+**Why revised:** the "focus doesn't auto-start after short break" report
+returned with the timer frozen *mid-break* — a lost `timer-complete` event
+left the clock stuck at 00:01, and the manual-focus posture made the recovery
+look like a dead end. Shipped with the revision, independent of posture: a
+completion whose event is lost self-heals — the running-session backend
+watchdog plus the window-focus / visibilitychange reconcile
+(`tests/timer-completion-reliability.spec.ts`).
+
+**History — posture ii (2026-08-03, superseded 2026-09-26):** decided in the
+session-widget grilling (posture **ii**); the original report was ruled the
+*intended* default, not a bug — confirmed green by
+`tests/pomodoro-confirmations.spec.ts` ("Default (auto-start off)" describe,
+short *and* long break). Long break behaved identically; there was no
+separate long-break case. As decided then:
 
 - **`autoStartBreaks` default → `true`; `autoStartFocus` stays `false`.** Focus
   ending auto-starts the break; a break ending *stages* focus (full duration,
