@@ -34,6 +34,10 @@ docs/agents/
 
 # Other
 CONTEXT.md
+EPICS/
+EVIDENCE/
+OUTPUT/
+TODO/
 
 # MCP
 .playwright-mcp/
