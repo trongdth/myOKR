@@ -25,8 +25,12 @@ test.describe('Progress / Analytics Screen Revamp', () => {
       const mm = now.getMonth();
       const todayStr = pomo.getLocalDateString(now);
 
+      const prevMonth = mm === 0 ? 11 : mm - 1;
+      const prevYear = mm === 0 ? yyyy - 1 : yyyy;
+
       await okr.saveCycles([
         { id: 'c-test', name: 'May cycle', month: mm, year: yyyy, isActive: true, createdAt: new Date().toISOString() },
+        { id: 'c-prev', name: 'Prior cycle', month: prevMonth, year: prevYear, isActive: false, createdAt: new Date().toISOString() },
       ]);
 
       const threeWeeksAgo = new Date(now);

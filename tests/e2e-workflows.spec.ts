@@ -268,16 +268,21 @@ test.describe('Mobile: Core Workflows', () => {
     await page.locator('button:has-text("Pause")').click();
     await expect(page.locator('button:has-text("Start")')).toBeVisible();
   });
+});
 
-  test('complete review wizard', async ({ page }) => {
-    // Mid-month freeze (see Desktop: Review Workflow) before the app loads
+test.describe('Mobile: Review Workflow', () => {
+  test.use({ viewport: MOBILE_VIEWPORT });
+
+  test.beforeEach(async ({ page }) => {
+    // Mid-month freeze so the seeded current-month cycle has fully-past weeks
+    // (on e.g. Sep 4 the cycle's week 1 is still in progress).
     await page.clock.setFixedTime(new Date('2026-09-15T12:00:00.000Z'));
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Loading...')).toHaveCount(0, { timeout: 10000 });
+    await waitForApp(page);
     await navMobile(page, 'Review');
     await expect(page.locator('.review-container')).toBeVisible();
+  });
 
+  test('complete review wizard', async ({ page }) => {
     await pickFirstPastWeek(page);
 
     await page.locator('.rw-rail-item:has-text("Score key results")').click();

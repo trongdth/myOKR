@@ -89,6 +89,7 @@ test.describe('Completed-today strip rework', () => {
 
   test('the strip never moves — cards expand below it', async ({ page }) => {
     const toggle = page.locator('.completed-today-toggle');
+    await expect(toggle).toContainText('2 completed today');
     const before = (await toggle.boundingBox())!;
     await toggle.click();
     await expect(page.locator('.completed-card')).toHaveCount(2);
