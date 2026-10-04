@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 export function useModalEffects(escapeHandler?: () => void) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (e.key === 'Escape') escapeHandler?.();
     };
     if (escapeHandler) document.addEventListener('keydown', handler);

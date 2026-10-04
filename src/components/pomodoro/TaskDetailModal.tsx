@@ -331,7 +331,10 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter') saveTitle();
-                    if (e.key === 'Escape') cancelTitle();
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      cancelTitle();
+                    }
                   }}
                 />
               ) : (
@@ -601,7 +604,10 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                                   }}
                                   onKeyDown={e => {
                                     if (e.key === 'Enter') commitTodo(todo.id);
-                                    if (e.key === 'Escape') cancelTodo();
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      cancelTodo();
+                                    }
                                   }}
                                 />
                               ) : (
@@ -666,7 +672,10 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                               }}
                               onKeyDown={e => {
                                 if (e.key === 'Enter') commitComment(c.id);
-                                if (e.key === 'Escape') cancelComment();
+                                if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelComment();
+                                }
                               }}
                             />
                           ) : (
