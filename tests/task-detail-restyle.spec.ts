@@ -219,28 +219,34 @@ test.describe('Task detail restyle', () => {
     await expect(page.locator('.todos-more-btn')).toHaveCount(0);
   });
 
-  test('notes: rendered view caps at a reading measure instead of the full panel (2026-09-17)', async ({ page }) => {
-    // Full measure inside the scroll body is ~826px (880 panel − 2×24 padding
-    // − 2×1 border − 4 scroll padding). The 72ch reading-measure cap must pull
-    // the notes well short of that while keeping a readable column (~500px).
+  test('notes: rendered view and code blocks span full panel width, matching edit textarea with stable transition (2026-10-04)', async ({ page }) => {
+    // 2026-10-04 (supersedes the 2026-09-17 72ch reading measure cap):
+    // both editor and rendered view span 100% of the panel to align with
+    // the form layout, eliminating awkward whitespace and code block clipping.
     const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
-    const notesBox = await page.locator('.notes-content-view').boundingBox();
     const available = scrollBox!.width - 4; // the scroll body's right padding
-    expect(notesBox!.width).toBeLessThan(available - 50);
-    expect(notesBox!.width).toBeGreaterThan(350);
-  });
 
-  test('notes: edit textarea spans the panel like the rest of the form (2026-09-18)', async ({ page }) => {
-    // 2026-09-18 feedback (supersedes the 2026-09-17 same-measure pin): the
-    // editor is an input, not reading prose — it must span the section's full
-    // content width like the sub-task row and the meta cells, not stop at the
-    // render's 72ch reading measure. The RENDER keeps its cap.
+    // 1. Rendered view width matches available space within ±2px (both bounds)
+    const notesBox = await page.locator('.notes-content-view').boundingBox();
+    expect(Math.abs(notesBox!.width - available)).toBeLessThanOrEqual(2);
+
+    // 2. Fenced code block occupies full available width of notes container
+    const codeBlock = page.locator('.notes-content-view .md-code-block');
+    await expect(codeBlock).toBeVisible();
+    const codeBox = await codeBlock.boundingBox();
+    expect(Math.abs(codeBox!.width - notesBox!.width)).toBeLessThanOrEqual(2);
+
+    // 3. Edit mode transition: textarea width matches rendered view within ±2px
     await page.locator('.notes-content-view').click();
     await expect(page.locator('.notes-textarea')).toBeVisible();
-    const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
     const textareaBox = await page.locator('.notes-textarea').boundingBox();
-    const available = scrollBox!.width - 4; // the scroll body's right padding
-    expect(textareaBox!.width).toBeGreaterThanOrEqual(available - 2);
+    expect(Math.abs(textareaBox!.width - notesBox!.width)).toBeLessThanOrEqual(2);
+
+    // 4. View mode transition: reverting via Escape restores rendered view with no layout shift
+    await page.locator('.notes-textarea').press('Escape');
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    const revertedBox = await page.locator('.notes-content-view').boundingBox();
+    expect(Math.abs(revertedBox!.width - notesBox!.width)).toBeLessThanOrEqual(1);
   });
 
   test('panel widens so the four meta columns and note lines fit', async ({ page }) => {

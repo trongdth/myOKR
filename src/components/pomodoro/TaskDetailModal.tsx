@@ -480,6 +480,8 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                   }
                   if (e.key === 'Escape') {
                     e.preventDefault();
+                    e.stopPropagation();
+                    e.nativeEvent.stopImmediatePropagation();
                     cancelNotes();
                   }
                 }}
