@@ -4,8 +4,8 @@
 
 Implemented full-width display for the Task Detail Notes container after saving (`.notes-content-view`). Removed the artificial `max-width: 72ch` constraint and vestigial `font-size` styling to restore layout-only compliance, eliminated the ~300px blank right gap, allowed fenced code blocks (`.md-code-block`) and markdown tables to expand across the full panel width, fixed Escape key bubbling in notes textarea, and updated design system documentation and Playwright tests.
 
-- PR: Local branch `develop` (pending PR)
-- Commit: `0002d721160d7b4da398370ffeb72f8c67e31639` (working tree uncommitted changes)
+- PR: https://github.com/trongdth/myOKR/pull/95
+- Commit: `2d164a7df8f62683644bc22fa7435bf3adb8d04c`
 
 ## 2. Output Validation
 
