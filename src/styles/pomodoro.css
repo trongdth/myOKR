@@ -4720,24 +4720,20 @@
 .text-btn:hover { color: var(--color-primary); }
 /* Notes render in full — no cap, fade, or counter (2026-08-29; supersedes the
    2026-08-04 220px cap + Expand). The rendered markdown typography is the
-   shared .md-body layer (markdown.css); this container is layout-only —
-   including the 72ch reading measure (2026-09-17): full 880px-panel lines ran
-   ~110 characters, past the 45–75 comfortable range. The font-size pin makes
-   ch resolve against the notes text size (children set their own sizes, so
-   nothing visible changes). */
+   shared .md-body layer (markdown.css); this container is layout-only.
+   Full section width (supersedes the 2026-09-17 72ch reading measure cap):
+   both editor and rendered view span 100% of the panel to align with the
+   form layout, preventing awkward whitespace and code block clipping. */
 .notes-content-view {
   position: relative;
   cursor: text;
-  max-width: 72ch;
-  font-size: 0.85rem;
+  width: 100%;
 }
 .notes-content-view.empty { cursor: pointer; }
 .notes-textarea {
   width: 100%;
-  /* Full section width (2026-09-18 feedback; supersedes the 2026-09-17
-     same-measure cap): the editor is an input, not reading prose — it spans
-     the panel like the sub-task row and the meta cells. Only the rendered
-     view keeps the 72ch reading measure. */
+  /* Full section width: the editor spans the panel like the rendered notes view,
+     sub-task row, and meta cells. */
   min-height: 140px;
   max-height: 220px;
   overflow-y: auto;

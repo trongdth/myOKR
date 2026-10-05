@@ -1232,25 +1232,15 @@ separate long-break case. As decided then:
 >   (`.task-detail-desc-text` and its section chrome, ~192 lines) was deleted.
 >   Regression: `tests/notes-markdown.spec.ts`.
 
-> **Notes measure 2026-09-17 — a 72ch reading column; editor exempt 2026-09-18.**
-> The rendered notes cap at **72ch** (`.notes-content-view` in
-> `src/styles/pomodoro.css`): the 880px panel gave notes ~110-character lines,
-> half again past the 45–75 comfortable range. The cap lives on the notes
-> container, not on the `.md-body` layer — measure is layout, and a future
-> markdown surface may want its own. `.notes-content-view` pins
-> `font-size: 0.85rem` so its `ch` resolves against the notes text size (its
-> children set their own sizes; nothing visible changes). Wide tables/code
-> blocks keep their horizontal scroll inside the column. (Amends the
-> 2026-08-29 "full-length note lines" rationale for the 880px panel — the
-> width stays, the measure doesn't.)
-> **2026-09-18 feedback supersedes the editor half**: the 2026-09-17 change
-> also capped `.notes-textarea` at 72ch ("same measure as the render"), which
-> left the editor stopping ~2/3 across the panel while every other control
-> (sub-task row, meta cells) spans it. The edit textarea is an input, not
-> reading prose — it runs full section width again; lines reflowing between
-> editor and render is accepted. Only the render keeps the reading measure.
-> Regression: `tests/task-detail-restyle.spec.ts` (the 2026-09-17 render test
-> + the 2026-09-18 editor-width test).
+> **Notes width 2026-10-04 — full section width for both editor and render.**
+> Supersedes the 2026-09-17 72ch reading column and 2026-09-18 editor-only exemption.
+> Both the edit textarea (`.notes-textarea`) and the rendered view
+> (`.notes-content-view` in `src/styles/pomodoro.css`) span **100%** of the
+> scroll body. The earlier 72ch cap caused saved notes to abruptly shrink,
+> leaving an awkward ~300px blank right gap, looking disconnected from the
+> full-width header, meta strip, and sub-task rows, and needlessly forcing
+> code blocks (`.md-code-block`) and tables into premature horizontal scrolling.
+> Regression: `tests/task-detail-restyle.spec.ts`.
 
 ### Done (P5, flagship)
 
