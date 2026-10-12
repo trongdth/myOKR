@@ -294,10 +294,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
+  // Start (or resume) a run. The completion guard is re-armed HERE — in the
+  // same callback that sets isRunning true — and not only by the isRunning
+  // effect below: when a completion's stop and the next phase's start coalesce
+  // into one React commit (the completion's own Automerge writes block the JS
+  // thread past the 500ms auto-start, so React renders the accumulated state
+  // once), the intermediate `false` frame never renders, the effect never
+  // re-runs, and the guard set by that completion stays armed for the whole
+  // next session — swallowing its completion: no record, no next phase, no
+  // auto-start (the 2026-10-12 "long break ends, nothing continues" report).
+  const beginRun = useCallback(() => {
+    completionHandledRef.current = false;
+    setIsRunning(true);
+  }, []);
+
   // ----- Handle timer reaching zero -----
   const handleSessionComplete = useCallback(() => {
     // Idempotency guard: only the first completion signal per session is honored.
-    // The guard is reset when a new session starts (isRunning goes true again).
+    // The guard is reset when a new session starts (see beginRun / the
+    // isRunning effect below).
     if (completionHandledRef.current) return;
     completionHandledRef.current = true;
     timerEpochRef.current++;
@@ -356,7 +371,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setTimeLeft(isLongBreak ? settings.longBreakDuration * 60 : settings.shortBreakDuration * 60);
       if (settings.autoStartBreaks) {
         if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
-        autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
+        autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; beginRun(); }, 500);
       }
 
       // Record the focus session in-place (rule 11) — no load-modify-save race.
@@ -377,14 +392,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (activeTaskId && prevId && activeTaskId !== prevId && prevTask && !prevTask.isCompleted) {
           pendingAutoStart.current = () => {
             if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-            setIsRunning(true);
+            beginRun();
           };
           setIsConfirmTaskChangedOpen(true);
         } else if (!activeTask) {
           setIsConfirmNoTaskOpen(true);
         } else {
           if (autoStartTimeoutRef.current) clearTimeout(autoStartTimeoutRef.current);
-          autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; setIsRunning(true); }, 500);
+          autoStartTimeoutRef.current = window.setTimeout(() => { autoStartTimeoutRef.current = null; beginRun(); }, 500);
         }
       }
 
@@ -393,7 +408,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         .then(setHistory)
         .catch(console.error);
     }
-  }, [sessionType, completedPomos, activeTaskId, activeTask, tasks, settings]);
+  }, [sessionType, completedPomos, activeTaskId, activeTask, tasks, settings, beginRun]);
 
   // Keep a ref to the latest handleSessionComplete so the Tauri event
   // listeners (registered once per app lifetime, below) always call the
@@ -421,11 +436,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!res) return;
       const [secs, running, type] = res;
 
-      // Frontend believes a session is running, but the backend reports a
-      // completed timer — the timer-complete event was lost. Close the
-      // session out exactly like the delivered event would; the completion
-      // guard absorbs a late duplicate.
-      if (isRunningRef.current && !running && secs === 0) {
+      // A backend timer reporting 0 seconds left is DONE — whether or not Rust's
+      // loop has already marked it stopped, and whether or not the frontend
+      // still believes a session is running. The old check required
+      // `isRunningRef.current`, so a session left parked at its final second
+      // (a late completion processed while the frontend had stopped — the
+      // 2026-10-12 long-break report, which sat paused at 00:00 for 49
+      // minutes) was never closed out: no record, no next phase, no auto-start.
+      // Close the session out exactly like the delivered event would; the
+      // completion guard absorbs a late duplicate.
+      if (secs === 0 && (isRunningRef.current || timeLeftRef.current <= 1)) {
         setTimeLeft(0);
         handleSessionCompleteRef.current();
       } else if (running) {
@@ -526,9 +546,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // no completion, reconcile against the backend. A healthy timer never
   // reaches the poll: the grace is past tick-cadence jitter, and every tick
   // pushes the threshold a second out.
+  //
+  // The interval also watches a session PARKED at its final second while
+  // paused — the state a late completion can leave behind (the frontend
+  // stopped, the clock at 00:00/00:01, nothing left to signal it). It must
+  // close out with no interaction at all: reconcile at once (no grace — there
+  // are no ticks to wait out). The completion advances the phase and clears
+  // sessionStartRef, so the condition clears itself.
   useEffect(() => {
-    if (!IS_TAURI || isLoading || !isRunning) return;
+    if (!IS_TAURI || isLoading) return;
     const id = window.setInterval(() => {
+      if (!isRunning) {
+        if (timeLeftRef.current <= 1 && sessionStartRef.current) reconcileWithBackend();
+        return;
+      }
       const endMs = completionAtRef.current;
       if (endMs === null || Date.now() <= endMs + MISSED_COMPLETION_GRACE_MS) return;
       reconcileWithBackend();
@@ -559,7 +590,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // next-phase timer on a fresh sessionStartRef.
         if (!autoStartsNextPhase(settings, sessionType)) {
           if (sessionType !== 'focus' && !activeTask) setIsConfirmNoTaskOpen(true);
-          else setIsRunning(true);
+          else beginRun();
         }
         return;
       }
@@ -574,16 +605,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [isRunning, sessionType, isLoading, handleSessionComplete]);
 
+  // A timer reaching 0 is over — running, or parked at 0 while paused (a late
+  // completion left the frontend stopped at its final second; the dead clock
+  // must not survive as a state). The completion advances the phase and
+  // re-arms/consumes the guard, so this cannot fire twice for one session.
   useEffect(() => {
-    if (timeLeft === 0 && !isRunning) return;
     if (timeLeft === 0) handleSessionComplete();
   }, [timeLeft, isRunning, handleSessionComplete]);
 
   // A new session begins whenever isRunning goes true (manual start, auto-start
   // after a break, or the switch-task confirm flow) — clear the completion guard
-  // so the next completion is honored. Any isRunning transition also bumps the
-  // timer epoch: in-flight polls predate the start/pause the transition caused,
-  // so their responses are stale by definition.
+  // so the next completion is honored. Every start path also re-arms the guard
+  // synchronously (beginRun), which covers the coalesced commits this effect
+  // cannot see; the clear here stays as the belt-and-braces for any future
+  // start path. Any isRunning transition also bumps the timer epoch: in-flight
+  // polls predate the start/pause the transition caused, so their responses are
+  // stale by definition.
   useEffect(() => {
     if (isRunning) completionHandledRef.current = false;
     timerEpochRef.current++;
@@ -634,12 +671,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!isRunning && !sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-    setIsRunning(!isRunning);
+    if (isRunning) setIsRunning(false);
+    else beginRun();
   };
 
   const startTimer = () => {
     if (!sessionStartRef.current) sessionStartRef.current = new Date().toISOString();
-    setIsRunning(true);
+    beginRun();
   };
 
   const resetTimer = () => {

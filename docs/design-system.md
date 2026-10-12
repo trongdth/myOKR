@@ -872,6 +872,33 @@ completion whose event is lost self-heals — the running-session backend
 watchdog plus the window-focus / visibilitychange reconcile
 (`tests/timer-completion-reliability.spec.ts`).
 
+**Late-completion contract (amended 2026-10-12, ticket 05).** A break whose
+completion is processed late — the norm for the 15-min long break, where the
+machine sleeps or the webview suspends and the one-shot `timer-complete` is
+dropped — must still close out honestly AND continue the chain: the session is
+recorded with its true end, the next phase is staged, and a focus auto-starts
+per settings. Two rules carry this:
+
+- **The completion guard is re-armed at every session start** (the `beginRun`
+  seam in `SessionProvider.tsx`), not only by an effect keyed to the
+  `isRunning` state value: a completion's stop and the next phase's start can
+  coalesce into one React commit (the completion's Automerge writes block the
+  JS thread past the 500 ms auto-start), in which case the intermediate paused
+  frame never renders and a state-only re-arm leaves the guard armed —
+  silently swallowing the NEXT session's completion.
+- **An expired session heals regardless of the frontend's `isRunning` belief.**
+  The reconcile completes when the backend reports 0 seconds left and the
+  frontend's clock sits at its final second; the watchdog also watches a
+  session *parked* there while paused (no grace — nothing left to signal it);
+  and the `timeLeft === 0` effect closes out a paused clock at 0. The state the
+  2026-10-12 log shows (a `longBreak` parked paused at 00:00, isRunning false)
+  therefore can no longer survive: it closes out and the focus starts on its
+  own, with no click. The defect was that every recovery path required the
+  frontend to still believe it was running, so a late completion could strand
+  the clock with no self-heal at all. Long-break coverage now exists in
+  `tests/timer-completion-reliability.spec.ts` (the suite previously exercised
+  short breaks only).
+
 **History — posture ii (2026-08-03, superseded 2026-09-26):** decided in the
 session-widget grilling (posture **ii**); the original report was ruled the
 *intended* default, not a bug — confirmed green by
