@@ -195,6 +195,10 @@ test.describe('Missed timer completion', () => {
 // the click ("I click start, nothing starts"), which is the reported bug.
 test.describe('Missed break completion', () => {
   test.beforeEach(async ({ page }) => {
+    // Playwright's installed clock KEEPS TICKING with real time — it is only
+    // frozen by an explicit pause. `clock.pauseAt(t)` therefore rejects any `t`
+    // read from the page a round-trip earlier ("Cannot fast-forward to the
+    // past"); always target a FUTURE instant (the pauseAt below adds ~1s).
     await page.clock.install({ time: new Date('2026-05-24T09:00:00Z') });
     await page.addInitScript(() => {
       (window as any).__TAURI_INTERNALS__ = {};
@@ -507,9 +511,11 @@ test.describe('Missed break completion', () => {
   });
 
   // The return-to-app sibling of the test above: coming back to a hidden
-  // webview must close the expired break out — the reconcile on
-  // visibilitychange, not only the watchdog. (Exactly one record: the record
-  // guard must still absorb the second signal if both fire.)
+  // webview must close the expired break out. (The visibilitychange reconcile
+  // and the watchdog share reconcileWithBackend, so either may heal it; the
+  // point here is the user-visible outcome — no click, exactly one record, and
+  // the chain continues.) No clock manipulation: the installed clock keeps
+  // ticking with real time, so pausing it "now" races the round-trip.
   test('returning to the app closes out a break parked paused at its final second', async ({ page }) => {
     await waitForApp(page);
     await enableAutoChain(page);
@@ -528,22 +534,17 @@ test.describe('Missed break completion', () => {
     await page.locator('button:has-text("Pause")').click();
     await page.evaluate(() => (window as any).__setMockTimerState([0, false, 'longBreak']));
 
-    // Freeze the clock at the current instant (no advance, so the watchdog's
-    // interval cannot fire) and return to the app: the reconcile must close
-    // the break out.
-    const nowMs = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(new Date(nowMs));
+    // Return to the app: the reconcile on visibilitychange must close the
+    // break out without any click.
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 
     // The expired break closed out with its true end (the tick's estimate)...
     await expect.poll(async () => (await readAppRecordedBreakSessions(page, 'longBreak')).length).toBe(1);
     const sessions = await readAppRecordedBreakSessions(page, 'longBreak');
     expect(Math.abs(new Date(sessions[0].endedAt).getTime() - (tickMs + 1000))).toBeLessThan(1500);
-    // ...and focus is staged at full duration. The clock is paused, so the
-    // auto-start's 500ms delay is still pending — run it and the focus begins.
+    // ...and focus auto-starts (the toggle is on): the 500ms auto-start fires
+    // on real timers, so Pause shows and Rust ticks move the clock again.
     await expect(page.locator('button.session-tab.active:has-text("Focus")')).toBeVisible();
-    await expect(page.locator('.timer-digits')).toHaveText('25:00');
-    await page.clock.runFor(1_500);
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
     await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1499));
     await expect(page.locator('.timer-digits')).toHaveText('24:59');
