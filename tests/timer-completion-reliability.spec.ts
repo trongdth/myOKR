@@ -56,17 +56,33 @@ async function readAppRecordedFocusSessions(page: Page) {
   });
 }
 
-// The seed generates focus sessions only — any shortBreak record is the
-// app's own recording.
-async function readAppRecordedBreakSessions(page: Page) {
+// The seed generates focus sessions only — any break record is the app's own
+// recording. `type` narrows to one break kind ('shortBreak' | 'longBreak').
+async function readAppRecordedBreakSessions(page: Page, type: string = 'shortBreak') {
   await page.evaluate(async () => {
     await (window as any).__flushAutomergeQueue();
   });
-  return page.evaluate(async () => {
+  return page.evaluate(async (breakType) => {
     const d = await (window as any).__getAutomergeDoc();
     const today = (d.history || []).find((r: any) => r.date === '2026-05-24');
-    return (today?.sessions || []).filter((s: any) => s.type === 'shortBreak');
-  });
+    return (today?.sessions || []).filter((s: any) => s.type === breakType);
+  }, type);
+}
+
+// The reported posture (both transitions auto-start, the 2026-09-26 revision),
+// with pomosBeforeLongBreak=1 so the FIRST break of a test is the LONG break —
+// the phase the 2026-10-12 report is about.
+async function enableAutoChain(page: Page) {
+  await page.locator('.timer-controls button[title="Settings"]').click();
+  await expect(page.locator('.settings-panel')).toBeVisible();
+  const inputs = page.locator('.settings-grid input[type="number"]');
+  await inputs.nth(3).fill('1'); // Pomos before long break
+  for (const label of ['Auto-start breaks', 'Auto-start focus']) {
+    const toggle = page.locator(`.toggle-row:has-text("${label}") .toggle-switch`);
+    if (!(await toggle.evaluate(el => el.classList.contains('on')))) await toggle.click();
+  }
+  await page.locator('.timer-controls button[title="Settings"]').click();
+  await expect(page.locator('.settings-panel')).toHaveCount(0);
 }
 
 test.describe('Missed timer completion', () => {
@@ -179,6 +195,10 @@ test.describe('Missed timer completion', () => {
 // the click ("I click start, nothing starts"), which is the reported bug.
 test.describe('Missed break completion', () => {
   test.beforeEach(async ({ page }) => {
+    // Playwright's installed clock KEEPS TICKING with real time — it is only
+    // frozen by an explicit pause. `clock.pauseAt(t)` therefore rejects any `t`
+    // read from the page a round-trip earlier ("Cannot fast-forward to the
+    // past"); always target a FUTURE instant (the pauseAt below adds ~1s).
     await page.clock.install({ time: new Date('2026-05-24T09:00:00Z') });
     await page.addInitScript(() => {
       (window as any).__TAURI_INTERNALS__ = {};
@@ -383,6 +403,207 @@ test.describe('Missed break completion', () => {
 
     // Start Anyway begins the session (Pause showing, ticking).
     await confirm2.locator('button:has-text("Start Anyway")').click();
+    await expect(page.locator('button.session-tab.active:has-text("Focus")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1499));
+    await expect(page.locator('.timer-digits')).toHaveText('24:59');
+  });
+
+  // A completion and the auto-start it schedules can land in ONE React commit
+  // — the completion's own Automerge writes block the JS thread past the
+  // 500ms auto-start, so React renders the accumulated state once: the
+  // intermediate "paused" frame never renders, the guard-clearing effect
+  // (keyed on the isRunning state value) never re-runs, and the guard set by
+  // that completion stays ARMED for the whole next session. The next session's
+  // completion is then silently swallowed — no record, no next phase, no
+  // auto-start: the 2026-10-12 "break ends, nothing continues" report (the
+  // app's save log shows the coalescing signature: the transition's first save
+  // has isRunning true with sessionStartedAt null).
+  test('a break auto-started inside one commit still completes (guard re-armed at start)', async ({ page }) => {
+    await waitForApp(page);
+    await enableAutoChain(page);
+    await selectTask(page, 'Design new dashboard layout');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // The focus's last tick, then the completion delivered via a fake timer so
+    // that the auto-start it schedules (500ms later) fires inside the SAME
+    // clock run — one React commit, like the blocked thread in production.
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.evaluate(() => {
+      setTimeout(() => (window as any).__triggerTauriEvent('timer-complete'), 100);
+    });
+    await page.clock.runFor(800);
+
+    // The LONG break (pomosBeforeLongBreak=1) auto-started (Pause showing).
+    await expect(page.locator('button.session-tab.active:has-text("Long Break")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Now the break runs to its own completion. Even with every recovery
+    // signal available — the event AND Rust truthfully reporting the expired
+    // timer to the watchdog — a swallowed completion leaves the app frozen.
+    const tickMs = await page.evaluate(() => Date.now());
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-complete'));
+    await page.evaluate(() => (window as any).__setMockTimerState([0, false, 'longBreak']));
+    await page.clock.fastForward(6_000);
+
+    // The break is recorded with its true end (tick time + 1s)...
+    await expect.poll(async () => (await readAppRecordedBreakSessions(page, 'longBreak')).length).toBe(1);
+    const sessions = await readAppRecordedBreakSessions(page, 'longBreak');
+    expect(Math.abs(new Date(sessions[0].endedAt).getTime() - (tickMs + 1000))).toBeLessThan(4000);
+    // ...and the chain continues: focus auto-starts on the still-valid task.
+    await expect(page.locator('button.session-tab.active:has-text("Focus")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1499));
+    await expect(page.locator('.timer-digits')).toHaveText('24:59');
+  });
+
+  // The 2026-10-12 episode in the app's own save log: the long break's
+  // completion landed late while the app was away and left the clock parked at
+  // its final second, PAUSED — a state in which nothing healed it (the
+  // watchdog did not run while paused; the reconcile's completion was gated on
+  // the frontend still believing it was running), so the next focus never
+  // started without a user click. The app must close the expired break out on
+  // its own and, with autoStartFocus on, start the focus.
+  test('a long break parked paused at 00:01 after a missed completion heals itself and starts the focus', async ({ page }) => {
+    await waitForApp(page);
+    await enableAutoChain(page);
+    await selectTask(page, 'Design new dashboard layout');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // The focus completes on time → the LONG break (pomosBeforeLongBreak=1)
+    // stages and auto-starts.
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-complete'));
+    await expect(page.locator('button.session-tab.active:has-text("Long Break")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // The break's last tick arrives; its completion event is missed and the
+    // user pauses the frozen clock — the parked-at-00:01 state the log shows.
+    const tickMs = await page.evaluate(() => Date.now());
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.locator('button:has-text("Pause")').click();
+    await expect(page.locator('.timer-digits')).toHaveText('00:01');
+    // Rust truthfully reports the expired timer; from here the app is alone —
+    // no clicks, no refocus.
+    await page.evaluate(() => (window as any).__setMockTimerState([0, false, 'longBreak']));
+    await page.clock.fastForward(5_000);
+
+    // The expired break closed out with a sane end: the reconcile chain
+    // resolves at the end of the fast-forward window, a few seconds past the
+    // true end (inside the 30s late-completion threshold, so `now` is used) —
+    // never the inflated future. The >30s honest-end rule is pinned by the
+    // long-break self-heal test below.
+    await expect.poll(async () => (await readAppRecordedBreakSessions(page, 'longBreak')).length).toBe(1);
+    const sessions = await readAppRecordedBreakSessions(page, 'longBreak');
+    const endedMs = new Date(sessions[0].endedAt).getTime();
+    expect(endedMs).toBeGreaterThan(tickMs);
+    expect(endedMs).toBeLessThan(tickMs + 8_000);
+
+    // ...and the focus AUTO-starts (the toggle is on): Focus active and
+    // running, with Rust ticks moving the clock again.
+    await expect(page.locator('button.session-tab.active:has-text("Focus")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1499));
+    await expect(page.locator('.timer-digits')).toHaveText('24:59');
+  });
+
+  // The return-to-app sibling of the test above: coming back to a hidden
+  // webview must close the expired break out. (The visibilitychange reconcile
+  // and the watchdog share reconcileWithBackend, so either may heal it; the
+  // point here is the user-visible outcome — no click, exactly one record, and
+  // the chain continues.) No clock manipulation: the installed clock keeps
+  // ticking with real time, so pausing it "now" races the round-trip.
+  test('returning to the app closes out a break parked paused at its final second', async ({ page }) => {
+    await waitForApp(page);
+    await enableAutoChain(page);
+    await selectTask(page, 'Design new dashboard layout');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-complete'));
+    await expect(page.locator('button.session-tab.active:has-text("Long Break")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // Park the break at 00:01, paused, with Rust reporting the expired timer.
+    const tickMs = await page.evaluate(() => Date.now());
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.locator('button:has-text("Pause")').click();
+    await page.evaluate(() => (window as any).__setMockTimerState([0, false, 'longBreak']));
+
+    // Return to the app: the reconcile on visibilitychange must close the
+    // break out without any click.
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+    // The expired break closed out with its true end (the tick's estimate)...
+    await expect.poll(async () => (await readAppRecordedBreakSessions(page, 'longBreak')).length).toBe(1);
+    const sessions = await readAppRecordedBreakSessions(page, 'longBreak');
+    expect(Math.abs(new Date(sessions[0].endedAt).getTime() - (tickMs + 1000))).toBeLessThan(1500);
+    // ...and focus auto-starts (the toggle is on): the 500ms auto-start fires
+    // on real timers, so Pause shows and Rust ticks move the clock again.
+    await expect(page.locator('button.session-tab.active:has-text("Focus")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1499));
+    await expect(page.locator('.timer-digits')).toHaveText('24:59');
+    // Exactly one break record — a duplicate signal must not double-record.
+    expect((await readAppRecordedBreakSessions(page, 'longBreak')).length).toBe(1);
+  });
+
+  // A backend timer at 0 remaining is DONE, whether or not Rust's loop has
+  // already marked it stopped. (Today's code heals this by resyncing the
+  // display to 00:00, which trips the timeLeft===0 effect; the reconcile now
+  // closes it out directly — pinned either way, the observed 2026-10-12
+  // intermediate was a longBreak saved at timeLeft 0 with isRunning true.)
+  test('a backend reporting a running timer with 0 remaining is closed out, not parked at 00:00', async ({ page }) => {
+    await waitForApp(page);
+    await selectTask(page, 'Design new dashboard layout');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // The poll lands while Rust is still finishing its last loop iteration:
+    // the snapshot says is_running, 0 seconds left.
+    await page.evaluate(() => (window as any).__setMockTimerState([0, true, 'focus']));
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+
+    // The expired focus is recorded (with its task) and the break stages.
+    await expect.poll(async () => (await readAppRecordedFocusSessions(page)).length).toBe(1);
+    await expect(page.locator('button.session-tab.active:has-text("Short Break")')).toBeVisible();
+    await expect(page.locator('button:has-text("Start")')).toBeVisible();
+  });
+
+  // Long-break parity for the missed-completion watchdog: the short-break
+  // recovery above was the only phase ever exercised (the read helper filtered
+  // shortBreak), yet the report is about a long break. Same missed event, same
+  // self-heal — and with autoStartFocus on, the focus must start by itself.
+  test('a missed LONG-break completion self-heals and auto-starts the focus', async ({ page }) => {
+    await waitForApp(page);
+    await enableAutoChain(page);
+    await selectTask(page, 'Design new dashboard layout');
+    await page.locator('button:has-text("Start")').click();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-complete'));
+    await expect(page.locator('button.session-tab.active:has-text("Long Break")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pause")')).toBeVisible();
+
+    // The break's last tick arrives; its completion event is never delivered.
+    // The webview stays awake (the watchdog must heal it, no interaction).
+    const tickMs = await page.evaluate(() => Date.now());
+    await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1));
+    await page.clock.fastForward(40_000);
+    await page.evaluate(() => (window as any).__setMockTimerState([0, false, 'longBreak']));
+    await page.clock.fastForward(5_000);
+
+    // The long break is recorded with its true end — the reconcile ran >30s
+    // late, so the honest estimate must win over `now`...
+    await expect.poll(async () => (await readAppRecordedBreakSessions(page, 'longBreak')).length).toBe(1);
+    const sessions = await readAppRecordedBreakSessions(page, 'longBreak');
+    expect(Math.abs(new Date(sessions[0].endedAt).getTime() - (tickMs + 1000))).toBeLessThan(1500);
+    // ...and the focus auto-starts (the toggle is on) and runs.
     await expect(page.locator('button.session-tab.active:has-text("Focus")')).toBeVisible();
     await expect(page.locator('button:has-text("Pause")')).toBeVisible();
     await page.evaluate(() => (window as any).__triggerTauriEvent('timer-tick', 1499));
