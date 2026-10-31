@@ -26,7 +26,7 @@ const META_BUCKET_OPTIONS: SelectOption<TaskBucket>[] = BUCKET_OPTIONS.map(
 
 /** Progress percentage 0–100, divide-by-zero safe (pomodoro + sub-task bars). */
 const pct = (done: number, total: number) =>
-  total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  total > 0 ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
 
 /** IME composition guard (WebKit / WKWebView out-of-order compositionend also requires keyCode === 229). */
 const isImeComposing = (e: React.KeyboardEvent) =>
@@ -78,7 +78,8 @@ interface Props {
   onStartFocus?: (task: PomodoroTask) => void;
 }
 
-export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDelete, keyResults = [], onStartFocus }: Props) {
+export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClose, onDelete, keyResults = [], onStartFocus }: Props) {
+  const task = tasks?.find(t => t.id === taskProp.id) ?? taskProp;
   const [activeTab, setActiveTab] = useState<DetailTab>('todos');
   const [description, setDescription] = useState(task.description || '');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -106,6 +107,11 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   // commit: one-liners & notes both autosave on blur, Esc discards). Setting this
   // before exit makes the imminent blur handler skip its save so the revert wins.
   const skipBlurSaveRef = useRef(false);
+  const clearSkipBlurNextTick = () => {
+    queueMicrotask(() => {
+      skipBlurSaveRef.current = false;
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -125,7 +131,17 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   const hiddenTodos = todos.slice(visibleTodos.length);
   const hiddenCompletedCount = hiddenTodos.filter(t => t.completed).length;
 
-  useModalEffects(onClose);
+  useModalEffects(() => {
+    if (pendingDelete) {
+      setPendingDelete(null);
+      return;
+    }
+    if (reorderMovingId) {
+      setReorderMovingId(null);
+      return;
+    }
+    onClose();
+  });
 
   useEffect(() => {
     setEditingTitleText(task.title);
@@ -145,20 +161,17 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
     }
   }, [isEditingDesc]);
 
-  // Esc cancels an in-flight click-select reorder (no focused input to catch it).
-  useEffect(() => {
-    if (!reorderMovingId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setReorderMovingId(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [reorderMovingId]);
-
+  const startEditTitle = () => {
+    skipBlurSaveRef.current = false;
+    setEditingTitleText(task.title);
+    setIsEditingTitle(true);
+  };
   const saveTitle = () => {
     const trimmed = editingTitleText.trim();
     if (trimmed && trimmed !== task.title) {
       onUpdate({ ...task, title: trimmed });
+    } else {
+      setEditingTitleText(task.title);
     }
     setIsEditingTitle(false);
   };
@@ -168,6 +181,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
     skipBlurSaveRef.current = true;
     setEditingTitleText(task.title);
     setIsEditingTitle(false);
+    clearSkipBlurNextTick();
   };
 
   // Property update helpers
@@ -189,6 +203,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   // for the raw-markdown textarea. Autosaves on blur / ⌘+Enter / Save button
   // (NOT per keystroke — persistence rules); Esc / Cancel button reverts.
   const startEditNotes = () => {
+    skipBlurSaveRef.current = false;
     setDescription(task.description || '');
     setIsEditingDesc(true);
   };
@@ -206,10 +221,22 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
     setDescription(task.description || '');
     skipBlurSaveRef.current = true;
     setIsEditingDesc(false);
+    clearSkipBlurNextTick();
   };
   const onNotesViewClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
     // Let rendered links & the copy button work — only the note body swaps to edit.
-    if ((e.target as HTMLElement).closest('a, button')) return;
+    if (target.closest('a, button')) return;
+    // Ignore clicks on horizontal/vertical scrollbars of scrollable blocks (table, pre).
+    if (
+      (target.scrollWidth > target.clientWidth && e.nativeEvent.offsetY > target.clientHeight) ||
+      (target.scrollHeight > target.clientHeight && e.nativeEvent.offsetX > target.clientWidth)
+    ) {
+      return;
+    }
+    // Do not swap to edit mode if the user just drag-selected text to copy (⌘C).
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
     startEditNotes();
   };
 
@@ -235,18 +262,21 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   };
 
   const deleteTodo = (id: string) => {
+    if (reorderMovingId === id) setReorderMovingId(null);
     onUpdate({ ...task, todos: todos.filter(t => t.id !== id) });
   };
 
   // Sub-task label inline edit (click-away / Enter autosaves; Esc reverts)
   const startEditTodo = (t: TodoItem) => {
     if (reorderMovingId) return; // don't fight the reorder mode
+    skipBlurSaveRef.current = false;
     setEditingTodoId(t.id);
     setEditingTodoText(t.text);
   };
   const commitTodo = (id: string) => {
     const text = editingTodoText.trim();
-    if (text) {
+    const current = todos.find(t => t.id === id);
+    if (text && current && text !== current.text) {
       onUpdate({ ...task, todos: todos.map(t => t.id === id ? { ...t, text } : t) });
     }
     setEditingTodoId(null);
@@ -254,12 +284,13 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   const cancelTodo = () => {
     skipBlurSaveRef.current = true;
     setEditingTodoId(null);
+    clearSkipBlurNextTick();
   };
 
   // Click-select reorder: grip click picks up; clicking another row commits
   // (reorderTodoItems inserts above the target); Esc or re-click cancels.
   const togglePickup = (id: string) => {
-    setEditingTodoId(null);
+    if (editingTodoId) commitTodo(editingTodoId);
     setReorderMovingId(prev => (prev === id ? null : id));
   };
   const commitReorder = (targetId: string) => {
@@ -286,12 +317,14 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
 
   // Comment inline edit (click-away / Enter autosaves; Esc reverts)
   const startEditComment = (c: TaskComment) => {
+    skipBlurSaveRef.current = false;
     setEditingCommentId(c.id);
     setEditingCommentText(c.text);
   };
   const commitComment = (id: string) => {
     const text = editingCommentText.trim();
-    if (text) {
+    const current = comments.find(c => c.id === id);
+    if (text && current && text !== current.text) {
       onUpdate({ ...task, comments: comments.map(c => c.id === id ? { ...c, text } : c) });
     }
     setEditingCommentId(null);
@@ -299,6 +332,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
   const cancelComment = () => {
     skipBlurSaveRef.current = true;
     setEditingCommentId(null);
+    clearSkipBlurNextTick();
   };
 
   const confirmDelete = () => {
@@ -325,7 +359,12 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
 
   return (
     <div className="app-modal-overlay" onClick={onClose}>
-      <div className="app-modal-content task-detail-panel" onClick={e => e.stopPropagation()}>
+      <div
+        className="app-modal-content task-detail-panel"
+        role="dialog"
+        aria-modal="true"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Pinned: header + properties row + pomodoros band. The band lives in
             the pinned stack (flush under the bar) — its full-bleed negative
             margins are only safe where overflow is hidden; inside the scroll
@@ -362,7 +401,18 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                   }}
                 />
               ) : (
-                <h3 className="detail-title" onClick={() => setIsEditingTitle(true)}>
+                <h3
+                  className="detail-title"
+                  role="button"
+                  tabIndex={0}
+                  onClick={startEditTitle}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      startEditTitle();
+                    }
+                  }}
+                >
                   {task.title}
                 </h3>
               )}
@@ -460,7 +510,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
             <span className="prop-label">POMODOROS</span>
             <div className="weekly-plan-bar" role="progressbar"
               aria-valuenow={task.completedPomodoros} aria-valuemin={0}
-              aria-valuemax={task.estimatedPomodoros || 1}>
+              aria-valuemax={Math.max(task.completedPomodoros, task.estimatedPomodoros || 1)}>
               <div className="weekly-plan-fill"
                 style={{ width: `${pct(task.completedPomodoros, task.estimatedPomodoros || 1)}%` }} />
             </div>
@@ -496,10 +546,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                     <button
                       type="button"
                       className="notes-cancel-btn"
-                      onMouseDown={e => {
-                        e.preventDefault();
-                        skipBlurSaveRef.current = true;
-                      }}
+                      onMouseDown={e => e.preventDefault()}
                       onClick={cancelNotes}
                     >
                       <span>Cancel</span>
@@ -655,6 +702,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                               <input
                                 type="checkbox"
                                 checked={todo.completed}
+                                onClick={e => e.stopPropagation()}
                                 onChange={() => toggleTodo(todo.id)}
                               />
                               {editingTodoId === todo.id ? (
@@ -663,6 +711,7 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                                   className="todo-edit-input"
                                   value={editingTodoText}
                                   autoFocus
+                                  onClick={e => e.stopPropagation()}
                                   onChange={e => setEditingTodoText(e.target.value)}
                                   onBlur={() => {
                                     if (skipBlurSaveRef.current) {
@@ -681,7 +730,20 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                                   }}
                                 />
                               ) : (
-                                <span className="todo-text" onClick={() => startEditTodo(todo)}>{todo.text}</span>
+                                <span
+                                  className="todo-text"
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => startEditTodo(todo)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      startEditTodo(todo);
+                                    }
+                                  }}
+                                >
+                                  {todo.text}
+                                </span>
                               )}
                               <button
                                 className="delete-sub-btn"
@@ -755,10 +817,25 @@ export default function TaskDetailModal({ task, tasks, onUpdate, onClose, onDele
                               }}
                             />
                           ) : (
-                            <p className="comment-text" onClick={() => startEditComment(c)}>{c.text}</p>
+                            <p
+                              className="comment-text"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => startEditComment(c)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  startEditComment(c);
+                                }
+                              }}
+                            >
+                              {c.text}
+                            </p>
                           )}
                           <div className="comment-footer">
-                            <span className="comment-time">{new Date(c.createdAt).toLocaleString()}</span>
+                            <span className="comment-time">
+                              {Number.isNaN(new Date(c.createdAt).getTime()) ? '' : new Date(c.createdAt).toLocaleString()}
+                            </span>
                             <button
                               className="delete-sub-btn"
                               onClick={() => setPendingDelete({ kind: 'comment', id: c.id })}

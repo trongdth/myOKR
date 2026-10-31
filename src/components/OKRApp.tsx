@@ -430,6 +430,7 @@ export default function OKRApp() {
 
       {selectedDetailTask && (
         <TaskDetailModal
+          key={selectedDetailTask.id}
           task={selectedDetailTask}
           tasks={tasks}
           onUpdate={updateTask}

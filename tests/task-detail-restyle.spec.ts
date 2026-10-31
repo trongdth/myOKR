@@ -363,4 +363,78 @@ test.describe('Task detail restyle', () => {
     expect(Math.abs(bandBox!.y + bandBox!.height - scrollBox!.y)).toBeLessThanOrEqual(2);
     await expect(page.locator('.detail-scroll-body .weekly-plan-block')).toHaveCount(0);
   });
+
+  test('adversarial edge cases: blur-save works after Cancel/Escape, Escape closes innermost layer only, text selection skips edit mode, and reorder handles downward move & checkbox click', async ({ page }) => {
+    // 1. C1: Cancelling notes edit (via Cancel button or Escape) must NOT poison
+    // skipBlurSaveRef so the next edit's onBlur saves and exits edit mode cleanly.
+    await page.locator('.notes-edit-btn').click();
+    await page.locator('.notes-textarea').fill('Discarded draft');
+    await page.locator('.notes-cancel-btn').click();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+
+    await page.locator('.notes-edit-btn').click();
+    await page.locator('.notes-textarea').fill('Saved via blur after cancel');
+    await page.locator('.notes-textarea').blur();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    await expect(page.locator('.notes-content-view')).toContainText('Saved via blur after cancel');
+
+    // 2. C4: Highlighting/selecting text inside .notes-content-view must NOT swap to edit mode on click.
+    await page.evaluate(() => {
+      const el = document.querySelector('.notes-content-view p');
+      if (!el) return;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    });
+    await page.locator('.notes-content-view').dispatchEvent('click', { bubbles: true });
+    await expect(page.locator('.notes-textarea')).toHaveCount(0);
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
+
+    // 3. C3: Escape while PomoEstimatePopover, sub-task reorder, or ConfirmModal is active
+    // dismisses only that child state while keeping TaskDetailModal open.
+    await page.locator('.weekly-plan-block .task-pomodoros').click();
+    await expect(page.locator('.pomo-estimate-popover')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pomo-estimate-popover')).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    await page.locator('.todo-grip').first().click();
+    await expect(page.locator('.reorder-hint')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.reorder-hint')).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    await page.locator('.todo-item-row .delete-sub-btn').first().click({ force: true });
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    // 4. H1: During reorder mode, clicking another row's checkbox toggles that checkbox
+    // without clobbering it, and clicking a lower row moves the item downward after it.
+    await page.locator('.todo-grip').first().click();
+    await expect(page.locator('.reorder-hint')).toBeVisible();
+    const fourthCheckbox = page.locator('.todo-item-row').nth(3).locator('input[type="checkbox"]');
+    await expect(fourthCheckbox).not.toBeChecked();
+    await fourthCheckbox.click();
+    await expect(fourthCheckbox).toBeChecked();
+
+    // Moving row 0 ("Domain 1: Agentic architecture") onto row 3 places it immediately above row 3 (index 2).
+    await page.locator('.todo-item-row').nth(3).click();
+    await expect(page.locator('.reorder-hint')).toHaveCount(0);
+    await expect(page.locator('.todo-item-row').nth(2)).toContainText('Domain 1: Agentic architecture');
+
+    // 5. Clearing title to empty string and blurring reverts, and re-opening title edit preserves original title.
+    const origTitle = await page.locator('.detail-title').textContent();
+    await page.locator('.detail-title').click();
+    await page.locator('.detail-title-input').fill('   ');
+    await page.locator('.detail-title-input').press('Enter');
+    await expect(page.locator('.detail-title')).toHaveText(origTitle!);
+    await page.locator('.detail-title').click();
+    await expect(page.locator('.detail-title-input')).toHaveValue(origTitle!);
+    await page.locator('.detail-title-input').press('Escape');
+  });
 });

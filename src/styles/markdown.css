@@ -83,8 +83,16 @@
 /* Task lists (GFM `- [ ]`/`- [x]`) — display-only: the checkbox shows state,
    toggling happens by editing the notes. Items with a checkbox drop the
    gutter marker so the box is the marker. */
-.md-body li:has(> input[type='checkbox']) { padding-left: 0; }
-.md-body li:has(> input[type='checkbox'])::before { content: none; }
+.md-body li:has(> input[type='checkbox']),
+.md-body li:has(> p > input[type='checkbox']) { padding-left: 0; }
+.md-body li:has(> input[type='checkbox'])::before,
+.md-body li:has(> p > input[type='checkbox'])::before { content: none; }
+.md-image-placeholder {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
 .md-body input[type='checkbox'] {
   appearance: none;
   -webkit-appearance: none;

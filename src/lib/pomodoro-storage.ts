@@ -142,8 +142,10 @@ export function displayedPomoCount(
   estimatedPomodoros: number,
   focusInProgress: boolean,
 ): number {
-  const est = estimatedPomodoros || 1;
-  return focusInProgress ? Math.min(completedPomodoros + 1, est) : completedPomodoros;
+  const est = Math.max(1, estimatedPomodoros || 1);
+  return focusInProgress
+    ? Math.max(completedPomodoros, Math.min(completedPomodoros + 1, est))
+    : completedPomodoros;
 }
 
 /**

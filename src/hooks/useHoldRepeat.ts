@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 
 const INITIAL_DELAY = 400;
 const SLOW_INTERVAL = 80;
@@ -62,6 +62,14 @@ export function useHoldRepeat(step: () => void, canStep: () => boolean) {
   const onPointerUp = useCallback(() => clearAll(), [clearAll]);
   const onPointerLeave = useCallback(() => clearAll(), [clearAll]);
   const onPointerCancel = useCallback(() => clearAll(), [clearAll]);
+  const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      tick();
+    }
+  }, [tick]);
 
-  return { onPointerDown, onPointerUp, onPointerLeave, onPointerCancel };
+  useEffect(() => clearAll, [clearAll]);
+
+  return { onPointerDown, onPointerUp, onPointerLeave, onPointerCancel, onKeyDown };
 }
