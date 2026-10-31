@@ -60,3 +60,13 @@ export function getCycleClosedDate(cycle: { month: number | null; year: number |
   d.setUTCDate(d.getUTCDate() + 6);
   return d.toISOString().slice(0, 10);
 }
+
+/** Returns the `{ month, year }` cycle whose exclusive weeks (`getExclusiveCycleMondays`)
+ *  contain `date`. Under the exclusive boundary-week rule, a Monday–Sunday week
+ *  belongs to the month of its Sunday (any week containing the 1st of the next
+ *  month ends on a Sunday in that next month). */
+export function getExclusiveCycleForDate(date: Date = new Date()): { month: number; year: number } {
+  const dow = date.getDay();
+  const sunday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + (dow === 0 ? 0 : 7 - dow));
+  return { month: sunday.getMonth(), year: sunday.getFullYear() };
+}
