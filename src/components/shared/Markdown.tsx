@@ -1,10 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Copy } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import '../../styles/markdown.css';
 
 // GFM task lists emit <input type="checkbox" checked disabled>; the default
@@ -77,15 +77,27 @@ function autolinkLabel(
  *  the rendered DOM so sanitization and syntax are already settled. */
 function CodeBlock({ children }: { children?: React.ReactNode }) {
   const preRef = useRef<HTMLPreElement>(null);
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   const copy = () => {
     const text = preRef.current?.textContent ?? '';
     navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
   };
   return (
     <div className="md-code-block">
       <button type="button" className="md-code-copy" onClick={copy} title="Copy code block">
-        <Copy size={12} aria-hidden="true" />
-        <span>Copy</span>
+        {copied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+        <span>{copied ? 'Copied' : 'Copy'}</span>
       </button>
       <pre ref={preRef}>{children}</pre>
     </div>

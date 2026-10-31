@@ -153,7 +153,7 @@ test.describe('Notes markdown rendering', () => {
     await expect(view.locator('.md-body hr')).toHaveCSS('border-top-width', '1px');
   });
 
-  test('code block: the Copy button sits above the text column, never on the first line', async ({ page }) => {
+  test('code block: the Copy button sits above the text column, never on the first line, and shows Copied feedback on click', async ({ page }) => {
     // The button floats top-right inside the block; the block must reserve
     // headroom so it never covers the code's first line.
     const geometry = await page.locator('.notes-content-view .md-code-block').evaluate(el => {
@@ -165,6 +165,11 @@ test.describe('Notes markdown rendering', () => {
       return { btnBottom: btn.bottom, textTop: text.top };
     });
     expect(geometry.btnBottom).toBeLessThanOrEqual(geometry.textTop + 1);
+
+    const copyBtn = page.locator('.notes-content-view .md-code-copy');
+    await expect(copyBtn).toHaveText('Copy');
+    await copyBtn.click();
+    await expect(copyBtn).toHaveText('Copied');
   });
 
   test('lists: mono gutter markers, nesting differentiates (· then –)', async ({ page }) => {

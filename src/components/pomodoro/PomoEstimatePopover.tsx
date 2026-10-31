@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Timer } from 'lucide-react';
+import { Timer, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useHoldRepeat } from '../../hooks/useHoldRepeat';
 
@@ -7,20 +7,22 @@ import { useHoldRepeat } from '../../hooks/useHoldRepeat';
  * Clickable pomodoro count that opens a small "Adjust Total Pomodoros"
  * popover (− / value / + hold-to-repeat buttons, Cancel / Confirm). Shared by
  * the Tasks board/list rows (`2/4` pill with ⏱ icon) and the Task-detail
- * pomodoro line (plain `2 / 4 planned` readout, icon dropped) so the estimate
- * is edited the same way everywhere. `onChange` fires on Confirm with the new
- * `estimatedPomodoros` (1–20).
+ * pomodoro line (`2 / 4 planned` interactive pill with timer icon + chevron)
+ * so the estimate is edited the same way everywhere. `onChange` fires on
+ * Confirm with the new `estimatedPomodoros` (1–20).
  */
-export default function PomoEstimatePopover({ completed, estimated, onChange, suffix, showIcon = true, plain = false }: {
+export default function PomoEstimatePopover({ completed, estimated, onChange, suffix, showIcon = true, showChevron = false, plain = false }: {
   completed: number;
   estimated: number;
   onChange: (n: number) => void;
   /** Appended after the count, e.g. "planned" → `2 / 4 planned` (task-detail
    *  readout; spaced slash). Absent → compact `2/4` (Tasks rows). */
   suffix?: string;
-  /** Tasks rows show the ⏱ icon; the task-detail readout drops it (compact). */
+  /** Show the ⏱ icon before the count. */
   showIcon?: boolean;
-  /** Task-detail readout renders as plain mono text, not a bordered pill. */
+  /** Show a trailing dropdown chevron to signal popover interactivity. */
+  showChevron?: boolean;
+  /** Task-detail readout variant. */
   plain?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -59,6 +61,7 @@ export default function PomoEstimatePopover({ completed, estimated, onChange, su
         <span className="task-pomo-count">
           {completed}{suffix ? ' / ' : '/'}{estimated}{suffix ? ` ${suffix}` : ''}
         </span>
+        {showChevron && <ChevronDown size={14} className="pomo-chevron" aria-hidden="true" />}
       </div>
       {open && (
         <div className="pomo-estimate-popover" onClick={e => e.stopPropagation()}>

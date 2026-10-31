@@ -1269,6 +1269,34 @@ separate long-break case. As decided then:
 > code blocks (`.md-code-block`) and tables into premature horizontal scrolling.
 > Regression: `tests/task-detail-restyle.spec.ts`.
 
+> **UX & Usability Audit 2026-10-31 — authoring affordances, IME safety, and consistency.**
+> Supersedes the earlier bare-KR-without-chevron, `POMODOROS THIS WEEK` label,
+> plain-text pomodoro readout, and one-way sub-task collapse rules:
+> - **Notes authoring affordance:** `.notes-header` includes an explicit `Edit`
+>   button (`.notes-edit-btn`) beside the `Markdown` badge so link-only notes
+>   never trap click-to-edit. In edit mode, the header renders `Cancel Esc`
+>   (`.notes-cancel-btn`) and `Save ⌘Enter` (`.notes-save-btn`), and committing
+>   surfaces a transient `✓ Saved` status badge (`.notes-saved-badge`).
+>   `.notes-content-view` renders inside a subtle bordered surface
+>   (`--bg-secondary`, `1px solid var(--border-color)`, `border-radius: 8px`)
+>   and `.notes-textarea` uses `field-sizing: content` to prevent height jumps.
+> - **Meta & Pomodoro affordances:** `KEY RESULT` in `.detail-properties-bar`
+>   uses the standard `Select` trigger with a trailing `.sel-chevron` (matching
+>   `PRIORITY`, `BUCKET`, and `DUE`) plus a `title` tooltip on `.sel-text`.
+>   `.weekly-plan-block` labels the lifetime counter `POMODOROS` and renders
+>   `PomoEstimatePopover` as an interactive pill with timer icon + chevron.
+> - **Sub-tasks & Comments consistency:** Both tabs use `.tab-badge` pills;
+>   `.add-todo-btn` and `.add-comment-btn` are `disabled` (muted) when their
+>   input is empty so they don't compete with `Start`; `.todo-grip` uses
+>   `cursor: pointer`; expanding `.todos-more-btn` offers a `Show less` toggle,
+>   and adding a sub-task past `SUBTASKS_VISIBLE` auto-expands the list.
+> - **IME-safe Enter & CodeBlock copy feedback:** All single-line `Enter`
+>   handlers guard against `e.nativeEvent.isComposing || e.keyCode === 229`
+>   (WebKit/WKWebView IME safety), and `.md-code-copy` transitions to `Copied`
+>   for 1.5s on click.
+> - Regression: `tests/task-detail-restyle.spec.ts`,
+>   `tests/task-detail-pomodoro.spec.ts`, `tests/notes-markdown.spec.ts`.
+
 ### Done (P5, flagship)
 
 - Header: filters `This week | All key results | All priorities` + summary
