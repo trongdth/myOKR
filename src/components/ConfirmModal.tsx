@@ -22,16 +22,34 @@ export default function ConfirmModal({
   danger = true
 }: Props) {
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen]);
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <div className="prioritize-overlay confirm-modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
-      <div className="prioritize-modal confirm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: '2em' }}>
+      <div
+        className="prioritize-modal confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '400px', padding: '2em', overflowWrap: 'anywhere' }}
+      >
         <div className="prioritize-header" style={{ marginBottom: '1em' }}>
           <h3 className="prioritize-title">{title}</h3>
         </div>

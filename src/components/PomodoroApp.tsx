@@ -117,6 +117,7 @@ export default function PomodoroApp({
       {/* Task Detail Modal */}
       {selectedDetailTask && (
         <TaskDetailModal
+          key={selectedDetailTask.id}
           task={selectedDetailTask}
           tasks={tasks}
           onUpdate={(updated) => {

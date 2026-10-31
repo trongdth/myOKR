@@ -1,3 +1,5 @@
+import { getExclusiveCycleForDate } from '../lib/cycle-windows';
+
 function daysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -38,16 +40,18 @@ const SEED_DATA: Record<string, any> = {
   timerState: null,
   cycles: [
     (() => {
-      // Current-month cycle so cycle-scoped UI (e.g. Analytics KPI cards)
-      // contains the relative-date seed history. Frozen-clock tests (May
-      // 2026) still see 'May 2026'. One timestamp so name/month/year can't
-      // tear across a month rollover.
+      // Exclusive-cycle owner of `now` so cycle-scoped UI (e.g. Analytics KPI
+      // cards) contains today's relative-date seed history even during a
+      // month-end boundary week (e.g. Oct 26–31 2026, which opens November).
+      // Frozen-clock tests (mid-May 2026) still see 'May 2026'.
       const now = new Date();
+      const { month, year } = getExclusiveCycleForDate(now);
+      const cycleDate = new Date(year, month, 1);
       return {
         id: 'cycle-1',
-        name: `${now.toLocaleString('en-US', { month: 'long' })} ${now.getFullYear()}`,
-        month: now.getMonth(),
-        year: now.getFullYear(),
+        name: `${cycleDate.toLocaleString('en-US', { month: 'long' })} ${year}`,
+        month,
+        year,
         isActive: true,
         createdAt: now.toISOString(),
       };

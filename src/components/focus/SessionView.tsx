@@ -200,6 +200,7 @@ export default function SessionView({
       )}
       {selectedDetailTask && (
         <TaskDetailModal
+          key={selectedDetailTask.id}
           task={selectedDetailTask}
           tasks={tasks}
           onUpdate={(updated) => {

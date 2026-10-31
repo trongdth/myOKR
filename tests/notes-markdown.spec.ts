@@ -153,7 +153,7 @@ test.describe('Notes markdown rendering', () => {
     await expect(view.locator('.md-body hr')).toHaveCSS('border-top-width', '1px');
   });
 
-  test('code block: the Copy button sits above the text column, never on the first line', async ({ page }) => {
+  test('code block: the Copy button sits above the text column, never on the first line, and shows Copied feedback on click', async ({ page }) => {
     // The button floats top-right inside the block; the block must reserve
     // headroom so it never covers the code's first line.
     const geometry = await page.locator('.notes-content-view .md-code-block').evaluate(el => {
@@ -165,6 +165,11 @@ test.describe('Notes markdown rendering', () => {
       return { btnBottom: btn.bottom, textTop: text.top };
     });
     expect(geometry.btnBottom).toBeLessThanOrEqual(geometry.textTop + 1);
+
+    const copyBtn = page.locator('.notes-content-view .md-code-copy');
+    await expect(copyBtn).toHaveText('Copy');
+    await copyBtn.click();
+    await expect(copyBtn).toHaveText('Copied');
   });
 
   test('lists: mono gutter markers, nesting differentiates (· then –)', async ({ page }) => {
@@ -205,5 +210,37 @@ test.describe('Notes markdown rendering', () => {
     // (This swaps the view for the textarea, so it runs last.)
     await boxes.nth(0).click({ force: true });
     await expect(page.locator('.notes-textarea')).toBeVisible();
+  });
+
+  test('adversarial markdown: code blocks preserve exact line endings without trailing-space injection, CRLF tables parse, and Unicode autolinks truncate cleanly', async ({ page }) => {
+    // Update note with multi-line shell code block, CRLF table, and Unicode autolink
+    await page.locator('.notes-edit-btn').click();
+    const mdPayload = [
+      '```bash',
+      'docker run \\',
+      '  --rm alpine',
+      '```',
+      '',
+      '| ColA | ColB |\r\n| --- | --- |\r\n| val1 | val2 |',
+      '',
+      'https://vi.wikipedia.org/wiki/Kỹ_thuật_Pomodoro_very_long_url_segment_1234567890_end',
+    ].join('\n');
+    await page.locator('.notes-textarea').fill(mdPayload);
+    await page.locator('.notes-save-btn').click();
+
+    // 1. C2: Code block textContent must NOT have two trailing spaces injected after backslash
+    const codeText = await page.locator('.notes-content-view pre code').textContent();
+    expect(codeText?.replace(/\n$/, '')).toBe('docker run \\\n  --rm alpine');
+
+    // 2. C2: CRLF table still parses as a real <table>
+    await expect(page.locator('.notes-content-view table')).toHaveCount(1);
+    await expect(page.locator('.notes-content-view td').first()).toHaveText('val1');
+
+    // 3. MEDIUM-1: Unicode bare autolink strips protocol and middle-truncates past 60 code points
+    const unicodeLink = page.locator('.notes-content-view a').first();
+    const linkText = await unicodeLink.textContent();
+    expect(linkText?.startsWith('vi.wikipedia.org/wiki/')).toBe(true);
+    expect(linkText).toContain('…');
+    expect(linkText).not.toContain('\uFFFD');
   });
 });

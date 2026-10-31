@@ -44,6 +44,7 @@ async function openBoardWith(page: Page, extraTasks: object[] = []) {
   await page.reload();
   await page.waitForLoadState('networkidle');
   await page.locator('button[title="Plan"]').click();
+  await expect(page.locator('.plan-header-title')).toHaveText('May cycle');
 }
 
 const COMPLETED_SEED = [

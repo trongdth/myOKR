@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getExclusiveCycleMondays } from '../src/lib/cycle-windows';
+import { getExclusiveCycleMondays, getExclusiveCycleForDate } from '../src/lib/cycle-windows';
 
 test.describe('getExclusiveCycleMondays', () => {
   test('boundary week belongs to the cycle it opens, never the one it closes', () => {
@@ -41,5 +41,24 @@ test.describe('getExclusiveCycleMondays', () => {
     expect(result[0]).toBe(
       getExclusiveCycleMondays({ month: now.getMonth(), year: now.getFullYear() })[0]
     );
+  });
+
+  test('getExclusiveCycleForDate maps every date (including month/year-end boundary weeks) to the cycle whose exclusive weeks contain it', () => {
+    // Mid-month date stays in its calendar month (May 2026).
+    expect(getExclusiveCycleForDate(new Date(2026, 4, 15, 12, 0, 0))).toEqual({ month: 4, year: 2026 });
+
+    // Saturday Oct 31, 2026 sits in week Mon Oct 26 – Sun Nov 1, which opens
+    // November 2026 (month 10) and is excluded from October 2026 (month 9).
+    const oct31 = new Date(2026, 9, 31, 12, 0, 0);
+    const oct31Cycle = getExclusiveCycleForDate(oct31);
+    expect(oct31Cycle).toEqual({ month: 10, year: 2026 });
+    expect(getExclusiveCycleMondays(oct31Cycle)).toContain('2026-10-26');
+
+    // Thursday Dec 31, 2026 sits in week Mon Dec 28 – Sun Jan 3, 2027, which
+    // opens January 2027 across the year boundary.
+    const dec31 = new Date(2026, 11, 31, 12, 0, 0);
+    const dec31Cycle = getExclusiveCycleForDate(dec31);
+    expect(dec31Cycle).toEqual({ month: 0, year: 2027 });
+    expect(getExclusiveCycleMondays(dec31Cycle)).toContain('2026-12-28');
   });
 });

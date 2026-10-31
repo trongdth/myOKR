@@ -141,18 +141,21 @@ test.describe('Task detail restyle', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.date-picker-panel')).toHaveCount(0);
 
-    // Key result: full violet label, no chevron, no box.
+    // Key result: full violet label + consistent dropdown chevron affordance.
     const kr = page.locator('.detail-properties-bar [aria-label="Key result"]');
     await expect(kr.locator('.sel-text')).toHaveText('Pass CCA certification');
-    await expect(kr.locator('.sel-chevron')).toHaveCount(0);
+    await expect(kr.locator('.sel-text')).toHaveAttribute('title', 'Pass CCA certification');
+    await expect(kr.locator('.sel-chevron')).toHaveCount(1);
     const krColor = await kr.locator('.sel-text').evaluate(el => getComputedStyle(el).color);
     expect(krColor).toBe('rgb(168, 85, 247)'); // --color-objective
   });
 
-  test('pomodoros band: THIS WEEK label, bar before readout, elevated surface', async ({ page }) => {
+  test('pomodoros band: POMODOROS label, bar before interactive readout pill with icon and chevron, elevated surface', async ({ page }) => {
     const block = page.locator('.weekly-plan-block');
-    await expect(block.locator('.prop-label')).toHaveText('POMODOROS THIS WEEK');
+    await expect(block.locator('.prop-label')).toHaveText('POMODOROS');
     await expect(block.locator('.task-pomo-count')).toHaveText('20 / 20 planned');
+    await expect(block.locator('.task-pomo-icon')).toHaveCount(1);
+    await expect(block.locator('.pomo-chevron')).toHaveCount(1);
 
     const barBox = await block.locator('.weekly-plan-bar').boundingBox();
     const countBox = await block.locator('.task-pomo-count').boundingBox();
@@ -162,7 +165,7 @@ test.describe('Task detail restyle', () => {
     expect(bg).not.toBe('rgba(0, 0, 0, 0)');
   });
 
-  test('notes: full render without Expand/fade/counter, protocol-stripped links, one Copy per code block', async ({ page }) => {
+  test('notes: full render without Expand/fade/counter, protocol-stripped links, one Copy per code block, explicit Edit/Save/Cancel controls', async ({ page }) => {
     await expect(page.locator('.notes-expand-btn')).toHaveCount(0);
     await expect(page.locator('.notes-fade')).toHaveCount(0);
     await expect(page.locator('.notes-count')).toHaveCount(0);
@@ -175,25 +178,53 @@ test.describe('Task detail restyle', () => {
     // One block-level Copy button; zero per-link chips.
     await expect(page.locator('.md-code-copy')).toHaveCount(1);
     await expect(page.locator('.md-link-copy')).toHaveCount(0);
+
+    // Explicit Edit button in notes header allows entering edit mode without
+    // clicking inside link-heavy note content; swaps to Cancel + Save in edit mode.
+    const editBtn = page.locator('.notes-edit-btn');
+    await expect(editBtn).toBeVisible();
+    await editBtn.click();
+    await expect(page.locator('.notes-textarea')).toBeVisible();
+    await expect(page.locator('.notes-cancel-btn')).toBeVisible();
+    await expect(page.locator('.notes-save-btn')).toBeVisible();
+
+    // Cancel reverts draft changes and exits edit mode
+    await page.locator('.notes-textarea').fill('Temporary draft text');
+    await page.locator('.notes-cancel-btn').click();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    await expect(page.locator('.notes-content-view')).not.toContainText('Temporary draft text');
+
+    // Edit -> Save commits changes and shows transient Saved confirmation
+    await editBtn.click();
+    await page.locator('.notes-textarea').fill('Updated handover note');
+    await page.locator('.notes-save-btn').click();
+    await expect(page.locator('.notes-content-view')).toContainText('Updated handover note');
+    await expect(page.locator('.notes-saved-badge')).toBeVisible();
   });
 
-  test('sub-tasks: add row above progress, outlined Add, subdued badges, 4-row collapse', async ({ page }) => {
+  test('sub-tasks: add row above progress, outlined Add, subdued badges, 4-row collapse with Show less and auto-expand on add', async ({ page }) => {
     // Add row first, progress below.
     const addBox = await page.locator('.add-todo-row').boundingBox();
     const progBox = await page.locator('.detail-tab-progress').boundingBox();
     expect(addBox!.y).toBeLessThan(progBox!.y);
 
-    // Placeholder without ellipsis; Add is outlined cyan on transparent.
-    await expect(page.locator('.add-todo-input')).toHaveAttribute('placeholder', 'Add a sub-task');
-    const add = await page.locator('.add-todo-btn').evaluate(el => {
+    // Placeholder without ellipsis; Add is disabled when input is empty, and outlined cyan when populated.
+    const addInput = page.locator('.add-todo-input');
+    const addBtn = page.locator('.add-todo-btn');
+    await expect(addInput).toHaveAttribute('placeholder', 'Add a sub-task');
+    await expect(addBtn).toBeDisabled();
+    await addInput.fill('Domain 7: Production readiness');
+    await expect(addBtn).toBeEnabled();
+    const add = await addBtn.evaluate(el => {
       const s = getComputedStyle(el);
       return { color: s.color, borderColor: s.borderColor, bg: s.backgroundColor };
     });
     expect(add.color).toBe('rgb(34, 211, 238)');
     expect(add.borderColor).toBe('rgb(34, 211, 238)');
     expect(add.bg).toBe('rgba(0, 0, 0, 0)');
+    await addInput.fill('');
 
-    // Active tab: subdued badge (no cyan outline); comments count is bare text.
+    // Active tab & Comments tab: consistent subdued .tab-badge pills (no cyan outline).
     const badge = page.locator('.detail-tab-btn.active .tab-badge');
     await expect(badge).toHaveText('4/6');
     const badgeStyle = await badge.evaluate(el => {
@@ -204,9 +235,13 @@ test.describe('Task detail restyle', () => {
     expect(badgeStyle.color).not.toBe('rgb(34, 211, 238)');
     expect(badgeStyle.family).not.toContain('JetBrains Mono');
     await expect(page.locator('.detail-tab-btn').last()).toContainText('Comments');
-    await expect(page.locator('.detail-tab-btn .tab-count')).toHaveText('0');
+    await expect(page.locator('.detail-tab-btn').last().locator('.tab-badge')).toHaveText('0');
 
-    // Collapse: 4 card rows + muted more-line; click reveals the rest.
+    // Reorder grip uses pointer cursor (click-select reorder, not drag-and-drop).
+    const gripCursor = await page.locator('.todo-grip').first().evaluate(el => getComputedStyle(el).cursor);
+    expect(gripCursor).toBe('pointer');
+
+    // Collapse: 4 card rows + muted more-line; click reveals the rest and shows "Show less".
     await expect(page.locator('.todos-list .todo-item-row')).toHaveCount(4);
     const more = page.locator('.todos-more-btn');
     await expect(more).toHaveText('2 more · 2 completed');
@@ -216,7 +251,39 @@ test.describe('Task detail restyle', () => {
     expect(cardBg).not.toBe('rgba(0, 0, 0, 0)');
     await more.click();
     await expect(page.locator('.todos-list .todo-item-row')).toHaveCount(6);
-    await expect(page.locator('.todos-more-btn')).toHaveCount(0);
+    await expect(more).toContainText('Show less');
+
+    // Clicking Show less collapses back to 4 rows; adding a new sub-task while collapsed auto-expands so the new item is visible.
+    await more.click();
+    await expect(page.locator('.todos-list .todo-item-row')).toHaveCount(4);
+    await addInput.fill('Domain 7: Production readiness');
+    await addBtn.click();
+    await expect(page.locator('.todos-list .todo-item-row')).toHaveCount(7);
+    await expect(page.locator('.todos-list .todo-item-row').last()).toContainText('Domain 7: Production readiness');
+  });
+
+  test('IME-safe Enter: composing Enter (isComposing or keyCode 229) does not prematurely submit inputs', async ({ page }) => {
+    const addInput = page.locator('.add-todo-input');
+    await addInput.fill('Đang gõ dở');
+    // Dispatch an IME-confirming Enter keydown (isComposing: true)
+    await addInput.evaluate(el => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, isComposing: true }));
+    });
+    // Input must remain unsubmitted
+    await expect(addInput).toHaveValue('Đang gõ dở');
+
+    // WebKit / WKWebView out-of-order compositionend fallback (keyCode: 229)
+    await addInput.evaluate(el => {
+      const evt = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      Object.defineProperty(evt, 'keyCode', { get: () => 229 });
+      el.dispatchEvent(evt);
+    });
+    await expect(addInput).toHaveValue('Đang gõ dở');
+
+    // Normal non-composing Enter submits cleanly
+    await addInput.press('Enter');
+    await expect(addInput).toHaveValue('');
+    await expect(page.locator('.todos-list .todo-item-row').last()).toContainText('Đang gõ dở');
   });
 
   test('notes: rendered view and code blocks span full panel width, matching edit textarea with stable transition (2026-10-04)', async ({ page }) => {
@@ -230,11 +297,21 @@ test.describe('Task detail restyle', () => {
     const notesBox = await page.locator('.notes-content-view').boundingBox();
     expect(Math.abs(notesBox!.width - available)).toBeLessThanOrEqual(2);
 
-    // 2. Fenced code block occupies full available width of notes container
+    // 2. Fenced code block occupies full inner content width of notes container
     const codeBlock = page.locator('.notes-content-view .md-code-block');
     await expect(codeBlock).toBeVisible();
     const codeBox = await codeBlock.boundingBox();
-    expect(Math.abs(codeBox!.width - notesBox!.width)).toBeLessThanOrEqual(2);
+    const notesContentWidth = await page.locator('.notes-content-view').evaluate(el => {
+      const s = getComputedStyle(el);
+      return (
+        el.getBoundingClientRect().width -
+        parseFloat(s.paddingLeft) -
+        parseFloat(s.paddingRight) -
+        parseFloat(s.borderLeftWidth) -
+        parseFloat(s.borderRightWidth)
+      );
+    });
+    expect(Math.abs(codeBox!.width - notesContentWidth)).toBeLessThanOrEqual(2);
 
     // 3. Edit mode transition: textarea width matches rendered view within ±2px
     await page.locator('.notes-content-view').click();
@@ -285,5 +362,79 @@ test.describe('Task detail restyle', () => {
     const scrollBox = await page.locator('.detail-scroll-body').boundingBox();
     expect(Math.abs(bandBox!.y + bandBox!.height - scrollBox!.y)).toBeLessThanOrEqual(2);
     await expect(page.locator('.detail-scroll-body .weekly-plan-block')).toHaveCount(0);
+  });
+
+  test('adversarial edge cases: blur-save works after Cancel/Escape, Escape closes innermost layer only, text selection skips edit mode, and reorder handles downward move & checkbox click', async ({ page }) => {
+    // 1. C1: Cancelling notes edit (via Cancel button or Escape) must NOT poison
+    // skipBlurSaveRef so the next edit's onBlur saves and exits edit mode cleanly.
+    await page.locator('.notes-edit-btn').click();
+    await page.locator('.notes-textarea').fill('Discarded draft');
+    await page.locator('.notes-cancel-btn').click();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+
+    await page.locator('.notes-edit-btn').click();
+    await page.locator('.notes-textarea').fill('Saved via blur after cancel');
+    await page.locator('.notes-textarea').blur();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    await expect(page.locator('.notes-content-view')).toContainText('Saved via blur after cancel');
+
+    // 2. C4: Highlighting/selecting text inside .notes-content-view must NOT swap to edit mode on click.
+    await page.evaluate(() => {
+      const el = document.querySelector('.notes-content-view p');
+      if (!el) return;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    });
+    await page.locator('.notes-content-view').dispatchEvent('click', { bubbles: true });
+    await expect(page.locator('.notes-textarea')).toHaveCount(0);
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
+
+    // 3. C3: Escape while PomoEstimatePopover, sub-task reorder, or ConfirmModal is active
+    // dismisses only that child state while keeping TaskDetailModal open.
+    await page.locator('.weekly-plan-block .task-pomodoros').click();
+    await expect(page.locator('.pomo-estimate-popover')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pomo-estimate-popover')).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    await page.locator('.todo-grip').first().click();
+    await expect(page.locator('.reorder-hint')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.reorder-hint')).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    await page.locator('.todo-item-row .delete-sub-btn').first().click({ force: true });
+    await expect(page.locator('.confirm-modal')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.confirm-modal')).toHaveCount(0);
+    await expect(page.locator('.task-detail-panel')).toBeVisible();
+
+    // 4. H1: During reorder mode, clicking another row's checkbox toggles that checkbox
+    // without clobbering it, and clicking a lower row moves the item downward after it.
+    await page.locator('.todo-grip').first().click();
+    await expect(page.locator('.reorder-hint')).toBeVisible();
+    const fourthCheckbox = page.locator('.todo-item-row').nth(3).locator('input[type="checkbox"]');
+    await expect(fourthCheckbox).not.toBeChecked();
+    await fourthCheckbox.click();
+    await expect(fourthCheckbox).toBeChecked();
+
+    // Moving row 0 ("Domain 1: Agentic architecture") onto row 3 places it immediately above row 3 (index 2).
+    await page.locator('.todo-item-row').nth(3).click();
+    await expect(page.locator('.reorder-hint')).toHaveCount(0);
+    await expect(page.locator('.todo-item-row').nth(2)).toContainText('Domain 1: Agentic architecture');
+
+    // 5. Clearing title to empty string and blurring reverts, and re-opening title edit preserves original title.
+    const origTitle = await page.locator('.detail-title').textContent();
+    await page.locator('.detail-title').click();
+    await page.locator('.detail-title-input').fill('   ');
+    await page.locator('.detail-title-input').press('Enter');
+    await expect(page.locator('.detail-title')).toHaveText(origTitle!);
+    await page.locator('.detail-title').click();
+    await expect(page.locator('.detail-title-input')).toHaveValue(origTitle!);
+    await page.locator('.detail-title-input').press('Escape');
   });
 });
