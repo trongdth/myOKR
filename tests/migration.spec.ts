@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { getExclusiveCycleForDate } from '../src/lib/cycle-windows';
 
 test.describe('Automerge Migration', () => {
   test.beforeEach(async ({ page }) => {
@@ -19,14 +20,14 @@ test.describe('Automerge Migration', () => {
     expect(migratedData).toBeDefined();
     
     // Check that cycles were populated from the mock seed store. The seed
-    // cycle is the current month (mocks/store.ts) so cycle-scoped UI holds
-    // the relative-date seed history.
+    // cycle is the exclusive-week owner of `now` (mocks/store.ts) so
+    // cycle-scoped UI holds the relative-date seed history.
     expect(migratedData.cycles).toBeDefined();
     expect(migratedData.cycles.length).toBeGreaterThan(0);
-    const now = new Date();
-    const expectedCycleName = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getFullYear()}`;
+    const { month, year } = getExclusiveCycleForDate(new Date());
+    const expectedCycleName = `${new Date(year, month, 1).toLocaleString('en-US', { month: 'long' })} ${year}`;
     expect(migratedData.cycles[0].name).toBe(expectedCycleName);
-    expect(migratedData.cycles[0].month).toBe(now.getMonth());
+    expect(migratedData.cycles[0].month).toBe(month);
 
     // Check that tasks were populated from pomodoro-data.json
     expect(migratedData.tasks).toBeDefined();
