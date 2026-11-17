@@ -3621,9 +3621,11 @@
   /* 880px (was 720): the four meta-bar columns and full-length note lines
      don't fit 720 without squeezing (2026-08-29 detail-panel polish). */
   max-width: 880px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, var(--border-color));
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+  animation: modalSlideUp 200ms ease-out;
   /* 1.5rem outer breathing room — content shouldn't crowd the panel border.
      The meta bar + pomodoros band bleed through it with negative margins. */
   padding: 1.5rem;
@@ -3633,6 +3635,11 @@
   /* Pin header + properties; the .detail-scroll-body scrolls beneath (note #4).
      Overrides .app-modal-content's overflow-y:auto so only the body scrolls. */
   overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-detail-panel {
+    animation: none;
+  }
 }
 
 /* Pinned region (header + properties + pomodoros band) — never scrolls.
@@ -3656,10 +3663,11 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding-top: 1rem;
+  gap: 1.25rem;
+  padding-top: 1.1rem;
   padding-bottom: 0.5rem;
   padding-right: 0.25rem;
 }
@@ -3686,27 +3694,43 @@
 }
 
 .detail-title {
-  margin: 0;
-  font-size: 1.2rem;
+  margin: -0.25rem -0.45rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 1.25rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--text-primary);
   cursor: text;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
   /* word-break so a very long title wraps inside its grid cell instead of
      forcing the actions to a new line. */
   overflow-wrap: anywhere;
 }
+.detail-title:hover {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
 
 .detail-title-input {
-  width: 100%;
-  font-size: 1.2rem;
+  display: block;
+  width: calc(100% + 0.9rem);
+  margin: -0.25rem -0.45rem;
+  padding: 0.25rem 0.45rem;
+  font-size: 1.25rem;
   font-weight: 600;
+  line-height: 1.35;
   color: var(--text-primary);
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   border: 1px solid var(--color-primary);
-  border-radius: 6px;
-  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
   outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+.detail-title-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
 }
 
 .detail-header-actions {
@@ -3765,18 +3789,20 @@
 }
 
 /* Close button — scoped to the detail panel so the CommandK modal is untouched.
-   Small and muted: it's the tertiary affordance of the header row. */
+   Balanced 32px target separated slightly from Start/Complete. */
 .task-detail-panel .modal-close-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  margin-inline-start: 0.15rem;
+  border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 .task-detail-panel .modal-close-btn:hover {
   background: var(--bg-tertiary);
@@ -3786,95 +3812,100 @@
 /* Properties row (2026-08-29): not a card — a full-bleed 4-cell strip.
    Negative margins escape the panel's 1.5rem padding so the band stretches
    edge-to-edge; top/bottom borders only (the header above has no divider of
-   its own); cells split by 1px vertical rules. Four `minmax(0, 1fr)` tracks
-   so a long KR label ellipsizes inside its cell instead of blowing the grid. */
+   its own); cells split by subtle 1px vertical rules. Four `minmax(0, 1fr)`
+   tracks so a long KR label ellipsizes inside its cell instead of blowing the grid. */
 .detail-properties-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
   margin: 0 -1.5rem;
-  padding: 0.7rem 1.5rem;
+  padding: 0.65rem 1.5rem;
   background: none;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
   border-radius: 0;
 }
 
 .prop-group {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.25rem;
   min-width: 0;
   padding: 0 1.25rem;
 }
 .prop-group:first-child { padding-left: 0; }
 .prop-group:last-child { padding-right: 0; }
-.prop-group + .prop-group { border-left: 1px solid var(--border-color); }
+.prop-group + .prop-group { border-left: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent); }
 
 .prop-label {
   font-family: var(--font-mono);
   font-size: 0.65rem;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
-/* Due: the cell opens the shared DatePicker popover (2026-08-30) — the
-   trigger is plain text + chevron; the calendar panel is portaled to body. */
+/* Trigger dressing (Select + DatePicker): cushioned negative-margin pills keep
+   values aligned flush under their mono labels at rest while giving hover/open
+   pills 8px breathing room around dots, text, and chevrons. Uniform 0.8rem. */
 .prop-due { display: flex; min-width: 0; }
+.detail-properties-bar .sel-trigger.boxed,
+.prop-due-btn {
+  background: transparent;
+  border: none;
+  height: 32px;
+  padding: 0 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  width: fit-content;
+  max-width: calc(100% + 0.5rem);
+}
 .prop-due-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  height: 32px;
-  padding: 0;
-  border: none;
-  background: none;
   font-family: inherit;
-  font-size: 0.78rem;
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+.detail-properties-bar .sel-trigger.boxed:hover:not(:disabled):not(.sel-open),
+.prop-due-btn:hover:not([aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.detail-properties-bar .sel-trigger.boxed.sel-open,
+.detail-properties-bar .sel-trigger.boxed:active:not(:disabled),
+.prop-due-btn[aria-expanded="true"] {
+  border: none;
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 .prop-due-btn > span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.prop-due-btn.empty > span:first-child { color: var(--menu-placeholder); }
+.detail-properties-bar .sel-trigger.boxed .sel-placeholder,
+.prop-due-btn.empty > span:first-child {
+  color: var(--menu-placeholder);
+  font-weight: 400;
+}
 .prop-due-btn:hover .dp-chevron { color: var(--menu-chevron-hover); }
-.prop-due-btn .dp-chevron { flex-shrink: 0; color: var(--menu-chevron-rest); }
-
-/* Trigger dressing (2026-08-29): the meta cells show the shared Select's
-   value as plain text — the boxed chrome (bg/border/padding) is stripped
-   here, the menu panel/states/keyboard stay the standard system (ADR-0018).
-   Height stays 32px so the four values align across cells. */
-.detail-properties-bar .sel-trigger.boxed {
-  background: transparent;
-  border: none;
-  height: 32px;
-  padding: 0;
-  max-width: 100%;
-}
-.detail-properties-bar .sel-trigger.boxed:hover:not(:disabled):not(.sel-open) {
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
-}
-.detail-properties-bar .sel-trigger.boxed.sel-open,
-.detail-properties-bar .sel-trigger.boxed:active:not(:disabled) {
-  border: none;
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+.prop-due-btn .dp-chevron { flex-shrink: 0; color: var(--menu-chevron-rest); transition: transform var(--transition-fast), color 120ms ease; }
+.prop-due-btn[aria-expanded="true"] .dp-chevron { transform: rotate(180deg); color: var(--menu-chevron-hover); }
+.detail-properties-bar .sel-text {
+  max-width: none;
 }
 /* Priority value wears its Eisenhower category color (--prop-accent is set
    inline from EISENHOWER_META — the canonical by-value palette). */
 .detail-properties-bar .prop-priority .sel-text {
   color: var(--prop-accent, var(--text-primary));
 }
-/* Key result: matches Priority/Bucket trigger anatomy (text + chevron, no box);
+/* Key result: matches Priority/Bucket trigger anatomy (dot + text + chevron);
    the full label reads in KR violet and may use the whole cell width before ellipsizing. */
-.detail-properties-bar .prop-kr .sel-text {
-  font-size: 0.78rem;
-  max-width: none;
-}
 .detail-properties-bar .prop-kr .sel-text:not(.sel-placeholder) {
   color: var(--color-objective);
 }
@@ -3890,8 +3921,15 @@
 
 .detail-tab-headers {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   border-bottom: 1px solid var(--border-color);
+}
+.detail-tab-list {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .detail-tab-btn {
@@ -3919,7 +3957,8 @@
 .comments-tab-body {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
 }
 
 
@@ -4600,16 +4639,39 @@
 /* --- P4 Task detail: eyebrow label + lower-contrast hint (plain gap, no ·) --- */
 .detail-eyebrow {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.7rem;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.72rem;
+}
+/* Uppercase mono is the label's styling only — the hint keeps its authored
+   sentence case in UI sans without stretched tracking. */
+.detail-eyebrow .eyebrow-label {
   font-family: var(--font-mono);
   font-size: 0.68rem;
+  font-weight: 600;
   letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
-/* Uppercase is the label's styling only — the hint keeps its authored
-   sentence case (2026-08-30 review). */
-.detail-eyebrow .eyebrow-label { color: var(--text-muted); text-transform: uppercase; }
-.detail-eyebrow .eyebrow-hint { color: color-mix(in srgb, var(--text-muted), transparent 40%); }
+.detail-completed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--okr-on-track);
+  background: color-mix(in srgb, var(--okr-on-track) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--okr-on-track) 32%, transparent);
+  border-radius: 999px;
+  padding: 0.08rem 0.48rem;
+}
+.detail-eyebrow .eyebrow-hint {
+  font-family: var(--font-sans);
+  letter-spacing: normal;
+  color: color-mix(in srgb, var(--text-muted), transparent 35%);
+}
 .pomo-mono {
   font-family: var(--font-mono);
   color: var(--text-secondary);
@@ -4640,11 +4702,11 @@
 .weekly-plan-block {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.85rem;
   margin: 0 -1.5rem;
-  padding: 0.5rem 1.5rem;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.55rem 1.5rem;
+  background: color-mix(in srgb, var(--bg-secondary) 80%, var(--bg-card));
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
 }
 /* Task-detail readout: interactive pill with timer icon + count + chevron
    signaling it opens the Adjust Total Pomodoros popover. */
@@ -4652,16 +4714,17 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: var(--bg-tertiary);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  padding: 0.15rem 0.55rem;
-  height: auto;
-  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  height: 28px;
+  border-radius: 7px;
   flex-shrink: 0;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 .task-detail-panel .task-pomodoros.plain:hover {
   border-color: var(--color-primary);
+  background: var(--bg-tertiary);
 }
 .task-detail-panel .task-pomodoros.plain .task-pomo-icon,
 .task-detail-panel .task-pomodoros.plain .pomo-chevron {
@@ -4672,6 +4735,7 @@
 }
 .task-detail-panel .task-pomodoros.plain .task-pomo-count {
   font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   white-space: nowrap;
 }
@@ -4684,20 +4748,20 @@
    ========================================================================== */
 
 /* POMODOROS — readout + muted cyan progress bar. The bar flexes to fill the
-   remaining row width; thin (4px) and muted (color-mix) so the readout
+   remaining row width; 5px track and muted (color-mix) fill so the readout
    stays the focal point. */
 .weekly-plan-bar {
   flex: 1 1 auto;
   min-width: 3rem;
-  height: 4px;
+  height: 5px;
   border-radius: 999px;
-  background: var(--bg-tertiary);
+  background: color-mix(in srgb, var(--text-primary) 11%, var(--bg-primary));
   overflow: hidden;
 }
 .weekly-plan-fill {
   height: 100%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary), transparent 35%);
+  background: color-mix(in srgb, var(--color-primary) 78%, transparent);
   transition: width 0.3s ease;
 }
 
@@ -4727,13 +4791,9 @@
   color: var(--okr-on-track);
 }
 .notes-format-hint {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
   color: var(--text-muted);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 0.08rem 0.4rem;
-  border-radius: 4px;
 }
 .notes-edit-btn,
 .notes-cancel-btn,
@@ -4794,36 +4854,51 @@
   position: relative;
   cursor: text;
   width: 100%;
+  font-size: 0.85rem;
+  line-height: 1.6;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.35rem 0.65rem;
-  transition: border-color var(--transition-fast);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 .notes-content-view:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--border-color));
+  border-color: color-mix(in srgb, var(--color-primary) 42%, var(--border-color));
 }
-.notes-content-view.empty { cursor: pointer; }
+.notes-content-view.empty {
+  cursor: pointer;
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--text-primary) 14%, var(--border-color));
+}
+.notes-content-view.empty:hover {
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 42%, var(--border-color));
+}
 .notes-textarea {
   field-sizing: content;
   height: auto;
   width: 100%;
-  /* Full section width: the editor spans the panel like the rendered notes view,
-     sub-task row, and meta cells. */
+  /* Full section width + identical padding & line-height to .notes-content-view
+     so swapping between view and edit has zero text jump. */
   min-height: 110px;
-  max-height: 260px;
+  max-height: 300px;
   overflow-y: auto;
   resize: vertical;
-  background: var(--bg-tertiary);
+  background: var(--bg-primary);
   border: 1px solid var(--color-primary);
-  border-radius: 8px;
-  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
   color: var(--text-primary);
   font-size: 0.85rem;
-  line-height: 1.5;
+  line-height: 1.6;
   font-family: inherit;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
-.notes-textarea:focus { outline: none; }
+.notes-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
 .empty-notes-hint { color: var(--text-muted); font-size: 0.82rem; margin: 0; }
 
 /* Estimate editor folded into the weekly line (was the 5th properties column). */
@@ -4856,13 +4931,18 @@
   background: none;
   border: none;
   color: var(--color-risk);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0.2rem 0.3rem;
+  padding: 0.25rem 0.55rem;
+  margin-right: -0.35rem;
   border-radius: 6px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
-.delete-task-btn:hover { text-decoration: underline; filter: brightness(1.1); }
+.delete-task-btn:hover {
+  background: color-mix(in srgb, var(--color-risk) 12%, transparent);
+  text-decoration: none;
+}
 .empty-tab-hint { color: var(--text-muted); font-size: 0.8rem; margin: 0.5rem 0; }
 
 /* Sub-task click-select reorder (ADR-0010 — no drag-drop). */
@@ -4898,54 +4978,74 @@
 }
 .todo-edit-input {
   flex: 1 1 auto;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--color-primary);
-  border-radius: 4px;
-  padding: 0.15rem 0.4rem;
+  min-width: 0;
+  height: 1.45em;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  font-family: inherit;
+  box-shadow: none;
 }
-.todo-edit-input:focus { outline: none; box-shadow: none; }
+.todo-edit-input:focus { outline: none; border: none; box-shadow: none; }
 .comment-edit-input {
+  display: block;
   width: 100%;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--color-primary);
-  border-radius: 4px;
-  padding: 0.2rem 0.4rem;
-  color: var(--text-primary);
-  font-size: 0.82rem;
+  height: 1.5em;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   margin: 0 0 0.3rem;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  font-family: inherit;
+  box-shadow: none;
 }
-.comment-edit-input:focus { outline: none; box-shadow: none; }
+.comment-edit-input:focus { outline: none; border: none; box-shadow: none; }
 
-/* Sub-tasks / Comments — progress bar + add row + list */
+/* Sub-tasks / Comments — compact header-docked progress + unified composer + list */
 .detail-tab-progress {
-  display: flex;
+  margin-inline-start: auto;
+  display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.55rem;
+  padding-bottom: 4px;
 }
 .detail-tab-progress-bar {
-  flex: 1 1 auto;
-  height: 6px;
+  width: 72px;
+  height: 4px;
   border-radius: 999px;
-  background: var(--bg-tertiary);
+  background: color-mix(in srgb, var(--text-primary) 11%, var(--bg-primary));
   overflow: hidden;
+  flex-shrink: 0;
 }
 .detail-tab-progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--color-primary);
-  transition: width 0.3s ease;
+  background: color-mix(in srgb, var(--color-primary) 82%, transparent);
+  transition: width 0.3s ease, background-color 0.2s ease;
+}
+.detail-tab-progress.is-complete .detail-tab-progress-fill {
+  background: var(--okr-on-track);
 }
 .detail-tab-progress-text {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
-/* Add row first (2026-08-29), progress bar below it. The input is full-width
-   with the Add button as a fixed-width sibling; Add is an outlined ghost in
-   the primary hue — the solid cyan stays reserved for Start. */
+.detail-tab-progress.is-complete .detail-tab-progress-text {
+  color: var(--okr-on-track);
+}
+/* Unified composer row: recessed well + outlined primary ghost CTA when populated
+   (solid cyan stays reserved for Start). */
 .add-todo-row,
 .add-comment-row {
   display: flex;
@@ -4955,32 +5055,37 @@
 .add-comment-input {
   flex: 1 1 auto;
   min-width: 0;
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
   color: var(--text-primary);
   font-size: 0.85rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 .add-todo-input:focus,
 .add-comment-input:focus {
   outline: none;
+  background: var(--bg-primary);
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
-.add-todo-btn {
+.add-todo-btn,
+.add-comment-btn {
   flex: none;
   min-width: 4.25rem;
   background: transparent;
   border: 1px solid var(--color-primary);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--color-primary);
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.4rem 0.9rem;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color var(--transition-fast);
 }
-.add-todo-btn:hover:not(:disabled) {
+.add-todo-btn:hover:not(:disabled),
+.add-comment-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 .add-todo-btn:disabled,
@@ -4991,18 +5096,8 @@
   opacity: 0.65;
   cursor: not-allowed;
 }
-.add-comment-btn {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.4rem 0.9rem;
-  cursor: pointer;
-}
-/* Sub-task rows are cards: subtle surface, real padding, visible separation
-   (2026-08-29). Completed rows keep the card surface + strikethrough. */
+/* Sub-task rows are subtle cards with custom rounded-square checkboxes;
+   editing highlights the row border itself with zero height jump. */
 .todos-list,
 .comments-list {
   display: flex;
@@ -5012,22 +5107,72 @@
 .todo-item-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.6rem;
-  border-radius: 8px;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 9px;
   background: var(--bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.todo-item-row input[type='checkbox'] {
-  accent-color: var(--color-primary);
-  width: 16px;
-  height: 16px;
+.todo-item-row:hover:not(.is-editing) {
+  border-color: var(--border-color);
+}
+.todo-item-row.is-editing {
+  background: var(--bg-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+/* Checked state uses --okr-on-track green (the canonical app task-done token,
+   matching .done-check and .command-k-check.done) so solid --color-primary
+   stays strictly reserved for the single Start CTA on this screen. */
+.todo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
   flex-shrink: 0;
+  border-radius: 5px;
+  border: 1.5px solid color-mix(in srgb, var(--text-primary) 24%, var(--border-color));
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.todo-checkbox:hover:not(:checked) {
+  border-color: var(--okr-on-track);
+  background: color-mix(in srgb, var(--okr-on-track) 8%, var(--bg-primary));
+}
+.todo-checkbox:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.todo-checkbox:checked {
+  background: var(--okr-on-track);
+  border-color: var(--okr-on-track);
+}
+.todo-checkbox:checked:hover {
+  filter: brightness(1.08);
+}
+.todo-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid var(--bg-primary);
+  border-bottom: 2px solid var(--bg-primary);
+  transform: rotate(45deg);
 }
 .todo-text {
   flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 0.85rem;
+  line-height: 1.45;
   color: var(--text-primary);
   cursor: text;
 }
@@ -5072,11 +5217,20 @@
 .delete-sub-btn:hover { color: var(--color-risk); }
 .comment-item-card {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.5rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+  border-radius: 9px;
+  padding: 0.6rem 0.75rem;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.comment-text { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--text-primary); cursor: text; overflow-wrap: anywhere; }
+.comment-item-card:hover:not(.is-editing) {
+  border-color: var(--border-color);
+}
+.comment-item-card.is-editing {
+  background: var(--bg-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+.comment-text { margin: 0 0 0.3rem; font-size: 0.84rem; line-height: 1.5; color: var(--text-primary); cursor: text; overflow-wrap: anywhere; }
 .comment-footer {
   display: flex;
   align-items: center;
@@ -5089,9 +5243,11 @@
 }
 
 /* Touch rule (design-system.md): hover-revealed row actions are always
-   visible ≤900px — touch has no hover. */
+   visible ≤900px — touch has no hover; property triggers grow to 40px. */
 @media (max-width: 900px) {
   .delete-sub-btn { opacity: 1; }
+  .detail-properties-bar .sel-trigger.boxed,
+  .prop-due-btn { height: 40px; }
 }
 
 /* Narrow panels re-stack the meta bar to 2×2 (nothing hidden, only

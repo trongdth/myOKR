@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { X, SquareCheck, MessageSquare, Play, GripVertical, Pencil } from 'lucide-react';
+import { X, Check, SquareCheck, MessageSquare, Play, GripVertical, Pencil } from 'lucide-react';
 import type { PomodoroTask, TodoItem, TaskComment, EisenhowerCategory, TaskBucket } from '../../lib/pomodoro-storage';
 import { EISENHOWER_META, generateId, reorderTodoItems } from '../../lib/pomodoro-storage';
 import type { KeyResult } from '../../lib/okr-storage';
@@ -31,6 +31,11 @@ const pct = (done: number, total: number) =>
 /** IME composition guard (WebKit / WKWebView out-of-order compositionend also requires keyCode === 229). */
 const isImeComposing = (e: React.KeyboardEvent) =>
   e.nativeEvent.isComposing || e.keyCode === 229;
+
+/** OS-level window blur (⌘Tab, screenshot overlay) leaves activeElement pointing
+ *  at the focused control, whereas in-app blur / Tab / el.blur() moves it away. */
+const isWindowBlur = (e: React.FocusEvent<HTMLElement>) =>
+  document.activeElement === e.currentTarget;
 
 /** Task-delete confirm copy: names what goes away with the task and reassures
  * that logged pomodoros stay in stats (they live in review snapshots). */
@@ -103,6 +108,12 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
   const descRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Session baselines captured on entering edit mode so Cancel/Esc reverts
+  // cleanly even after a silent OS window-blur autosave.
+  const titleBaselineRef = useRef(task.title);
+  const notesBaselineRef = useRef(task.description || '');
+  const todoBaselineRef = useRef('');
+  const commentBaselineRef = useRef('');
   // Esc reverts notes / sub-task / comment edits; blur autosaves (severity-based
   // commit: one-liners & notes both autosave on blur, Esc discards). Setting this
   // before exit makes the imminent blur handler skip its save so the revert wins.
@@ -112,6 +123,18 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
       skipBlurSaveRef.current = false;
     });
   };
+  const makeInlineBlur = (onWindowPersist: () => void, onCommit: () => void) =>
+    (e: React.FocusEvent<HTMLElement>) => {
+      if (skipBlurSaveRef.current) {
+        skipBlurSaveRef.current = false;
+        return;
+      }
+      if (isWindowBlur(e)) {
+        onWindowPersist();
+        return;
+      }
+      onCommit();
+    };
 
   useEffect(() => {
     return () => {
@@ -144,8 +167,10 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
   });
 
   useEffect(() => {
-    setEditingTitleText(task.title);
-  }, [task.title]);
+    if (!isEditingTitle) {
+      setEditingTitleText(task.title);
+    }
+  }, [task.title, isEditingTitle]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -163,23 +188,38 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
 
   const startEditTitle = () => {
     skipBlurSaveRef.current = false;
+    titleBaselineRef.current = task.title;
     setEditingTitleText(task.title);
     setIsEditingTitle(true);
+  };
+  const persistTitleDraft = () => {
+    const trimmed = editingTitleText.trim();
+    if (trimmed && trimmed !== task.title) {
+      onUpdate({ ...task, title: trimmed });
+    }
   };
   const saveTitle = () => {
     const trimmed = editingTitleText.trim();
     if (trimmed && trimmed !== task.title) {
       onUpdate({ ...task, title: trimmed });
+    } else if (!trimmed) {
+      if (task.title !== titleBaselineRef.current) {
+        onUpdate({ ...task, title: titleBaselineRef.current });
+      }
+      setEditingTitleText(titleBaselineRef.current);
     } else {
-      setEditingTitleText(task.title);
+      setEditingTitleText(trimmed);
     }
     setIsEditingTitle(false);
   };
-  // Esc cancels: revert the draft and skip the imminent blur-save (same guard
-  // notes/sub-tasks/comments use) so a modified title isn't silently committed.
+  // Esc cancels: revert the draft to the session baseline and skip the imminent
+  // blur-save so a modified title isn't silently committed.
   const cancelTitle = () => {
     skipBlurSaveRef.current = true;
-    setEditingTitleText(task.title);
+    if (task.title !== titleBaselineRef.current) {
+      onUpdate({ ...task, title: titleBaselineRef.current });
+    }
+    setEditingTitleText(titleBaselineRef.current);
     setIsEditingTitle(false);
     clearSkipBlurNextTick();
   };
@@ -201,16 +241,28 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
 
   // Notes: click-anywhere or the explicit Edit button swaps the rendered view
   // for the raw-markdown textarea. Autosaves on blur / ⌘+Enter / Save button
-  // (NOT per keystroke — persistence rules); Esc / Cancel button reverts.
+  // (NOT per keystroke — persistence rules); OS window blur persists silently
+  // without closing the editor; Esc / Cancel button reverts to session baseline.
   const startEditNotes = () => {
     skipBlurSaveRef.current = false;
-    setDescription(task.description || '');
+    const initial = task.description || '';
+    notesBaselineRef.current = initial;
+    setDescription(initial);
     setIsEditingDesc(true);
   };
-  const commitNotes = () => {
+  const persistNotesDraft = () => {
     const nextDesc = description.trim() || undefined;
     if (nextDesc !== (task.description || undefined)) {
       onUpdate({ ...task, description: nextDesc });
+    }
+  };
+  const commitNotes = () => {
+    const nextDesc = description.trim() || undefined;
+    const baselineDesc = notesBaselineRef.current.trim() || undefined;
+    if (nextDesc !== (task.description || undefined)) {
+      onUpdate({ ...task, description: nextDesc });
+    }
+    if (nextDesc !== baselineDesc) {
       setNotesSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setNotesSaved(false), 1800);
@@ -218,7 +270,12 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
     setIsEditingDesc(false);
   };
   const cancelNotes = () => {
-    setDescription(task.description || '');
+    const baseline = notesBaselineRef.current;
+    const baselineDesc = baseline.trim() || undefined;
+    if ((task.description || undefined) !== baselineDesc) {
+      onUpdate({ ...task, description: baselineDesc });
+    }
+    setDescription(baseline);
     skipBlurSaveRef.current = true;
     setIsEditingDesc(false);
     clearSkipBlurNextTick();
@@ -270,19 +327,35 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
   const startEditTodo = (t: TodoItem) => {
     if (reorderMovingId) return; // don't fight the reorder mode
     skipBlurSaveRef.current = false;
+    todoBaselineRef.current = t.text;
     setEditingTodoId(t.id);
     setEditingTodoText(t.text);
+  };
+  const persistTodoDraft = (id: string) => {
+    const text = editingTodoText.trim();
+    const current = todos.find(t => t.id === id);
+    if (text && current && text !== current.text) {
+      onUpdate({ ...task, todos: todos.map(t => t.id === id ? { ...t, text } : t) });
+    }
   };
   const commitTodo = (id: string) => {
     const text = editingTodoText.trim();
     const current = todos.find(t => t.id === id);
     if (text && current && text !== current.text) {
       onUpdate({ ...task, todos: todos.map(t => t.id === id ? { ...t, text } : t) });
+    } else if (!text && current && current.text !== todoBaselineRef.current) {
+      onUpdate({ ...task, todos: todos.map(t => t.id === id ? { ...t, text: todoBaselineRef.current } : t) });
     }
     setEditingTodoId(null);
   };
   const cancelTodo = () => {
     skipBlurSaveRef.current = true;
+    if (editingTodoId) {
+      const current = todos.find(t => t.id === editingTodoId);
+      if (current && current.text !== todoBaselineRef.current) {
+        onUpdate({ ...task, todos: todos.map(t => t.id === editingTodoId ? { ...t, text: todoBaselineRef.current } : t) });
+      }
+    }
     setEditingTodoId(null);
     clearSkipBlurNextTick();
   };
@@ -318,19 +391,35 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
   // Comment inline edit (click-away / Enter autosaves; Esc reverts)
   const startEditComment = (c: TaskComment) => {
     skipBlurSaveRef.current = false;
+    commentBaselineRef.current = c.text;
     setEditingCommentId(c.id);
     setEditingCommentText(c.text);
+  };
+  const persistCommentDraft = (id: string) => {
+    const text = editingCommentText.trim();
+    const current = comments.find(c => c.id === id);
+    if (text && current && text !== current.text) {
+      onUpdate({ ...task, comments: comments.map(c => c.id === id ? { ...c, text } : c) });
+    }
   };
   const commitComment = (id: string) => {
     const text = editingCommentText.trim();
     const current = comments.find(c => c.id === id);
     if (text && current && text !== current.text) {
       onUpdate({ ...task, comments: comments.map(c => c.id === id ? { ...c, text } : c) });
+    } else if (!text && current && current.text !== commentBaselineRef.current) {
+      onUpdate({ ...task, comments: comments.map(c => c.id === id ? { ...c, text: commentBaselineRef.current } : c) });
     }
     setEditingCommentId(null);
   };
   const cancelComment = () => {
     skipBlurSaveRef.current = true;
+    if (editingCommentId) {
+      const current = comments.find(c => c.id === editingCommentId);
+      if (current && current.text !== commentBaselineRef.current) {
+        onUpdate({ ...task, comments: comments.map(c => c.id === editingCommentId ? { ...c, text: commentBaselineRef.current } : c) });
+      }
+    }
     setEditingCommentId(null);
     clearSkipBlurNextTick();
   };
@@ -374,6 +463,12 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
           <div className="detail-panel-header">
             <span className="detail-eyebrow">
               <span className="eyebrow-label">TASK</span>
+              {task.isCompleted && (
+                <span className="detail-completed-pill">
+                  <Check size={12} strokeWidth={2.5} aria-hidden="true" />
+                  <span>Completed</span>
+                </span>
+              )}
               <span className="eyebrow-hint">click any field to edit</span>
             </span>
             <div className="detail-title-block">
@@ -384,13 +479,7 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                   className="detail-title-input"
                   value={editingTitleText}
                   onChange={e => setEditingTitleText(e.target.value)}
-                  onBlur={() => {
-                    if (skipBlurSaveRef.current) {
-                      skipBlurSaveRef.current = false;
-                      return;
-                    }
-                    saveTitle();
-                  }}
+                  onBlur={makeInlineBlur(persistTitleDraft, saveTitle)}
                   onKeyDown={e => {
                     if (isImeComposing(e)) return;
                     if (e.key === 'Enter') saveTitle();
@@ -440,7 +529,7 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
               </button>
 
               <button className="modal-close-btn" onClick={onClose} aria-label="Close panel">
-                <X size={14} />
+                <X size={16} />
               </button>
             </div>
           </div>
@@ -535,12 +624,14 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
             <div className="notes-header">
               <div className="notes-header-left">
                 <span className="section-title">NOTES</span>
+                {isEditingDesc && (
+                  <span className="notes-format-hint">Markdown supported</span>
+                )}
                 {notesSaved && !isEditingDesc && (
                   <span className="notes-saved-badge" role="status">✓ Saved</span>
                 )}
               </div>
               <div className="notes-header-actions">
-                <span className="notes-format-hint">Markdown</span>
                 {isEditingDesc ? (
                   <>
                     <button
@@ -581,13 +672,7 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                 className="notes-textarea"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                onBlur={() => {
-                  if (skipBlurSaveRef.current) {
-                    skipBlurSaveRef.current = false;
-                    return;
-                  }
-                  commitNotes();
-                }}
+                onBlur={makeInlineBlur(persistNotesDraft, commitNotes)}
                 onKeyDown={e => {
                   if (isImeComposing(e)) return;
                   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -622,23 +707,39 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
           {/* Sub-tasks & Comments tabs */}
           <div className="detail-tabs-section">
             <div className="detail-tab-headers">
-              <button
-                className={`detail-tab-btn${activeTab === 'todos' ? ' active' : ''}`}
-                onClick={() => setActiveTab('todos')}
-              >
-                <SquareCheck size={16} />
-                <span>Sub-tasks</span>
-                <span className="tab-badge">{doneCount}/{todos.length}</span>
-              </button>
+              <div className="detail-tab-list">
+                <button
+                  className={`detail-tab-btn${activeTab === 'todos' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('todos')}
+                >
+                  <SquareCheck size={16} />
+                  <span>Sub-tasks</span>
+                  <span className="tab-badge">{doneCount}/{todos.length}</span>
+                </button>
 
-              <button
-                className={`detail-tab-btn${activeTab === 'comments' ? ' active' : ''}`}
-                onClick={() => setActiveTab('comments')}
-              >
-                <MessageSquare size={16} />
-                <span>Comments</span>
-                <span className="tab-badge">{comments.length}</span>
-              </button>
+                <button
+                  className={`detail-tab-btn${activeTab === 'comments' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('comments')}
+                >
+                  <MessageSquare size={16} />
+                  <span>Comments</span>
+                  <span className="tab-badge">{comments.length}</span>
+                </button>
+              </div>
+
+              {activeTab === 'todos' && todos.length > 0 && (
+                <div className={`detail-tab-progress${doneCount === todos.length ? ' is-complete' : ''}`}>
+                  <div className="detail-tab-progress-bar">
+                    <div
+                      className="detail-tab-progress-fill"
+                      style={{ width: `${pct(doneCount, todos.length)}%` }}
+                    />
+                  </div>
+                  <span className="detail-tab-progress-text">
+                    {doneCount} of {todos.length} done
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="detail-tab-content">
@@ -659,18 +760,6 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                     <button className="add-todo-btn" onClick={addTodo} disabled={!newTodoText.trim()}>Add</button>
                   </div>
 
-                  {todos.length > 0 && (
-                    <div className="detail-tab-progress">
-                      <div className="detail-tab-progress-bar">
-                        <div className="detail-tab-progress-fill"
-                          style={{ width: `${pct(doneCount, todos.length)}%` }} />
-                      </div>
-                      <span className="detail-tab-progress-text">
-                        {doneCount} of {todos.length} done
-                      </span>
-                    </div>
-                  )}
-
                   {reorderMovingId && (
                     <div className="reorder-hint">
                       Click a row to move “{todos.find(t => t.id === reorderMovingId)?.text}” above it · <button className="text-btn" onClick={() => setReorderMovingId(null)}>Cancel</button>
@@ -685,10 +774,11 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                         {visibleTodos.map(todo => {
                           const moving = reorderMovingId === todo.id;
                           const targeting = reorderMovingId && !moving;
+                          const editing = editingTodoId === todo.id;
                           return (
                             <div
                               key={todo.id}
-                              className={`todo-item-row${todo.completed ? ' completed' : ''}${moving ? ' reordering' : ''}${targeting ? ' reorder-target' : ''}`}
+                              className={`todo-item-row${todo.completed ? ' completed' : ''}${editing ? ' is-editing' : ''}${moving ? ' reordering' : ''}${targeting ? ' reorder-target' : ''}`}
                               onClick={targeting ? () => commitReorder(todo.id) : undefined}
                             >
                               <button
@@ -701,11 +791,12 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                               </button>
                               <input
                                 type="checkbox"
+                                className="todo-checkbox"
                                 checked={todo.completed}
                                 onClick={e => e.stopPropagation()}
                                 onChange={() => toggleTodo(todo.id)}
                               />
-                              {editingTodoId === todo.id ? (
+                              {editing ? (
                                 <input
                                   type="text"
                                   className="todo-edit-input"
@@ -713,13 +804,7 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                                   autoFocus
                                   onClick={e => e.stopPropagation()}
                                   onChange={e => setEditingTodoText(e.target.value)}
-                                  onBlur={() => {
-                                    if (skipBlurSaveRef.current) {
-                                      skipBlurSaveRef.current = false;
-                                      return;
-                                    }
-                                    commitTodo(todo.id);
-                                  }}
+                                  onBlur={makeInlineBlur(() => persistTodoDraft(todo.id), () => commitTodo(todo.id))}
                                   onKeyDown={e => {
                                     if (isImeComposing(e)) return;
                                     if (e.key === 'Enter') commitTodo(todo.id);
@@ -791,22 +876,18 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                     <p className="empty-tab-hint">No comments yet.</p>
                   ) : (
                     <div className="comments-list">
-                      {comments.map(c => (
-                        <div key={c.id} className="comment-item-card">
-                          {editingCommentId === c.id ? (
+                      {comments.map(c => {
+                        const editingComment = editingCommentId === c.id;
+                        return (
+                        <div key={c.id} className={`comment-item-card${editingComment ? ' is-editing' : ''}`}>
+                          {editingComment ? (
                             <input
                               type="text"
                               className="comment-edit-input"
                               value={editingCommentText}
                               autoFocus
                               onChange={e => setEditingCommentText(e.target.value)}
-                              onBlur={() => {
-                                if (skipBlurSaveRef.current) {
-                                  skipBlurSaveRef.current = false;
-                                  return;
-                                }
-                                commitComment(c.id);
-                              }}
+                              onBlur={makeInlineBlur(() => persistCommentDraft(c.id), () => commitComment(c.id))}
                               onKeyDown={e => {
                                 if (isImeComposing(e)) return;
                                 if (e.key === 'Enter') commitComment(c.id);
@@ -845,7 +926,8 @@ export default function TaskDetailModal({ task: taskProp, tasks, onUpdate, onClo
                             </button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -118,12 +118,26 @@ test.describe('Task detail restyle', () => {
     expect(barBox!.x).toBeLessThanOrEqual(panelBox!.x + 2);
     expect(barBox!.x + barBox!.width).toBeGreaterThanOrEqual(panelBox!.x + panelBox!.width - 2);
 
-    // Priority: text wears the category color, chevron present.
+    // Floating modal sheet: elevated --bg-card surface + modal drop shadow (not flat --bg-primary void)
+    const panelSurface = await panel.evaluate(el => {
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, shadow: s.boxShadow };
+    });
+    expect(panelSurface.bg).toBe('rgb(21, 21, 31)'); // var(--bg-card)
+    expect(panelSurface.shadow).not.toBe('none');
+
+    // Priority: text wears the category color, chevron present, cushioned pill padding prevents
+    // clipping the dot on hover while keeping the dot flush-aligned under PRIORITY label.
     const priority = page.locator('.detail-properties-bar [aria-label="Priority"]');
     await expect(priority.locator('.sel-text')).toHaveText('Decide');
     await expect(priority.locator('.sel-chevron')).toHaveCount(1);
     const priorityColor = await priority.locator('.sel-text').evaluate(el => getComputedStyle(el).color);
     expect(priorityColor).toBe('rgb(234, 179, 8)'); // EISENHOWER_META.decide
+    const priorityPadLeft = await priority.evaluate(el => parseFloat(getComputedStyle(el).paddingLeft));
+    expect(priorityPadLeft).toBeGreaterThanOrEqual(6);
+    const priorityLabelBox = await page.locator('.prop-priority .prop-label').boundingBox();
+    const priorityDotBox = await priority.locator('.sel-icon').boundingBox();
+    expect(Math.abs(priorityDotBox!.x - priorityLabelBox!.x)).toBeLessThanOrEqual(2);
 
     // Bucket: text + chevron only — no calendar icon.
     const bucket = page.locator('.detail-properties-bar [aria-label="Bucket"]');
@@ -148,6 +162,15 @@ test.describe('Task detail restyle', () => {
     await expect(kr.locator('.sel-chevron')).toHaveCount(1);
     const krColor = await kr.locator('.sel-text').evaluate(el => getComputedStyle(el).color);
     expect(krColor).toBe('rgb(168, 85, 247)'); // --color-objective
+
+    // Uniform 0.8rem (12.8px) typography across all four property triggers
+    const fontSizes = await Promise.all(
+      [priority.locator('.sel-text'), bucket.locator('.sel-text'), due, kr.locator('.sel-text')].map(
+        loc => loc.evaluate(el => getComputedStyle(el).fontSize),
+      ),
+    );
+    expect(new Set(fontSizes).size).toBe(1);
+    expect(fontSizes[0]).toBe('12.8px');
   });
 
   test('pomodoros band: POMODOROS label, bar before interactive readout pill with icon and chevron, elevated surface', async ({ page }) => {
@@ -181,10 +204,15 @@ test.describe('Task detail restyle', () => {
 
     // Explicit Edit button in notes header allows entering edit mode without
     // clicking inside link-heavy note content; swaps to Cancel + Save in edit mode.
+    // Markdown format hint stays hidden in view mode (no false-button box) and
+    // appears quietly as inline text only while editing.
     const editBtn = page.locator('.notes-edit-btn');
     await expect(editBtn).toBeVisible();
+    await expect(page.locator('.notes-format-hint')).toHaveCount(0);
     await editBtn.click();
     await expect(page.locator('.notes-textarea')).toBeVisible();
+    await expect(page.locator('.notes-format-hint')).toBeVisible();
+    await expect(page.locator('.notes-format-hint')).toHaveText('Markdown supported');
     await expect(page.locator('.notes-cancel-btn')).toBeVisible();
     await expect(page.locator('.notes-save-btn')).toBeVisible();
 
@@ -202,11 +230,39 @@ test.describe('Task detail restyle', () => {
     await expect(page.locator('.notes-saved-badge')).toBeVisible();
   });
 
-  test('sub-tasks: add row above progress, outlined Add, subdued badges, 4-row collapse with Show less and auto-expand on add', async ({ page }) => {
-    // Add row first, progress below.
+  test('sub-tasks: progress docked in tab strip, custom rounded-square checkboxes, zero-shift row edit, outlined Add, 4-row collapse', async ({ page }) => {
+    // Progress meter docks right in .detail-tab-headers (above the Add composer row) so
+    // two full-width neon bars no longer compete across the panel.
+    await expect(page.locator('.detail-tab-headers .detail-tab-progress')).toHaveCount(1);
     const addBox = await page.locator('.add-todo-row').boundingBox();
     const progBox = await page.locator('.detail-tab-progress').boundingBox();
-    expect(addBox!.y).toBeLessThan(progBox!.y);
+    expect(progBox!.y).toBeLessThan(addBox!.y);
+
+    // Custom rounded-square checkbox replaces browser-default checkbox, uses --okr-on-track green when checked, and toggles cleanly
+    const firstCheck = page.locator('.todo-item-row .todo-checkbox').first();
+    await expect(firstCheck).toBeChecked();
+    const checkMetrics = await firstCheck.evaluate(el => {
+      const s = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return { appearance: s.appearance, w: r.width, h: r.height, bg: s.backgroundColor };
+    });
+    expect(checkMetrics.appearance).toBe('none');
+    expect(checkMetrics.w).toBeCloseTo(18, 0);
+    expect(checkMetrics.h).toBeCloseTo(18, 0);
+    expect(checkMetrics.bg).toBe('rgb(34, 197, 94)'); // var(--okr-on-track)
+    await firstCheck.click();
+    await expect(firstCheck).not.toBeChecked();
+    await firstCheck.click();
+    await expect(firstCheck).toBeChecked();
+
+    // Zero-shift inline row editing: .todo-item-row carries .is-editing and holds stable height
+    const firstRow = page.locator('.todo-item-row').first();
+    const rowBefore = await firstRow.boundingBox();
+    await firstRow.locator('.todo-text').click();
+    await expect(firstRow).toHaveClass(/is-editing/);
+    const rowDuring = await firstRow.boundingBox();
+    expect(Math.abs(rowDuring!.height - rowBefore!.height)).toBeLessThanOrEqual(1);
+    await firstRow.locator('.todo-edit-input').press('Escape');
 
     // Placeholder without ellipsis; Add is disabled when input is empty, and outlined cyan when populated.
     const addInput = page.locator('.add-todo-input');
@@ -313,17 +369,36 @@ test.describe('Task detail restyle', () => {
     });
     expect(Math.abs(codeBox!.width - notesContentWidth)).toBeLessThanOrEqual(2);
 
-    // 3. Edit mode transition: textarea width matches rendered view within ±2px
+    // 3. Edit mode transition: textarea width AND inner padding/line-height match rendered view (zero text jump)
+    const viewMetrics = await page.locator('.notes-content-view').evaluate(el => {
+      const s = getComputedStyle(el);
+      return { pt: parseFloat(s.paddingTop), pl: parseFloat(s.paddingLeft), lh: parseFloat(s.lineHeight) };
+    });
     await page.locator('.notes-content-view').click();
     await expect(page.locator('.notes-textarea')).toBeVisible();
     const textareaBox = await page.locator('.notes-textarea').boundingBox();
+    const editMetrics = await page.locator('.notes-textarea').evaluate(el => {
+      const s = getComputedStyle(el);
+      return { pt: parseFloat(s.paddingTop), pl: parseFloat(s.paddingLeft), lh: parseFloat(s.lineHeight) };
+    });
     expect(Math.abs(textareaBox!.width - notesBox!.width)).toBeLessThanOrEqual(2);
+    expect(editMetrics.pt).toBeCloseTo(viewMetrics.pt, 1);
+    expect(editMetrics.pl).toBeCloseTo(viewMetrics.pl, 1);
+    expect(editMetrics.lh).toBeCloseTo(viewMetrics.lh, 1);
 
     // 4. View mode transition: reverting via Escape restores rendered view with no layout shift
     await page.locator('.notes-textarea').press('Escape');
     await expect(page.locator('.notes-content-view')).toBeVisible();
     const revertedBox = await page.locator('.notes-content-view').boundingBox();
     expect(Math.abs(revertedBox!.width - notesBox!.width)).toBeLessThanOrEqual(1);
+
+    // 5. Title inline edit preserves header height (zero vertical jump below header)
+    const propsBefore = await page.locator('.detail-properties-bar').boundingBox();
+    await page.locator('.detail-title').click();
+    await expect(page.locator('.detail-title-input')).toBeVisible();
+    const propsDuring = await page.locator('.detail-properties-bar').boundingBox();
+    expect(Math.abs(propsDuring!.y - propsBefore!.y)).toBeLessThanOrEqual(1);
+    await page.locator('.detail-title-input').press('Escape');
   });
 
   test('panel widens so the four meta columns and note lines fit', async ({ page }) => {
@@ -436,5 +511,87 @@ test.describe('Task detail restyle', () => {
     await page.locator('.detail-title').click();
     await expect(page.locator('.detail-title-input')).toHaveValue(origTitle!);
     await page.locator('.detail-title-input').press('Escape');
+  });
+
+  test('window blur autosaves drafts without exiting edit mode, Cancel still reverts to session baseline, and completed task shows status pill', async ({ page }) => {
+    // 1. Notes: OS window blur (focusout while textarea remains activeElement) saves draft to storage
+    //    without closing the editor; Cancel after window-blur still reverts to pre-edit baseline.
+    const originalNotes = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 't1')?.description;
+    });
+
+    await page.locator('.notes-edit-btn').click();
+    const textarea = page.locator('.notes-textarea');
+    await expect(textarea).toBeVisible();
+    await textarea.fill('Draft written before Cmd+Tab');
+
+    // Simulate OS window deactivation: focusout fires while document.activeElement stays textarea
+    await textarea.evaluate(el => {
+      el.focus();
+      el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
+
+    // Editor stays mounted in edit mode AND draft is safely persisted
+    await expect(textarea).toBeVisible();
+    await expect(textarea).toHaveValue('Draft written before Cmd+Tab');
+    const persistedMidEdit = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 't1')?.description;
+    });
+    expect(persistedMidEdit).toBe('Draft written before Cmd+Tab');
+
+    // Pressing Cancel restores the pre-edit session baseline even after a window-blur autosave
+    await page.locator('.notes-cancel-btn').click();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    const restoredNotes = await page.evaluate(async () => {
+      const s = await import('/src/lib/pomodoro-storage.ts');
+      return (await s.loadTasks()).find(t => t.id === 't1')?.description;
+    });
+    expect(restoredNotes).toBe(originalNotes);
+
+    // Subsequent edit -> window-blur autosave -> in-app .blur() commits and exits edit mode cleanly
+    await page.locator('.notes-edit-btn').click();
+    await textarea.fill('Committed after window switch');
+    await textarea.evaluate(el => {
+      el.focus();
+      el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
+    await expect(textarea).toBeVisible();
+    await textarea.blur();
+    await expect(page.locator('.notes-content-view')).toBeVisible();
+    await expect(page.locator('.notes-content-view')).toContainText('Committed after window switch');
+
+    // Comment inline edit also preserves card height (0px vertical strut shift)
+    await page.locator('.detail-tab-btn', { hasText: 'Comments' }).click();
+    await page.locator('.add-comment-input').fill('Check PillarsHub batch retry behavior');
+    await page.locator('.add-comment-btn').click();
+    const commentCard = page.locator('.comment-item-card').first();
+    const commentBefore = await commentCard.boundingBox();
+    await commentCard.locator('.comment-text').click();
+    await expect(commentCard).toHaveClass(/is-editing/);
+    const commentDuring = await commentCard.boundingBox();
+    expect(Math.abs(commentDuring!.height - commentBefore!.height)).toBeLessThanOrEqual(1);
+    await commentCard.locator('.comment-edit-input').press('Escape');
+    await page.locator('.detail-tab-btn', { hasText: 'Sub-tasks' }).click();
+
+    // 2. Title: OS window blur persists trimmed draft without stripping trailing space in the live input
+    await page.locator('.detail-title').click();
+    const titleInput = page.locator('.detail-title-input');
+    await titleInput.fill('Helm / Updated Title ');
+    await titleInput.evaluate(el => {
+      el.focus();
+      el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
+    await expect(titleInput).toBeVisible();
+    await expect(titleInput).toHaveValue('Helm / Updated Title ');
+    await titleInput.press('Enter');
+    await expect(page.locator('.detail-title')).toHaveText('Helm / Updated Title');
+
+    // 3. Completed status pill appears in eyebrow when task is completed
+    await expect(page.locator('.detail-completed-pill')).toHaveCount(0);
+    await page.locator('.complete-btn').click();
+    await expect(page.locator('.detail-completed-pill')).toBeVisible();
+    await expect(page.locator('.detail-completed-pill')).toContainText('Completed');
   });
 });
