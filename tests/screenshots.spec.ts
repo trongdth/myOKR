@@ -130,8 +130,20 @@ async function navTo(page: Page, title: string) {
     });
   });
 
+  test('capture settings view', async ({ page }) => {
+    await navTo(page, 'Settings');
+    await page.locator('.settings-tabs .plan-tab', { hasText: 'Session defaults' }).click();
+    await page.waitForTimeout(500);
+
+    await page.screenshot({
+      path: `${SCREENSHOTS_DIR}/settings.png`,
+      fullPage: false,
+    });
+  });
+
   test('capture sync view', async ({ page }) => {
     await navTo(page, 'Settings');
+    await page.locator('.settings-tabs .plan-tab', { hasText: 'Cloud sync' }).click();
     await page.waitForTimeout(500);
 
     await page.screenshot({

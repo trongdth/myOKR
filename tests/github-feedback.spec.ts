@@ -19,13 +19,11 @@ test.describe('GitHub PR Feedback Fixes', () => {
   });
 
   test('Session defaults tab loads and updates settings cleanly', async ({ page }) => {
-    // Open Settings
+    // Open Settings (lands on Session defaults by default)
     await page.locator('button[title="Settings"]').click();
-    await expect(page.locator('.settings-page-container')).toBeVisible();
-
-    // Click Session defaults tab
-    await page.locator('button:has-text("Session defaults")').click();
-    await expect(page.locator('.settings-card')).toBeVisible();
+    await expect(page.locator('.settings-shell')).toBeVisible();
+    await expect(page.locator('.settings-tabs .plan-tab.active')).toContainText('Session defaults');
+    await expect(page.locator('.settings-panel-card').first()).toBeVisible();
     await expect(page.getByText('Pomodoro Duration')).toBeVisible();
   });
 });

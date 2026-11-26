@@ -12,6 +12,7 @@ import SessionWidget from './components/session/SessionWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadWalkthroughState, saveWalkthroughState, shouldShowWalkthrough, type WalkthroughState } from './lib/okr-storage';
 import { flushAutomergeQueue } from './lib/automerge-storage';
+import { resolveSettingsTabTarget, requestSettingsTab } from './lib/navigation';
 import { Target, BarChart2, Settings as SettingsIcon, ChevronRight, ChevronDown, HelpCircle, Clock } from 'lucide-react';
 import { LogoMark } from './components/shared/LogoMark';
 
@@ -191,7 +192,12 @@ export default function App() {
 
   useEffect(() => {
     const handleNavigate = (e: Event) => {
-      const section = migrateSection((e as CustomEvent).detail);
+      const raw = (e as CustomEvent).detail;
+      const targetSettingsTab = resolveSettingsTabTarget(typeof raw === 'string' ? raw : null);
+      if (targetSettingsTab) {
+        requestSettingsTab(targetSettingsTab);
+      }
+      const section = migrateSection(raw);
       if (section) {
         handleNavClick(section);
       }

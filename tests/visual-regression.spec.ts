@@ -59,6 +59,9 @@ test.describe('Visual regression (1a redesign)', () => {
         }
       }
       await btn.click();
+      if (id === 'sync') {
+        await page.locator('.settings-tabs .plan-tab', { hasText: 'Cloud sync' }).click();
+      }
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot(`${id}.png`, {
         fullPage: true,
