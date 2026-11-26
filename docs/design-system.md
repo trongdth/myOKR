@@ -1297,6 +1297,14 @@ separate long-break case. As decided then:
 > - Regression: `tests/task-detail-restyle.spec.ts`,
 >   `tests/task-detail-pomodoro.spec.ts`, `tests/notes-markdown.spec.ts`.
 
+> **Linear-inspired UI & Inline-Editing Polish 2026-11-17 — elevated sheet, zero-shift edit states, window-blur persistence, and decluttered sub-tasks.**
+> Supersedes the flat `--bg-primary` panel fill, `0px`-padded meta triggers, read-mode `Markdown` badge, below-input sub-task progress bar, and native browser sub-task checkbox:
+> - **Elevated floating sheet & header polish:** `.task-detail-panel` uses `--bg-card` + `--shadow-modal` (`16px` radius, `modalSlideUp` entrance respecting `prefers-reduced-motion`) so recessed wells (`--bg-secondary` / `--bg-primary`) sit naturally inside the dialog. `.detail-eyebrow` scopes uppercase mono tracking to `.eyebrow-label` (`TASK`), renders `.eyebrow-hint` in UI sans, and surfaces a green `Completed` pill with a Lucide `Check` glyph (`.detail-completed-pill`, `--okr-on-track`) when `task.isCompleted` is true. `.modal-close-btn` scales to `32×32px`.
+> - **Zero-shift inline editing & OS window-blur persistence:** `.detail-title` ↔ `.detail-title-input`, `.notes-content-view` ↔ `.notes-textarea` (`0.75rem 0.9rem` padding, `1.6` line-height), `.todo-item-row`, and `.comment-item-card` share matched geometry so entering/exiting edit mode causes 0px jump (sub-task and comment rows carry `.is-editing` on the row card itself rather than nesting an inner bordered input). When an OS window switch blurs an active inline editor (`document.activeElement === e.currentTarget`), the draft is persisted silently via `onUpdate` while keeping Edit mode open; `Cancel` / `Esc` still reverts to the pre-edit session baseline.
+> - **Cushioned `0.8rem` property triggers:** All four `.detail-properties-bar` triggers (`PRIORITY`, `BUCKET`, `DUE`, `KEY RESULT`) render at a uniform `0.8rem` (`32px` tall, `40px` at `≤900px`) with negative-margin cushioned pills (`padding: 0 0.5rem; margin-left: -0.5rem`) so text/dots align flush under their mono labels at rest without clipping on hover.
+> - **Decluttered Notes & Sub-tasks:** `.notes-format-hint` (`Markdown supported`) is hidden in read mode and shown quietly inline only while editing; empty `.notes-content-view.empty` uses a subtle dashed ghost border. `.detail-tab-progress` (`X of Y done` + compact `72×4px` bar, `--okr-on-track` green when complete) docks right inside `.detail-tab-headers` instead of sitting beneath `.add-todo-row`, and `.todo-checkbox` styles `<input type="checkbox">` via `appearance: none` into an `18×18px` rounded-square checkbox (`--okr-on-track` green fill when checked, keeping solid `--color-primary` reserved exclusively for `Start`).
+> - Regression: `tests/task-detail-restyle.spec.ts`, `tests/visual-regression.spec.ts`.
+
 ### Done (P5, flagship)
 
 - Header: filters `This week | All key results | All priorities` + summary
