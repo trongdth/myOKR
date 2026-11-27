@@ -1493,3 +1493,54 @@ Redesigned in the objectives-revamp grilling session (2026-08-19). Desktop only
   the palette's own keys are suspended.
 - Guarded by `tests/command-k-search.spec.ts` (+ the chips-removal test in
   `tests/select-modal-filter-migration.spec.ts`).
+
+## Settings screen — per-screen rules
+
+Decided in the Settings-revamp grilling session (2026-11-17); desktop only
+(zero CRDT schema changes, `mobile/` untouched).
+
+### Shell & navigation
+
+- **Sidebar stays frozen**: `Settings` remains a single entry in
+  `.sidebar-bottom-section` carrying `.sync-status-dot`. Inside `.app-main`,
+  `SettingsApp` adopts the group-shell architecture
+  (`.pomodoro-container.settings-shell > .settings-shell-inner`, `max-width:
+  1280px`, `padding: 1.25rem`, `gap: 1.25rem` — exact cross-group padding parity
+  with `.focus-shell`, `.progress-shell`, and `.plan-group-shell`).
+- **Header**: uppercase mono eyebrow `SETTINGS` above a dynamic `h1` matching
+  the active tab (`Session defaults` · `Cloud sync`), plus an inline emerald
+  `Connected` chip beside `Cloud sync` when Dropbox credentials are active
+  (mirroring Weekly review's `✓ Reviewed` chip).
+- **Tab strip** (`.plan-tab-strip.settings-tabs`): frequency-ordered
+  `Session defaults` (default Tab 1) · `Cloud sync` (Tab 2, showing a quiet
+  `connected` badge when linked, nothing when offline). Right end shows static
+  `v{__APP_VERSION__} · Local-first` (hidden at `≤900px`, matching Focus's
+  cycle-label rule). Active tab persists in module scope for the current app
+  session (fresh launch starts on `Session defaults`), and
+  `navigateToSection('sync' | 'session-defaults')` jumps directly to the
+  requested tab.
+
+### 2-column layout & controls
+
+- Both tabs use `.settings-grid-body` (`minmax(0, 1.35fr) minmax(0, 1fr)`,
+  re-stacking to `minmax(0, 1fr)` at `≤900px`), pairing interactive controls on
+  the left with a factual context rail on the right.
+- **Session defaults**: wired directly to `useSession()` (`SessionProvider`) so
+  edits immediately update the idle timer, `SessionWidget`, and active ambient
+  synth. Left column splits into `TIMER DURATIONS & CADENCE` (2×2 grid with
+  hold-to-repeat `−` / `NumberInput` / `+` steppers) and `TRANSITIONS & AMBIENT
+  SOUND` (`role="switch"` rows with 1-line behavior subtitles +
+  `AmbientPresetPicker`). Right rail (`DAILY RHYTHM`) computes the live daily
+  budget via `getDailyPomodoroBudget(settings)` and full-set cadence, with an
+  outlined `Reset to defaults` button (disabled at `DEFAULT_SETTINGS`, gated by
+  a non-danger `ConfirmModal`, committed atomically via `resetSettings()`).
+- **Cloud sync**: zero raw hex, zero yellow/amber icons (`amber = streak only`),
+  and strictly **one** solid `--color-primary` CTA visible per state (`Get
+  authorization link` in Step 1 → `Connect` in Step 2 → `Sync now` when
+  connected). Step 1 surfaces a `Change key` action once Step 2 opens so a
+  mistyped App Key never traps the form; the 5-step Dropbox App Console guide
+  sits inside a collapsed `<details>` disclosure; `Disconnect` and `Overwrite
+  cloud data` are gated by danger `ConfirmModal`s. Right rail (`LOCAL-FIRST
+  ARCHITECTURE`) summarizes Automerge CRDT local storage, OS Keychain token
+  isolation, and the 15-minute background sync cadence.
+- Guarded by `tests/settings-revamp.spec.ts`.

@@ -83,6 +83,7 @@ export interface SessionContextValue {
   switchSession: (type: SessionType) => void;
   setActiveTask: (id: string | null) => void; // guarded (confirms on switch while running)
   updateSetting: <K extends keyof PomodoroSettings>(key: K, value: PomodoroSettings[K]) => void;
+  resetSettings: () => void;
   handleTasksChange: (tasks: PomodoroTask[]) => void;
   clearSessionData: () => Promise<void>; // history clear + timer reset (Analytics clear)
   importSessionData: (data: { settings: PomodoroSettings; tasks: PomodoroTask[]; history: DailyRecord[] }) => Promise<void>;
@@ -710,6 +711,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (key === 'longBreakDuration' && sessionType === 'longBreak') setTimeLeft((value as number) * 60);
   };
 
+  const resetSettings = useCallback(() => {
+    const next: PomodoroSettings = { ...DEFAULT_SETTINGS };
+    setSettings(next);
+    saveSettings(next).catch(console.error); // rule 3: act first, persist non-blocking
+    if (!isRunningRef.current && sessionStartRef.current === null) {
+      setTimeLeft(durationMinutes(next, sessionTypeRef.current) * 60);
+    }
+  }, []);
+
   // useCallback so task views (React.memo) don't re-render on every 1-second
   // timer tick — these only reference stable setters / refs / scalar state.
   // Stamps `updatedAt` on any task whose object identity changed vs the last
@@ -773,7 +783,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     isLoading, pulse,
     totalSeconds, progress, minutes, seconds,
     toggleTimer, startTimer, resetTimer, switchSession,
-    setActiveTask, updateSetting, handleTasksChange,
+    setActiveTask, updateSetting, resetSettings, handleTasksChange,
     clearSessionData, importSessionData,
   };
 

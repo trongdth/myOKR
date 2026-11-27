@@ -1,11 +1,36 @@
-import { useState, useEffect } from 'react';
-import { validateDropboxToken, syncWithDropbox, getDropboxAuthUrl, exchangeDropboxCode, parseAuthResponse } from '../lib/dropbox-service';
-import { DROPBOX_KEYS, loadCredentials, saveCredentials, clearCredentials } from '../lib/credential-store';
+import { useState, useEffect, type KeyboardEvent } from 'react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  ExternalLink,
+  HardDrive,
+  KeyRound,
+  RefreshCw,
+} from 'lucide-react';
+import {
+  validateDropboxToken,
+  syncWithDropbox,
+  getDropboxAuthUrl,
+  exchangeDropboxCode,
+  parseAuthResponse,
+} from '../lib/dropbox-service';
+import {
+  DROPBOX_KEYS,
+  loadCredentials,
+  saveCredentials,
+  clearCredentials,
+} from '../lib/credential-store';
 import { tauriCredentialStore } from '../lib/tauri-credential-adapter';
-import '../styles/app.css';
+import ConfirmModal from './ConfirmModal';
 
 const CLIENT_ID_KEY = 'dropbox_client_id';
 const REFRESH_TOKEN_KEY = 'dropbox_refresh_token';
+
+function isImeComposing(e: KeyboardEvent<HTMLInputElement>): boolean {
+  return e.nativeEvent.isComposing || e.keyCode === 229;
+}
 
 export default function SyncApp() {
   const [clientId, setClientId] = useState('');
@@ -17,23 +42,43 @@ export default function SyncApp() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
 
   useEffect(() => {
-    // Credentials live in the OS keychain (ticket 28); legacy localStorage
-    // values are migrated on first load (retry-safe).
+    let cancelled = false;
     (async () => {
       const creds = await loadCredentials(tauriCredentialStore, DROPBOX_KEYS);
+      if (cancelled) return;
       if (creds[CLIENT_ID_KEY] && creds[REFRESH_TOKEN_KEY]) {
         setIsConnected(true);
       }
-      const last = localStorage.getItem('last_sync_time');
-      if (last) setLastSync(last);
+      try {
+        const last = localStorage.getItem('last_sync_time');
+        if (last) setLastSync(last);
+      } catch {
+        // Ignore storage read errors in restricted modes
+      }
     })();
+
+    const refreshLastSync = () => {
+      try {
+        const last = localStorage.getItem('last_sync_time');
+        if (last) setLastSync(last);
+      } catch {
+        // Ignore storage read errors
+      }
+    };
+    window.addEventListener('myokr-data-synced', refreshLastSync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('myokr-data-synced', refreshLastSync);
+    };
   }, []);
 
   const handleGetLink = async () => {
     if (!clientId.trim()) {
-      setError('Please enter your App Key first.');
+      setError('Please enter your Dropbox App Key first.');
       return;
     }
     setError(null);
@@ -42,9 +87,18 @@ export default function SyncApp() {
       setAuthUrl(url);
       setCodeVerifier(verifier);
       setOAuthState(state);
-    } catch (e) {
+    } catch {
       setError('Failed to generate authorization URL. Check your App Key.');
     }
+  };
+
+  /** Unlocks Step 1 if the user entered the wrong App Key or wants to restart OAuth. */
+  const handleResetAuthStep = () => {
+    setAuthUrl('');
+    setAuthCode('');
+    setCodeVerifier('');
+    setOAuthState('');
+    setError(null);
   };
 
   const handleConnect = async () => {
@@ -52,8 +106,6 @@ export default function SyncApp() {
       setError('Please complete the authorization step.');
       return;
     }
-    // The user may paste the bare code, a code=...&state=... query, or the
-    // full redirect URL. The CSRF state must come back with the code.
     const parsed = parseAuthResponse(authCode);
     if (parsed.code === '' || parsed.state == null) {
       setError('Please paste the full authorization URL (it carries the state).');
@@ -83,12 +135,12 @@ export default function SyncApp() {
       }
     } catch (e) {
       console.error(e);
-      setError('Error validating authorization code. Make sure you copied the entire code.');
+      setError('Error validating authorization code. Make sure you copied the entire redirect URL.');
     }
     setIsSyncing(false);
   };
 
-  const handleDisconnect = () => {
+  const performDisconnect = () => {
     void clearCredentials(tauriCredentialStore, DROPBOX_KEYS).catch(console.error);
     setIsConnected(false);
     setClientId('');
@@ -108,151 +160,316 @@ export default function SyncApp() {
     setIsSyncing(true);
     try {
       await syncWithDropbox(creds.dropbox_client_id, creds.dropbox_refresh_token, forceUpload);
-      
+
       const now = new Date().toLocaleString();
       setLastSync(now);
-      localStorage.setItem('last_sync_time', now);
-      
-      // Notify other components to refresh data without a full page reload
+      try {
+        localStorage.setItem('last_sync_time', now);
+      } catch {
+        // Non-fatal pref write (rule 8)
+      }
+
       window.dispatchEvent(new CustomEvent('myokr-data-synced'));
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      if (e?.status === 401) {
-        handleDisconnect();
+      const err = e as { status?: number; message?: string };
+      if (err?.status === 401) {
+        performDisconnect();
         setError('Dropbox connection is invalid or expired. Please reconnect.');
       } else {
-        setError(e.message || 'Error syncing data with Dropbox.');
+        setError(err?.message || 'Error syncing data with Dropbox.');
       }
     }
     setIsSyncing(false);
   };
 
+  const canOverwriteCloud = !!error && error.includes('corrupted or invalid');
+
   return (
-    <div className="okr-container">
-      <div className="okr-header">
-        <h2 className="okr-header-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-blue)' }}>
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Cloud Sync
-        </h2>
-      </div>
+    <div className="settings-grid-body">
+      <div className="settings-col-main">
+        {error && (
+          <div className="settings-error-banner" role="alert">
+            <AlertCircle size={16} className="settings-error-icon" />
+            <span>{error}</span>
+          </div>
+        )}
 
-      <div className="okr-card" style={{ marginBottom: '2rem', background: 'var(--bg-secondary)', border: 'none', padding: '1.25rem 1.5rem' }}>
-        <h2 style={{ marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#eab308' }}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-          True Local-First Experience
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-          Enjoy lightning-fast performance and full offline support. Connect Dropbox to seamlessly sync your data across all devices.
-        </p>
-      </div>
-
-      <div className="okr-card">
-        {error && <div style={{ color: 'var(--accent-red)', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>{error}</div>}
-        
         {!isConnected ? (
-          <div className="sync-setup">
-            <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Connect to Dropbox</h3>
-            
-            <div className="setup-steps" style={{ marginBottom: '2rem' }}>
-              <h4 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>How to connect:</h4>
-              <ol style={{ color: 'var(--text-secondary)', paddingLeft: '1.5rem', lineHeight: '1.8', margin: 0 }}>
-                <li>Go to the <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontWeight: 500 }}>Dropbox App Console</a> and sign in.</li>
-                <li>Click <strong>Create app</strong>. Choose "Scoped access" and "App folder". Name your app (e.g., "myOKR Sync").</li>
-                <li>Go to the <strong>Permissions</strong> tab, check the boxes for <code>files.content.read</code> and <code>files.content.write</code>, then click <strong>Submit</strong>.</li>
-                <li>Go back to the <strong>Settings</strong> tab and copy your <strong>App key</strong> (Client ID).</li>
-                <li>Paste your App Key below and click <strong>Get Authorization Link</strong>.</li>
-              </ol>
+          <section className="settings-panel-card" aria-labelledby="settings-sync-setup-heading">
+            <div className="panel-header-row">
+              <h3 id="settings-sync-setup-heading" className="panel-eyebrow">
+                DROPBOX CLOUD SYNC
+              </h3>
+              <span className="settings-status-pill muted">Not connected</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <input
-                  type="text"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  placeholder="Paste your Dropbox App Key here"
-                  className="okr-input"
-                  disabled={!!authUrl}
-                  style={{ flex: '1 1 300px', padding: '0.8rem 1rem', fontSize: '1rem' }}
-                />
-                {!authUrl && (
-                  <button className="okr-btn primary" onClick={handleGetLink} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
-                    Get Authorization Link
+            <p className="settings-card-intro">
+              Connect your own Dropbox app to back up and merge your OKRs, tasks, habits, and weekly reviews across devices.
+            </p>
+
+            {/* Step 1 — App Key */}
+            <div className="settings-sync-step">
+              <div className="settings-step-header">
+                <span className="settings-step-label">STEP 1 · APP KEY</span>
+                {authUrl && (
+                  <button
+                    type="button"
+                    className="settings-change-key-btn"
+                    onClick={handleResetAuthStep}
+                  >
+                    Change key
                   </button>
                 )}
               </div>
 
-              {authUrl && (
-                <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                  <h4 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Step 2: Authorize App</h4>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                    Click the link below, authorize the app in the new tab, and copy the provided access code.
-                  </p>
-                  <a href={authUrl} target="_blank" rel="noreferrer" className="okr-btn" style={{ display: 'inline-block', marginBottom: '1.5rem', textDecoration: 'none', background: 'var(--bg-primary)' }}>
-                    Open Authorization Page ↗
-                  </a>
-                  
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <input
-                      type="password"
-                      value={authCode}
-                      onChange={(e) => setAuthCode(e.target.value)}
-                      placeholder="Paste the full authorization URL here"
-                      className="okr-input"
-                      style={{ flex: '1 1 300px', padding: '0.8rem 1rem', fontSize: '1rem' }}
-                    />
-                    <button className="okr-btn primary" onClick={handleConnect} disabled={isSyncing || !authCode} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
-                      {isSyncing ? 'Connecting...' : 'Connect'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="sync-status">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <div className="settings-input-action-row">
+                <input
+                  type="text"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isImeComposing(e) && !authUrl) {
+                      e.preventDefault();
+                      void handleGetLink();
+                    }
+                  }}
+                  placeholder="Paste your Dropbox App Key"
+                  aria-label="Dropbox App Key"
+                  className="settings-text-input"
+                  disabled={!!authUrl}
+                />
+                {!authUrl && (
+                  <button
+                    type="button"
+                    className="btn settings-primary-btn"
+                    onClick={() => void handleGetLink()}
+                  >
+                    <span>Get authorization link</span>
+                    <ArrowRight size={15} />
+                  </button>
+                )}
               </div>
-              <div>
-                <h3 style={{ color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>Dropbox Connected</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-                  {lastSync ? `Last successful sync: ${lastSync}` : 'Your app is ready to sync.'}
+            </div>
+
+            {/* Step 2 — Authorize & Verify */}
+            {authUrl && (
+              <div className="settings-sync-step settings-sync-step-box">
+                <div className="settings-step-header">
+                  <span className="settings-step-label">STEP 2 · AUTHORIZE &amp; VERIFY</span>
+                </div>
+                <p className="settings-step-desc">
+                  Open the authorization page in your browser, approve access, then paste the full redirect URL below.
+                </p>
+
+                <div className="settings-auth-link-row">
+                  <a
+                    href={authUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="settings-ghost-link-btn"
+                  >
+                    <span>Open authorization page</span>
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+
+                <div className="settings-input-action-row">
+                  <input
+                    type="password"
+                    value={authCode}
+                    onChange={(e) => setAuthCode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !isImeComposing(e) && authCode.trim() && !isSyncing) {
+                        e.preventDefault();
+                        void handleConnect();
+                      }
+                    }}
+                    placeholder="Paste the full redirect URL here"
+                    aria-label="Dropbox redirect URL"
+                    className="settings-text-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn settings-primary-btn"
+                    onClick={() => void handleConnect()}
+                    disabled={isSyncing || !authCode.trim()}
+                  >
+                    {isSyncing ? 'Connecting…' : 'Connect'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Collapsible 5-step Dropbox App Console guide */}
+            <details className="settings-disclosure">
+              <summary className="settings-disclosure-summary">
+                <ChevronRight size={14} className="settings-disclosure-chevron" aria-hidden="true" />
+                <span>How to create a Dropbox App Key (5 steps)</span>
+              </summary>
+              <div className="settings-disclosure-body">
+                <ol className="settings-setup-steps">
+                  <li>
+                    Open the{' '}
+                    <a
+                      href="https://www.dropbox.com/developers/apps"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="settings-inline-link"
+                    >
+                      Dropbox App Console <ExternalLink size={12} className="icon-inline" />
+                    </a>{' '}
+                    and sign in.
+                  </li>
+                  <li>
+                    Click <strong>Create app</strong>, choose <strong>Scoped access</strong> and{' '}
+                    <strong>App folder</strong>, then name your app (for example, <code>myOKR Sync</code>).
+                  </li>
+                  <li>
+                    Open the <strong>Permissions</strong> tab, enable{' '}
+                    <code>files.content.read</code> and <code>files.content.write</code>, and click{' '}
+                    <strong>Submit</strong>.
+                  </li>
+                  <li>
+                    Return to the <strong>Settings</strong> tab and copy your <strong>App key</strong>.
+                  </li>
+                  <li>
+                    Paste the App key into Step 1 above and click <strong>Get authorization link</strong>.
+                  </li>
+                </ol>
+              </div>
+            </details>
+          </section>
+        ) : (
+          <section className="settings-panel-card" aria-labelledby="settings-sync-connected-heading">
+            <div className="panel-header-row">
+              <h3 id="settings-sync-connected-heading" className="panel-eyebrow">
+                SYNC CONNECTION
+              </h3>
+              <span className="settings-status-pill connected">Active</span>
+            </div>
+
+            <div className="settings-connected-hero">
+              <div className="settings-connected-badge" aria-hidden="true">
+                <Check size={20} strokeWidth={2.5} />
+              </div>
+              <div className="settings-connected-copy">
+                <p className="settings-connected-title">Dropbox connected</p>
+                <p className="settings-connected-meta">
+                  {lastSync ? (
+                    <>
+                      Last synced <span className="settings-mono-inline">{lastSync}</span>
+                    </>
+                  ) : (
+                    'Ready to run your first sync.'
+                  )}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button className="okr-btn primary" onClick={() => syncData(false)} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isSyncing ? 'spin 2s linear infinite' : 'none' }}>
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                </svg>
-                {isSyncing ? 'Syncing...' : 'Sync Now'}
+            <div className="settings-sync-actions">
+              <button
+                type="button"
+                className="btn settings-primary-btn"
+                onClick={() => void syncData(false)}
+                disabled={isSyncing}
+              >
+                <RefreshCw size={15} className={isSyncing ? 'settings-spin' : undefined} />
+                <span>{isSyncing ? 'Syncing…' : 'Sync now'}</span>
               </button>
-              {error && error.includes('corrupted or invalid') && (
-                <button className="okr-btn danger" onClick={() => syncData(true)} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem' }}>
-                  {isSyncing ? 'Overwriting...' : 'Overwrite Cloud Data'}
+
+              {canOverwriteCloud && (
+                <button
+                  type="button"
+                  className="settings-danger-outline-btn"
+                  onClick={() => setShowOverwriteConfirm(true)}
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? 'Overwriting…' : 'Overwrite cloud data'}
                 </button>
               )}
-              <button className="okr-btn danger" onClick={handleDisconnect} disabled={isSyncing} style={{ padding: '0.8rem 1.5rem', fontSize: '1rem', background: error && error.includes('corrupted or invalid') ? 'transparent' : undefined, border: error && error.includes('corrupted or invalid') ? '1px solid var(--accent-red)' : undefined, color: error && error.includes('corrupted or invalid') ? 'var(--accent-red)' : undefined }}>
+
+              <button
+                type="button"
+                className="settings-disconnect-btn"
+                onClick={() => setShowDisconnectConfirm(true)}
+                disabled={isSyncing}
+              >
                 Disconnect
               </button>
             </div>
-            
-            <p style={{ marginTop: '2rem', fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-              Auto-sync runs in the background every 15 minutes. The app automatically updates if new changes arrive.
-            </p>
-          </div>
+          </section>
         )}
       </div>
+
+      {/* Right Rail — Local-first architecture */}
+      <aside className="settings-col-rail" aria-label="Local-first sync architecture">
+        <section className="settings-panel-card" aria-labelledby="settings-local-arch-heading">
+          <div className="panel-header-row">
+            <h3 id="settings-local-arch-heading" className="panel-eyebrow">
+              LOCAL-FIRST ARCHITECTURE
+            </h3>
+          </div>
+
+          <div className="settings-arch-list">
+            <div className="settings-arch-item">
+              <div className="settings-arch-icon" aria-hidden="true">
+                <HardDrive size={16} />
+              </div>
+              <div className="settings-arch-copy">
+                <span className="settings-row-title">Automerge CRDT storage</span>
+                <span className="settings-row-desc">
+                  All data lives locally in <code className="settings-code-chip">myokr-data.automerge</code> for instant offline speed and conflict-free merges.
+                </span>
+              </div>
+            </div>
+
+            <div className="settings-arch-item">
+              <div className="settings-arch-icon" aria-hidden="true">
+                <KeyRound size={16} />
+              </div>
+              <div className="settings-arch-copy">
+                <span className="settings-row-title">OS Keychain credentials</span>
+                <span className="settings-row-desc">
+                  Dropbox OAuth tokens stay encrypted in your system keychain and are never written into the synced document.
+                </span>
+              </div>
+            </div>
+
+            <div className="settings-arch-item">
+              <div className="settings-arch-icon" aria-hidden="true">
+                <RefreshCw size={16} />
+              </div>
+              <div className="settings-arch-copy">
+                <span className="settings-row-title">15-minute background sync</span>
+                <span className="settings-row-desc">
+                  When connected, changes sync automatically 5 seconds after launch and every 15 minutes in the background.
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <ConfirmModal
+        isOpen={showDisconnectConfirm}
+        onClose={() => setShowDisconnectConfirm(false)}
+        onConfirm={performDisconnect}
+        title="Disconnect Dropbox?"
+        message="Stop background cloud sync and remove saved Dropbox credentials from this device? Your local tasks, objectives, habits, and reviews remain intact on this computer."
+        confirmText="Disconnect"
+        danger={true}
+      />
+
+      <ConfirmModal
+        isOpen={showOverwriteConfirm}
+        onClose={() => setShowOverwriteConfirm(false)}
+        onConfirm={() => void syncData(true)}
+        title="Overwrite cloud data?"
+        message="Replace the corrupted Dropbox file with this device's local database? Use this only if this computer holds your latest good data."
+        confirmText="Overwrite cloud"
+        danger={true}
+      />
     </div>
   );
 }

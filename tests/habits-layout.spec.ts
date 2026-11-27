@@ -157,9 +157,11 @@ test.describe('Habits Tracker Layout and Styles', () => {
     const reviewPaddingLeft = await page.locator('.progress-shell-inner').first().evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(reviewPaddingLeft, 10)).toBeGreaterThan(0);
 
-    // 3. Check Cloud Sync tab
+    // 3. Check Settings / Cloud Sync tab — uses the Settings shell, so its
+    //    horizontal padding comes from .settings-shell-inner (mirrors
+    //    .focus-shell-inner and .progress-shell-inner).
     await clickNav('Cloud Sync');
-    const syncContainer = page.locator('.okr-container'); // Cloud sync uses okr-container
+    const syncContainer = page.locator('.settings-shell-inner');
     await expect(syncContainer).toBeVisible();
     const syncPaddingLeft = await syncContainer.evaluate((el) => window.getComputedStyle(el).paddingLeft);
     expect(parseInt(syncPaddingLeft, 10)).toBeGreaterThan(0);
